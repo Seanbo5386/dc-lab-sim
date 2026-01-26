@@ -35,6 +35,7 @@ build
 # Testing
 coverage
 .nyc_output
+test-results.txt
 
 # Misc
 .vscode

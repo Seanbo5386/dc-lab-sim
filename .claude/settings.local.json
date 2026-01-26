@@ -12,7 +12,11 @@
       "Bash(npm run test:run:*)",
       "Bash(npm test:*)",
       "Bash(npx vitest run:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial commit: NVIDIA DGX Datacenter Simulator\n\nA comprehensive training tool for NVIDIA DCA certification preparation,\nfeaturing interactive labs, command simulation, and scenario-based learning.\n\nFeatures:\n- Simulated terminal with nvidia-smi, dcgmi, slurm, and other DGX tools\n- Interactive lab scenarios across all 5 DCA exam domains\n- Real-time GPU metrics visualization\n- Fault injection for troubleshooting practice\n- Exam preparation mode with practice questions\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)"
     ]
   }
 }
