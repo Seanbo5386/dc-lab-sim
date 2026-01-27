@@ -5,6 +5,7 @@ import { LabWorkspace } from './components/LabWorkspace';
 import { ExamWorkspace } from './components/ExamWorkspace';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { Documentation } from './components/Documentation';
+import { StudyDashboard } from './components/StudyDashboard';
 import { useSimulationStore } from './store/simulationStore';
 import { MetricsSimulator } from './utils/metricsSimulator';
 import { initializeScenario } from './utils/scenarioLoader';
@@ -17,6 +18,7 @@ import {
   RotateCcw,
   Download,
   Upload,
+  TrendingUp,
 } from 'lucide-react';
 
 type View = 'simulator' | 'labs' | 'docs';
@@ -29,6 +31,7 @@ function App() {
   const [showLabWorkspace, setShowLabWorkspace] = useState(false);
   const [showExamWorkspace, setShowExamWorkspace] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [showStudyDashboard, setShowStudyDashboard] = useState(false);
 
   const {
     cluster,
@@ -427,6 +430,41 @@ function App() {
                       Begin Practice Exam
                     </button>
                   </div>
+
+                  {/* Study Progress Dashboard */}
+                  <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    <div className="text-sm text-blue-400 font-semibold mb-2 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4" />
+                      Track Your Progress
+                    </div>
+                    <h3 className="text-lg font-bold mb-3">
+                      Study Dashboard
+                    </h3>
+                    <ul className="space-y-2 text-sm text-gray-300">
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-400">▸</span>
+                        View exam history & scores
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-400">▸</span>
+                        Track domain performance
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-400">▸</span>
+                        Study streak & recommendations
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-400">▸</span>
+                        Identify weak areas
+                      </li>
+                    </ul>
+                    <button
+                      onClick={() => setShowStudyDashboard(true)}
+                      className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                    >
+                      View Progress
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -464,6 +502,23 @@ function App() {
       {/* Welcome Splash Screen */}
       {showWelcome && (
         <WelcomeScreen onClose={() => setShowWelcome(false)} />
+      )}
+
+      {/* Study Dashboard Modal */}
+      {showStudyDashboard && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-70 flex items-center justify-center p-4">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-auto">
+            <StudyDashboard
+              onClose={() => setShowStudyDashboard(false)}
+              onStartExam={(mode) => {
+                setShowStudyDashboard(false);
+                if (mode === 'full-practice' || mode === 'quick-quiz') {
+                  setShowExamWorkspace(true);
+                }
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
