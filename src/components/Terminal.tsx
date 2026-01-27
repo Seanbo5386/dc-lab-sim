@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from 'xterm';
+import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import 'xterm/css/xterm.css';
 import type { CommandContext } from '@/types/commands';
@@ -48,6 +49,11 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
   const selectedNode = useSimulationStore(state => state.selectedNode);
   const cluster = useSimulationStore(state => state.cluster);
 
+  // Ref to store executeCommand for external calls (e.g., auto-SSH on node selection)
+  const executeCommandRef = useRef<((cmd: string) => Promise<void>) | null>(null);
+  // Track previous node to detect changes
+  const previousNodeRef = useRef<string | null>(null);
+
   // Command simulators
   const nvidiaSmiSimulator = useRef(new NvidiaSmiSimulator());
   const dcgmiSimulator = useRef(new DcgmiSimulator());
@@ -77,11 +83,31 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
     history: [],
   });
 
+  // Auto-SSH when node selection changes from Dashboard
   useEffect(() => {
-    if (selectedNode) {
-      currentContext.current.currentNode = selectedNode;
+    if (selectedNode && isTerminalReady && xtermRef.current && executeCommandRef.current) {
+      const currentNode = currentContext.current.currentNode;
+
+      // Only auto-SSH if:
+      // 1. The selected node is different from the current terminal node
+      // 2. We have a previous node (not initial load)
+      // 3. We're not in an interactive shell mode
+      if (selectedNode !== currentNode && previousNodeRef.current !== null && shellState.mode === 'bash') {
+        const term = xtermRef.current;
+        const sshCommand = `ssh ${selectedNode}`;
+
+        // Display the SSH command being typed
+        term.write(sshCommand);
+        term.write('\r\n');
+
+        // Execute the SSH command
+        executeCommandRef.current(sshCommand);
+      }
     }
-  }, [selectedNode]);
+
+    // Update previous node tracker
+    previousNodeRef.current = selectedNode;
+  }, [selectedNode, isTerminalReady, shellState.mode]);
 
   // Manage scenario context when scenario changes
   useEffect(() => {
@@ -111,9 +137,20 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
 
     const term = new XTerm(TERMINAL_OPTIONS);
 
+    const fitAddon = new FitAddon();
     const webLinksAddon = new WebLinksAddon();
+    term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
     term.open(terminalRef.current);
+
+    // Fit terminal to container size
+    fitAddon.fit();
+
+    // Handle container resize
+    const resizeObserver = new ResizeObserver(() => {
+      fitAddon.fit();
+    });
+    resizeObserver.observe(terminalRef.current);
 
     xtermRef.current = term;
     setIsTerminalReady(true);
@@ -242,6 +279,44 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
             term.clear();
             prompt();
             return;
+
+          case 'ssh': {
+            // Simulated SSH connection to cluster nodes
+            const args = cmdLine.trim().split(/\s+/).slice(1);
+            if (args.length === 0) {
+              result.output = '\x1b[33mUsage: ssh <hostname>\x1b[0m\n\nAvailable nodes:\n' +
+                cluster.nodes.map(n => `  \x1b[36m${n.id}\x1b[0m - ${n.systemType}`).join('\n');
+              break;
+            }
+
+            const targetNode = args[0];
+            // Check if target node exists in cluster
+            const nodeExists = cluster.nodes.some(n => n.id === targetNode);
+
+            if (!nodeExists) {
+              result.output = `\x1b[31mssh: Could not resolve hostname ${targetNode}: Name or service not known\x1b[0m`;
+              result.exitCode = 1;
+              break;
+            }
+
+            if (targetNode === currentContext.current.currentNode) {
+              result.output = `\x1b[33mAlready connected to ${targetNode}\x1b[0m`;
+              break;
+            }
+
+            // Simulate SSH connection
+            const oldNode = currentContext.current.currentNode;
+            currentContext.current.currentNode = targetNode;
+
+            // Update the store's selected node to keep Dashboard in sync
+            useSimulationStore.getState().selectNode(targetNode);
+
+            result.output = `\x1b[32mConnecting to ${targetNode}...\x1b[0m\n` +
+              `\x1b[90mThe authenticity of host '${targetNode} (10.0.0.${cluster.nodes.findIndex(n => n.id === targetNode) + 1})' was established.\x1b[0m\n` +
+              `\x1b[32mConnection established.\x1b[0m\n` +
+              `\x1b[90mLast login: ${new Date().toLocaleString()} from ${oldNode}\x1b[0m`;
+            break;
+          }
 
           case 'hint': {
             // Get state from store
@@ -646,6 +721,9 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
       prompt();
     };
 
+    // Store executeCommand ref for external access (auto-SSH on node selection)
+    executeCommandRef.current = executeCommand;
+
     term.onData((data) => {
       const result = handleKeyboardInput(data, {
         term,
@@ -667,6 +745,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
     });
 
     return () => {
+      resizeObserver.disconnect();
       term.dispose();
       setIsTerminalReady(false);
     };
@@ -677,7 +756,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
 
   return (
     <div className={`terminal-container ${className}`}>
-      <div ref={terminalRef} className="w-full h-full" />
+      <div ref={terminalRef} className="w-full h-full flex-1" />
     </div>
   );
 };
