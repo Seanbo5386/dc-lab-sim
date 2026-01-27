@@ -1,0 +1,326 @@
+{
+  "id": "domain5-critical-xid",
+  "title": "Critical XID Error Response: 43, 48, 63, 74, 79",
+  "domain": "domain5",
+  "difficulty": "advanced",
+  "description": "Master the response procedures for the five most critical XID error codes that appear on the NCP-AII certification exam. This scenario covers XID 43 (GPU hang), XID 48 (double-bit ECC), XID 63 (row remapping failure), XID 74 (NVLink error), and XID 79 (GPU fallen off bus). Each requires different investigation and remediation approaches.",
+  "learningObjectives": [
+    "Recognize and differentiate critical XID error codes",
+    "Execute appropriate diagnostic steps for each XID type",
+    "Determine when GPU reset vs reboot vs replacement is required",
+    "Document findings for RMA process",
+    "Understand XID error severity and urgency"
+  ],
+  "faults": [
+    {
+      "nodeId": "dgx-04",
+      "gpuId": 6,
+      "type": "xid-error",
+      "severity": "critical",
+      "parameters": {
+        "xidCode": 79,
+        "description": "GPU has fallen off the bus"
+      }
+    }
+  ],
+  "initialClusterState": {},
+  "steps": [
+    {
+      "id": "step1",
+      "title": "Detect XID Errors in System Logs",
+      "description": "XID errors are logged by the NVIDIA kernel driver (nvidia.ko) and appear in system logs. Learn to efficiently search for and identify XID errors.",
+      "objectives": [
+        "Search dmesg for XID errors",
+        "Search journalctl for NVIDIA errors",
+        "Identify the XID code and affected GPU",
+        "Note timestamps for correlation"
+      ],
+      "expectedCommands": [
+        "dmesg | grep -i xid",
+        "dmesg | grep -i nvrm",
+        "journalctl -k | grep -i xid"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must search for XID errors",
+          "expectedCommands": ["dmesg | grep -i xid", "dmesg | grep"]
+        }
+      ],
+      "hints": [
+        "XID format: 'NVRM: Xid (PCI:0000:XX:00): YY, ...'",
+        "XX = PCIe bus address, YY = XID code number",
+        "Use 'dmesg -T' for human-readable timestamps",
+        "journalctl -k shows kernel messages including NVIDIA driver",
+        "Multiple XID codes = multiple issues or cascading failure",
+        "Note: Recent errors are most relevant, but check history too"
+      ],
+      "estimatedDuration": 5,
+      "documentationLinks": [
+        {
+          "title": "XID Error Reference",
+          "url": "https://docs.nvidia.com/deploy/xid-errors/"
+        }
+      ]
+    },
+    {
+      "id": "step2",
+      "title": "XID 43: GPU Stopped Responding",
+      "description": "XID 43 indicates the GPU has stopped responding to the driver. This is often recoverable with GPU reset but may indicate thermal or hardware issues.",
+      "objectives": [
+        "Identify XID 43 in logs",
+        "Check GPU temperature history",
+        "Attempt GPU reset if appropriate",
+        "Determine if pattern exists"
+      ],
+      "expectedCommands": [
+        "nvidia-smi -q -d TEMPERATURE",
+        "nvidia-smi --gpu-reset -i 6",
+        "ipmitool sensor list | grep -i temp"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must investigate XID 43",
+          "expectedCommands": ["nvidia-smi -q -d TEMPERATURE", "nvidia-smi"]
+        }
+      ],
+      "hints": [
+        "XID 43 CAUSES: Thermal throttling, driver bug, hardware fault",
+        "FIRST: Check temperature - was GPU overheating?",
+        "RECOVERY: 'nvidia-smi --gpu-reset -i GPU_ID' may work",
+        "If reset fails: Reboot required",
+        "PATTERN: Recurring XID 43 = investigate cooling or hardware",
+        "Check ipmitool for inlet temperature events",
+        "ESCALATE: If reboot doesn't fix, may need RMA"
+      ],
+      "estimatedDuration": 8,
+      "documentationLinks": [
+        {
+          "title": "GPU Recovery Procedures",
+          "url": "https://docs.nvidia.com/deploy/gpu-reset/"
+        }
+      ]
+    },
+    {
+      "id": "step3",
+      "title": "XID 48: Double-Bit ECC Error",
+      "description": "XID 48 indicates an uncorrectable double-bit ECC error in GPU memory. This is a CRITICAL hardware error - data corruption has occurred.",
+      "objectives": [
+        "Identify XID 48 in logs",
+        "Check ECC error counters",
+        "Verify which memory type affected",
+        "Document for RMA"
+      ],
+      "expectedCommands": [
+        "nvidia-smi -q -d ECC",
+        "nvidia-smi -i 6 -q -d ECC",
+        "dcgmi diag -r 2 -i 6"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must investigate XID 48",
+          "expectedCommands": ["nvidia-smi -q -d ECC", "dcgmi diag"]
+        }
+      ],
+      "hints": [
+        "XID 48 = UNCORRECTABLE error - data MAY be corrupted",
+        "Check 'Uncorrectable' counters in nvidia-smi -q -d ECC",
+        "DRAM double-bit = GPU memory cell failure",
+        "SRAM double-bit = cache/register file issue",
+        "ACTION: If repeatable, GPU REPLACEMENT required",
+        "Single occurrence: May be cosmic ray, monitor for recurrence",
+        "Document: GPU UUID, error counts, application context"
+      ],
+      "estimatedDuration": 8,
+      "documentationLinks": [
+        {
+          "title": "ECC Errors",
+          "url": "https://docs.nvidia.com/deploy/gpu-memory-errors/"
+        }
+      ]
+    },
+    {
+      "id": "step4",
+      "title": "XID 63: Row Remapping Failure",
+      "description": "XID 63 indicates the GPU could not remap a faulty memory row because spare rows are exhausted. This is a CRITICAL hardware failure requiring GPU replacement.",
+      "objectives": [
+        "Identify XID 63 in logs",
+        "Check row remapping status",
+        "Verify spare row exhaustion",
+        "Initiate RMA process"
+      ],
+      "expectedCommands": [
+        "nvidia-smi -q -d ROW_REMAPPER",
+        "nvidia-smi -i 6 -q -d ROW_REMAPPER",
+        "nvsm show health"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must investigate XID 63",
+          "expectedCommands": ["nvidia-smi -q -d ROW_REMAPPER", "nvsm show health"]
+        }
+      ],
+      "hints": [
+        "XID 63 = IMMEDIATE GPU REPLACEMENT REQUIRED",
+        "Row remapping spare rows are EXHAUSTED",
+        "Check 'Remapped Rows' section in nvidia-smi output",
+        "'Failure: Yes' confirms spare exhaustion",
+        "GPU cannot self-heal anymore",
+        "ACTION: Remove GPU from production, initiate RMA",
+        "Document: UUID, row remapper status, error history"
+      ],
+      "estimatedDuration": 7,
+      "documentationLinks": [
+        {
+          "title": "Row Remapping",
+          "url": "https://docs.nvidia.com/deploy/gpu-memory-errors/"
+        }
+      ]
+    },
+    {
+      "id": "step5",
+      "title": "XID 74: NVLink Error",
+      "description": "XID 74 indicates an error on the NVLink fabric connecting GPUs. This can be a cable issue, seating problem, or hardware failure.",
+      "objectives": [
+        "Identify XID 74 in logs",
+        "Check NVLink status and error counters",
+        "Verify NVLink topology",
+        "Determine affected link"
+      ],
+      "expectedCommands": [
+        "nvidia-smi nvlink -s",
+        "nvidia-smi nvlink -e",
+        "nvidia-smi topo -m"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must investigate XID 74",
+          "expectedCommands": ["nvidia-smi nvlink -s", "nvidia-smi nvlink -e"]
+        }
+      ],
+      "hints": [
+        "XID 74 = NVLink communication error",
+        "Check 'nvidia-smi nvlink -s' for link status",
+        "Check 'nvidia-smi nvlink -e' for error counters",
+        "Non-zero error counters = link problem",
+        "CAUSES: Bad NVLink cable, GPU not seated properly, NVSwitch issue",
+        "RECOVERY: Reseat GPU, replace NVLink bridge if applicable",
+        "If errors persist after reseat = RMA GPU or NVSwitch"
+      ],
+      "estimatedDuration": 8,
+      "documentationLinks": [
+        {
+          "title": "NVLink Troubleshooting",
+          "url": "https://docs.nvidia.com/dgx/"
+        }
+      ]
+    },
+    {
+      "id": "step6",
+      "title": "XID 79: GPU Fallen Off Bus",
+      "description": "XID 79 is the most severe error - the GPU has completely disconnected from the PCIe bus. The GPU is UNREACHABLE and nvidia-smi will fail.",
+      "objectives": [
+        "Identify XID 79 in logs",
+        "Verify GPU is unreachable",
+        "Check for thermal/power events",
+        "Understand that reset won't work"
+      ],
+      "expectedCommands": [
+        "dmesg | grep -i 'fallen off'",
+        "lspci | grep -i nvidia",
+        "ipmitool sel list"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must investigate XID 79",
+          "expectedCommands": ["dmesg | grep", "ipmitool sel list"]
+        }
+      ],
+      "hints": [
+        "XID 79 = GPU COMPLETELY OFFLINE",
+        "nvidia-smi will hang or show 'ERR!' for this GPU",
+        "GPU reset WILL NOT WORK - GPU is unreachable",
+        "CAUSES: Power failure, thermal shutdown, hardware fault",
+        "Check ipmitool sel for power/thermal events",
+        "RECOVERY: REBOOT REQUIRED, then investigate",
+        "If recurs after reboot: Check power, cooling, or RMA"
+      ],
+      "estimatedDuration": 8,
+      "documentationLinks": [
+        {
+          "title": "GPU Recovery",
+          "url": "https://docs.nvidia.com/deploy/xid-errors/"
+        }
+      ]
+    },
+    {
+      "id": "step7",
+      "title": "Create RMA Documentation",
+      "description": "For hardware failures requiring replacement, proper documentation is essential for the RMA process.",
+      "objectives": [
+        "Collect GPU identification (UUID, serial)",
+        "Export relevant logs and diagnostics",
+        "Run nvidia-bug-report.sh",
+        "Document timeline of events"
+      ],
+      "expectedCommands": [
+        "nvidia-bug-report.sh",
+        "nvidia-smi -q > gpu_state.txt",
+        "dmesg > dmesg_output.txt"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must create RMA documentation",
+          "expectedCommands": ["nvidia-bug-report.sh", "nvidia-smi -q"]
+        }
+      ],
+      "hints": [
+        "nvidia-bug-report.sh creates comprehensive diagnostic package",
+        "Output file: nvidia-bug-report.log.gz",
+        "Include: XID codes, timestamps, ECC/row remapping status",
+        "Include: SEL logs, temperature history",
+        "Note: System serial, GPU UUID, driver version",
+        "Timeline: When error first appeared, frequency, conditions",
+        "Submit with RMA request for faster processing"
+      ],
+      "estimatedDuration": 6,
+      "documentationLinks": [
+        {
+          "title": "NVIDIA Support",
+          "url": "https://www.nvidia.com/en-us/support/"
+        }
+      ]
+    }
+  ],
+  "successCriteria": [
+    "Detected and identified XID errors in system logs",
+    "Understood XID 43 (GPU hang) investigation and recovery",
+    "Understood XID 48 (double-bit ECC) severity and action",
+    "Understood XID 63 (row remapping failure) as RMA trigger",
+    "Understood XID 74 (NVLink error) investigation",
+    "Understood XID 79 (GPU fallen off bus) recovery requirements",
+    "Created proper RMA documentation"
+  ],
+  "estimatedTime": 50,
+  "prerequisites": [
+    "domain5-xid-errors"
+  ],
+  "tags": [
+    "xid-43",
+    "xid-48",
+    "xid-63",
+    "xid-74",
+    "xid-79",
+    "critical-errors",
+    "rma",
+    "advanced",
+    "exam-critical",
+    "must-know"
+  ]
+}

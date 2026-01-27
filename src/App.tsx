@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Terminal } from './components/Terminal';
-import { Dashboard } from './components/Dashboard';
+import { SimulatorView } from './components/SimulatorView';
 import { FaultInjection } from './components/FaultInjection';
 import { LabWorkspace } from './components/LabWorkspace';
 import { ExamWorkspace } from './components/ExamWorkspace';
@@ -11,7 +10,6 @@ import { MetricsSimulator } from './utils/metricsSimulator';
 import { initializeScenario } from './utils/scenarioLoader';
 import {
   Monitor,
-  Terminal as TerminalIcon,
   BookOpen,
   Settings,
   Play,
@@ -21,13 +19,13 @@ import {
   Upload,
 } from 'lucide-react';
 
-type View = 'dashboard' | 'terminal' | 'labs' | 'docs';
+type View = 'simulator' | 'labs' | 'docs';
 
 // Metrics simulator instance
 const metricsSimulator = new MetricsSimulator();
 
 function App() {
-  const [currentView, setCurrentView] = useState<View>('dashboard');
+  const [currentView, setCurrentView] = useState<View>('simulator');
   const [showLabWorkspace, setShowLabWorkspace] = useState(false);
   const [showExamWorkspace, setShowExamWorkspace] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -108,14 +106,14 @@ function App() {
     if (scenarioId) {
       const success = await initializeScenario(scenarioId);
       if (success) {
-        setCurrentView('terminal'); // Switch to terminal view
+        setCurrentView('simulator'); // Switch to simulator view
         setShowLabWorkspace(true); // Show lab workspace overlay
       }
     }
   };
 
   const handleBeginExam = () => {
-    setCurrentView('terminal'); // Switch to terminal view
+    setCurrentView('simulator'); // Switch to simulator view
     setShowExamWorkspace(true); // Show exam workspace overlay
   };
 
@@ -193,24 +191,14 @@ function App() {
       <nav className={`bg-gray-800 border-b border-gray-700 px-6 transition-all duration-300 ${showLabWorkspace ? 'ml-[600px]' : ''}`}>
         <div className="flex gap-1">
           <button
-            onClick={() => setCurrentView('dashboard')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${currentView === 'dashboard'
+            onClick={() => setCurrentView('simulator')}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${currentView === 'simulator'
               ? 'border-nvidia-green text-nvidia-green'
               : 'border-transparent text-gray-400 hover:text-gray-200'
               }`}
           >
             <Monitor className="w-4 h-4" />
-            <span className="font-medium">Dashboard</span>
-          </button>
-          <button
-            onClick={() => setCurrentView('terminal')}
-            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${currentView === 'terminal'
-              ? 'border-nvidia-green text-nvidia-green'
-              : 'border-transparent text-gray-400 hover:text-gray-200'
-              }`}
-          >
-            <TerminalIcon className="w-4 h-4" />
-            <span className="font-medium">Terminal</span>
+            <span className="font-medium">Simulator</span>
           </button>
           <button
             onClick={() => setCurrentView('labs')}
@@ -236,19 +224,9 @@ function App() {
       </nav>
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-auto transition-all duration-300 ${showLabWorkspace ? 'ml-[600px]' : ''}`}>
-        {currentView === 'dashboard' && (
-          <div className="p-6">
-            <Dashboard />
-          </div>
-        )}
-
-        {currentView === 'terminal' && (
-          <div className="h-full p-6">
-            <div className="h-full bg-black rounded-lg overflow-hidden border border-gray-700">
-              <Terminal className="h-full" />
-            </div>
-          </div>
+      <main className={`flex-1 overflow-hidden transition-all duration-300 ${showLabWorkspace ? 'ml-[600px]' : ''}`}>
+        {currentView === 'simulator' && (
+          <SimulatorView className="h-full" />
         )}
 
         {currentView === 'labs' && (

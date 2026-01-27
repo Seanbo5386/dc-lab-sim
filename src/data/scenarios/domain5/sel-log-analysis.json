@@ -1,0 +1,316 @@
+{
+  "id": "domain5-sel-analysis",
+  "title": "System Event Log (SEL) Analysis for Hardware Issues",
+  "domain": "domain5",
+  "difficulty": "intermediate",
+  "description": "Learn to analyze the BMC System Event Log (SEL) to identify hardware issues, correlate events with GPU problems, and understand the relationship between IPMI events and system health. SEL analysis is essential for root cause analysis and is frequently tested on the NCP-AII certification.",
+  "learningObjectives": [
+    "Retrieve and interpret SEL entries using ipmitool",
+    "Identify critical hardware events (thermal, power, memory)",
+    "Correlate SEL events with GPU XID errors",
+    "Clear and manage SEL logs",
+    "Use SEL data for RMA documentation"
+  ],
+  "faults": [
+    {
+      "nodeId": "dgx-03",
+      "gpuId": 2,
+      "type": "thermal",
+      "severity": "warning",
+      "parameters": {
+        "temperature": 87,
+        "throttling": true
+      }
+    }
+  ],
+  "initialClusterState": {},
+  "steps": [
+    {
+      "id": "step1",
+      "title": "Access System Event Log",
+      "description": "The System Event Log (SEL) is stored in the BMC and records hardware events including temperature alerts, power events, and component failures. Learn to access the SEL.",
+      "objectives": [
+        "View SEL entries with ipmitool",
+        "Understand SEL entry format",
+        "Identify recent events",
+        "Check SEL storage capacity"
+      ],
+      "expectedCommands": [
+        "ipmitool sel list",
+        "ipmitool sel info"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must access SEL",
+          "expectedCommands": ["ipmitool sel list", "ipmitool sel"]
+        }
+      ],
+      "hints": [
+        "Use 'ipmitool sel list' to view all SEL entries",
+        "Use 'ipmitool sel info' to see SEL capacity and entry count",
+        "SEL entries show: Record ID, Timestamp, Sensor, Event",
+        "Newest entries are at the bottom of the list",
+        "SEL has limited storage - old entries may be overwritten",
+        "Critical events should be investigated immediately"
+      ],
+      "estimatedDuration": 5,
+      "documentationLinks": [
+        {
+          "title": "IPMI SEL Commands",
+          "url": "https://linux.die.net/man/1/ipmitool"
+        }
+      ]
+    },
+    {
+      "id": "step2",
+      "title": "Identify Temperature Events",
+      "description": "Temperature-related events are common causes of GPU throttling and failures. Learn to identify and interpret thermal events in the SEL.",
+      "objectives": [
+        "Find temperature threshold events",
+        "Identify which sensors triggered alerts",
+        "Understand upper critical vs upper non-critical",
+        "Correlate with current sensor readings"
+      ],
+      "expectedCommands": [
+        "ipmitool sel list | grep -i temp",
+        "ipmitool sensor list | grep -i temp",
+        "ipmitool sel elist"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must identify temperature events",
+          "expectedCommands": ["ipmitool sel list", "ipmitool sensor list"]
+        }
+      ],
+      "hints": [
+        "Look for 'Upper Critical' and 'Upper Non-Critical' threshold events",
+        "'Upper Critical' = immediate action required",
+        "'Upper Non-Critical' = warning, monitor closely",
+        "Inlet Temp should be < 35°C for optimal operation",
+        "GPU Temp warnings correlate with nvidia-smi thermal data",
+        "Repeated thermal events indicate cooling problem"
+      ],
+      "estimatedDuration": 7,
+      "documentationLinks": [
+        {
+          "title": "DGX Thermal Management",
+          "url": "https://docs.nvidia.com/dgx/"
+        }
+      ]
+    },
+    {
+      "id": "step3",
+      "title": "Identify Power Events",
+      "description": "Power-related events can cause GPU instability and XID errors. Learn to identify power events in the SEL.",
+      "objectives": [
+        "Find power supply events",
+        "Identify voltage threshold events",
+        "Check for power unit failures",
+        "Correlate with GPU power readings"
+      ],
+      "expectedCommands": [
+        "ipmitool sel list | grep -i power",
+        "ipmitool sel list | grep -i volt",
+        "ipmitool dcmi power reading"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must identify power events",
+          "expectedCommands": ["ipmitool sel list", "ipmitool dcmi power"]
+        }
+      ],
+      "hints": [
+        "Look for 'Power Supply', 'Voltage', 'Power Unit' events",
+        "PSU failures can cause immediate system shutdown",
+        "Voltage fluctuations can cause GPU XID errors",
+        "Check 'ipmitool dcmi power reading' for current draw",
+        "DGX A100 max power: ~6.5kW, DGX H100: ~10.2kW",
+        "Power events often correlate with XID 79 (GPU off bus)"
+      ],
+      "estimatedDuration": 7,
+      "documentationLinks": [
+        {
+          "title": "DGX Power Requirements",
+          "url": "https://docs.nvidia.com/dgx/"
+        }
+      ]
+    },
+    {
+      "id": "step4",
+      "title": "Identify Memory and Processor Events",
+      "description": "Memory and processor events in the SEL can indicate system-level issues that affect GPU operation.",
+      "objectives": [
+        "Find memory-related events",
+        "Identify processor events",
+        "Check for correctable vs uncorrectable errors",
+        "Understand event severity"
+      ],
+      "expectedCommands": [
+        "ipmitool sel list | grep -i memory",
+        "ipmitool sel list | grep -i cpu",
+        "ipmitool sel list | grep -i processor"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must check memory/processor events",
+          "expectedCommands": ["ipmitool sel list"]
+        }
+      ],
+      "hints": [
+        "Memory ECC events indicate DIMM issues (separate from GPU memory)",
+        "Processor events may affect system stability",
+        "Correctable errors = logged but system continues",
+        "Uncorrectable errors = may cause system crash",
+        "Memory events often logged as 'DIMM' or 'Memory'",
+        "Multiple correctable errors = consider DIMM replacement"
+      ],
+      "estimatedDuration": 5,
+      "documentationLinks": [
+        {
+          "title": "System Memory",
+          "url": "https://docs.nvidia.com/dgx/"
+        }
+      ]
+    },
+    {
+      "id": "step5",
+      "title": "Correlate SEL with GPU Events",
+      "description": "Learn to correlate BMC SEL events with GPU-level issues reported by nvidia-smi and system logs.",
+      "objectives": [
+        "Match SEL timestamps with XID errors",
+        "Identify causal relationships",
+        "Build timeline of events",
+        "Determine root cause"
+      ],
+      "expectedCommands": [
+        "ipmitool sel list",
+        "dmesg | grep -i xid",
+        "nvidia-smi -q -d TEMPERATURE"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must correlate events",
+          "expectedCommands": ["ipmitool sel list", "dmesg | grep"]
+        }
+      ],
+      "hints": [
+        "Compare timestamps between SEL and dmesg/journalctl",
+        "Thermal SEL events often precede XID 43 (GPU hang)",
+        "Power events often precede XID 79 (GPU off bus)",
+        "Build a timeline: SEL event → GPU event → symptom",
+        "Root cause is usually the earliest related event",
+        "Document correlation for RMA or escalation"
+      ],
+      "estimatedDuration": 8,
+      "documentationLinks": [
+        {
+          "title": "XID Error Reference",
+          "url": "https://docs.nvidia.com/deploy/xid-errors/"
+        }
+      ]
+    },
+    {
+      "id": "step6",
+      "title": "Export SEL for Documentation",
+      "description": "When escalating issues or preparing for RMA, you need to export and preserve SEL data.",
+      "objectives": [
+        "Export SEL in different formats",
+        "Save SEL to file",
+        "Include in bug reports",
+        "Know when to clear SEL"
+      ],
+      "expectedCommands": [
+        "ipmitool sel list > sel_log.txt",
+        "ipmitool sel elist",
+        "nvidia-bug-report.sh"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must export SEL data",
+          "expectedCommands": ["ipmitool sel list", "nvidia-bug-report.sh"]
+        }
+      ],
+      "hints": [
+        "Use 'ipmitool sel list > filename.txt' to save SEL",
+        "'ipmitool sel elist' provides extended format with sensor names",
+        "nvidia-bug-report.sh includes SEL in its output",
+        "Always export SEL BEFORE clearing",
+        "Include SEL export in RMA documentation",
+        "Note: Clear SEL only after issue is resolved and documented"
+      ],
+      "estimatedDuration": 5,
+      "documentationLinks": [
+        {
+          "title": "Bug Report Collection",
+          "url": "https://docs.nvidia.com/deploy/"
+        }
+      ]
+    },
+    {
+      "id": "step7",
+      "title": "Clear SEL After Resolution",
+      "description": "After an issue is resolved and documented, clear the SEL to make room for new events and establish a clean baseline.",
+      "objectives": [
+        "Verify issue is resolved",
+        "Confirm SEL has been exported",
+        "Clear SEL entries",
+        "Verify SEL is empty"
+      ],
+      "expectedCommands": [
+        "ipmitool sel clear",
+        "ipmitool sel list",
+        "ipmitool sel info"
+      ],
+      "validationRules": [
+        {
+          "type": "command-executed",
+          "description": "Must clear SEL",
+          "expectedCommands": ["ipmitool sel clear", "ipmitool sel info"]
+        }
+      ],
+      "hints": [
+        "Use 'ipmitool sel clear' to clear all SEL entries",
+        "ALWAYS export before clearing!",
+        "After clear, 'ipmitool sel list' should show no entries",
+        "SEL info will show 'Entries: 0' after clear",
+        "Clearing establishes a baseline for monitoring new issues",
+        "Document the clear action with timestamp"
+      ],
+      "estimatedDuration": 3,
+      "documentationLinks": [
+        {
+          "title": "SEL Management",
+          "url": "https://linux.die.net/man/1/ipmitool"
+        }
+      ]
+    }
+  ],
+  "successCriteria": [
+    "Retrieved and viewed SEL entries",
+    "Identified temperature-related events",
+    "Identified power-related events",
+    "Correlated SEL events with GPU issues",
+    "Exported SEL for documentation",
+    "Cleared SEL after resolution"
+  ],
+  "estimatedTime": 40,
+  "prerequisites": [
+    "domain1-bmc-config"
+  ],
+  "tags": [
+    "sel",
+    "ipmitool",
+    "bmc",
+    "hardware-events",
+    "troubleshooting",
+    "rma",
+    "intermediate",
+    "exam-critical"
+  ]
+}
