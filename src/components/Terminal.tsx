@@ -20,6 +20,7 @@ import { BenchmarkSimulator } from '@/simulators/benchmarkSimulator';
 import { StorageSimulator } from '@/simulators/storageSimulator';
 import { NvlinkAuditSimulator } from '@/simulators/nvlinkAuditSimulator';
 import { FabricManagerSimulator } from '@/simulators/fabricManagerSimulator';
+import { NvidiaBugReportSimulator } from '@/simulators/nvidiaBugReportSimulator';
 import { useSimulationStore } from '@/store/simulationStore';
 import { scenarioContextManager } from '@/store/scenarioContext';
 import { ScenarioValidator } from '@/utils/scenarioValidator';
@@ -46,6 +47,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isTerminalReady, setIsTerminalReady] = useState(false);
   const [shellState, setShellState] = useState<ShellState>({ mode: 'bash', prompt: '' });
+  const [connectedNode, setConnectedNode] = useState<string>('dgx-00');
   const selectedNode = useSimulationStore(state => state.selectedNode);
   const cluster = useSimulationStore(state => state.cluster);
 
@@ -71,6 +73,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
   const storageSimulator = useRef(new StorageSimulator());
   const nvlinkAuditSimulator = useRef(new NvlinkAuditSimulator());
   const fabricManagerSimulator = useRef(new FabricManagerSimulator());
+  const nvidiaBugReportSimulator = useRef(new NvidiaBugReportSimulator());
 
   const currentContext = useRef<CommandContext>({
     currentNode: selectedNode || cluster.nodes[0]?.id || 'dgx-00',
@@ -307,6 +310,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
             // Simulate SSH connection
             const oldNode = currentContext.current.currentNode;
             currentContext.current.currentNode = targetNode;
+            setConnectedNode(targetNode);
 
             // Update the store's selected node to keep Dashboard in sync
             useSimulationStore.getState().selectNode(targetNode);
@@ -581,6 +585,54 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
             break;
           }
 
+          case 'lsmod': {
+            const parsed = parseCommand(cmdLine);
+            result = basicSystemSimulator.current.execute(parsed, currentContext.current);
+            break;
+          }
+
+          case 'modinfo': {
+            const parsed = parseCommand(cmdLine);
+            result = basicSystemSimulator.current.execute(parsed, currentContext.current);
+            break;
+          }
+
+          case 'top': {
+            const parsed = parseCommand(cmdLine);
+            result = basicSystemSimulator.current.execute(parsed, currentContext.current);
+            break;
+          }
+
+          case 'ps': {
+            const parsed = parseCommand(cmdLine);
+            result = basicSystemSimulator.current.execute(parsed, currentContext.current);
+            break;
+          }
+
+          case 'numactl': {
+            const parsed = parseCommand(cmdLine);
+            result = basicSystemSimulator.current.execute(parsed, currentContext.current);
+            break;
+          }
+
+          case 'uptime': {
+            const parsed = parseCommand(cmdLine);
+            result = basicSystemSimulator.current.execute(parsed, currentContext.current);
+            break;
+          }
+
+          case 'uname': {
+            const parsed = parseCommand(cmdLine);
+            result = basicSystemSimulator.current.execute(parsed, currentContext.current);
+            break;
+          }
+
+          case 'hostname': {
+            const parsed = parseCommand(cmdLine);
+            result = basicSystemSimulator.current.execute(parsed, currentContext.current);
+            break;
+          }
+
           case 'nvlink-audit': {
             const parsed = parseCommand(cmdLine);
             result = nvlinkAuditSimulator.current.execute(parsed, currentContext.current);
@@ -590,6 +642,12 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
           case 'nv-fabricmanager': {
             const parsed = parseCommand(cmdLine);
             result = fabricManagerSimulator.current.execute(parsed, currentContext.current);
+            break;
+          }
+
+          case 'nvidia-bug-report.sh': {
+            const parsed = parseCommand(cmdLine);
+            result = nvidiaBugReportSimulator.current.execute(parsed, currentContext.current);
             break;
           }
 
@@ -756,6 +814,10 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
 
   return (
     <div className={`terminal-container ${className}`}>
+      <div className="terminal-node-indicator px-3 py-1.5 bg-gray-800 border-b border-gray-700 text-xs font-mono flex items-center gap-2">
+        <span className="text-gray-400">Terminal connected to:</span>
+        <span className="text-green-400 font-semibold">{connectedNode}</span>
+      </div>
       <div ref={terminalRef} className="w-full h-full flex-1" />
     </div>
   );

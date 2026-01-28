@@ -12,6 +12,7 @@ import {
   type StudyProgress,
 } from '../utils/studyProgressTracker';
 import { DOMAIN_INFO } from '../utils/examEngine';
+import { useLearningStore } from '../store/learningStore';
 import type { DomainId } from '@/types/scenarios';
 
 interface StudyDashboardProps {
@@ -29,6 +30,7 @@ export const StudyDashboard: React.FC<StudyDashboardProps> = ({
   const [activeTab, setActiveTab] = useState<'overview' | 'domains' | 'history' | 'settings'>('overview');
   const [showExportModal, setShowExportModal] = useState(false);
   const [importData, setImportData] = useState('');
+  const domainProgress = useLearningStore(state => state.domainProgress);
 
   useEffect(() => {
     setProgress(loadProgress());
@@ -285,6 +287,26 @@ export const StudyDashboard: React.FC<StudyDashboardProps> = ({
                         </button>
                       </div>
                     )}
+
+                    {/* Labs Progress */}
+                    <div style={styles.labsProgress}>
+                      <div style={styles.labsProgressHeader}>
+                        <span style={styles.labsProgressLabel}>Labs Progress</span>
+                        <span style={styles.labsProgressCount}>
+                          {domainProgress[domain].labsCompleted} of {domainProgress[domain].labsTotal} complete
+                        </span>
+                      </div>
+                      <div style={styles.labsProgressBar}>
+                        <div
+                          style={{
+                            ...styles.labsProgressFill,
+                            width: `${domainProgress[domain].labsTotal > 0
+                              ? (domainProgress[domain].labsCompleted / domainProgress[domain].labsTotal) * 100
+                              : 0}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -682,6 +704,37 @@ const styles: Record<string, React.CSSProperties> = {
     textDecoration: 'underline',
     fontSize: 'inherit',
     padding: 0,
+  },
+  labsProgress: {
+    marginTop: '12px',
+    paddingTop: '12px',
+    borderTop: '1px solid #333',
+  },
+  labsProgressHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '6px',
+  },
+  labsProgressLabel: {
+    fontSize: '12px',
+    color: '#888',
+  },
+  labsProgressCount: {
+    fontSize: '12px',
+    color: '#76b900',
+    fontWeight: 500,
+  },
+  labsProgressBar: {
+    height: '6px',
+    backgroundColor: '#222',
+    borderRadius: '3px',
+    overflow: 'hidden',
+  },
+  labsProgressFill: {
+    height: '100%',
+    backgroundColor: '#76b900',
+    transition: 'width 0.3s ease',
   },
   twoColumn: {
     display: 'grid',

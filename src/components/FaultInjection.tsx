@@ -11,7 +11,7 @@ export const FaultInjection: React.FC = () => {
   const [selectedGPU, setSelectedGPU] = useState(0);
   const [workloadPattern, setWorkloadPattern] = useState<'idle' | 'training' | 'inference' | 'stress'>('idle');
 
-  const handleInjectFault = (faultType: 'xid' | 'ecc' | 'thermal' | 'nvlink' | 'power') => {
+  const handleInjectFault = (faultType: 'xid' | 'ecc' | 'thermal' | 'nvlink' | 'power' | 'pcie') => {
     const node = cluster.nodes.find(n => n.id === selectedNode);
     if (!node) return;
 
@@ -234,6 +234,17 @@ export const FaultInjection: React.FC = () => {
               <div>
                 <div className="font-medium text-blue-400">Power Issue</div>
                 <div className="text-xs text-gray-400">Power limit exceeded</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => handleInjectFault('pcie')}
+              className="flex items-center gap-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-lg px-4 py-3 text-left transition-colors"
+            >
+              <Radio className="w-5 h-5 text-cyan-400" />
+              <div>
+                <div className="font-medium text-cyan-400">PCIe Error</div>
+                <div className="text-xs text-gray-400">Bus communication fault</div>
               </div>
             </button>
 

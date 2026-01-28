@@ -97,7 +97,7 @@ export class MetricsSimulator {
   // Inject a fault for troubleshooting practice
   injectFault(
     gpu: GPU,
-    faultType: 'xid' | 'ecc' | 'thermal' | 'nvlink' | 'power'
+    faultType: 'xid' | 'ecc' | 'thermal' | 'nvlink' | 'power' | 'pcie'
   ): GPU {
     switch (faultType) {
       case 'xid':
@@ -148,6 +148,21 @@ export class MetricsSimulator {
           ...gpu,
           powerDraw: gpu.powerLimit * 0.95,
           healthStatus: 'Warning',
+        };
+
+      case 'pcie':
+        return {
+          ...gpu,
+          xidErrors: [
+            ...gpu.xidErrors,
+            {
+              code: 62,
+              timestamp: new Date(),
+              description: 'PCIe Internal error - GPU hardware or software',
+              severity: 'Critical',
+            },
+          ],
+          healthStatus: 'Critical',
         };
 
       default:

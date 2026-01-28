@@ -1,6 +1,6 @@
 import type { CommandResult, CommandContext } from '@/types/commands';
 import type { ParsedCommand } from '@/utils/commandParser';
-import type { GPU, MIGInstance } from '@/types/hardware';
+import type { GPU, MIGInstance, DGXNode } from '@/types/hardware';
 import { BaseSimulator, type SimulatorMetadata } from '@/simulators/BaseSimulator';
 import { useSimulationStore } from '@/store/simulationStore';
 import { MIG_PROFILES } from '@/utils/clusterFactory';
@@ -282,10 +282,40 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       return this.handleQueryGpu(queryGpuValue, modifiedNode, parsed);
     }
 
+    // Handle -d/--display flag for selective information display
+    const displayValue = this.getFlagString(parsed, ['d', 'display']);
+    if (displayValue) {
+      const gpuIdStr = this.getFlagString(parsed, ['i', 'id']);
+      let targetGpuId: number | undefined = undefined;
+
+      if (gpuIdStr) {
+        const validationError = this.validateGpuIndex(gpuIdStr, node);
+        if (validationError) {
+          return validationError;
+        }
+        targetGpuId = parseInt(gpuIdStr);
+      }
+
+      const visibleGPUs = node.gpus.filter(gpu => !this.hasGPUFallenOffBus(gpu));
+      const selectedGPUs = targetGpuId !== undefined
+        ? visibleGPUs.filter(g => g.id === targetGpuId)
+        : visibleGPUs;
+
+      return this.handleDisplayFlag(displayValue, selectedGPUs, node);
+    }
+
     // Handle query operations
     if (this.hasAnyFlag(parsed, ['q', 'query'])) {
-      const gpuId = this.getFlagString(parsed, ['i', 'id']);
-      const targetGpuId = gpuId ? parseInt(gpuId) : undefined;
+      const gpuIdStr = this.getFlagString(parsed, ['i', 'id']);
+      let targetGpuId: number | undefined = undefined;
+
+      if (gpuIdStr) {
+        const validationError = this.validateGpuIndex(gpuIdStr, node);
+        if (validationError) {
+          return validationError;
+        }
+        targetGpuId = parseInt(gpuIdStr);
+      }
 
       // If querying specific GPU, check if it has fallen off the bus
       if (targetGpuId !== undefined) {
@@ -325,6 +355,32 @@ export class NvidiaSmiSimulator extends BaseSimulator {
    */
   private hasGPUFallenOffBus(gpu: GPU): boolean {
     return gpu.xidErrors.some(xid => xid.code === 79);
+  }
+
+  /**
+   * Validate GPU index from -i/--id flag
+   * Returns error result if invalid, null if valid
+   */
+  private validateGpuIndex(gpuIdStr: string, node: DGXNode): CommandResult | null {
+    const maxGpuIndex = node.gpus.length - 1;
+
+    // Check for non-numeric input
+    if (!/^\d+$/.test(gpuIdStr)) {
+      return this.createError(
+        `Invalid GPU index '${gpuIdStr}'. Expected numeric value (0-${maxGpuIndex}).`
+      );
+    }
+
+    const gpuId = parseInt(gpuIdStr);
+
+    // Check for out-of-range index
+    if (gpuId < 0 || gpuId > maxGpuIndex) {
+      return this.createError(
+        `Unable to query GPU ${gpuId}: GPU not found. Valid GPU indices: 0-${maxGpuIndex}`
+      );
+    }
+
+    return null; // Valid
   }
 
   /**
@@ -387,55 +443,536 @@ export class NvidiaSmiSimulator extends BaseSimulator {
     const driverVersion = node?.nvidiaDriverVersion || '535.129.03';
 
     switch (field.toLowerCase()) {
+      // Driver & System Info
       case 'driver_version':
         return driverVersion;
-      case 'mig.mode.current':
-        return gpu.migMode ? 'Enabled' : 'Disabled';
-      case 'mig.mode.pending':
-        return gpu.migMode ? 'Enabled' : 'Disabled';
+      case 'cuda_version':
+        return node?.cudaVersion || '12.2';
+      case 'vbios_version':
+        return '96.00.89.00.01';
+      case 'serial':
+        return gpu.uuid.split('-')[1] || 'N/A';
+
+      // GPU Identification
       case 'gpu_name':
       case 'name':
         return gpu.name;
       case 'gpu_uuid':
       case 'uuid':
         return gpu.uuid;
+      case 'index':
+        return gpu.id.toString();
+      case 'gpu_bus_id':
+      case 'pci.bus_id':
+        return gpu.pciAddress;
+
+      // MIG Mode
+      case 'mig.mode.current':
+        return gpu.migMode ? 'Enabled' : 'Disabled';
+      case 'mig.mode.pending':
+        return gpu.migMode ? 'Enabled' : 'Disabled';
+
+      // Memory
       case 'memory.total':
         return `${gpu.memoryTotal} MiB`;
       case 'memory.used':
         return `${gpu.memoryUsed} MiB`;
       case 'memory.free':
         return `${gpu.memoryTotal - gpu.memoryUsed} MiB`;
+      case 'memory.reserved':
+        return `${Math.round(gpu.memoryTotal * 0.02)} MiB`;
+
+      // Utilization
       case 'utilization.gpu':
         return `${Math.round(gpu.utilization)} %`;
       case 'utilization.memory':
         return `${Math.round((gpu.memoryUsed / gpu.memoryTotal) * 100)} %`;
+      case 'utilization.encoder':
+        return `${Math.floor(Math.random() * 10)} %`;
+      case 'utilization.decoder':
+        return `${Math.floor(Math.random() * 5)} %`;
+
+      // Temperature
       case 'temperature.gpu':
-        return `${Math.round(gpu.temperature)} C`;
+        return `${Math.round(gpu.temperature)}`;
+      case 'temperature.memory':
+        return `${Math.round(gpu.temperature + 5)}`;
+      case 'temperature.gpu_tlimit':
+        return '83';
+      case 'temperature.memory_max':
+        return '95';
+
+      // Power
       case 'power.draw':
         return `${Math.round(gpu.powerDraw)} W`;
+      case 'power.draw.average':
+        return `${Math.round(gpu.powerDraw * 0.95)} W`;
+      case 'power.draw.instant':
+        return `${Math.round(gpu.powerDraw + (Math.random() - 0.5) * 10)} W`;
       case 'power.limit':
         return `${Math.round(gpu.powerLimit)} W`;
-      case 'pci.bus_id':
-        return gpu.pciAddress;
+      case 'power.default_limit':
+        return `${Math.round(gpu.powerLimit)} W`;
+      case 'power.min_limit':
+        return `${Math.round(gpu.powerLimit * 0.5)} W`;
+      case 'power.max_limit':
+        return `${Math.round(gpu.powerLimit * 1.1)} W`;
+      case 'power.management':
+        return 'Supported';
+      case 'enforced.power.limit':
+        return `${Math.round(gpu.powerLimit)} W`;
+
+      // PCIe
+      case 'pci.domain':
+        return '0x0000';
+      case 'pci.bus':
+        return gpu.pciAddress.split(':')[0] || '00';
+      case 'pci.device':
+        return gpu.pciAddress.split(':')[1]?.split('.')[0] || '00';
+      case 'pci.device_id':
+        return '0x233010DE';
+      case 'pci.sub_device_id':
+        return '0x16C110DE';
       case 'pci.link.gen.current':
+        return '4';
+      case 'pci.link.gen.max':
+        return '4';
+      case 'pci.link.gen.gpucurrent':
+        return '4';
+      case 'pci.link.gen.gpumax':
         return '4';
       case 'pci.link.width.current':
         return '16';
+      case 'pci.link.width.max':
+        return '16';
+
+      // Clocks
+      case 'clocks.current.graphics':
       case 'clocks.current.sm':
       case 'clocks.sm':
         return `${gpu.clocksSM} MHz`;
       case 'clocks.current.memory':
       case 'clocks.mem':
         return `${gpu.clocksMem} MHz`;
+      case 'clocks.current.video':
+        return `${Math.round(gpu.clocksSM * 0.9)} MHz`;
+      case 'clocks.max.graphics':
+      case 'clocks.max.sm':
+        return `${Math.round(gpu.clocksSM * 1.2)} MHz`;
+      case 'clocks.max.memory':
+      case 'clocks.max.mem':
+        return `${Math.round(gpu.clocksMem * 1.1)} MHz`;
+      case 'clocks.applications.graphics':
+        return `${gpu.clocksSM} MHz`;
+      case 'clocks.applications.memory':
+        return `${gpu.clocksMem} MHz`;
+
+      // ECC
       case 'ecc.mode.current':
         return gpu.eccEnabled ? 'Enabled' : 'Disabled';
+      case 'ecc.mode.pending':
+        return gpu.eccEnabled ? 'Enabled' : 'Disabled';
+      case 'ecc.errors.corrected.volatile.device_memory':
+        return gpu.eccErrors.singleBit.toString();
+      case 'ecc.errors.corrected.volatile.dram':
+        return gpu.eccErrors.singleBit.toString();
+      case 'ecc.errors.corrected.volatile.sram':
+        return '0';
+      case 'ecc.errors.corrected.volatile.total':
+        return gpu.eccErrors.singleBit.toString();
+      case 'ecc.errors.corrected.aggregate.device_memory':
+        return gpu.eccErrors.aggregated.singleBit.toString();
+      case 'ecc.errors.corrected.aggregate.dram':
+        return gpu.eccErrors.aggregated.singleBit.toString();
+      case 'ecc.errors.corrected.aggregate.sram':
+        return '0';
+      case 'ecc.errors.corrected.aggregate.total':
+        return gpu.eccErrors.aggregated.singleBit.toString();
+      case 'ecc.errors.uncorrected.volatile.device_memory':
+        return gpu.eccErrors.doubleBit.toString();
+      case 'ecc.errors.uncorrected.volatile.dram':
+        return gpu.eccErrors.doubleBit.toString();
+      case 'ecc.errors.uncorrected.volatile.sram':
+        return '0';
+      case 'ecc.errors.uncorrected.volatile.total':
+        return gpu.eccErrors.doubleBit.toString();
+      case 'ecc.errors.uncorrected.aggregate.device_memory':
+        return gpu.eccErrors.aggregated.doubleBit.toString();
+      case 'ecc.errors.uncorrected.aggregate.dram':
+        return gpu.eccErrors.aggregated.doubleBit.toString();
+      case 'ecc.errors.uncorrected.aggregate.sram':
+        return '0';
+      case 'ecc.errors.uncorrected.aggregate.total':
+        return gpu.eccErrors.aggregated.doubleBit.toString();
+
+      // Retired Pages
+      case 'retired_pages.single_bit_ecc.count':
+      case 'retired_pages.sbe':
+        return Math.floor(gpu.eccErrors.aggregated.singleBit / 10).toString();
+      case 'retired_pages.double_bit.count':
+      case 'retired_pages.dbe':
+        return gpu.eccErrors.aggregated.doubleBit.toString();
+      case 'retired_pages.pending':
+        return gpu.eccErrors.doubleBit > 0 ? 'Yes' : 'No';
+
+      // Compute & Display Mode
+      case 'compute_mode':
+        return 'Default';
+      case 'display_mode':
+        return 'Disabled';
+      case 'display_active':
+        return 'Disabled';
       case 'persistence_mode':
         return gpu.persistenceMode ? 'Enabled' : 'Disabled';
-      case 'index':
-        return gpu.id.toString();
+
+      // Performance State
+      case 'pstate':
+        return gpu.utilization > 50 ? 'P0' : gpu.utilization > 10 ? 'P2' : 'P8';
+      case 'performance_state':
+        return gpu.utilization > 50 ? 'P0' : gpu.utilization > 10 ? 'P2' : 'P8';
+
+      // Fan
+      case 'fan.speed':
+        return `${Math.min(100, Math.round(30 + gpu.temperature * 0.7))} %`;
+
+      // Count/timestamp
+      case 'count':
+        return node?.gpus.length.toString() || '8';
+      case 'timestamp':
+        return new Date().toISOString();
+
+      // NVLink
+      case 'nvlink.link0.state':
+      case 'nvlink.link1.state':
+      case 'nvlink.link2.state':
+      case 'nvlink.link3.state':
+        return gpu.nvlinks.length > 0 ? 'Active' : 'Inactive';
+
+      // Accounting mode
+      case 'accounting.mode':
+        return 'Disabled';
+      case 'accounting.buffer_size':
+        return '4000';
+
       default:
         return '[Not Supported]';
     }
+  }
+
+  /**
+   * Handle -d/--display flag for selective information display
+   * Supports: MEMORY, UTILIZATION, ECC, TEMPERATURE, POWER, CLOCK, COMPUTE, PIDS,
+   * PERFORMANCE, SUPPORTED_CLOCKS, PAGE_RETIREMENT, ACCOUNTING, ENCODER_STATS,
+   * SUPPORTED_GPU_TARGET_TEMP, VOLTAGE, FBC_STATS, ROW_REMAPPER, RESET_STATUS
+   */
+  private handleDisplayFlag(displayType: string, gpus: GPU[], node: DGXNode): CommandResult {
+    const displayTypes = displayType.toUpperCase().split(',').map(d => d.trim());
+    const timestamp = new Date().toISOString();
+    const driverVersion = node?.nvidiaDriverVersion || '535.129.03';
+
+    let output = `==============NVSMI LOG==============\n\n`;
+    output += `Timestamp                                 : ${timestamp}\n`;
+    output += `Driver Version                            : ${driverVersion}\n`;
+    output += `CUDA Version                              : ${node?.cudaVersion || '12.2'}\n\n`;
+    output += `Attached GPUs                             : ${gpus.length}\n`;
+
+    for (const gpu of gpus) {
+      output += `\nGPU ${gpu.id.toString().padStart(8, '0')}\n`;
+
+      for (const dtype of displayTypes) {
+        switch (dtype) {
+          case 'MEMORY':
+            output += this.formatDisplayMemory(gpu);
+            break;
+          case 'UTILIZATION':
+            output += this.formatDisplayUtilization(gpu);
+            break;
+          case 'ECC':
+            output += this.formatDisplayECC(gpu);
+            break;
+          case 'TEMPERATURE':
+            output += this.formatDisplayTemperature(gpu);
+            break;
+          case 'POWER':
+            output += this.formatDisplayPower(gpu);
+            break;
+          case 'CLOCK':
+          case 'CLOCKS':
+            output += this.formatDisplayClocks(gpu);
+            break;
+          case 'COMPUTE':
+            output += this.formatDisplayCompute(gpu);
+            break;
+          case 'PIDS':
+            output += this.formatDisplayPids(gpu);
+            break;
+          case 'PERFORMANCE':
+            output += this.formatDisplayPerformance(gpu);
+            break;
+          case 'SUPPORTED_CLOCKS':
+            output += this.formatDisplaySupportedClocks(gpu);
+            break;
+          case 'PAGE_RETIREMENT':
+            output += this.formatDisplayPageRetirement(gpu);
+            break;
+          case 'ACCOUNTING':
+            output += this.formatDisplayAccounting(gpu);
+            break;
+          case 'ENCODER_STATS':
+            output += this.formatDisplayEncoderStats(gpu);
+            break;
+          case 'SUPPORTED_GPU_TARGET_TEMP':
+            output += this.formatDisplayTargetTemp(gpu);
+            break;
+          case 'VOLTAGE':
+            output += this.formatDisplayVoltage(gpu);
+            break;
+          case 'FBC_STATS':
+            output += this.formatDisplayFBCStats(gpu);
+            break;
+          case 'ROW_REMAPPER':
+            output += this.formatDisplayRowRemapper(gpu);
+            break;
+          case 'RESET_STATUS':
+            output += this.formatDisplayResetStatus(gpu);
+            break;
+          default:
+            output += `    Unknown display type: ${dtype}\n`;
+        }
+      }
+    }
+
+    return this.createSuccess(output);
+  }
+
+  private formatDisplayMemory(gpu: GPU): string {
+    let output = `    FB Memory Usage\n`;
+    output += `        Total                             : ${gpu.memoryTotal} MiB\n`;
+    output += `        Reserved                          : ${Math.round(gpu.memoryTotal * 0.02)} MiB\n`;
+    output += `        Used                              : ${gpu.memoryUsed} MiB\n`;
+    output += `        Free                              : ${gpu.memoryTotal - gpu.memoryUsed} MiB\n`;
+    output += `    BAR1 Memory Usage\n`;
+    output += `        Total                             : 131072 MiB\n`;
+    output += `        Used                              : 1 MiB\n`;
+    output += `        Free                              : 131071 MiB\n`;
+    output += `    Conf Compute Protected Memory Usage\n`;
+    output += `        Total                             : 0 MiB\n`;
+    output += `        Used                              : 0 MiB\n`;
+    output += `        Free                              : 0 MiB\n`;
+    return output;
+  }
+
+  private formatDisplayUtilization(gpu: GPU): string {
+    const memUtil = Math.round((gpu.memoryUsed / gpu.memoryTotal) * 100);
+    let output = `    Utilization\n`;
+    output += `        Gpu                               : ${Math.round(gpu.utilization)} %\n`;
+    output += `        Memory                            : ${memUtil} %\n`;
+    output += `        Encoder                           : ${Math.floor(Math.random() * 5)} %\n`;
+    output += `        Decoder                           : ${Math.floor(Math.random() * 3)} %\n`;
+    output += `        JPEG                              : 0 %\n`;
+    output += `        OFA                               : 0 %\n`;
+    return output;
+  }
+
+  private formatDisplayECC(gpu: GPU): string {
+    let output = `    ECC Mode\n`;
+    output += `        Current                           : ${gpu.eccEnabled ? 'Enabled' : 'Disabled'}\n`;
+    output += `        Pending                           : ${gpu.eccEnabled ? 'Enabled' : 'Disabled'}\n`;
+    output += `    ECC Errors\n`;
+    output += `        Volatile\n`;
+    output += `            SRAM Correctable              : 0\n`;
+    output += `            SRAM Uncorrectable            : 0\n`;
+    output += `            DRAM Correctable              : ${gpu.eccErrors.singleBit}\n`;
+    output += `            DRAM Uncorrectable            : ${gpu.eccErrors.doubleBit}\n`;
+    output += `        Aggregate\n`;
+    output += `            SRAM Correctable              : 0\n`;
+    output += `            SRAM Uncorrectable            : 0\n`;
+    output += `            DRAM Correctable              : ${gpu.eccErrors.aggregated.singleBit}\n`;
+    output += `            DRAM Uncorrectable            : ${gpu.eccErrors.aggregated.doubleBit}\n`;
+    return output;
+  }
+
+  private formatDisplayTemperature(gpu: GPU): string {
+    const currentTemp = Math.round(gpu.temperature);
+    const memTemp = Math.round(gpu.temperature + 5);
+    let output = `    Temperature\n`;
+    output += `        GPU Current Temp                  : ${currentTemp} C\n`;
+    output += `        GPU T.Limit Temp                  : 83 C\n`;
+    output += `        GPU Shutdown Temp                 : 90 C\n`;
+    output += `        GPU Slowdown Temp                 : 85 C\n`;
+    output += `        GPU Max Operating Temp            : 83 C\n`;
+    output += `        GPU Target Temperature            : N/A\n`;
+    output += `        Memory Current Temp               : ${memTemp} C\n`;
+    output += `        Memory Max Operating Temp         : 95 C\n`;
+    return output;
+  }
+
+  private formatDisplayPower(gpu: GPU): string {
+    const powerDraw = Math.round(gpu.powerDraw);
+    const powerLimit = Math.round(gpu.powerLimit);
+    const minLimit = Math.round(gpu.powerLimit * 0.5);
+    const maxLimit = Math.round(gpu.powerLimit * 1.1);
+    let output = `    GPU Power Readings\n`;
+    output += `        Power Management                  : Supported\n`;
+    output += `        Power Draw                        : ${powerDraw}.00 W\n`;
+    output += `        Current Power Limit               : ${powerLimit}.00 W\n`;
+    output += `        Requested Power Limit             : ${powerLimit}.00 W\n`;
+    output += `        Default Power Limit               : ${powerLimit}.00 W\n`;
+    output += `        Min Power Limit                   : ${minLimit}.00 W\n`;
+    output += `        Max Power Limit                   : ${maxLimit}.00 W\n`;
+    output += `    Module Power Readings\n`;
+    output += `        Power Draw                        : N/A\n`;
+    output += `        Current Power Limit               : N/A\n`;
+    output += `        Requested Power Limit             : N/A\n`;
+    output += `        Default Power Limit               : N/A\n`;
+    output += `        Min Power Limit                   : N/A\n`;
+    output += `        Max Power Limit                   : N/A\n`;
+    return output;
+  }
+
+  private formatDisplayClocks(gpu: GPU): string {
+    let output = `    Clocks\n`;
+    output += `        Graphics                          : ${gpu.clocksSM} MHz\n`;
+    output += `        SM                                : ${gpu.clocksSM} MHz\n`;
+    output += `        Memory                            : ${gpu.clocksMem} MHz\n`;
+    output += `        Video                             : ${Math.round(gpu.clocksSM * 0.9)} MHz\n`;
+    output += `    Applications Clocks\n`;
+    output += `        Graphics                          : ${gpu.clocksSM} MHz\n`;
+    output += `        Memory                            : ${gpu.clocksMem} MHz\n`;
+    output += `    Default Applications Clocks\n`;
+    output += `        Graphics                          : ${gpu.clocksSM} MHz\n`;
+    output += `        Memory                            : ${gpu.clocksMem} MHz\n`;
+    output += `    Deferred Clocks\n`;
+    output += `        Memory                            : N/A\n`;
+    output += `    Max Clocks\n`;
+    output += `        Graphics                          : ${Math.round(gpu.clocksSM * 1.2)} MHz\n`;
+    output += `        SM                                : ${Math.round(gpu.clocksSM * 1.2)} MHz\n`;
+    output += `        Memory                            : ${Math.round(gpu.clocksMem * 1.1)} MHz\n`;
+    output += `        Video                             : ${Math.round(gpu.clocksSM * 1.1)} MHz\n`;
+    output += `    Max Customer Boost Clocks\n`;
+    output += `        Graphics                          : ${Math.round(gpu.clocksSM * 1.15)} MHz\n`;
+    output += `    Clock Policy\n`;
+    output += `        Auto Boost                        : N/A\n`;
+    output += `        Auto Boost Default                : N/A\n`;
+    return output;
+  }
+
+  private formatDisplayCompute(gpu: GPU): string {
+    let output = `    Compute Mode                          : Default\n`;
+    output += `    MIG Mode\n`;
+    output += `        Current                           : ${gpu.migMode ? 'Enabled' : 'Disabled'}\n`;
+    output += `        Pending                           : ${gpu.migMode ? 'Enabled' : 'Disabled'}\n`;
+    return output;
+  }
+
+  private formatDisplayPids(_gpu: GPU): string {
+    let output = `    Processes                             : None\n`;
+    return output;
+  }
+
+  private formatDisplayPerformance(gpu: GPU): string {
+    const pstate = gpu.utilization > 50 ? 'P0' : gpu.utilization > 10 ? 'P2' : 'P8';
+    let output = `    Performance State                     : ${pstate}\n`;
+    output += `    Clocks Throttle Reasons\n`;
+    output += `        Idle                              : ${gpu.utilization < 5 ? 'Active' : 'Not Active'}\n`;
+    output += `        Applications Clocks Setting       : Not Active\n`;
+    output += `        SW Power Cap                      : ${gpu.powerDraw > gpu.powerLimit * 0.95 ? 'Active' : 'Not Active'}\n`;
+    output += `        HW Slowdown                       : Not Active\n`;
+    output += `            HW Thermal Slowdown           : ${gpu.temperature > 80 ? 'Active' : 'Not Active'}\n`;
+    output += `            HW Power Brake Slowdown       : Not Active\n`;
+    output += `        Sync Boost                        : Not Active\n`;
+    output += `        SW Thermal Slowdown               : Not Active\n`;
+    output += `        Display Clock Setting             : Not Active\n`;
+    return output;
+  }
+
+  private formatDisplaySupportedClocks(gpu: GPU): string {
+    const maxMem = Math.round(gpu.clocksMem * 1.1);
+    const maxGfx = Math.round(gpu.clocksSM * 1.2);
+    let output = `    Supported Clocks\n`;
+    output += `        Memory                            : ${maxMem} MHz\n`;
+    output += `            Graphics                      : ${maxGfx} MHz\n`;
+    output += `            Graphics                      : ${Math.round(maxGfx * 0.95)} MHz\n`;
+    output += `            Graphics                      : ${Math.round(maxGfx * 0.90)} MHz\n`;
+    output += `            Graphics                      : ${Math.round(maxGfx * 0.85)} MHz\n`;
+    output += `            Graphics                      : ${Math.round(maxGfx * 0.80)} MHz\n`;
+    output += `        Memory                            : ${Math.round(maxMem * 0.9)} MHz\n`;
+    output += `            Graphics                      : ${Math.round(maxGfx * 0.75)} MHz\n`;
+    output += `            Graphics                      : ${Math.round(maxGfx * 0.70)} MHz\n`;
+    output += `        Memory                            : ${Math.round(maxMem * 0.8)} MHz\n`;
+    output += `            Graphics                      : ${Math.round(maxGfx * 0.65)} MHz\n`;
+    output += `            Graphics                      : ${Math.round(maxGfx * 0.60)} MHz\n`;
+    return output;
+  }
+
+  private formatDisplayPageRetirement(gpu: GPU): string {
+    const sbePagesRetired = Math.floor(gpu.eccErrors.aggregated.singleBit / 10);
+    const dbePagesRetired = gpu.eccErrors.aggregated.doubleBit;
+    const pendingRetirement = gpu.eccErrors.doubleBit > 0 ? 'Yes' : 'No';
+    let output = `    Retired Pages\n`;
+    output += `        Single Bit ECC                    : ${sbePagesRetired}\n`;
+    output += `        Double Bit ECC                    : ${dbePagesRetired}\n`;
+    output += `        Pending Page Blacklist            : ${pendingRetirement}\n`;
+    return output;
+  }
+
+  private formatDisplayAccounting(_gpu: GPU): string {
+    let output = `    Accounting Mode                       : Disabled\n`;
+    output += `    Accounting Mode Buffer Size           : 4000\n`;
+    return output;
+  }
+
+  private formatDisplayEncoderStats(_gpu: GPU): string {
+    let output = `    Encoder Stats\n`;
+    output += `        Active Sessions                   : 0\n`;
+    output += `        Average FPS                       : 0\n`;
+    output += `        Average Latency                   : 0\n`;
+    return output;
+  }
+
+  private formatDisplayTargetTemp(_gpu: GPU): string {
+    let output = `    Supported GPU Target Temp\n`;
+    output += `        GPU Target Temp Min               : 65 C\n`;
+    output += `        GPU Target Temp Max               : 83 C\n`;
+    return output;
+  }
+
+  private formatDisplayVoltage(_gpu: GPU): string {
+    let output = `    Voltage\n`;
+    output += `        Graphics                          : 856.250 mV\n`;
+    return output;
+  }
+
+  private formatDisplayFBCStats(_gpu: GPU): string {
+    let output = `    FBC Stats\n`;
+    output += `        Active Sessions                   : 0\n`;
+    output += `        Average FPS                       : 0\n`;
+    output += `        Average Latency                   : 0\n`;
+    return output;
+  }
+
+  private formatDisplayRowRemapper(gpu: GPU): string {
+    const rowsRemapped = gpu.eccErrors.aggregated.doubleBit > 0;
+    let output = `    Row Remapper\n`;
+    output += `        Correctable Error                 : ${rowsRemapped ? 'true' : 'false'}\n`;
+    output += `        Uncorrectable Error               : ${gpu.eccErrors.doubleBit > 0 ? 'true' : 'false'}\n`;
+    output += `        Pending                           : ${gpu.eccErrors.doubleBit > 0 ? 'true' : 'false'}\n`;
+    output += `        Remapping Failure Occurred        : false\n`;
+    output += `        Bank Remap Availability Histogram\n`;
+    output += `            Max                           : 640 bank(s)\n`;
+    output += `            High                          : 0 bank(s)\n`;
+    output += `            Partial                       : 0 bank(s)\n`;
+    output += `            Low                           : 0 bank(s)\n`;
+    output += `            None                          : 0 bank(s)\n`;
+    return output;
+  }
+
+  private formatDisplayResetStatus(gpu: GPU): string {
+    const hasXidErrors = gpu.xidErrors.length > 0;
+    let output = `    Reset Status\n`;
+    output += `        Reset Required                    : ${hasXidErrors ? 'Yes' : 'No'}\n`;
+    output += `        Drain and Reset Recommended       : ${hasXidErrors ? 'Yes' : 'No'}\n`;
+    return output;
   }
 
   /**
@@ -517,16 +1054,13 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       return this.createError('Error: GPU reset requires -i flag to specify GPU ID\nUsage: nvidia-smi --gpu-reset -i <gpu_id>');
     }
 
-    // Validate GPU ID is a valid number (not negative, not starting with -)
-    if (gpuIdStr.startsWith('-') || isNaN(parseInt(gpuIdStr))) {
-      return this.createError(`Error: Invalid GPU ID "${gpuIdStr}". GPU ID must be a non-negative integer.`);
+    // Validate GPU ID using centralized validation
+    const validationError = this.validateGpuIndex(gpuIdStr, node);
+    if (validationError) {
+      return validationError;
     }
 
     const gpuId = parseInt(gpuIdStr);
-    if (gpuId < 0 || gpuId >= node.gpus.length) {
-      return this.createError(`Error: GPU ${gpuId} not found. Valid GPU IDs: 0-${node.gpus.length - 1}`);
-    }
-
     const gpu = node.gpus[gpuId];
     if (!gpu) {
       return this.createError(`Error: GPU ${gpuId} not found`);

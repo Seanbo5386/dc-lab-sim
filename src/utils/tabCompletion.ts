@@ -52,7 +52,7 @@ export const AVAILABLE_COMMANDS: string[] = [
   'nv-fabricmanager',
 
   // System
-  'ls', 'cat', 'grep', 'cd', 'pwd', 'clear', 'help', 'exit',
+  'ls', 'cat', 'grep', 'cd', 'pwd', 'clear', 'help', 'exit', 'hostname',
   'hostnamectl', 'timedatectl', 'systemctl', 'journalctl', 'dmesg',
 
   // Networking
