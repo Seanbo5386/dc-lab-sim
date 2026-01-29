@@ -3,7 +3,6 @@ import {
   selectExamQuestions,
   calculateExamScore,
   isExamPassed,
-  getExamResultSummary,
   getWeakDomains,
   ExamTimer,
   // New exam mode functions
@@ -122,8 +121,7 @@ describe('Exam Engine - Core Functions', () => {
 
       // With random shuffling, order should sometimes differ
       // (This test may occasionally fail due to randomness)
-      const ids1 = selected1.map(q => q.id).join(',');
-      const ids2 = selected2.map(q => q.id).join(',');
+      // ids are not checked since order is random
       // Just ensure they're valid selections
       expect(selected1.every(q => questions.some(oq => oq.id === q.id))).toBe(true);
     });

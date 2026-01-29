@@ -21,7 +21,6 @@ import {
   clearSplitState,
   DEFAULT_MAX_PANES,
   MIN_PANE_SIZE,
-  type TerminalSplitState,
 } from '../terminalSplitManager';
 
 describe('terminalSplitManager', () => {

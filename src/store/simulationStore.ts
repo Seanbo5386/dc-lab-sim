@@ -460,7 +460,7 @@ export const useSimulationStore = create<SimulationState>()(
       clearStepValidation: (scenarioId, stepId) => {
         const state = get();
         const key = `${scenarioId}-${stepId}`;
-        const { [key]: _, ...rest } = state.stepValidation;
+        const { [key]: _unused, ...rest } = state.stepValidation;
 
         set({
           stepValidation: rest,

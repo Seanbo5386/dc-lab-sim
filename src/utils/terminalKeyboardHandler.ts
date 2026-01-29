@@ -261,7 +261,7 @@ export function handleKeyboardInput(
   config: KeyboardHandlerConfig
 ): KeyboardHandlerResult | null {
   const code = data.charCodeAt(0);
-  const { term, commandHistory, historyIndex, currentLine, currentNode: _currentNode, onExecute, onPrompt } = config;
+  const { term, commandHistory, historyIndex, currentLine, onExecute, onPrompt } = config;
 
   // If in history search mode, handle specially
   if (historySearchState.isActive) {

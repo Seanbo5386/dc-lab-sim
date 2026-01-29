@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   calculateRecommendedDifficulty,
   calculateDomainDifficulty,
@@ -11,10 +11,8 @@ import {
   calculateImprovementTrend,
   getStudyRecommendations,
   createLearnerProfile,
-  DIFFICULTY_THRESHOLDS,
   type QuestionPerformance,
   type DomainPerformance,
-  type LearnerProfile,
 } from '../adaptiveLearning';
 
 describe('Adaptive Learning - Difficulty Adjustment', () => {
