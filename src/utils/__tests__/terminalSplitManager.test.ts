@@ -171,7 +171,7 @@ describe('terminalSplitManager', () => {
     });
 
     it('should not close the last pane', () => {
-      let state = createSplitState('terminal-1');
+      const state = createSplitState('terminal-1');
       const newState = closePane(state, state.root.id);
 
       expect(countPanes(newState.root)).toBe(1);

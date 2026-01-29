@@ -26,7 +26,9 @@
       "Bash(for dir in \"C:\\\\Users\\\\Seanbo\\\\Documents\\\\Projects\\\\Antigravity-Projects\\\\DC-Sim-011126\\\\src\\\\data\\\\scenarios\"/*)",
       "Bash(xargs -I {} sh -c 'echo \"\"=== {} ===\"\" && head -20 {}')",
       "Bash(ls:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint:*)"
     ]
   }
 }

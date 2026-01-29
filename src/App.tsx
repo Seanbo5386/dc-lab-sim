@@ -6,6 +6,7 @@ import { ExamWorkspace } from './components/ExamWorkspace';
 import { WelcomeScreen } from './components/WelcomeScreen';
 import { Documentation } from './components/Documentation';
 import { StudyDashboard } from './components/StudyDashboard';
+import { LearningPaths } from './components/LearningPaths';
 import { useSimulationStore } from './store/simulationStore';
 import { MetricsSimulator } from './utils/metricsSimulator';
 import { initializeScenario } from './utils/scenarioLoader';
@@ -19,6 +20,7 @@ import {
   Download,
   Upload,
   TrendingUp,
+  GraduationCap,
 } from 'lucide-react';
 
 type View = 'simulator' | 'labs' | 'docs';
@@ -32,6 +34,7 @@ function App() {
   const [showExamWorkspace, setShowExamWorkspace] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showStudyDashboard, setShowStudyDashboard] = useState(false);
+  const [showLearningPaths, setShowLearningPaths] = useState(false);
 
   const {
     cluster,
@@ -431,6 +434,41 @@ function App() {
                     </button>
                   </div>
 
+                  {/* Learning Paths */}
+                  <div className="bg-gray-800 rounded-lg p-6 border border-purple-600">
+                    <div className="text-sm text-purple-400 font-semibold mb-2 flex items-center gap-2">
+                      <GraduationCap className="w-4 h-4" />
+                      Guided Learning
+                    </div>
+                    <h3 className="text-lg font-bold mb-3">
+                      Learning Paths
+                    </h3>
+                    <ul className="space-y-2 text-sm text-gray-300">
+                      <li className="flex items-start gap-2">
+                        <span className="text-purple-400">▸</span>
+                        Structured curricula for each domain
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-purple-400">▸</span>
+                        Step-by-step interactive tutorials
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-purple-400">▸</span>
+                        Hands-on command practice
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-purple-400">▸</span>
+                        Track progress across lessons
+                      </li>
+                    </ul>
+                    <button
+                      onClick={() => setShowLearningPaths(true)}
+                      className="mt-4 w-full bg-purple-600 text-white py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                    >
+                      Start Learning
+                    </button>
+                  </div>
+
                   {/* Study Progress Dashboard */}
                   <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                     <div className="text-sm text-blue-400 font-semibold mb-2 flex items-center gap-2">
@@ -516,6 +554,17 @@ function App() {
                   setShowExamWorkspace(true);
                 }
               }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Learning Paths Modal */}
+      {showLearningPaths && (
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-70 flex items-center justify-center p-4">
+          <div className="w-full max-w-6xl max-h-[90vh] overflow-auto">
+            <LearningPaths
+              onClose={() => setShowLearningPaths(false)}
             />
           </div>
         </div>

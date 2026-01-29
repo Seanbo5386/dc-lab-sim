@@ -625,7 +625,7 @@ export function generateStudyGuide(domainId: DomainId): string {
   const commands = KEY_COMMANDS[domainId];
   const tips = getExamTips(domainId);
 
-  let guide = `
+  const guide = `
 ====================================
 ${domain.name}
 Exam Weight: ${domain.weight}%

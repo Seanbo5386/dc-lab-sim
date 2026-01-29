@@ -47,14 +47,13 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [isTerminalReady, setIsTerminalReady] = useState(false);
   const [shellState, setShellState] = useState<ShellState>({ mode: 'bash', prompt: '' });
-  const [connectedNode, setConnectedNode] = useState<string>('dgx-00');
   const selectedNode = useSimulationStore(state => state.selectedNode);
   const cluster = useSimulationStore(state => state.cluster);
+  const initialNode = selectedNode || cluster.nodes[0]?.id || 'dgx-00';
+  const [connectedNode, setConnectedNode] = useState<string>(initialNode);
 
   // Ref to store executeCommand for external calls (e.g., auto-SSH on node selection)
   const executeCommandRef = useRef<((cmd: string) => Promise<void>) | null>(null);
-  // Track previous node to detect changes
-  const previousNodeRef = useRef<string | null>(null);
 
   // Command simulators
   const nvidiaSmiSimulator = useRef(new NvidiaSmiSimulator());
@@ -88,29 +87,31 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
 
   // Auto-SSH when node selection changes from Dashboard
   useEffect(() => {
-    if (selectedNode && isTerminalReady && xtermRef.current && executeCommandRef.current) {
-      const currentNode = currentContext.current.currentNode;
+    // Only auto-SSH if:
+    // 1. Terminal is ready with all refs available
+    // 2. Selected node is different from currently connected node
+    // 3. We're not in an interactive shell mode
+    // Note: We check selectedNode !== connectedNode to allow first click to work
+    // (previousNodeRef check removed - it was preventing first click from working)
+    if (
+      selectedNode &&
+      isTerminalReady &&
+      xtermRef.current &&
+      executeCommandRef.current &&
+      selectedNode !== connectedNode &&
+      shellState.mode === 'bash'
+    ) {
+      const term = xtermRef.current;
+      const sshCommand = `ssh ${selectedNode}`;
 
-      // Only auto-SSH if:
-      // 1. The selected node is different from the current terminal node
-      // 2. We have a previous node (not initial load)
-      // 3. We're not in an interactive shell mode
-      if (selectedNode !== currentNode && previousNodeRef.current !== null && shellState.mode === 'bash') {
-        const term = xtermRef.current;
-        const sshCommand = `ssh ${selectedNode}`;
+      // Display the SSH command being typed
+      term.write(sshCommand);
+      term.write('\r\n');
 
-        // Display the SSH command being typed
-        term.write(sshCommand);
-        term.write('\r\n');
-
-        // Execute the SSH command
-        executeCommandRef.current(sshCommand);
-      }
+      // Execute the SSH command - this will update connectedNode via setConnectedNode
+      executeCommandRef.current(sshCommand);
     }
-
-    // Update previous node tracker
-    previousNodeRef.current = selectedNode;
-  }, [selectedNode, isTerminalReady, shellState.mode]);
+  }, [selectedNode, isTerminalReady, shellState.mode, connectedNode]);
 
   // Manage scenario context when scenario changes
   useEffect(() => {
@@ -146,12 +147,27 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
     term.loadAddon(webLinksAddon);
     term.open(terminalRef.current);
 
-    // Fit terminal to container size
-    fitAddon.fit();
+    // Safe fit function that checks container dimensions first
+    const safeFit = () => {
+      if (terminalRef.current) {
+        const { clientWidth, clientHeight } = terminalRef.current;
+        // Only fit if container has valid dimensions
+        if (clientWidth > 0 && clientHeight > 0) {
+          try {
+            fitAddon.fit();
+          } catch (e) {
+            // Ignore fit errors during layout transitions
+          }
+        }
+      }
+    };
+
+    // Fit terminal to container size (delayed to allow layout to settle)
+    requestAnimationFrame(safeFit);
 
     // Handle container resize
     const resizeObserver = new ResizeObserver(() => {
-      fitAddon.fit();
+      safeFit();
     });
     resizeObserver.observe(terminalRef.current);
 

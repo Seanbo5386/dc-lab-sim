@@ -8,10 +8,25 @@ interface SlurmJob {
   partition: string;
   name: string;
   user: string;
-  state: 'RUNNING' | 'PENDING' | 'COMPLETED' | 'FAILED';
+  state: 'RUNNING' | 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
   time: string;
+  timeLimit: string;
   nodes: number;
   nodelist: string;
+  cpus: number;
+  gpus: number;
+  memory: string;
+  submitTime: Date;
+  startTime?: Date;
+  endTime?: Date;
+  priority: number;
+  account: string;
+  qos: string;
+  workDir: string;
+  command: string;
+  dependency?: string;
+  arrayTaskId?: number;
+  reasonPending?: string;
 }
 
 /**
@@ -140,6 +155,52 @@ export class SlurmSimulator extends BaseSimulator {
     return state.cluster.nodes;
   }
 
+  /**
+   * Sort nodes based on Slurm sort specification
+   * Format: [+|-]field[,[+|-]field]...
+   * + = ascending (default), - = descending
+   * Fields: n=name, t=state, P=partition, c=cpus, m=memory, G=gres
+   */
+  private sortNodes(nodes: typeof useSimulationStore.prototype.getState.cluster.nodes, sortSpec: string) {
+    const sortFields = sortSpec.split(',');
+
+    return [...nodes].sort((a, b) => {
+      for (const field of sortFields) {
+        const descending = field.startsWith('-');
+        const fieldName = field.replace(/^[+-]/, '');
+
+        let comparison = 0;
+        switch (fieldName.toLowerCase()) {
+          case 'n': // node name
+            comparison = a.id.localeCompare(b.id);
+            break;
+          case 't': // state
+            comparison = a.slurmState.localeCompare(b.slurmState);
+            break;
+          case 'p': // partition (all same in our sim)
+            comparison = 0;
+            break;
+          case 'c': // cpus
+            comparison = (a.cpuCount * 64) - (b.cpuCount * 64);
+            break;
+          case 'm': // memory
+            comparison = a.ramTotal - b.ramTotal;
+            break;
+          case 'g': // gres (GPUs)
+            comparison = a.gpus.length - b.gpus.length;
+            break;
+          default:
+            comparison = 0;
+        }
+
+        if (comparison !== 0) {
+          return descending ? -comparison : comparison;
+        }
+      }
+      return 0;
+    });
+  }
+
   // sinfo - Show partition and node information
   executeSinfo(parsed: ParsedCommand, _context: CommandContext): CommandResult {
     // Handle --help
@@ -152,7 +213,36 @@ export class SlurmSimulator extends BaseSimulator {
       return this.createSuccess('slurm 23.02.6');
     }
 
-    const nodes = useSimulationStore.getState().cluster.nodes;
+    let nodes = [...useSimulationStore.getState().cluster.nodes];
+
+    // Handle --sort / -S flag
+    const sortSpec = this.getFlagString(parsed, ['S', 'sort']);
+    if (sortSpec) {
+      nodes = this.sortNodes(nodes, sortSpec);
+    }
+
+    // Handle --states / -t flag to filter by state
+    const statesFilter = this.getFlagString(parsed, ['t', 'states']);
+    if (statesFilter) {
+      const allowedStates = statesFilter.toLowerCase().split(',');
+      nodes = nodes.filter(n => allowedStates.includes(n.slurmState));
+    }
+
+    // Handle --partition / -p flag to filter by partition
+    const partitionFilter = this.getFlagString(parsed, ['p', 'partition']);
+    if (partitionFilter) {
+      // In our simulation, all nodes are in 'gpu' partition
+      if (partitionFilter.toLowerCase() !== 'gpu') {
+        return { output: '', exitCode: 0 }; // No matching partition
+      }
+    }
+
+    // Handle --nodes / -n flag to filter by node name
+    const nodeFilter = this.getFlagString(parsed, ['n', 'nodes']);
+    if (nodeFilter) {
+      const nodeNames = nodeFilter.split(',');
+      nodes = nodes.filter(n => nodeNames.includes(n.id));
+    }
     const detailed = this.hasAnyFlag(parsed, ['Nel', 'N', 'l', 'long', 'Node']);
 
     // Handle -R flag for node state reasons
@@ -319,30 +409,64 @@ export class SlurmSimulator extends BaseSimulator {
       return this.createSuccess('slurm 23.02.6');
     }
 
-    // SOURCE OF TRUTH: Column widths
-    const COL_JOBID = 6;
+    const user = this.getFlagString(parsed, ['u', 'user']);
+    const jobIdFilter = this.getFlagString(parsed, ['j', 'jobs']);
+    const statesFilter = this.getFlagString(parsed, ['t', 'states']);
+    const longFormat = this.hasAnyFlag(parsed, ['l', 'long']);
+    const customFormat = this.getFlagString(parsed, ['O', 'Format']);
+    const sortSpec = this.getFlagString(parsed, ['S', 'sort']);
+    const noHeader = this.hasAnyFlag(parsed, ['h', 'noheader']);
+
+    let filteredJobs = [...this.jobs];
+
+    // Apply filters
+    if (user) {
+      filteredJobs = filteredJobs.filter(j => j.user === user);
+    }
+    if (jobIdFilter) {
+      const jobIds = jobIdFilter.split(',').map(id => parseInt(id));
+      filteredJobs = filteredJobs.filter(j => jobIds.includes(j.jobId));
+    }
+    if (statesFilter) {
+      const states = statesFilter.toUpperCase().split(',');
+      filteredJobs = filteredJobs.filter(j => states.includes(j.state));
+    }
+
+    // Apply sorting
+    if (sortSpec) {
+      filteredJobs = this.sortJobs(filteredJobs, sortSpec);
+    }
+
+    // Handle --Format (long format with custom fields)
+    if (customFormat) {
+      return this.formatSqueueCustom(filteredJobs, customFormat, noHeader);
+    }
+
+    // Handle --long format
+    if (longFormat) {
+      return this.formatSqueueLong(filteredJobs, noHeader);
+    }
+
+    // Default format
+    const COL_JOBID = 10;
     const COL_PARTITION = 13;
-    const COL_NAME = 9;
+    const COL_NAME = 12;
     const COL_USER = 9;
     const COL_ST = 3;
     const COL_TIME = 11;
     const COL_NODES = 6;
 
-    const user = this.getFlagString(parsed, ['u', 'user']);
-
-    let filteredJobs = this.jobs;
-    if (user) {
-      filteredJobs = this.jobs.filter(j => j.user === user);
+    let output = '';
+    if (!noHeader) {
+      output = 'JOBID'.padEnd(COL_JOBID) +
+        'PARTITION'.padEnd(COL_PARTITION) +
+        'NAME'.padEnd(COL_NAME) +
+        'USER'.padEnd(COL_USER) +
+        'ST'.padEnd(COL_ST) +
+        'TIME'.padEnd(COL_TIME) +
+        'NODES'.padEnd(COL_NODES) +
+        'NODELIST(REASON)\n';
     }
-
-    let output = 'JOBID'.padEnd(COL_JOBID) +
-      'PARTITION'.padEnd(COL_PARTITION) +
-      'NAME'.padEnd(COL_NAME) +
-      'USER'.padEnd(COL_USER) +
-      'ST'.padEnd(COL_ST) +
-      'TIME'.padEnd(COL_TIME) +
-      'NODES'.padEnd(COL_NODES) +
-      'NODELIST(REASON)\n';
 
     if (filteredJobs.length === 0) {
       return { output, exitCode: 0 };
@@ -351,19 +475,219 @@ export class SlurmSimulator extends BaseSimulator {
     filteredJobs.forEach(job => {
       const state = job.state === 'RUNNING' ? 'R' :
         job.state === 'PENDING' ? 'PD' :
-          job.state === 'COMPLETED' ? 'CD' : 'F';
+          job.state === 'COMPLETED' ? 'CD' :
+            job.state === 'CANCELLED' ? 'CA' : 'F';
+
+      const nodelistOrReason = job.state === 'PENDING'
+        ? `(${job.reasonPending || 'Priority'})`
+        : job.nodelist;
 
       output += job.jobId.toString().padEnd(COL_JOBID) +
         job.partition.padEnd(COL_PARTITION) +
-        job.name.padEnd(COL_NAME) +
+        job.name.substring(0, 11).padEnd(COL_NAME) +
         job.user.padEnd(COL_USER) +
         state.padEnd(COL_ST) +
         job.time.padEnd(COL_TIME) +
         job.nodes.toString().padEnd(COL_NODES) +
-        job.nodelist + '\n';
+        nodelistOrReason + '\n';
     });
 
     return { output, exitCode: 0 };
+  }
+
+  /**
+   * Sort jobs based on Slurm sort specification
+   * Format: [+|-]field[,[+|-]field]...
+   * Fields: i=jobid, j=name, u=user, t=time, S=starttime, p=priority
+   */
+  private sortJobs(jobs: SlurmJob[], sortSpec: string): SlurmJob[] {
+    const sortFields = sortSpec.split(',');
+
+    return [...jobs].sort((a, b) => {
+      for (const field of sortFields) {
+        const descending = field.startsWith('-');
+        const fieldName = field.replace(/^[+-]/, '');
+
+        let comparison = 0;
+        switch (fieldName.toLowerCase()) {
+          case 'i': // job id
+            comparison = a.jobId - b.jobId;
+            break;
+          case 'j': // job name
+            comparison = a.name.localeCompare(b.name);
+            break;
+          case 'u': // user
+            comparison = a.user.localeCompare(b.user);
+            break;
+          case 't': // time used
+            comparison = a.time.localeCompare(b.time);
+            break;
+          case 's': // start time
+            const aStart = a.startTime?.getTime() || 0;
+            const bStart = b.startTime?.getTime() || 0;
+            comparison = aStart - bStart;
+            break;
+          case 'p': // priority
+            comparison = a.priority - b.priority;
+            break;
+          default:
+            comparison = 0;
+        }
+
+        if (comparison !== 0) {
+          return descending ? -comparison : comparison;
+        }
+      }
+      return 0;
+    });
+  }
+
+  /**
+   * Format squeue output with custom --Format specification
+   * Supports fields like: JobID, Name, User, Partition, State, TimeUsed, NumNodes, etc.
+   */
+  private formatSqueueCustom(jobs: SlurmJob[], formatSpec: string, noHeader: boolean): CommandResult {
+    // Parse format spec (e.g., "JobID:10,Name:15,User:8,State:8")
+    const fields = formatSpec.split(',').map(f => {
+      const parts = f.split(':');
+      return {
+        name: parts[0],
+        width: parts[1] ? parseInt(parts[1]) : 12,
+      };
+    });
+
+    let output = '';
+
+    // Header
+    if (!noHeader) {
+      fields.forEach(f => {
+        output += f.name.toUpperCase().padEnd(f.width);
+      });
+      output += '\n';
+    }
+
+    // Data rows
+    jobs.forEach(job => {
+      fields.forEach(f => {
+        const value = this.getJobFieldValue(job, f.name);
+        output += value.substring(0, f.width - 1).padEnd(f.width);
+      });
+      output += '\n';
+    });
+
+    return { output, exitCode: 0 };
+  }
+
+  /**
+   * Format squeue output in long format (-l)
+   */
+  private formatSqueueLong(jobs: SlurmJob[], noHeader: boolean): CommandResult {
+    const COL_JOBID = 10;
+    const COL_PARTITION = 10;
+    const COL_NAME = 12;
+    const COL_USER = 9;
+    const COL_STATE = 10;
+    const COL_TIME = 11;
+    const COL_TIMELIMIT = 11;
+    const COL_NODES = 6;
+    const COL_CPUS = 5;
+
+    let output = '';
+    if (!noHeader) {
+      output = 'JOBID'.padEnd(COL_JOBID) +
+        'PARTITION'.padEnd(COL_PARTITION) +
+        'NAME'.padEnd(COL_NAME) +
+        'USER'.padEnd(COL_USER) +
+        'STATE'.padEnd(COL_STATE) +
+        'TIME'.padEnd(COL_TIME) +
+        'TIME_LIMI'.padEnd(COL_TIMELIMIT) +
+        'NODES'.padEnd(COL_NODES) +
+        'CPUS'.padEnd(COL_CPUS) +
+        'NODELIST(REASON)\n';
+    }
+
+    jobs.forEach(job => {
+      const nodelistOrReason = job.state === 'PENDING'
+        ? `(${job.reasonPending || 'Priority'})`
+        : job.nodelist;
+
+      output += job.jobId.toString().padEnd(COL_JOBID) +
+        job.partition.padEnd(COL_PARTITION) +
+        job.name.substring(0, 11).padEnd(COL_NAME) +
+        job.user.padEnd(COL_USER) +
+        job.state.padEnd(COL_STATE) +
+        job.time.padEnd(COL_TIME) +
+        job.timeLimit.padEnd(COL_TIMELIMIT) +
+        job.nodes.toString().padEnd(COL_NODES) +
+        job.cpus.toString().padEnd(COL_CPUS) +
+        nodelistOrReason + '\n';
+    });
+
+    return { output, exitCode: 0 };
+  }
+
+  /**
+   * Get a field value from a job for custom format output
+   */
+  private getJobFieldValue(job: SlurmJob, field: string): string {
+    switch (field.toLowerCase()) {
+      case 'jobid':
+        return job.jobId.toString();
+      case 'name':
+        return job.name;
+      case 'user':
+        return job.user;
+      case 'partition':
+        return job.partition;
+      case 'state':
+        return job.state;
+      case 'statecompact':
+        return job.state === 'RUNNING' ? 'R' :
+          job.state === 'PENDING' ? 'PD' :
+            job.state === 'COMPLETED' ? 'CD' :
+              job.state === 'CANCELLED' ? 'CA' : 'F';
+      case 'timeused':
+      case 'time':
+        return job.time;
+      case 'timelimit':
+        return job.timeLimit;
+      case 'numnodes':
+      case 'nodes':
+        return job.nodes.toString();
+      case 'numcpus':
+      case 'cpus':
+        return job.cpus.toString();
+      case 'numgpus':
+      case 'gpus':
+        return job.gpus.toString();
+      case 'memory':
+      case 'minmemory':
+        return job.memory;
+      case 'nodelist':
+        return job.nodelist;
+      case 'account':
+        return job.account;
+      case 'qos':
+        return job.qos;
+      case 'priority':
+        return job.priority.toString();
+      case 'submittime':
+        return job.submitTime.toISOString().split('T')[0];
+      case 'starttime':
+        return job.startTime ? job.startTime.toISOString().split('T')[0] : 'N/A';
+      case 'endtime':
+        return job.endTime ? job.endTime.toISOString().split('T')[0] : 'N/A';
+      case 'workdir':
+        return job.workDir;
+      case 'command':
+        return job.command;
+      case 'dependency':
+        return job.dependency || '';
+      case 'reason':
+        return job.state === 'PENDING' ? (job.reasonPending || 'Priority') : '';
+      default:
+        return '';
+    }
   }
 
   // scontrol - Show/modify node and job information
@@ -384,25 +708,40 @@ export class SlurmSimulator extends BaseSimulator {
       const what = parsed.subcommands[1];
 
       if (what === 'nodes' || what === 'node') {
-        const nodes = this.getAllNodes(context);
+        // Check if specific node requested
+        const nodeNameArg = parsed.subcommands[2] || parsed.positionalArgs.find(a => !a.includes('='));
+        let nodes = this.getAllNodes(context);
+
+        if (nodeNameArg) {
+          nodes = nodes.filter(n => n.id === nodeNameArg);
+          if (nodes.length === 0) {
+            return this.createError(`Node ${nodeNameArg} not found`);
+          }
+        }
+
         let output = '';
 
         nodes.forEach((node, idx) => {
           if (idx > 0) output += '\n';
 
+          const allocCpus = node.slurmState === 'alloc' ? node.cpuCount * 32 : 0;
+          const allocMem = node.slurmState === 'alloc' ? Math.round(node.ramTotal * 0.5 * 1024) : 0;
+
           output += `NodeName=${node.id} Arch=x86_64 CoresPerSocket=64\n`;
-          output += `   CPUAlloc=0 CPUTot=${node.cpuCount * 64} CPULoad=0.50\n`;
+          output += `   CPUAlloc=${allocCpus} CPUEfctv=${node.cpuCount * 64} CPUTot=${node.cpuCount * 64} CPULoad=0.50\n`;
           output += `   AvailableFeatures=(null)\n`;
           output += `   ActiveFeatures=(null)\n`;
-          output += `   Gres=gpu:${node.gpus.length}\n`;
-          output += `   NodeAddr=${node.id} NodeHostName=${node.hostname}\n`;
-          output += `   Version=23.02.6\n`;
-          output += `   OS=Linux 5.15.0-91-generic #101-Ubuntu SMP\n`;
-          output += `   RealMemory=${node.ramTotal * 1024} AllocMem=0 FreeMem=${(node.ramTotal - node.ramUsed) * 1024}\n`;
-          output += `   Sockets=${node.cpuCount} Boards=1\n`;
-          output += `   State=${node.slurmState.toUpperCase()} ThreadsPerCore=1 TmpDisk=0 Weight=1 Owner=N/A MCS_label=N/A\n`;
+          output += `   Gres=gpu:h100:${node.gpus.length}\n`;
+          output += `   GresUsed=gpu:h100:${node.slurmState === 'alloc' ? Math.min(4, node.gpus.length) : 0}(IDX:${node.slurmState === 'alloc' ? '0-3' : 'N/A'})\n`;
+          output += `   NodeAddr=${node.id} NodeHostName=${node.hostname} Version=23.02.6\n`;
+          output += `   OS=Linux 5.15.0-91-generic #101-Ubuntu SMP x86_64\n`;
+          output += `   RealMemory=${node.ramTotal * 1024} AllocMem=${allocMem} FreeMem=${(node.ramTotal - node.ramUsed) * 1024} Sockets=${node.cpuCount} Boards=1\n`;
+          output += `   State=${node.slurmState.toUpperCase()}${node.slurmState === 'drain' ? '+DRAIN' : ''} ThreadsPerCore=1 TmpDisk=0 Weight=1 Owner=N/A MCS_label=N/A\n`;
           output += `   Partitions=gpu\n`;
           output += `   BootTime=2024-01-10T08:00:00 SlurmdStartTime=2024-01-10T08:05:00\n`;
+          output += `   LastBusyTime=2024-01-11T14:30:00\n`;
+          output += `   CfgTRES=cpu=${node.cpuCount * 64},mem=${node.ramTotal * 1024}M,billing=${node.cpuCount * 64},gres/gpu=${node.gpus.length}\n`;
+          output += `   AllocTRES=${node.slurmState === 'alloc' ? `cpu=${allocCpus},mem=${allocMem}M,gres/gpu=4` : ''}\n`;
           output += `   CurrentWatts=0 AveWatts=0\n`;
           output += `   ExtSensorsJoules=n/s ExtSensorsWatts=0 ExtSensorsTemp=n/s\n`;
 
@@ -414,18 +753,114 @@ export class SlurmSimulator extends BaseSimulator {
         return { output, exitCode: 0 };
       }
 
+      if (what === 'job' || what === 'jobs') {
+        // Check if specific job requested
+        const jobIdArg = parsed.subcommands[2] || parsed.positionalArgs.find(a => !a.includes('='));
+
+        let jobsToShow = this.jobs;
+        if (jobIdArg) {
+          const jobId = parseInt(jobIdArg);
+          jobsToShow = this.jobs.filter(j => j.jobId === jobId);
+          if (jobsToShow.length === 0) {
+            return this.createError(`Job ${jobIdArg} not found`);
+          }
+        }
+
+        if (jobsToShow.length === 0) {
+          return { output: 'No jobs in the system\n', exitCode: 0 };
+        }
+
+        let output = '';
+        jobsToShow.forEach((job, idx) => {
+          if (idx > 0) output += '\n';
+
+          const submitTimeStr = job.submitTime.toISOString().replace('T', ' ').split('.')[0];
+          const startTimeStr = job.startTime
+            ? job.startTime.toISOString().replace('T', ' ').split('.')[0]
+            : 'Unknown';
+          const endTimeStr = job.endTime
+            ? job.endTime.toISOString().replace('T', ' ').split('.')[0]
+            : 'Unknown';
+
+          output += `JobId=${job.jobId} JobName=${job.name}\n`;
+          output += `   UserId=${job.user}(1000) GroupId=${job.user}(1000) MCS_label=N/A\n`;
+          output += `   Priority=${job.priority} Nice=0 Account=${job.account} QOS=${job.qos}\n`;
+          output += `   JobState=${job.state} Reason=${job.state === 'PENDING' ? (job.reasonPending || 'Priority') : 'None'} Dependency=${job.dependency || '(null)'}\n`;
+          output += `   Requeue=1 Restarts=0 BatchFlag=1 Reboot=0 ExitCode=0:0\n`;
+          output += `   RunTime=${job.time} TimeLimit=${job.timeLimit} TimeMin=N/A\n`;
+          output += `   SubmitTime=${submitTimeStr} EligibleTime=${submitTimeStr}\n`;
+          output += `   AccrueTime=${submitTimeStr}\n`;
+          output += `   StartTime=${startTimeStr} EndTime=${endTimeStr} Deadline=N/A\n`;
+          output += `   SuspendTime=None SecsPreSuspend=0 LastSchedEval=${submitTimeStr}\n`;
+          output += `   Scheduler=Main\n`;
+          output += `   Partition=${job.partition} AllocNode:Sid=${job.nodelist}:${job.jobId}\n`;
+          output += `   ReqNodeList=(null) ExcNodeList=(null)\n`;
+          output += `   NodeList=${job.state === 'RUNNING' ? job.nodelist : ''}\n`;
+          output += `   BatchHost=${job.state === 'RUNNING' ? job.nodelist : ''}\n`;
+          output += `   NumNodes=${job.nodes} NumCPUs=${job.cpus} NumTasks=${job.cpus} CPUs/Task=1 ReqB:S:C:T=0:0:*:*\n`;
+          output += `   TRES=cpu=${job.cpus},mem=${job.memory},node=${job.nodes},billing=${job.cpus},gres/gpu=${job.gpus}\n`;
+          output += `   Socks/Node=* NtasksPerN:B:S:C=0:0:*:* CoreSpec=*\n`;
+          output += `   MinCPUsNode=1 MinMemoryNode=${job.memory} MinTmpDiskNode=0\n`;
+          output += `   Features=(null) DelayBoot=00:00:00\n`;
+          output += `   OverSubscribe=OK Contiguous=0 Licenses=(null) Network=(null)\n`;
+          output += `   Command=${job.command}\n`;
+          output += `   WorkDir=${job.workDir}\n`;
+          output += `   StdErr=${job.workDir}/slurm-${job.jobId}.err\n`;
+          output += `   StdIn=/dev/null\n`;
+          output += `   StdOut=${job.workDir}/slurm-${job.jobId}.out\n`;
+          output += `   Power=\n`;
+        });
+
+        return { output, exitCode: 0 };
+      }
+
       if (what === 'partition' || what === 'partitions') {
+        const nodes = this.getAllNodes(context);
+        const totalCpus = nodes.reduce((sum, n) => sum + n.cpuCount * 64, 0);
+        const totalMem = nodes.reduce((sum, n) => sum + n.ramTotal * 1024, 0);
+        const totalGpus = nodes.reduce((sum, n) => sum + n.gpus.length, 0);
+
         let output = 'PartitionName=gpu\n';
         output += '   AllowGroups=ALL AllowAccounts=ALL AllowQos=ALL\n';
         output += '   AllocNodes=ALL Default=YES QoS=N/A\n';
         output += '   DefaultTime=NONE DisableRootJobs=NO ExclusiveUser=NO GraceTime=0 Hidden=NO\n';
-        output += '   MaxNodes=UNLIMITED MaxTime=UNLIMITED MinNodes=0 LLN=NO MaxCPUsPerNode=UNLIMITED\n';
-        output += '   Nodes=dgx-[00-07]\n';
+        output += '   MaxNodes=UNLIMITED MaxTime=UNLIMITED MinNodes=0 LLN=NO MaxCPUsPerNode=UNLIMITED MaxCPUsPerSocket=UNLIMITED\n';
+        output += `   Nodes=dgx-[00-${(nodes.length - 1).toString().padStart(2, '0')}]\n`;
         output += '   PriorityJobFactor=1 PriorityTier=1 RootOnly=NO ReqResv=NO OverSubscribe=NO\n';
         output += '   OverTimeLimit=NONE PreemptMode=OFF\n';
-        output += '   State=UP TotalCPUs=4096 TotalNodes=8 SelectTypeParameters=NONE\n';
-        output += '   DefMemPerCPU=1024 MaxMemPerCPU=UNLIMITED\n';
+        output += `   State=UP TotalCPUs=${totalCpus} TotalNodes=${nodes.length} SelectTypeParameters=NONE\n`;
+        output += `   JobDefaults=(null)\n`;
+        output += `   DefMemPerCPU=1024 MaxMemPerNode=UNLIMITED\n`;
+        output += `   TRES=cpu=${totalCpus},mem=${totalMem}M,node=${nodes.length},billing=${totalCpus},gres/gpu=${totalGpus}\n`;
 
+        return { output, exitCode: 0 };
+      }
+
+      if (what === 'config' || what === 'configuration') {
+        let output = 'Configuration data as of 2024-01-11T12:00:00\n';
+        output += 'AccountingStorageBackupHost = (null)\n';
+        output += 'AccountingStorageEnforce = associations,limits,qos,safe\n';
+        output += 'AccountingStorageHost = localhost\n';
+        output += 'AccountingStorageParameters = (null)\n';
+        output += 'AccountingStoragePort = 6819\n';
+        output += 'AccountingStorageType = accounting_storage/slurmdbd\n';
+        output += 'AccountingStoreFlags = job_comment,job_env,job_script\n';
+        output += 'ClusterName = dgx-cluster\n';
+        output += 'ControlMachine = dgx-00\n';
+        output += 'DefMemPerCPU = 1024\n';
+        output += 'GresTypes = gpu\n';
+        output += 'MaxJobCount = 10000\n';
+        output += 'MaxStepCount = 40000\n';
+        output += 'PriorityType = priority/multifactor\n';
+        output += 'ProctrackType = proctrack/cgroup\n';
+        output += 'SchedulerType = sched/backfill\n';
+        output += 'SelectType = select/cons_tres\n';
+        output += 'SelectTypeParameters = CR_Core_Memory\n';
+        output += 'SlurmUser = slurm\n';
+        output += 'SLURM_CONF = /etc/slurm/slurm.conf\n';
+        output += 'SLURM_VERSION = 23.02.6\n';
+        output += 'StateSaveLocation = /var/spool/slurmctld\n';
+        output += 'TaskPlugin = task/affinity,task/cgroup\n';
         return { output, exitCode: 0 };
       }
     }
@@ -476,14 +911,34 @@ export class SlurmSimulator extends BaseSimulator {
       output += `  -N, --nodes=N              number of nodes to use\n`;
       output += `  -n, --ntasks=N             number of tasks to run\n`;
       output += `  -c, --cpus-per-task=N      number of CPUs per task\n`;
-      output += `  -t, --time=TIME            time limit\n`;
+      output += `  -t, --time=TIME            time limit (e.g., 1:00:00, 1-00:00:00)\n`;
       output += `  -p, --partition=PARTITION  partition to submit to\n`;
-      output += `  -o, --output=FILE          output file\n`;
-      output += `  -e, --error=FILE           error file\n`;
+      output += `  -o, --output=FILE          output file pattern (%j=jobid, %x=jobname)\n`;
+      output += `  -e, --error=FILE           error file pattern\n`;
       output += `  -J, --job-name=NAME        job name\n`;
-      output += `      --gres=GRES            generic resources\n`;
+      output += `      --gres=GRES            generic resources (e.g., gpu:4, gpu:h100:8)\n`;
+      output += `      --gpus=N               shortcut for number of GPUs\n`;
+      output += `      --gpus-per-node=N      GPUs per node\n`;
+      output += `      --gpus-per-task=N      GPUs per task\n`;
+      output += `      --mem=SIZE             memory per node (e.g., 100G)\n`;
+      output += `      --mem-per-cpu=SIZE     memory per CPU\n`;
+      output += `      --mem-per-gpu=SIZE     memory per GPU\n`;
+      output += `  -A, --account=ACCOUNT      charge job to this account\n`;
+      output += `      --qos=QOS              quality of service\n`;
+      output += `  -d, --dependency=TYPE:JOBID\n`;
+      output += `                             job dependency (after, afterok, afternotok,\n`;
+      output += `                             afterany, singleton)\n`;
+      output += `      --array=SPEC           job array specification (e.g., 0-15, 0-15%4)\n`;
+      output += `      --exclusive            exclusive node access\n`;
+      output += `      --reservation=NAME     use this reservation\n`;
       output += `  -V, --version              output version and exit\n`;
       output += `      --help                 show this help\n`;
+      output += `\nDependency Types:\n`;
+      output += `  after:jobid       - begin after job starts\n`;
+      output += `  afterok:jobid     - begin after job completes successfully\n`;
+      output += `  afternotok:jobid  - begin after job fails\n`;
+      output += `  afterany:jobid    - begin after job completes (any status)\n`;
+      output += `  singleton         - begin after all previous jobs with same name complete\n`;
       return this.createSuccess(output);
     }
 
@@ -498,45 +953,142 @@ export class SlurmSimulator extends BaseSimulator {
     const scriptPath = parsed.positionalArgs[0] || parsed.subcommands[0];
     const jobId = this.nextJobId++;
 
-    const job: SlurmJob = {
-      jobId,
-      partition: 'gpu',
-      name: scriptPath.split('/').pop()?.replace('.sh', '') || 'job',
-      user: 'root',
-      state: 'PENDING',
-      time: '0:00',
-      nodes: 1,
-      nodelist: '(Resources)',
-    };
-
-    this.jobs.push(job);
+    // Parse all job options
+    const jobName = this.getFlagString(parsed, ['J', 'job-name']) ||
+      scriptPath.split('/').pop()?.replace('.sh', '') || 'job';
+    const partition = this.getFlagString(parsed, ['p', 'partition']) || 'gpu';
+    const timeLimit = this.getFlagString(parsed, ['t', 'time']) || 'infinite';
+    const nodesCount = this.getFlagNumber(parsed, ['N', 'nodes'], 1);
+    const ntasks = this.getFlagNumber(parsed, ['n', 'ntasks'], 1);
+    const cpusPerTask = this.getFlagNumber(parsed, ['c', 'cpus-per-task'], 1);
+    const memorySpec = this.getFlagString(parsed, ['mem']) || '16G';
+    const account = this.getFlagString(parsed, ['A', 'account']) || 'default';
+    const qos = this.getFlagString(parsed, ['qos']) || 'normal';
+    const dependency = this.getFlagString(parsed, ['d', 'dependency']);
+    const arraySpec = this.getFlagString(parsed, ['array']);
 
     // Parse GPU count from gres or gpus flag
     const gresValue = this.getFlagString(parsed, ['gres']);
-    let gpuCount = 1;
-    if (gresValue && gresValue.includes('gpu:')) {
-      const match = gresValue.match(/gpu:(\d+)/);
+    let gpuCount = 0;
+    if (gresValue && gresValue.includes('gpu')) {
+      // Handle formats: gpu:4, gpu:h100:4, gpu:h100:8(S:0-1)
+      const match = gresValue.match(/gpu(?::[a-z0-9]+)?:(\d+)/i);
       if (match) gpuCount = parseInt(match[1]);
     }
     const gpusFlagValue = this.getFlagNumber(parsed, ['gpus'], 0);
+    const gpusPerNode = this.getFlagNumber(parsed, ['gpus-per-node'], 0);
+    const gpusPerTask = this.getFlagNumber(parsed, ['gpus-per-task'], 0);
     if (gpusFlagValue > 0) gpuCount = gpusFlagValue;
+    if (gpusPerNode > 0) gpuCount = gpusPerNode * nodesCount;
+    if (gpusPerTask > 0) gpuCount = gpusPerTask * ntasks;
+    if (gpuCount === 0) gpuCount = 1; // Default to 1 GPU
 
-    setTimeout(() => {
-      job.state = 'RUNNING';
-      const state = useSimulationStore.getState();
-      const nodes = state.cluster.nodes;
-      const availableNode = nodes.find(n => n.slurmState === 'idle');
-      if (availableNode) {
-        job.nodelist = availableNode.id;
-
-        // Allocate GPUs with utilization update (cross-tool sync)
-        const gpuIds = availableNode.gpus.slice(0, gpuCount).map(g => g.id);
-        state.allocateGPUsForJob(availableNode.id, gpuIds, job.jobId, 85);
-        state.setSlurmState(availableNode.id, 'alloc');
+    // Validate dependency if specified
+    let dependencyValid = true;
+    let reasonPending = 'Resources';
+    if (dependency) {
+      const depMatch = dependency.match(/^(after|afterok|afternotok|afterany|singleton)(?::(\d+))?$/);
+      if (!depMatch) {
+        return this.createError(`Error: Invalid dependency specification: ${dependency}`);
       }
-    }, 100);
+      const depType = depMatch[1];
+      const depJobId = depMatch[2] ? parseInt(depMatch[2]) : null;
 
-    return this.createSuccess(`Submitted batch job ${jobId}`);
+      if (depType !== 'singleton' && depJobId) {
+        const depJob = this.jobs.find(j => j.jobId === depJobId);
+        if (!depJob) {
+          return this.createError(`Error: Dependency job ${depJobId} not found`);
+        }
+        reasonPending = `Dependency`;
+        // Check if dependency is satisfied
+        if (depType === 'afterok' && depJob.state !== 'COMPLETED') {
+          dependencyValid = false;
+        } else if (depType === 'afternotok' && depJob.state !== 'FAILED') {
+          dependencyValid = false;
+        } else if ((depType === 'after' || depType === 'afterany') &&
+          depJob.state !== 'RUNNING' && depJob.state !== 'COMPLETED' && depJob.state !== 'FAILED') {
+          dependencyValid = false;
+        }
+      } else if (depType === 'singleton') {
+        // Check if any job with same name is running
+        const runningWithSameName = this.jobs.find(j => j.name === jobName && j.state === 'RUNNING');
+        if (runningWithSameName) {
+          dependencyValid = false;
+          reasonPending = 'DependencyNeverSatisfied';
+        }
+      }
+    }
+
+    const job: SlurmJob = {
+      jobId,
+      partition,
+      name: jobName,
+      user: 'root',
+      state: 'PENDING',
+      time: '0:00',
+      timeLimit,
+      nodes: nodesCount,
+      nodelist: '',
+      cpus: ntasks * cpusPerTask,
+      gpus: gpuCount,
+      memory: memorySpec,
+      submitTime: new Date(),
+      priority: 1000 + Math.floor(Math.random() * 100),
+      account,
+      qos,
+      workDir: '/home/root',
+      command: scriptPath,
+      dependency,
+      reasonPending,
+    };
+
+    // Handle array jobs
+    if (arraySpec) {
+      const arrayMatch = arraySpec.match(/^(\d+)-(\d+)(?:%(\d+))?$/);
+      if (arrayMatch) {
+        const start = parseInt(arrayMatch[1]);
+        const end = parseInt(arrayMatch[2]);
+        // Create array master job
+        job.name = `${jobName}_[${start}-${end}]`;
+        // For simulation, we'll just note it's an array job
+      }
+    }
+
+    this.jobs.push(job);
+
+    // Schedule job to run (if no blocking dependency)
+    if (dependencyValid || !dependency) {
+      setTimeout(() => {
+        const currentJob = this.jobs.find(j => j.jobId === jobId);
+        if (!currentJob || currentJob.state !== 'PENDING') return;
+
+        const state = useSimulationStore.getState();
+        const nodes = state.cluster.nodes;
+        const availableNode = nodes.find(n => n.slurmState === 'idle');
+
+        if (availableNode) {
+          currentJob.state = 'RUNNING';
+          currentJob.nodelist = availableNode.id;
+          currentJob.startTime = new Date();
+          currentJob.reasonPending = undefined;
+
+          // Allocate GPUs with utilization update (cross-tool sync)
+          const gpuIds = availableNode.gpus.slice(0, gpuCount).map(g => g.id);
+          state.allocateGPUsForJob(availableNode.id, gpuIds, jobId, 85);
+          state.setSlurmState(availableNode.id, 'alloc');
+        } else {
+          currentJob.reasonPending = 'Resources';
+        }
+      }, 100);
+    }
+
+    let output = `Submitted batch job ${jobId}`;
+    if (dependency) {
+      output += ` with dependency ${dependency}`;
+    }
+    output += '\n';
+
+    return this.createSuccess(output);
   }
 
   // srun - Run job interactively

@@ -536,7 +536,7 @@ export class MellanoxSimulator extends BaseSimulator {
     const doUpdate = this.hasAnyFlag(parsed, ['u']);
 
     // Build list of devices to query
-    let devices: any[] = [];
+    const devices: any[] = [];
 
     if (devicePath) {
       // Find specific device

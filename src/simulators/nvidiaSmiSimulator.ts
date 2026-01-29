@@ -866,7 +866,7 @@ export class NvidiaSmiSimulator extends BaseSimulator {
   }
 
   private formatDisplayPids(_gpu: GPU): string {
-    let output = `    Processes                             : None\n`;
+    const output = `    Processes                             : None\n`;
     return output;
   }
 

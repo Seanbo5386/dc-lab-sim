@@ -2,6 +2,7 @@ import type { CommandResult, CommandContext } from '@/types/commands';
 import type { ParsedCommand } from '@/utils/commandParser';
 import { BaseSimulator, type SimulatorMetadata } from '@/simulators/BaseSimulator';
 import { useSimulationStore } from '@/store/simulationStore';
+import type { GPU, DGXNode, NVLinkConnection, XIDError } from '@/types/hardware';
 
 /**
  * NVIDIA Fabric Manager Simulator
@@ -78,12 +79,19 @@ export class FabricManagerSimulator extends BaseSimulator {
     output += `  stop                 Stop fabric manager service\n`;
     output += `  restart              Restart fabric manager service\n`;
     output += `  config               Show/modify configuration\n`;
-    output += `  diag                 Run fabric diagnostics\n`;
+    output += `  diag [mode]          Run fabric diagnostics\n`;
+    output += `    quick               Quick health check\n`;
+    output += `    full                Complete diagnostic suite\n`;
+    output += `    stress              NVLink stress test\n`;
+    output += `    errors              Detailed error analysis\n`;
+    output += `    ports               Port-level diagnostics\n`;
     output += `  topo                 Display topology map\n\n`;
     output += `Examples:\n`;
     output += `  nv-fabricmanager status\n`;
     output += `  nv-fabricmanager query nvswitch\n`;
     output += `  nv-fabricmanager diag\n`;
+    output += `  nv-fabricmanager diag full\n`;
+    output += `  nv-fabricmanager diag errors\n`;
     return this.createSuccess(output);
   }
 
@@ -307,10 +315,25 @@ export class FabricManagerSimulator extends BaseSimulator {
     return this.createError(`Unknown config option: ${configOption}\nUse 'nv-fabricmanager config show' to display configuration.`);
   }
 
-  private executeDiag(_parsed: ParsedCommand, context: CommandContext): CommandResult {
+  private executeDiag(parsed: ParsedCommand, context: CommandContext): CommandResult {
     const node = this.getNode(context);
     if (!node) {
       return this.createError('Error: Unable to determine current node');
+    }
+
+    // Check for specific diagnostic modes
+    const diagLevel = parsed.subcommands[1];
+
+    if (diagLevel === 'quick') {
+      return this.executeDiagQuick(node);
+    } else if (diagLevel === 'full') {
+      return this.executeDiagFull(node);
+    } else if (diagLevel === 'stress') {
+      return this.executeDiagStress(node);
+    } else if (diagLevel === 'errors') {
+      return this.executeDiagErrors(node);
+    } else if (diagLevel === 'ports') {
+      return this.executeDiagPorts(node);
     }
 
     let output = `\x1b[1mNVIDIA Fabric Manager Diagnostics\x1b[0m\n`;
@@ -357,9 +380,239 @@ export class FabricManagerSimulator extends BaseSimulator {
     output += `${'─'.repeat(60)}\n`;
     const allPassed = activeLinks === totalLinks && errorCount === 0;
     output += `\x1b[1mDiagnostic Summary:\x1b[0m ${allPassed ? '\x1b[32mPASSED\x1b[0m' : '\x1b[33mWARNINGS\x1b[0m'}\n`;
-    output += `Completed at: ${new Date().toISOString()}\n`;
+    output += `Completed at: ${new Date().toISOString()}\n\n`;
+
+    output += `\x1b[90mAdditional diagnostic modes:\x1b[0m\n`;
+    output += `  nv-fabricmanager diag quick   - Quick health check\n`;
+    output += `  nv-fabricmanager diag full    - Full diagnostic suite\n`;
+    output += `  nv-fabricmanager diag stress  - Stress test NVLinks\n`;
+    output += `  nv-fabricmanager diag errors  - Detailed error analysis\n`;
+    output += `  nv-fabricmanager diag ports   - Port-level diagnostics\n`;
 
     return this.createSuccess(output);
+  }
+
+  private executeDiagQuick(node: DGXNode): CommandResult {
+    let output = `\x1b[1mQuick Fabric Health Check\x1b[0m\n`;
+    output += `${'─'.repeat(50)}\n\n`;
+
+    const nvswitchCount = node.gpus.length >= 8 ? 6 : 0;
+    const totalLinks = node.gpus.reduce((sum: number, g: GPU) => sum + g.nvlinks.length, 0);
+    const activeLinks = node.gpus.reduce((sum: number, g: GPU) => sum + g.nvlinks.filter((l: NVLinkConnection) => l.status === 'Active').length, 0);
+    const errorCount = node.gpus.reduce((sum: number, g: GPU) => sum + g.xidErrors.length, 0);
+
+    output += `Fabric Manager:  \x1b[32m✓ Running\x1b[0m\n`;
+    output += `NVSwitches:      ${nvswitchCount > 0 ? `\x1b[32m✓ ${nvswitchCount} detected\x1b[0m` : '\x1b[90m- Not applicable\x1b[0m'}\n`;
+    output += `NVLinks:         ${activeLinks === totalLinks ? '\x1b[32m✓' : '\x1b[33m⚠'} ${activeLinks}/${totalLinks} active\x1b[0m\n`;
+    output += `Errors:          ${errorCount === 0 ? '\x1b[32m✓ None\x1b[0m' : `\x1b[33m⚠ ${errorCount} detected\x1b[0m`}\n\n`;
+
+    const healthy = activeLinks === totalLinks && errorCount === 0;
+    output += `Overall Status: ${healthy ? '\x1b[32mHEALTHY\x1b[0m' : '\x1b[33mATTENTION NEEDED\x1b[0m'}\n`;
+
+    return this.createSuccess(output);
+  }
+
+  private executeDiagFull(node: DGXNode): CommandResult {
+    let output = `\x1b[1mFull Fabric Diagnostic Suite\x1b[0m\n`;
+    output += `${'─'.repeat(70)}\n\n`;
+
+    const nvswitchCount = node.gpus.length >= 8 ? 6 : 0;
+
+    // Phase 1: Service checks
+    output += `\x1b[1mPhase 1: Service Verification\x1b[0m\n`;
+    output += `  Fabric Manager daemon:     \x1b[32mRunning (PID: ${12345 + Math.floor(Math.random() * 1000)})\x1b[0m\n`;
+    output += `  Configuration validation:  \x1b[32mPassed\x1b[0m\n`;
+    output += `  License check:             \x1b[32mValid\x1b[0m\n\n`;
+
+    // Phase 2: Hardware detection
+    output += `\x1b[1mPhase 2: Hardware Detection\x1b[0m\n`;
+    output += `  GPUs detected:             ${node.gpus.length}\n`;
+    output += `  NVSwitches detected:       ${nvswitchCount}\n`;
+    output += `  NVLink version:            NVLink 4.0\n`;
+    output += `  Topology type:             ${nvswitchCount > 0 ? 'NVSwitch Full Mesh' : 'Direct NVLink'}\n\n`;
+
+    // Phase 3: Link validation
+    output += `\x1b[1mPhase 3: NVLink Validation\x1b[0m\n`;
+    output += `  GPU  | Links | Active | Speed    | Status\n`;
+    output += `  ${'─'.repeat(50)}\n`;
+    node.gpus.forEach((gpu: GPU) => {
+      const active = gpu.nvlinks.filter((l: NVLinkConnection) => l.status === 'Active').length;
+      const total = gpu.nvlinks.length;
+      const status = active === total ? '\x1b[32mOK\x1b[0m' : '\x1b[33mDegraded\x1b[0m';
+      output += `   ${gpu.id}   |   ${total}   |   ${active}    | 50GB/s   | ${status}\n`;
+    });
+    output += `\n`;
+
+    // Phase 4: Bandwidth test
+    output += `\x1b[1mPhase 4: Bandwidth Verification\x1b[0m\n`;
+    const totalLinks = node.gpus.reduce((sum: number, g: GPU) => sum + g.nvlinks.length, 0);
+    const activeLinks = node.gpus.reduce((sum: number, g: GPU) => sum + g.nvlinks.filter((l: NVLinkConnection) => l.status === 'Active').length, 0);
+    const expectedBw = activeLinks * 50;
+    const measuredBw = expectedBw * (0.95 + Math.random() * 0.05);
+    output += `  Expected aggregate:        ${expectedBw} GB/s\n`;
+    output += `  Measured aggregate:        ${measuredBw.toFixed(1)} GB/s\n`;
+    output += `  Efficiency:                ${((measuredBw / expectedBw) * 100).toFixed(1)}%\n`;
+    output += `  Status:                    \x1b[32mWithin tolerance\x1b[0m\n\n`;
+
+    // Phase 5: Error analysis
+    output += `\x1b[1mPhase 5: Error Analysis\x1b[0m\n`;
+    const nvlinkXids = node.gpus.flatMap((g: GPU) => g.xidErrors).filter((x: XIDError) => [72, 73, 74, 76, 77, 78].includes(x.code));
+    output += `  NVLink-related XID errors: ${nvlinkXids.length}\n`;
+    output += `  CRC errors:                ${Math.floor(Math.random() * 3)}\n`;
+    output += `  Replay errors:             ${Math.floor(Math.random() * 5)}\n`;
+    output += `  Recovery events:           ${Math.floor(Math.random() * 2)}\n\n`;
+
+    // Summary
+    const allPassed = activeLinks === totalLinks && nvlinkXids.length === 0;
+    output += `${'─'.repeat(70)}\n`;
+    output += `\x1b[1mDiagnostic Result:\x1b[0m ${allPassed ? '\x1b[32mALL TESTS PASSED\x1b[0m' : '\x1b[33mISSUES DETECTED\x1b[0m'}\n`;
+    output += `Duration: ${(2 + Math.random() * 3).toFixed(1)}s\n`;
+
+    return this.createSuccess(output);
+  }
+
+  private executeDiagStress(node: DGXNode): CommandResult {
+    let output = `\x1b[1mNVLink Stress Test\x1b[0m\n`;
+    output += `${'─'.repeat(60)}\n\n`;
+
+    output += `\x1b[33mWarning: This test generates heavy NVLink traffic.\x1b[0m\n`;
+    output += `\x1b[33mRunning workloads may be affected.\x1b[0m\n\n`;
+
+    output += `Initializing stress test...\n`;
+    output += `Test duration: 30 seconds\n`;
+    output += `Pattern: Bidirectional all-to-all\n\n`;
+
+    output += `\x1b[1mProgress:\x1b[0m\n`;
+    output += `  Phase 1 - Warmup:          \x1b[32mComplete\x1b[0m\n`;
+    output += `  Phase 2 - Ramp-up:         \x1b[32mComplete\x1b[0m\n`;
+    output += `  Phase 3 - Sustained load:  \x1b[32mComplete\x1b[0m\n`;
+    output += `  Phase 4 - Error check:     \x1b[32mComplete\x1b[0m\n\n`;
+
+    output += `\x1b[1mResults:\x1b[0m\n`;
+    const activeLinks = node.gpus.reduce((sum: number, g: GPU) => sum + g.nvlinks.filter((l: NVLinkConnection) => l.status === 'Active').length, 0);
+    const peakBw = activeLinks * 50 * 0.98;
+    const avgBw = activeLinks * 50 * 0.95;
+    output += `  Peak bandwidth:            ${peakBw.toFixed(1)} GB/s\n`;
+    output += `  Average bandwidth:         ${avgBw.toFixed(1)} GB/s\n`;
+    output += `  Minimum bandwidth:         ${(avgBw * 0.93).toFixed(1)} GB/s\n`;
+    output += `  Packets transmitted:       ${(Math.random() * 1000000000).toFixed(0)}\n`;
+    output += `  Errors during test:        0\n`;
+    output += `  Link retrains:             0\n\n`;
+
+    output += `\x1b[32mStress test completed successfully.\x1b[0m\n`;
+
+    return this.createSuccess(output);
+  }
+
+  private executeDiagErrors(node: DGXNode): CommandResult {
+    let output = `\x1b[1mFabric Error Analysis\x1b[0m\n`;
+    output += `${'─'.repeat(70)}\n\n`;
+
+    // Collect all errors
+    const allXids = node.gpus.flatMap((gpu: GPU, idx: number) =>
+      gpu.xidErrors.map((xid: XIDError) => ({ ...xid, gpuId: idx }))
+    );
+    const nvlinkXids = allXids.filter((x) => [72, 73, 74, 76, 77, 78].includes(x.code));
+
+    output += `\x1b[1mError Summary:\x1b[0m\n`;
+    output += `  Total fabric-related errors: ${nvlinkXids.length}\n\n`;
+
+    if (nvlinkXids.length === 0) {
+      output += `\x1b[32mNo fabric errors detected.\x1b[0m\n\n`;
+    } else {
+      output += `\x1b[1mError Details:\x1b[0m\n`;
+      output += `  Timestamp               | GPU | XID | Description\n`;
+      output += `  ${'─'.repeat(65)}\n`;
+      nvlinkXids.slice(0, 10).forEach((xid) => {
+        const desc = this.getXidDescription(xid.code);
+        output += `  ${xid.timestamp}  |  ${xid.gpuId}  | ${xid.code}  | ${desc}\n`;
+      });
+      if (nvlinkXids.length > 10) {
+        output += `  ... and ${nvlinkXids.length - 10} more errors\n`;
+      }
+      output += `\n`;
+    }
+
+    // Port error counters
+    output += `\x1b[1mPort Error Counters:\x1b[0m\n`;
+    output += `  NVLink Port | CRC Errors | Replay | Recovery | Flit Errors\n`;
+    output += `  ${'─'.repeat(60)}\n`;
+    for (let i = 0; i < Math.min(node.gpus.length * 2, 12); i++) {
+      const crc = Math.floor(Math.random() * 5);
+      const replay = Math.floor(Math.random() * 10);
+      const recovery = Math.floor(Math.random() * 2);
+      const flit = Math.floor(Math.random() * 3);
+      output += `      ${i.toString().padStart(2)}      |     ${crc}      |   ${replay.toString().padStart(2)}   |    ${recovery}     |      ${flit}\n`;
+    }
+    output += `\n`;
+
+    // Recommendations
+    output += `\x1b[1mRecommendations:\x1b[0m\n`;
+    if (nvlinkXids.length > 0) {
+      output += `  1. Review XID error patterns for affected GPUs\n`;
+      output += `  2. Check NVLink cable connections\n`;
+      output += `  3. Verify NVSwitch firmware versions\n`;
+      output += `  4. Consider running 'nv-fabricmanager diag stress' for verification\n`;
+    } else {
+      output += `  \x1b[32mNo recommendations - fabric operating normally\x1b[0m\n`;
+    }
+
+    return this.createSuccess(output);
+  }
+
+  private executeDiagPorts(node: DGXNode): CommandResult {
+    let output = `\x1b[1mPort-Level Diagnostics\x1b[0m\n`;
+    output += `${'─'.repeat(80)}\n\n`;
+
+    const nvswitchCount = node.gpus.length >= 8 ? 6 : 0;
+
+    if (nvswitchCount === 0) {
+      output += `No NVSwitch devices detected. Showing direct NVLink port status.\n\n`;
+    }
+
+    output += `\x1b[1mGPU NVLink Ports:\x1b[0m\n`;
+    output += `  GPU | Port | State  | Remote    | Tx Rate  | Rx Rate  | Util%\n`;
+    output += `  ${'─'.repeat(70)}\n`;
+
+    node.gpus.forEach((gpu: GPU) => {
+      gpu.nvlinks.forEach((link: NVLinkConnection, linkIdx: number) => {
+        const state = link.status === 'Active' ? '\x1b[32mUp\x1b[0m    ' : '\x1b[31mDown\x1b[0m  ';
+        const remote = nvswitchCount > 0 ? `NVSwitch ${linkIdx % nvswitchCount}` : `GPU ${(gpu.id + linkIdx + 1) % node.gpus.length}`;
+        const txRate = link.status === 'Active' ? `${(link.speed * 0.8 + Math.random() * link.speed * 0.2).toFixed(1)}GB/s` : 'N/A     ';
+        const rxRate = link.status === 'Active' ? `${(link.speed * 0.8 + Math.random() * link.speed * 0.2).toFixed(1)}GB/s` : 'N/A     ';
+        const util = link.status === 'Active' ? `${Math.floor(Math.random() * 60 + 20)}%` : 'N/A';
+        output += `   ${gpu.id}  |  ${linkIdx}   | ${state} | ${remote.padEnd(9)} | ${txRate.padEnd(8)} | ${rxRate.padEnd(8)} | ${util}\n`;
+      });
+    });
+
+    output += `\n`;
+
+    if (nvswitchCount > 0) {
+      output += `\x1b[1mNVSwitch Ports:\x1b[0m\n`;
+      output += `  Switch | Port | State  | Connected To | Errors\n`;
+      output += `  ${'─'.repeat(55)}\n`;
+      for (let sw = 0; sw < nvswitchCount; sw++) {
+        for (let port = 0; port < node.gpus.length; port++) {
+          const state = Math.random() > 0.1 ? '\x1b[32mUp\x1b[0m    ' : '\x1b[31mDown\x1b[0m  ';
+          const errors = Math.floor(Math.random() * 5);
+          output += `    ${sw}    |  ${port}   | ${state} | GPU ${port}        |   ${errors}\n`;
+        }
+      }
+    }
+
+    return this.createSuccess(output);
+  }
+
+  private getXidDescription(code: number): string {
+    const descriptions: Record<number, string> = {
+      72: 'NVLink link training failed',
+      73: 'NVLink FLA access error',
+      74: 'NVLink link failed',
+      76: 'NVSwitch fatal error',
+      77: 'NVLink data CRC error',
+      78: 'NVLink flow control CRC error',
+    };
+    return descriptions[code] || 'Unknown NVLink error';
   }
 
   private executeTopo(_parsed: ParsedCommand, context: CommandContext): CommandResult {

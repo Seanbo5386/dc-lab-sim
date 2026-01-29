@@ -329,7 +329,7 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
     // Base bandwidth depends on interconnect
     // H100 with NVSwitch: ~450 GB/s per GPU
     // A100 with NVSwitch: ~300 GB/s per GPU
-    let baseBW = systemType.includes('H100') ? 450 : 300;
+    const baseBW = systemType.includes('H100') ? 450 : 300;
 
     // Message size efficiency (small messages have lower bandwidth)
     const sizeMB = sizeBytes / (1024 * 1024);

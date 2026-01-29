@@ -186,7 +186,7 @@ describe('Practical Exam Engine - Command Evaluation', () => {
   });
 
   it('should match output patterns', () => {
-    let result = evaluateCommand('nvidia-smi -q', 'GPU 2: error', challenge, challengeResult);
+    const result = evaluateCommand('nvidia-smi -q', 'GPU 2: error', challenge, challengeResult);
 
     const obj3 = result.objectiveResults.find(o => o.objectiveId === 'obj-3');
     expect(obj3?.completed).toBe(true);

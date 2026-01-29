@@ -254,7 +254,7 @@ describe('Interactive Shell Tests', () => {
       const listResult = simulator.executeInteractive('list -d {}', context);
       expect(listResult.exitCode).toBe(0);
       // Should contain JSON format
-      expect(listResult.output).toMatch(/[\[\{]/);
+      expect(listResult.output).toMatch(/[[\{]/);
     });
 
     it('should exit from mode to base prompt', () => {

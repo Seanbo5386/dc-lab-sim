@@ -336,7 +336,7 @@ export class ScenarioValidator {
     // Also check if any previous command matched (for multi-step validation)
     const previousMatch = allCommands.some(cmd => pattern.test(cmd));
 
-    let passed = currentMatch || previousMatch;
+    const passed = currentMatch || previousMatch;
 
     // Special handling for GPU reset with XID 79 errors
     // When attempting GPU reset, if the output contains XID 79 error message,
