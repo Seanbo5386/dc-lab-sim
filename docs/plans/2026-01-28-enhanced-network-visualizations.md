@@ -1443,417 +1443,815 @@ git commit -m "feat: add configurable fat-tree topology and bandwidth labels"
 
 ---
 
-## Phase 4: Training Scenario Integration
+## Phase 4: Visual-Scenario Integration
 
-### Task 4.1: Create Scenario Overlay System
+> **Note:** This phase connects the network visualizations to the existing 53 lab scenarios in `src/data/scenarios/`. It does NOT create duplicate training content. Instead, it provides visual context when users are working through existing labs.
+
+### Task 4.1: Create Scenario-to-Visualization Mapping
 
 **Files:**
-- Create: `src/components/NetworkScenarioOverlay.tsx`
-- Test: `src/components/__tests__/NetworkScenarioOverlay.test.tsx`
+- Create: `src/utils/scenarioVisualizationMap.ts`
+- Test: `src/utils/__tests__/scenarioVisualizationMap.test.ts`
+
+**Step 1: Write the failing test**
+
+```typescript
+import { describe, it, expect } from 'vitest';
+import {
+  getVisualizationContext,
+  getRelatedScenarios,
+  extractHighlightTargets,
+  VisualizationContext,
+} from '../scenarioVisualizationMap';
+
+describe('scenarioVisualizationMap', () => {
+  describe('getVisualizationContext', () => {
+    it('should return nvlink context for NVLink scenarios', () => {
+      const context = getVisualizationContext('domain2-nvlink-topo');
+      expect(context).not.toBeNull();
+      expect(context?.visualizationType).toBe('nvlink');
+      expect(context?.relevantTab).toBe('topology');
+    });
+
+    it('should return infiniband context for IB scenarios', () => {
+      const context = getVisualizationContext('domain4-ib-stress');
+      expect(context).not.toBeNull();
+      expect(context?.visualizationType).toBe('infiniband');
+      expect(context?.relevantTab).toBe('network');
+    });
+
+    it('should return null for scenarios without visualization', () => {
+      const context = getVisualizationContext('domain3-slurm-config');
+      expect(context).toBeNull();
+    });
+  });
+
+  describe('getRelatedScenarios', () => {
+    it('should return NVLink scenarios for topology tab', () => {
+      const scenarios = getRelatedScenarios('topology');
+      expect(scenarios.length).toBeGreaterThan(0);
+      expect(scenarios.every(s => s.id.includes('nvlink') || s.tags?.includes('nvlink'))).toBe(true);
+    });
+
+    it('should return InfiniBand scenarios for network tab', () => {
+      const scenarios = getRelatedScenarios('network');
+      expect(scenarios.length).toBeGreaterThan(0);
+      expect(scenarios.every(s => s.id.includes('ib') || s.tags?.includes('infiniband'))).toBe(true);
+    });
+  });
+
+  describe('extractHighlightTargets', () => {
+    it('should extract GPU indices from scenario step', () => {
+      const step = {
+        description: 'Check GPU 2 and GPU 3 for NVLink errors',
+        expectedCommands: ['nvidia-smi nvlink -e -i 2', 'nvidia-smi nvlink -e -i 3'],
+      };
+      const targets = extractHighlightTargets(step);
+      expect(targets.gpuIndices).toContain(2);
+      expect(targets.gpuIndices).toContain(3);
+    });
+
+    it('should extract link references from commands', () => {
+      const step = {
+        description: 'Check link status',
+        expectedCommands: ['nvidia-smi nvlink --status -i 0'],
+      };
+      const targets = extractHighlightTargets(step);
+      expect(targets.gpuIndices).toContain(0);
+    });
+  });
+});
+```
+
+**Step 2: Run test to verify it fails**
+
+Run: `npm test -- src/utils/__tests__/scenarioVisualizationMap.test.ts`
+Expected: FAIL with "Cannot find module"
+
+**Step 3: Write implementation**
+
+```typescript
+/**
+ * Scenario-to-Visualization Mapping
+ *
+ * Maps existing lab scenarios to visualization contexts,
+ * enabling visual highlighting when users work through labs.
+ */
+
+import type { Scenario, ScenarioStep } from '@/types/scenarios';
+
+export type VisualizationType = 'nvlink' | 'infiniband' | 'gpu-overview';
+export type DashboardTab = 'overview' | 'metrics' | 'topology' | 'network';
+
+export interface VisualizationContext {
+  scenarioId: string;
+  visualizationType: VisualizationType;
+  relevantTab: DashboardTab;
+  defaultHighlights?: {
+    gpuIndices?: number[];
+    linkIds?: string[];
+    nodeIds?: string[];
+  };
+}
+
+/**
+ * Scenarios that have relevant network visualizations.
+ * Maps scenario IDs to their visualization context.
+ */
+const SCENARIO_VISUALIZATION_MAP: Record<string, Omit<VisualizationContext, 'scenarioId'>> = {
+  // Domain 2: NVLink scenarios
+  'domain2-nvlink-topo': {
+    visualizationType: 'nvlink',
+    relevantTab: 'topology',
+  },
+  'domain2-nvlink-recovery': {
+    visualizationType: 'nvlink',
+    relevantTab: 'topology',
+    defaultHighlights: { gpuIndices: [2] }, // Scenario injects fault on GPU 2
+  },
+  'domain2-advanced-mig': {
+    visualizationType: 'gpu-overview',
+    relevantTab: 'overview',
+  },
+
+  // Domain 4: Bandwidth and fabric scenarios
+  'domain4-gpu-bandwidth': {
+    visualizationType: 'nvlink',
+    relevantTab: 'topology',
+  },
+  'domain4-ib-stress': {
+    visualizationType: 'infiniband',
+    relevantTab: 'network',
+  },
+  'domain4-nccl-test': {
+    visualizationType: 'nvlink',
+    relevantTab: 'topology',
+  },
+  'domain4-nccl-multinode': {
+    visualizationType: 'infiniband',
+    relevantTab: 'network',
+  },
+
+  // Domain 5: Troubleshooting scenarios
+  'domain5-xid-nvlink': {
+    visualizationType: 'nvlink',
+    relevantTab: 'topology',
+  },
+  'domain5-ib-partitioning': {
+    visualizationType: 'infiniband',
+    relevantTab: 'network',
+  },
+  'domain5-pcie-diagnosis': {
+    visualizationType: 'gpu-overview',
+    relevantTab: 'overview',
+  },
+};
+
+/**
+ * Get visualization context for a scenario.
+ * Returns null if the scenario doesn't have a relevant visualization.
+ */
+export function getVisualizationContext(scenarioId: string): VisualizationContext | null {
+  const mapping = SCENARIO_VISUALIZATION_MAP[scenarioId];
+  if (!mapping) return null;
+
+  return {
+    scenarioId,
+    ...mapping,
+  };
+}
+
+/**
+ * Get all scenarios that are relevant to a dashboard tab.
+ */
+export function getRelatedScenarios(tab: DashboardTab): Array<{ id: string; title: string; tags?: string[] }> {
+  const related: Array<{ id: string; title: string; tags?: string[] }> = [];
+
+  for (const [scenarioId, context] of Object.entries(SCENARIO_VISUALIZATION_MAP)) {
+    if (context.relevantTab === tab) {
+      related.push({
+        id: scenarioId,
+        title: scenarioId.replace(/-/g, ' ').replace(/domain\d+/, '').trim(),
+        tags: context.visualizationType === 'nvlink' ? ['nvlink'] : ['infiniband'],
+      });
+    }
+  }
+
+  return related;
+}
+
+/**
+ * Extract GPU indices and link IDs to highlight from a scenario step.
+ * Parses expected commands and descriptions to find references.
+ */
+export function extractHighlightTargets(step: Partial<ScenarioStep>): {
+  gpuIndices: number[];
+  linkIds: string[];
+  nodeIds: string[];
+} {
+  const gpuIndices: Set<number> = new Set();
+  const linkIds: Set<string> = new Set();
+  const nodeIds: Set<string> = new Set();
+
+  // Patterns to match GPU references
+  const gpuPatterns = [
+    /-i\s*(\d+)/g,           // nvidia-smi -i 0
+    /GPU\s*(\d+)/gi,         // "GPU 0" or "GPU0"
+    /-g\s*(\d+)/g,           // nvidia-smi nvlink -g 0
+    /gpu(\d+)/gi,            // gpu0, gpu1
+  ];
+
+  // Combine all text to search
+  const searchText = [
+    step.description || '',
+    ...(step.expectedCommands || []),
+  ].join(' ');
+
+  // Extract GPU indices
+  for (const pattern of gpuPatterns) {
+    let match;
+    while ((match = pattern.exec(searchText)) !== null) {
+      const idx = parseInt(match[1], 10);
+      if (!isNaN(idx) && idx >= 0 && idx < 8) {
+        gpuIndices.add(idx);
+      }
+    }
+  }
+
+  // Extract node IDs (dgx-XX patterns)
+  const nodePattern = /dgx-(\d+)/gi;
+  let nodeMatch;
+  while ((nodeMatch = nodePattern.exec(searchText)) !== null) {
+    nodeIds.add(`dgx-${nodeMatch[1].padStart(2, '0')}`);
+  }
+
+  return {
+    gpuIndices: Array.from(gpuIndices),
+    linkIds: Array.from(linkIds),
+    nodeIds: Array.from(nodeIds),
+  };
+}
+
+/**
+ * Check if a scenario has any visualization integration.
+ */
+export function hasVisualization(scenarioId: string): boolean {
+  return scenarioId in SCENARIO_VISUALIZATION_MAP;
+}
+```
+
+**Step 4: Run test to verify it passes**
+
+Run: `npm test -- src/utils/__tests__/scenarioVisualizationMap.test.ts`
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add src/utils/scenarioVisualizationMap.ts src/utils/__tests__/scenarioVisualizationMap.test.ts
+git commit -m "feat: add scenario-to-visualization mapping utility"
+```
+
+---
+
+### Task 4.2: Create Visual Context Panel Component
+
+**Files:**
+- Create: `src/components/VisualContextPanel.tsx`
+- Test: `src/components/__tests__/VisualContextPanel.test.tsx`
 
 **Step 1: Write the failing test**
 
 ```typescript
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { NetworkScenarioOverlay } from '../NetworkScenarioOverlay';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { VisualContextPanel } from '../VisualContextPanel';
 
-describe('NetworkScenarioOverlay', () => {
-  it('should highlight specified nodes', () => {
-    const scenario = {
-      id: 'nvlink-failure',
-      title: 'NVLink Failure Detection',
-      highlightNodes: ['GPU0', 'GPU1'],
-      highlightLinks: ['nvlink-0-1'],
-      instructions: 'Identify the failed NVLink between GPU 0 and GPU 1',
-    };
+describe('VisualContextPanel', () => {
+  const mockScenarios = [
+    { id: 'domain2-nvlink-topo', title: 'NVLink Topology Verification' },
+    { id: 'domain2-nvlink-recovery', title: 'NVLink Error Detection and Recovery' },
+  ];
 
-    render(<NetworkScenarioOverlay scenario={scenario} />);
+  it('should show related scenarios for current tab', () => {
+    render(
+      <VisualContextPanel
+        currentTab="topology"
+        relatedScenarios={mockScenarios}
+        onLaunchScenario={() => {}}
+      />
+    );
 
-    expect(screen.getByText('NVLink Failure Detection')).toBeInTheDocument();
-    expect(screen.getByText(/Identify the failed NVLink/)).toBeInTheDocument();
+    expect(screen.getByText('Related Labs')).toBeInTheDocument();
+    expect(screen.getByText('NVLink Topology Verification')).toBeInTheDocument();
+    expect(screen.getByText('NVLink Error Detection and Recovery')).toBeInTheDocument();
   });
 
-  it('should show before/after comparison when provided', () => {
-    const scenario = {
-      id: 'thermal-throttle',
-      title: 'Thermal Throttling',
-      beforeState: { gpuTemp: 65 },
-      afterState: { gpuTemp: 92 },
-      highlightNodes: ['GPU2'],
-    };
+  it('should call onLaunchScenario when lab is clicked', () => {
+    const onLaunch = vi.fn();
+    render(
+      <VisualContextPanel
+        currentTab="topology"
+        relatedScenarios={mockScenarios}
+        onLaunchScenario={onLaunch}
+      />
+    );
 
-    render(<NetworkScenarioOverlay scenario={scenario} showComparison />);
+    fireEvent.click(screen.getByText('NVLink Topology Verification'));
+    expect(onLaunch).toHaveBeenCalledWith('domain2-nvlink-topo');
+  });
 
-    expect(screen.getByText('Before')).toBeInTheDocument();
-    expect(screen.getByText('After')).toBeInTheDocument();
+  it('should show active scenario step info when provided', () => {
+    render(
+      <VisualContextPanel
+        currentTab="topology"
+        relatedScenarios={mockScenarios}
+        onLaunchScenario={() => {}}
+        activeScenario={{
+          id: 'domain2-nvlink-topo',
+          title: 'NVLink Topology Verification',
+          currentStep: 2,
+          totalSteps: 6,
+          stepTitle: 'Display NVLink Topology Matrix',
+        }}
+      />
+    );
+
+    expect(screen.getByText('Active Lab')).toBeInTheDocument();
+    expect(screen.getByText('Step 2 of 6')).toBeInTheDocument();
+    expect(screen.getByText('Display NVLink Topology Matrix')).toBeInTheDocument();
+  });
+
+  it('should be collapsible', () => {
+    render(
+      <VisualContextPanel
+        currentTab="topology"
+        relatedScenarios={mockScenarios}
+        onLaunchScenario={() => {}}
+      />
+    );
+
+    const toggleButton = screen.getByRole('button', { name: /collapse/i });
+    fireEvent.click(toggleButton);
+
+    expect(screen.queryByText('NVLink Topology Verification')).not.toBeVisible();
   });
 });
 ```
 
-**Step 2: Write implementation**
+**Step 2: Run test to verify it fails**
+
+Run: `npm test -- src/components/__tests__/VisualContextPanel.test.tsx`
+Expected: FAIL
+
+**Step 3: Write implementation**
 
 ```typescript
 /**
- * Network Scenario Overlay
+ * Visual Context Panel
  *
- * Provides training scenario context overlaid on network visualizations.
+ * Shows related lab scenarios for the current visualization tab.
+ * When a user is in a lab, shows current step and highlights relevant elements.
  */
 
-import React from 'react';
-import { AlertTriangle, CheckCircle, Info, Target } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronDown, ChevronRight, BookOpen, Play, Target, ExternalLink } from 'lucide-react';
 
-export interface NetworkScenario {
+interface RelatedScenario {
   id: string;
   title: string;
-  description?: string;
-  instructions: string;
-  highlightNodes: string[];
+  difficulty?: string;
+  estimatedTime?: number;
+}
+
+interface ActiveScenarioInfo {
+  id: string;
+  title: string;
+  currentStep: number;
+  totalSteps: number;
+  stepTitle: string;
+  highlightGpus?: number[];
   highlightLinks?: string[];
-  expectedAction?: string;
-  hints?: string[];
-  beforeState?: Record<string, unknown>;
-  afterState?: Record<string, unknown>;
 }
 
-interface NetworkScenarioOverlayProps {
-  scenario: NetworkScenario;
-  showComparison?: boolean;
-  onComplete?: () => void;
-  currentStep?: number;
-  totalSteps?: number;
+interface VisualContextPanelProps {
+  currentTab: 'overview' | 'metrics' | 'topology' | 'network';
+  relatedScenarios: RelatedScenario[];
+  onLaunchScenario: (scenarioId: string) => void;
+  activeScenario?: ActiveScenarioInfo | null;
+  onViewInTerminal?: () => void;
 }
 
-export const NetworkScenarioOverlay: React.FC<NetworkScenarioOverlayProps> = ({
-  scenario,
-  showComparison = false,
-  onComplete,
-  currentStep,
-  totalSteps,
+export const VisualContextPanel: React.FC<VisualContextPanelProps> = ({
+  currentTab,
+  relatedScenarios,
+  onLaunchScenario,
+  activeScenario,
+  onViewInTerminal,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  const tabLabels: Record<string, string> = {
+    overview: 'GPU Overview',
+    metrics: 'Historical Metrics',
+    topology: 'NVLink Topology',
+    network: 'InfiniBand Fabric',
+  };
+
   return (
-    <div className="absolute top-4 left-4 max-w-sm bg-gray-900/95 border border-nvidia-green rounded-lg shadow-xl z-20">
+    <div className="bg-gray-800/90 border border-gray-700 rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-2 p-3 border-b border-gray-700">
-        <Target className="w-5 h-5 text-nvidia-green" />
-        <h3 className="text-sm font-semibold text-nvidia-green">{scenario.title}</h3>
-        {currentStep && totalSteps && (
-          <span className="ml-auto text-xs text-gray-400">
-            Step {currentStep}/{totalSteps}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-gray-700/50 transition-colors"
+        aria-label={isExpanded ? 'Collapse panel' : 'Expand panel'}
+      >
+        <div className="flex items-center gap-2">
+          <BookOpen className="w-4 h-4 text-nvidia-green" />
+          <span className="text-sm font-medium text-gray-200">
+            {activeScenario ? 'Active Lab' : 'Related Labs'}
           </span>
-        )}
-      </div>
-
-      {/* Instructions */}
-      <div className="p-3">
-        <div className="flex items-start gap-2 mb-3">
-          <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-gray-300">{scenario.instructions}</p>
         </div>
+        {isExpanded ? (
+          <ChevronDown className="w-4 h-4 text-gray-400" />
+        ) : (
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+        )}
+      </button>
 
-        {/* Highlighted elements */}
-        {scenario.highlightNodes.length > 0 && (
-          <div className="mb-3">
-            <div className="text-xs text-gray-400 mb-1">Focus on:</div>
-            <div className="flex flex-wrap gap-1">
-              {scenario.highlightNodes.map((node) => (
-                <span
-                  key={node}
-                  className="px-2 py-0.5 bg-nvidia-green/20 text-nvidia-green text-xs rounded"
-                >
-                  {node}
+      {/* Content */}
+      {isExpanded && (
+        <div className="p-3 pt-0 space-y-3">
+          {/* Active Scenario Info */}
+          {activeScenario && (
+            <div className="p-3 bg-nvidia-green/10 border border-nvidia-green/30 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-nvidia-green font-medium">
+                  Step {activeScenario.currentStep} of {activeScenario.totalSteps}
                 </span>
-              ))}
+                {onViewInTerminal && (
+                  <button
+                    onClick={onViewInTerminal}
+                    className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Terminal
+                  </button>
+                )}
+              </div>
+              <h4 className="text-sm font-medium text-white mb-1">
+                {activeScenario.stepTitle}
+              </h4>
+              <p className="text-xs text-gray-400">
+                {activeScenario.title}
+              </p>
+
+              {/* Highlight indicators */}
+              {(activeScenario.highlightGpus?.length || activeScenario.highlightLinks?.length) && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Target className="w-3 h-3 text-yellow-500" />
+                  <span className="text-xs text-yellow-500">
+                    {activeScenario.highlightGpus?.length
+                      ? `Highlighting GPU${activeScenario.highlightGpus.length > 1 ? 's' : ''}: ${activeScenario.highlightGpus.join(', ')}`
+                      : 'Elements highlighted in visualization'}
+                  </span>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Before/After comparison */}
-        {showComparison && scenario.beforeState && scenario.afterState && (
-          <div className="grid grid-cols-2 gap-2 mb-3">
-            <div className="p-2 bg-green-900/30 rounded">
-              <div className="text-xs text-green-400 font-medium mb-1">Before</div>
-              <pre className="text-xs text-gray-300 overflow-auto">
-                {JSON.stringify(scenario.beforeState, null, 2)}
-              </pre>
-            </div>
-            <div className="p-2 bg-red-900/30 rounded">
-              <div className="text-xs text-red-400 font-medium mb-1">After</div>
-              <pre className="text-xs text-gray-300 overflow-auto">
-                {JSON.stringify(scenario.afterState, null, 2)}
-              </pre>
-            </div>
-          </div>
-        )}
+          {/* Related Scenarios List */}
+          {!activeScenario && relatedScenarios.length > 0 && (
+            <>
+              <p className="text-xs text-gray-400">
+                Practice with {tabLabels[currentTab]} visualization:
+              </p>
+              <div className="space-y-1">
+                {relatedScenarios.map((scenario) => (
+                  <button
+                    key={scenario.id}
+                    onClick={() => onLaunchScenario(scenario.id)}
+                    className="w-full flex items-center gap-2 p-2 rounded hover:bg-gray-700 transition-colors text-left group"
+                  >
+                    <Play className="w-3 h-3 text-gray-500 group-hover:text-nvidia-green transition-colors" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-gray-200 truncate">
+                        {scenario.title}
+                      </div>
+                      {scenario.estimatedTime && (
+                        <div className="text-xs text-gray-500">
+                          ~{scenario.estimatedTime} min
+                        </div>
+                      )}
+                    </div>
+                    {scenario.difficulty && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        scenario.difficulty === 'advanced' ? 'bg-red-900/50 text-red-400' :
+                        scenario.difficulty === 'intermediate' ? 'bg-yellow-900/50 text-yellow-400' :
+                        'bg-green-900/50 text-green-400'
+                      }`}>
+                        {scenario.difficulty}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
-        {/* Hints */}
-        {scenario.hints && scenario.hints.length > 0 && (
-          <details className="mb-3">
-            <summary className="text-xs text-yellow-400 cursor-pointer">
-              Need a hint?
-            </summary>
-            <ul className="mt-2 space-y-1">
-              {scenario.hints.map((hint, idx) => (
-                <li key={idx} className="text-xs text-gray-400 flex items-start gap-1">
-                  <AlertTriangle className="w-3 h-3 text-yellow-500 mt-0.5 flex-shrink-0" />
-                  {hint}
-                </li>
-              ))}
-            </ul>
-          </details>
-        )}
-
-        {/* Expected action */}
-        {scenario.expectedAction && (
-          <div className="p-2 bg-gray-800 rounded">
-            <div className="text-xs text-gray-400 mb-1">Expected Action:</div>
-            <code className="text-xs text-nvidia-green">{scenario.expectedAction}</code>
-          </div>
-        )}
-
-        {/* Complete button */}
-        {onComplete && (
-          <button
-            onClick={onComplete}
-            className="w-full mt-3 py-2 bg-nvidia-green text-black text-sm font-medium rounded hover:bg-nvidia-green/90 flex items-center justify-center gap-2"
-          >
-            <CheckCircle className="w-4 h-4" />
-            Mark Complete
-          </button>
-        )}
-      </div>
+          {/* Empty state */}
+          {!activeScenario && relatedScenarios.length === 0 && (
+            <p className="text-xs text-gray-500 text-center py-2">
+              No labs available for this view
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 ```
 
-**Step 3: Run tests**
+**Step 4: Run test to verify it passes**
 
-**Step 4: Commit**
+Run: `npm test -- src/components/__tests__/VisualContextPanel.test.tsx`
+Expected: PASS
+
+**Step 5: Commit**
 
 ```bash
-git add src/components/NetworkScenarioOverlay.tsx src/components/__tests__/NetworkScenarioOverlay.test.tsx
-git commit -m "feat: add network scenario overlay for training integration"
+git add src/components/VisualContextPanel.tsx src/components/__tests__/VisualContextPanel.test.tsx
+git commit -m "feat: add VisualContextPanel for scenario-visualization integration"
 ```
 
 ---
 
-### Task 4.2: Create Training Scenarios Data
-
-**Files:**
-- Create: `src/data/networkTrainingScenarios.ts`
-
-**Step 1: Define training scenarios**
-
-```typescript
-/**
- * Network Training Scenarios
- *
- * Pre-defined scenarios for NCP-AII certification training.
- */
-
-import type { NetworkScenario } from '@/components/NetworkScenarioOverlay';
-
-export const NVLINK_SCENARIOS: NetworkScenario[] = [
-  {
-    id: 'nvlink-identify-topology',
-    title: 'Identify NVLink Topology',
-    instructions: 'Examine the NVLink topology diagram. Identify how many NVSwitches connect the GPUs and which GPUs are in each NVSwitch domain.',
-    highlightNodes: [],
-    expectedAction: 'nvidia-smi topo -m',
-    hints: [
-      'DGX A100 has 6 NVSwitches in 2 groups',
-      'Each NVSwitch group connects 4 GPUs',
-      'Look for the SW labels in the diagram',
-    ],
-  },
-  {
-    id: 'nvlink-failure',
-    title: 'NVLink Failure Detection',
-    instructions: 'A dashed red line indicates a failed NVLink. Identify which GPUs are affected and what command you would use to diagnose.',
-    highlightNodes: ['GPU0', 'GPU1'],
-    highlightLinks: ['nvlink-0-1'],
-    expectedAction: 'nvidia-smi nvlink -s',
-    hints: [
-      'Look for dashed lines in the diagram',
-      'Check NVLink error counters with nvidia-smi nvlink -e',
-      'Failed links reduce GPU-to-GPU bandwidth',
-    ],
-  },
-  {
-    id: 'nvlink-bandwidth',
-    title: 'NVLink Bandwidth Analysis',
-    instructions: 'Observe the data flow animation. High utilization GPUs generate more particle traffic. Identify which NVLinks are busiest.',
-    highlightNodes: [],
-    expectedAction: 'dcgmi dmon -e 1011,1012',
-    hints: [
-      'Particle density indicates traffic volume',
-      'Green particles = outbound, Blue = inbound',
-      'Use dcgmi to monitor NVLink throughput',
-    ],
-  },
-];
-
-export const INFINIBAND_SCENARIOS: NetworkScenario[] = [
-  {
-    id: 'ib-identify-fabric',
-    title: 'Understand Fat-Tree Topology',
-    instructions: 'This is a 2-tier fat-tree fabric. Identify the spine switches, leaf switches, and how hosts connect to the fabric.',
-    highlightNodes: [],
-    expectedAction: 'ibstat',
-    hints: [
-      'Spine switches are at the top (blue rectangles)',
-      'Leaf switches are in the middle (purple hexagons)',
-      'Hosts are at the bottom (green circles)',
-    ],
-  },
-  {
-    id: 'ib-link-down',
-    title: 'InfiniBand Link Failure',
-    instructions: 'A host has lost connectivity to the fabric (shown as red). Identify which host and what commands to diagnose.',
-    highlightNodes: ['dgx-01'],
-    expectedAction: 'ibstat; ibdiagnet',
-    hints: [
-      'Red nodes indicate down links',
-      'Check port state with ibstat',
-      'Run ibdiagnet for fabric-wide diagnostics',
-    ],
-  },
-  {
-    id: 'ib-congestion',
-    title: 'Fabric Congestion Analysis',
-    instructions: 'Heavy particle flow indicates high traffic. Identify potential congestion points where multiple flows converge.',
-    highlightNodes: [],
-    expectedAction: 'perfquery -x',
-    hints: [
-      'Leaf switches aggregate traffic from multiple hosts',
-      'Spine switches handle cross-leaf traffic',
-      'Use perfquery to check port counters',
-    ],
-  },
-];
-
-export function getScenarioById(id: string): NetworkScenario | undefined {
-  return [...NVLINK_SCENARIOS, ...INFINIBAND_SCENARIOS].find((s) => s.id === id);
-}
-
-export function getScenariosForTab(tab: 'nvlink' | 'infiniband'): NetworkScenario[] {
-  return tab === 'nvlink' ? NVLINK_SCENARIOS : INFINIBAND_SCENARIOS;
-}
-```
-
-**Step 2: Commit**
-
-```bash
-git add src/data/networkTrainingScenarios.ts
-git commit -m "feat: add network training scenarios for NCP-AII certification"
-```
-
----
-
-### Task 4.3: Integrate Scenarios into Dashboard
+### Task 4.3: Integrate Context Panel into Dashboard
 
 **Files:**
 - Modify: `src/components/Dashboard.tsx`
 
-**Step 1: Add scenario selector to topology/network tabs**
+**Step 1: Import new components and utilities**
 
 ```typescript
-import { NetworkScenarioOverlay } from './NetworkScenarioOverlay';
-import { getScenariosForTab, NetworkScenario } from '@/data/networkTrainingScenarios';
+import { VisualContextPanel } from './VisualContextPanel';
+import { getRelatedScenarios, getVisualizationContext, extractHighlightTargets } from '@/utils/scenarioVisualizationMap';
+import { useSimulationStore } from '@/store/simulationStore';
+```
 
-// Add state
-const [activeScenario, setActiveScenario] = useState<NetworkScenario | null>(null);
+**Step 2: Add state for active scenario tracking**
 
-// Add scenario selector UI in topology tab
+```typescript
+// Get active scenario from store (if user is in a lab)
+const activeScenario = useSimulationStore(state => state.activeScenario);
+const launchScenario = useSimulationStore(state => state.launchScenario);
+
+// Compute highlights based on active scenario step
+const highlightTargets = useMemo(() => {
+  if (!activeScenario?.currentStep) return null;
+  const vizContext = getVisualizationContext(activeScenario.id);
+  if (!vizContext || vizContext.relevantTab !== activeView) return null;
+
+  return extractHighlightTargets(activeScenario.currentStep);
+}, [activeScenario, activeView]);
+```
+
+**Step 3: Add VisualContextPanel to topology/network tabs**
+
+In the topology tab section:
+
+```typescript
 {activeView === 'topology' && (
-  <div>
-    {/* Scenario selector */}
-    <div className="mb-4 flex items-center gap-4">
-      <label className="text-sm text-gray-400">Training Scenario:</label>
-      <select
-        value={activeScenario?.id || ''}
-        onChange={(e) => {
-          const scenarios = getScenariosForTab('nvlink');
-          setActiveScenario(scenarios.find((s) => s.id === e.target.value) || null);
-        }}
-        className="bg-gray-700 text-gray-200 px-3 py-1 rounded text-sm"
-      >
-        <option value="">None (Free Explore)</option>
-        {getScenariosForTab('nvlink').map((s) => (
-          <option key={s.id} value={s.id}>{s.title}</option>
-        ))}
-      </select>
-    </div>
+  <div className="relative">
+    <TopologyGraph
+      node={currentNode}
+      highlightedGpus={highlightTargets?.gpuIndices}
+      highlightedLinks={highlightTargets?.linkIds}
+    />
 
-    <div className="relative">
-      <TopologyGraph node={currentNode} highlightedNodes={activeScenario?.highlightNodes} />
-      {activeScenario && (
-        <NetworkScenarioOverlay
-          scenario={activeScenario}
-          onComplete={() => setActiveScenario(null)}
-        />
-      )}
+    {/* Context Panel - positioned in corner */}
+    <div className="absolute top-4 right-4 w-72">
+      <VisualContextPanel
+        currentTab="topology"
+        relatedScenarios={getRelatedScenarios('topology')}
+        onLaunchScenario={(id) => launchScenario(id)}
+        activeScenario={activeScenario && getVisualizationContext(activeScenario.id)?.relevantTab === 'topology' ? {
+          id: activeScenario.id,
+          title: activeScenario.title,
+          currentStep: activeScenario.stepIndex + 1,
+          totalSteps: activeScenario.totalSteps,
+          stepTitle: activeScenario.currentStep?.title || '',
+          highlightGpus: highlightTargets?.gpuIndices,
+        } : null}
+        onViewInTerminal={() => {/* Focus terminal pane */}}
+      />
     </div>
   </div>
 )}
 ```
 
-**Step 2: Same for InfiniBand tab**
+**Step 4: Same pattern for InfiniBand Fabric tab**
 
-**Step 3: Run and verify**
+```typescript
+{activeView === 'network' && (
+  <div className="relative">
+    <InfiniBandMap
+      cluster={cluster}
+      highlightedNodes={highlightTargets?.nodeIds}
+    />
 
-**Step 4: Commit**
+    <div className="absolute top-4 right-4 w-72">
+      <VisualContextPanel
+        currentTab="network"
+        relatedScenarios={getRelatedScenarios('network')}
+        onLaunchScenario={(id) => launchScenario(id)}
+        activeScenario={activeScenario && getVisualizationContext(activeScenario.id)?.relevantTab === 'network' ? {
+          id: activeScenario.id,
+          title: activeScenario.title,
+          currentStep: activeScenario.stepIndex + 1,
+          totalSteps: activeScenario.totalSteps,
+          stepTitle: activeScenario.currentStep?.title || '',
+        } : null}
+      />
+    </div>
+  </div>
+)}
+```
+
+**Step 5: Run and verify**
+
+```bash
+npm run dev
+```
+
+Verify:
+- Context panel appears on NVLink Topology tab
+- Shows related labs (domain2-nvlink-topo, domain2-nvlink-recovery, etc.)
+- Clicking a lab launches it in the terminal
+- When in a lab, shows current step info and highlights relevant GPUs
+
+**Step 6: Commit**
 
 ```bash
 git add src/components/Dashboard.tsx
-git commit -m "feat: integrate training scenarios into topology visualizations"
+git commit -m "feat: integrate VisualContextPanel into Dashboard tabs"
 ```
 
 ---
 
-### Task 4.4: Add Node Highlighting Based on Scenario
+### Task 4.4: Add Highlight Props to Visualization Components
 
 **Files:**
 - Modify: `src/components/TopologyGraph.tsx`
 - Modify: `src/components/InfiniBandMap.tsx`
 
-**Step 1: Add highlightedNodes prop**
+**Step 1: Add highlight props to TopologyGraph**
 
 ```typescript
 interface TopologyGraphProps {
   node: DGXNode;
+  highlightedGpus?: number[];
+  highlightedLinks?: string[];
+}
+
+export const TopologyGraph: React.FC<TopologyGraphProps> = ({
+  node,
+  highlightedGpus = [],
+  highlightedLinks = [],
+}) => {
+```
+
+**Step 2: Apply highlight styling in D3 (TopologyGraph)**
+
+In the D3 useEffect, modify node rendering:
+
+```typescript
+// Highlight ring for active scenario targets
+nodeGroups.each(function (d) {
+  const isHighlighted = highlightedGpus.includes(d.id);
+
+  if (isHighlighted) {
+    d3.select(this)
+      .insert('circle', ':first-child')
+      .attr('r', 45)
+      .attr('fill', 'none')
+      .attr('stroke', '#76b900')
+      .attr('stroke-width', 3)
+      .attr('stroke-dasharray', '5,3')
+      .attr('class', 'animate-spin-slow'); // CSS animation for pulsing effect
+  }
+});
+
+// Modify link styling for highlighted links
+linkGroup
+  .selectAll('line')
+  .attr('stroke', (d) => {
+    const linkId = `nvlink-${d.source.id}-${d.target.id}`;
+    const isHighlighted = highlightedLinks.includes(linkId);
+    if (isHighlighted) return '#facc15'; // Yellow for highlighted
+    return d.status === 'Active' ? '#10B981' : '#EF4444';
+  })
+  .attr('stroke-width', (d) => {
+    const linkId = `nvlink-${d.source.id}-${d.target.id}`;
+    return highlightedLinks.includes(linkId) ? 5 : 3;
+  });
+```
+
+**Step 3: Add highlight props to InfiniBandMap**
+
+```typescript
+interface InfiniBandMapProps {
+  cluster: ClusterConfig;
   highlightedNodes?: string[];
   highlightedLinks?: string[];
 }
 ```
 
-**Step 2: Apply highlight styling in D3**
+**Step 4: Apply highlight styling (InfiniBandMap)**
+
+Similar pattern - add pulsing highlight rings around targeted nodes.
+
+**Step 5: Add CSS animation for highlights**
+
+In `src/index.css` or appropriate stylesheet:
+
+```css
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes pulse-highlight {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.highlight-pulse {
+  animation: pulse-highlight 1.5s ease-in-out infinite;
+}
+```
+
+**Step 6: Run and verify**
+
+```bash
+npm run dev
+```
+
+Start a lab like `domain2-nvlink-recovery` (which has a fault on GPU 2), navigate to NVLink Topology tab, and verify GPU 2 has a pulsing highlight ring.
+
+**Step 7: Commit**
+
+```bash
+git add src/components/TopologyGraph.tsx src/components/InfiniBandMap.tsx src/index.css
+git commit -m "feat: add scenario-driven highlighting to network visualizations"
+```
+
+---
+
+### Task 4.5: Add "Open in Visualization" Button to Lab Steps
+
+**Files:**
+- Modify: `src/components/LabWorkspace.tsx` (or wherever lab steps are rendered)
+
+**Step 1: Import visualization utilities**
 
 ```typescript
-// In the D3 render effect
-nodeGroups
-  .append('circle')
-  .attr('r', 35)
-  .attr('fill', (d) => {
-    // ... existing color logic
-  })
-  .attr('stroke', (d) => {
-    const isHighlighted = highlightedNodes?.includes(`GPU${d.id}`);
-    return isHighlighted ? '#76b900' : '#1F2937';
-  })
-  .attr('stroke-width', (d) => {
-    const isHighlighted = highlightedNodes?.includes(`GPU${d.id}`);
-    return isHighlighted ? 4 : 3;
-  })
-  .classed('animate-pulse', (d) => highlightedNodes?.includes(`GPU${d.id}`));
+import { hasVisualization, getVisualizationContext } from '@/utils/scenarioVisualizationMap';
+```
+
+**Step 2: Add visualization button to step rendering**
+
+When rendering a lab step, check if the scenario has visualization integration:
+
+```typescript
+{/* Show "View in Visualization" button for relevant scenarios */}
+{hasVisualization(scenario.id) && (
+  <button
+    onClick={() => {
+      const context = getVisualizationContext(scenario.id);
+      if (context) {
+        // Switch to the relevant dashboard tab
+        onSwitchToVisualization(context.relevantTab);
+      }
+    }}
+    className="flex items-center gap-2 px-3 py-1.5 text-xs bg-purple-900/50 text-purple-300 rounded hover:bg-purple-900 transition-colors"
+  >
+    <Eye className="w-3 h-3" />
+    View in {context?.relevantTab === 'topology' ? 'NVLink Topology' : 'InfiniBand Fabric'}
+  </button>
+)}
 ```
 
 **Step 3: Commit**
 
 ```bash
-git add src/components/TopologyGraph.tsx src/components/InfiniBandMap.tsx
-git commit -m "feat: add scenario-based node highlighting"
+git add src/components/LabWorkspace.tsx
+git commit -m "feat: add 'View in Visualization' button to lab steps"
 ```
 
 ---
@@ -1865,8 +2263,29 @@ git commit -m "feat: add scenario-based node highlighting"
 | 1: Live Data Flow | 1.1-1.4 | 4 (utils, hook, tests) | 2 (TopologyGraph, InfiniBandMap) |
 | 2: Interactive Troubleshooting | 2.1-2.3 | 2 (component, test) | 2 (TopologyGraph, InfiniBandMap) |
 | 3: Realistic Hardware | 3.1-3.3 | 1 (data file) | 2 (TopologyGraph, InfiniBandMap) |
-| 4: Training Integration | 4.1-4.4 | 3 (overlay, scenarios, tests) | 3 (Dashboard, TopologyGraph, InfiniBandMap) |
+| 4: Visual-Scenario Integration | 4.1-4.5 | 4 (mapping util, context panel, tests) | 4 (Dashboard, TopologyGraph, InfiniBandMap, LabWorkspace) |
 
-**Total New Files:** 10
+**Total New Files:** 11
 **Total Modified Files:** 5 (with multiple modifications)
-**Estimated New Tests:** ~30
+**Estimated New Tests:** ~35
+
+---
+
+## Key Differences in Phase 4 (Revised)
+
+**What changed:**
+- ❌ Removed: Creating new duplicate training scenarios
+- ❌ Removed: NetworkScenarioOverlay with redundant scenario content
+- ❌ Removed: `networkTrainingScenarios.ts` with duplicate labs
+
+**What was added instead:**
+- ✅ `scenarioVisualizationMap.ts` - Maps existing 53 scenarios to visualization contexts
+- ✅ `VisualContextPanel.tsx` - Shows related labs and active step info
+- ✅ Highlight props - Visualization components can highlight elements based on active lab step
+- ✅ Bidirectional integration - Labs can link to visualizations, visualizations can launch labs
+
+**Benefits:**
+- No content duplication with existing labs
+- Visualizations enhance existing training rather than replacing it
+- Users can seamlessly move between terminal-based labs and visual context
+- Automatic highlighting based on what the lab step is teaching
