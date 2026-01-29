@@ -894,8 +894,18 @@ export class SlurmSimulator extends BaseSimulator {
       }
 
       if (state) {
-        const newState = state === 'resume' ? 'idle' : state;
-        simState.setSlurmState(nodeName, newState as 'idle' | 'allocated' | 'mixed' | 'down' | 'drain' | 'maint', reason);
+        // Map scontrol states to store-compatible states
+        const stateMap: Record<string, 'idle' | 'alloc' | 'drain' | 'down'> = {
+          'resume': 'idle',
+          'idle': 'idle',
+          'allocated': 'alloc',
+          'mixed': 'alloc',
+          'down': 'down',
+          'drain': 'drain',
+          'maint': 'drain',
+        };
+        const mappedState = stateMap[state] || 'idle';
+        simState.setSlurmState(nodeName, mappedState, reason);
       }
 
       return this.createSuccess(`Node ${nodeName} updated successfully`);

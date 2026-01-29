@@ -1,7 +1,10 @@
 import type { CommandResult, CommandContext, ParsedCommand, SimulatorMetadata } from '@/types/commands';
 import { BaseSimulator } from './BaseSimulator';
 import { useSimulationStore } from '@/store/simulationStore';
-import type { BlueFieldDPU, HCA } from '@/types/hardware';
+import type { BlueFieldDPU, InfiniBandHCA } from '@/types/hardware';
+
+// Alias for shorter code
+type HCA = InfiniBandHCA;
 
 export class MellanoxSimulator extends BaseSimulator {
   private mstStarted: boolean = false;
@@ -218,18 +221,23 @@ export class MellanoxSimulator extends BaseSimulator {
     // Per spec Section 5.2: Configuration table with Default/Current/Next Boot columns
     const command = parsed.subcommands[0];
     if (command === 'q' || command === 'query') {
+      // Check if device is a BlueFieldDPU (has mode property)
+      const isDPU = 'mode' in device && 'armOS' in device;
+      const cpuModel = isDPU ? (device as BlueFieldDPU).mode.internalCpuModel : 0;
+      const nicMode = isDPU && cpuModel === 1 ? 'SEPARATED_HOST' : 'BASIC';
+
       let output = `\nDevice #1:\n`;
       output += `----------\n\n`;
-      output += `Device type:    BlueField2\n`;
+      output += `Device type:    ${isDPU ? 'BlueField2' : 'ConnectX'}\n`;
       output += `Device:         ${device.devicePath}\n`;
-      output += `PCI device:     ${device.pciAddress}\n`;
+      output += `PCI device:     ${device.pciAddress || 'N/A'}\n`;
       output += `Configurations:                              Default         Current         Next Boot\n`;
-      output += `         INTERNAL_CPU_MODEL                  0               ${device.mode.internalCpuModel}               ${device.mode.internalCpuModel}\n`;
-      output += `         INTERNAL_CPU_PAGE_SUPPLIER          0               ${device.mode.internalCpuModel}               ${device.mode.internalCpuModel}\n`;
-      output += `         INTERNAL_CPU_ESWITCH_MANAGER        0               ${device.mode.internalCpuModel}               ${device.mode.internalCpuModel}\n`;
-      output += `         INTERNAL_CPU_IB_VPORT0              0               ${device.mode.internalCpuModel}               ${device.mode.internalCpuModel}\n`;
-      output += `         INTERNAL_CPU_OFFLOAD_ENGINE         0               ${device.mode.internalCpuModel}               ${device.mode.internalCpuModel}\n`;
-      output += `         NIC_MODE                            BASIC           ${device.mode.internalCpuModel === 1 ? 'SEPARATED_HOST' : 'BASIC'}           ${device.mode.internalCpuModel === 1 ? 'SEPARATED_HOST' : 'BASIC'}\n`;
+      output += `         INTERNAL_CPU_MODEL                  0               ${cpuModel}               ${cpuModel}\n`;
+      output += `         INTERNAL_CPU_PAGE_SUPPLIER          0               ${cpuModel}               ${cpuModel}\n`;
+      output += `         INTERNAL_CPU_ESWITCH_MANAGER        0               ${cpuModel}               ${cpuModel}\n`;
+      output += `         INTERNAL_CPU_IB_VPORT0              0               ${cpuModel}               ${cpuModel}\n`;
+      output += `         INTERNAL_CPU_OFFLOAD_ENGINE         0               ${cpuModel}               ${cpuModel}\n`;
+      output += `         NIC_MODE                            BASIC           ${nicMode}           ${nicMode}\n`;
       output += `         PF_BAR2_ENABLE                      0               0               0\n`;
       output += `         PER_PF_NUM_SF                       0               0               0\n`;
       output += `         SRIOV_EN                            True            True            True\n`;
@@ -251,12 +259,19 @@ export class MellanoxSimulator extends BaseSimulator {
       const [key, value] = config.split('=');
 
       if (key === 'INTERNAL_CPU_MODEL') {
+        // Only BlueField DPUs support INTERNAL_CPU_MODEL setting
+        const isDPU = 'mode' in device && 'armOS' in device;
+        if (!isDPU) {
+          return this.createError('Error: INTERNAL_CPU_MODEL is only supported on BlueField DPUs');
+        }
+
+        const dpuDevice = device as BlueFieldDPU;
         const newMode = parseInt(value);
 
         if (newMode === 1) {
           // Switch to DPU mode
-          const updatedDPU = {
-            ...device,
+          const updatedDPU: BlueFieldDPU = {
+            ...dpuDevice,
             mode: {
               mode: 'DPU' as const,
               internalCpuModel: 1,
@@ -269,15 +284,15 @@ export class MellanoxSimulator extends BaseSimulator {
           const nodeToUpdate = state.cluster.nodes.find(n => n.id === context.currentNode);
           if (nodeToUpdate) {
             nodeToUpdate.dpus = nodeToUpdate.dpus.map(d =>
-              d.id === device.id ? updatedDPU : d
+              d.id === dpuDevice.id ? updatedDPU : d
             );
           }
 
           return this.createSuccess(`\nDevice #1:\n----------\n\nApplying...   Done!\n\n\x1b[33m-I- Please reboot machine to load new configurations.\x1b[0m\n`);
         } else if (newMode === 0) {
           // Switch to NIC mode
-          const updatedDPU = {
-            ...device,
+          const updatedDPU: BlueFieldDPU = {
+            ...dpuDevice,
             mode: {
               mode: 'NIC' as const,
               internalCpuModel: 0,
@@ -289,7 +304,7 @@ export class MellanoxSimulator extends BaseSimulator {
           const nodeToUpdate = state.cluster.nodes.find(n => n.id === context.currentNode);
           if (nodeToUpdate) {
             nodeToUpdate.dpus = nodeToUpdate.dpus.map(d =>
-              d.id === device.id ? updatedDPU : d
+              d.id === dpuDevice.id ? updatedDPU : d
             );
           }
 
@@ -562,9 +577,11 @@ export class MellanoxSimulator extends BaseSimulator {
       output += '-------------------------------------------------------------\n';
 
       devices.forEach((device, idx) => {
-        const deviceType = device.type === 'HCA' ? device.caType : 'BlueField-2';
-        const partNum = device.type === 'HCA' ? 'MCX755106AS-HEAT' : 'MBF2M516A-CENAT';
-        const psid = device.type === 'HCA' ? 'MT_0000000889' : 'MT_0000000664';
+        // Type guard: HCAs have caType, DPUs don't
+        const isHCA = device.type === 'HCA' && 'caType' in device;
+        const deviceType = isHCA ? (device as HCA).caType : 'BlueField-2';
+        const partNum = isHCA ? 'MCX755106AS-HEAT' : 'MBF2M516A-CENAT';
+        const psid = isHCA ? 'MT_0000000889' : 'MT_0000000664';
         output += `  ${idx + 1}            ${deviceType.padEnd(15)} ${partNum.padEnd(16)} ${psid.padEnd(17)} ${device.firmwareVersion}\n`;
       });
 

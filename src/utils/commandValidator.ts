@@ -252,7 +252,7 @@ function validateStateCheck(
 
     case 'temperature-normal': {
       // Check if GPU temperatures are within normal range
-      const maxTemp = stateParams?.maxTemp || 85;
+      const maxTemp = typeof stateParams?.maxTemp === 'number' ? stateParams.maxTemp : 85;
 
       return cluster.nodes.every(node =>
         node.gpus.every(gpu => gpu.temperature < maxTemp)

@@ -37,6 +37,11 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
   }
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
 
+  // Helper to get metric value from chart data point
+  const getMetricValue = (d: ChartDataPoint, key: MetricType): number => {
+    return d[key];
+  };
+
   useEffect(() => {
     // Update chart data every second
     const updateChart = () => {
@@ -114,12 +119,12 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
   const config = metricConfigs[selectedMetric];
   const Icon = config.icon;
 
-  // Calculate statistics from recent data
+  // Calculate statistics from recent data - use selectedMetric for type-safe access
   const stats = chartData.length > 0 ? {
-    current: chartData[chartData.length - 1][config.dataKey],
-    min: Math.min(...chartData.map(d => d[config.dataKey])),
-    max: Math.max(...chartData.map(d => d[config.dataKey])),
-    avg: chartData.reduce((sum, d) => sum + d[config.dataKey], 0) / chartData.length,
+    current: getMetricValue(chartData[chartData.length - 1], selectedMetric),
+    min: Math.min(...chartData.map(d => getMetricValue(d, selectedMetric))),
+    max: Math.max(...chartData.map(d => getMetricValue(d, selectedMetric))),
+    avg: chartData.reduce((sum, d) => sum + getMetricValue(d, selectedMetric), 0) / chartData.length,
   } : null;
 
   return (
