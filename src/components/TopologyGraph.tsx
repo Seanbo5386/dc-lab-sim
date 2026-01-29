@@ -13,6 +13,11 @@ import { Network } from 'lucide-react';
 import { useNetworkAnimation, AnimationLink } from '@/hooks/useNetworkAnimation';
 import { useSimulationStore } from '@/store/simulationStore';
 import { NetworkNodeDetail, NetworkNodeType } from './NetworkNodeDetail';
+import {
+  getLayoutForSystem,
+  calculateGPUPositions,
+  calculateNVSwitchPositions,
+} from '@/data/dgxLayouts';
 
 interface TopologyGraphProps {
   node: DGXNode;
@@ -41,39 +46,39 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({ node }) => {
   const isRunning = useSimulationStore((state) => state.isRunning);
   const [selectedNode, setSelectedNode] = useState<NetworkNodeType | null>(null);
 
-  // Calculate animation links from GPU NVLink connections
+  // Get layout for this system type
+  const layout = useMemo(() => getLayoutForSystem(node.systemType), [node.systemType]);
+
+  // Calculate animation links from GPU NVLink connections using accurate layout
   const animationLinks: AnimationLink[] = useMemo(() => {
-    const links: AnimationLink[] = [];
-    const nodePositions = node.gpus.map((gpu, idx) => ({
-      id: gpu.id,
-      x: (idx % 4) * 180 + 120,
-      y: Math.floor(idx / 4) * 250 + 120,
-    }));
+    const width = 800;
+    const height = 500;
+    const gpuPositions = calculateGPUPositions(layout, width, height);
 
-    for (let i = 0; i < node.gpus.length; i++) {
-      for (let j = i + 1; j < node.gpus.length; j++) {
-        const shouldConnect =
-          Math.floor(i / 4) === Math.floor(j / 4) || j === i + 1 || j === i + 4;
-        if (shouldConnect && node.gpus[i].nvlinks.length > 0) {
-          const link = node.gpus[i].nvlinks[Math.min(i, node.gpus[i].nvlinks.length - 1)];
-          const avgUtil = (node.gpus[i].utilization + node.gpus[j].utilization) / 2;
+    return layout.nvLinkConnections.map((conn) => {
+      const sourcePos = gpuPositions.find((p) => p.gpuIndex === conn.from);
+      const targetPos = gpuPositions.find((p) => p.gpuIndex === conn.to);
+      if (!sourcePos || !targetPos) return null;
 
-          links.push({
-            id: `nvlink-${i}-${j}`,
-            sourceX: nodePositions[i].x,
-            sourceY: nodePositions[i].y,
-            targetX: nodePositions[j].x,
-            targetY: nodePositions[j].y,
-            active: link.status === 'Active',
-            utilization: avgUtil,
-            bidirectional: true,
-          });
-        }
-      }
-    }
+      const sourceGpu = node.gpus[conn.from];
+      const targetGpu = node.gpus[conn.to];
+      const avgUtil = sourceGpu && targetGpu
+        ? (sourceGpu.utilization + targetGpu.utilization) / 2
+        : 50;
+      const isActive = sourceGpu?.nvlinks.some((l) => l.status === 'Active') ?? true;
 
-    return links;
-  }, [node]);
+      return {
+        id: `nvlink-${conn.from}-${conn.to}`,
+        sourceX: sourcePos.x,
+        sourceY: sourcePos.y,
+        targetX: targetPos.x,
+        targetY: targetPos.y,
+        active: isActive,
+        utilization: avgUtil,
+        bidirectional: true,
+      };
+    }).filter((link): link is AnimationLink => link !== null);
+  }, [node, layout]);
 
   const { particles } = useNetworkAnimation({
     enabled: isRunning,
@@ -95,36 +100,41 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({ node }) => {
       .attr('height', height)
       .attr('viewBox', `0 0 ${width} ${height}`);
 
-    // Create nodes for each GPU
-    const nodes: GraphNode[] = node.gpus.map((gpu, idx) => ({
-      id: gpu.id,
-      name: `GPU ${idx}`,
-      health: gpu.healthStatus,
-      utilization: gpu.utilization,
-      temperature: gpu.temperature,
-      // Position in a grid layout (2 rows x 4 columns for 8 GPUs)
-      x: (idx % 4) * 180 + 120,
-      y: Math.floor(idx / 4) * 250 + 120,
-    }));
+    // Get accurate positions from layout
+    const gpuPositions = calculateGPUPositions(layout, width, height);
+    const nvSwitchPositions = calculateNVSwitchPositions(layout, width, height);
 
-    // Create links for NVLink connections
-    // Since NVLinkConnection doesn't have remoteDeviceId, create a full mesh for demonstration
-    const links: GraphLink[] = [];
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        // In a real DGX system, GPUs 0-3 and 4-7 are typically interconnected
-        const shouldConnect = Math.floor(i / 4) === Math.floor(j / 4) || (j === i + 1) || (j === i + 4);
-        if (shouldConnect && node.gpus[i].nvlinks.length > 0) {
-          const link = node.gpus[i].nvlinks[Math.min(i, node.gpus[i].nvlinks.length - 1)];
-          links.push({
-            source: nodes[i],
-            target: nodes[j],
-            status: link.status,
-            bandwidth: `${link.speed} GB/s`,
-          });
-        }
-      }
-    }
+    // Create nodes for each GPU using layout positions
+    const nodes: GraphNode[] = node.gpus.map((gpu, idx) => {
+      const pos = gpuPositions.find((p) => p.gpuIndex === idx) || { x: 100, y: 100 };
+      return {
+        id: gpu.id,
+        name: `GPU ${idx}`,
+        health: gpu.healthStatus,
+        utilization: gpu.utilization,
+        temperature: gpu.temperature,
+        x: pos.x,
+        y: pos.y,
+      };
+    });
+
+    // Create links using layout's NVLink connections
+    const links: GraphLink[] = layout.nvLinkConnections.map((conn) => {
+      const sourceNode = nodes.find((n) => n.id === conn.from);
+      const targetNode = nodes.find((n) => n.id === conn.to);
+      if (!sourceNode || !targetNode) return null;
+
+      const sourceGpu = node.gpus[conn.from];
+      const linkStatus = sourceGpu?.nvlinks.some((l) => l.status === 'Active') ? 'Active' : 'Down';
+      const bandwidth = sourceGpu?.nvlinks[0]?.speed || 900;
+
+      return {
+        source: sourceNode,
+        target: targetNode,
+        status: linkStatus,
+        bandwidth: `${bandwidth} GB/s`,
+      };
+    }).filter((link): link is GraphLink => link !== null);
 
     // Draw links
     const linkGroup = svg.append('g').attr('class', 'links');
@@ -144,6 +154,44 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({ node }) => {
       .attr('opacity', 0.6)
       .append('title')
       .text((d) => `${d.source.name} ↔ ${d.target.name}\nStatus: ${d.status}\nBandwidth: ${d.bandwidth}`);
+
+    // Draw NVSwitch nodes
+    const nvSwitchGroup = svg.append('g').attr('class', 'nvswitches');
+
+    const nvSwitchNodes = nvSwitchGroup
+      .selectAll('g')
+      .data(nvSwitchPositions)
+      .enter()
+      .append('g')
+      .attr('transform', (d) => `translate(${d.x}, ${d.y})`);
+
+    // NVSwitch rectangles
+    nvSwitchNodes
+      .append('rect')
+      .attr('x', -20)
+      .attr('y', -10)
+      .attr('width', 40)
+      .attr('height', 20)
+      .attr('fill', '#6366F1')
+      .attr('stroke', '#1F2937')
+      .attr('stroke-width', 2)
+      .attr('rx', 3)
+      .attr('opacity', 0.8);
+
+    // NVSwitch labels
+    nvSwitchNodes
+      .append('text')
+      .attr('text-anchor', 'middle')
+      .attr('dy', '0.35em')
+      .attr('fill', '#fff')
+      .attr('font-size', '9px')
+      .attr('font-weight', 'bold')
+      .text((d) => `NVS${d.id}`);
+
+    // NVSwitch tooltips
+    nvSwitchNodes
+      .append('title')
+      .text((d) => `NVSwitch ${d.id}\nConnected GPUs: ${d.connectedGPUs.join(', ')}`);
 
     // Draw nodes
     const nodeGroup = svg.append('g').attr('class', 'nodes');
@@ -232,7 +280,7 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({ node }) => {
 
     // Add particle container group for animations
     particleGroupRef.current = svg.append('g').attr('class', 'particles').node();
-  }, [node]);
+  }, [node, layout]);
 
   // Particle animation render effect
   useEffect(() => {
@@ -292,7 +340,7 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({ node }) => {
         {isRunning && <span>({particles.length} active flows)</span>}
       </div>
 
-      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-green-500 rounded-full" />
           <span className="text-gray-300">Healthy GPU</span>
@@ -304,6 +352,10 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({ node }) => {
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-red-500 rounded-full" />
           <span className="text-gray-300">Critical GPU</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-2 bg-indigo-500 rounded" />
+          <span className="text-gray-300">NVSwitch</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-0.5 bg-green-500" />
