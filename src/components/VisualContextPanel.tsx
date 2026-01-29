@@ -32,7 +32,7 @@ export const VisualContextPanel: React.FC<VisualContextPanelProps> = ({
   currentView,
   onLaunchScenario,
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const relatedScenarios = getRelatedScenarios(currentView).slice(0, 5);
 
   const domainStyle = activeScenario

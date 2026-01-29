@@ -225,6 +225,35 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
       .append('title')
       .text((d) => `NVSwitch ${d.id}\nConnected GPUs: ${d.connectedGPUs.join(', ')}`);
 
+    // NVSwitch hover effects and click handlers
+    nvSwitchNodes
+      .style('cursor', 'pointer')
+      .on('mouseover', function () {
+        d3.select(this).select('rect')
+          .attr('stroke', '#76B900')
+          .attr('stroke-width', 3)
+          .attr('opacity', 1);
+      })
+      .on('mouseout', function () {
+        d3.select(this).select('rect')
+          .attr('stroke', '#1F2937')
+          .attr('stroke-width', 2)
+          .attr('opacity', 0.8);
+      })
+      .on('click', function (event, d) {
+        event.stopPropagation();
+        setSelectedNode({
+          type: 'nvswitch',
+          data: {
+            id: d.id,
+            connectedGPUs: d.connectedGPUs,
+            status: 'active',
+            throughput: 900,
+            temperature: 65 + Math.floor(Math.random() * 10),
+          },
+        });
+      });
+
     // Draw nodes
     const nodeGroup = svg.append('g').attr('class', 'nodes');
 
@@ -362,11 +391,11 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
         <h3 className="text-lg font-semibold text-gray-200">NVLink Topology - {node.id}</h3>
       </div>
 
-      <div className="relative">
-        <svg ref={svgRef} className="w-full bg-gray-900 rounded-lg" />
+      <svg ref={svgRef} className="w-full bg-gray-900 rounded-lg" />
 
-        {/* Network Node Detail Panel */}
-        {selectedNode && (
+      {/* Network Node Detail Panel - positioned relative to main container */}
+      {selectedNode && (
+        <div onClick={(e) => e.stopPropagation()}>
           <NetworkNodeDetail
             node={selectedNode}
             onClose={() => setSelectedNode(null)}
@@ -375,8 +404,8 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
               // TODO: Wire to simulation store for fault injection
             }}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Animation status indicator */}
       <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
@@ -412,7 +441,7 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
 
       <div className="mt-3 text-xs text-gray-400">
         <p>• Green ring around GPU = Utilization level</p>
-        <p>• Click on a GPU node to see detailed information</p>
+        <p>• Click on a GPU or NVSwitch to see detailed information</p>
         <p>• Active NVLinks shown as solid green lines</p>
       </div>
     </div>

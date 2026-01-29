@@ -6,11 +6,18 @@
  */
 
 import React from 'react';
-import { X, Thermometer, Activity, HardDrive, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { X, Thermometer, Activity, HardDrive, AlertTriangle, CheckCircle, XCircle, Zap, Cpu } from 'lucide-react';
 import type { GPU, InfiniBandHCA, HealthStatus, NVLinkConnection } from '@/types/hardware';
 
 export type NetworkNodeType =
   | { type: 'gpu'; data: GPU }
+  | { type: 'nvswitch'; data: {
+      id: number;
+      connectedGPUs: number[];
+      status: 'active' | 'Warning' | 'down';
+      throughput: number;
+      temperature: number;
+    }}
   | { type: 'switch'; data: { id: string; switchType: 'spine' | 'leaf'; status: 'active' | 'down' } }
   | { type: 'host'; data: { id: string; hostname: string; hcas: InfiniBandHCA[]; gpuCount: number } };
 
@@ -86,10 +93,11 @@ export const NetworkNodeDetail: React.FC<NetworkNodeDetailProps> = ({
   onInjectFault,
 }) => {
   return (
-    <div className="absolute right-4 top-4 w-80 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-10">
-      <div className="flex items-center justify-between p-3 border-b border-gray-700">
+    <div className="absolute right-4 top-4 w-80 bg-gray-900 border-2 border-nvidia-green/50 rounded-lg shadow-2xl z-50">
+      <div className="flex items-center justify-between p-3 border-b border-gray-700 bg-gray-800/50">
         <h3 className="text-sm font-semibold text-nvidia-green">
           {node.type === 'gpu' && `GPU ${node.data.id}`}
+          {node.type === 'nvswitch' && `NVSwitch ${node.data.id}`}
           {node.type === 'switch' && `${node.data.switchType === 'spine' ? 'Spine' : 'Leaf'} Switch`}
           {node.type === 'host' && node.data.hostname}
         </h3>
@@ -145,6 +153,53 @@ export const NetworkNodeDetail: React.FC<NetworkNodeDetailProps> = ({
           </div>
         )}
 
+        {node.type === 'nvswitch' && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-gray-400 text-xs">NVSwitch Fabric Component</span>
+              <HealthBadge status={node.data.status} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Thermometer className="w-4 h-4 text-orange-500" />
+                <div>
+                  <div className="text-gray-400">Temperature</div>
+                  <div className="text-white font-medium">{node.data.temperature}°C</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-500" />
+                <div>
+                  <div className="text-gray-400">Throughput</div>
+                  <div className="text-white font-medium">{node.data.throughput} GB/s</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-gray-700">
+              <div className="text-xs text-gray-400 mb-2">Connected GPUs</div>
+              <div className="flex flex-wrap gap-1">
+                {node.data.connectedGPUs.map(gpuId => (
+                  <span key={gpuId} className="px-2 py-1 bg-gray-800 rounded text-xs text-nvidia-green">
+                    GPU {gpuId}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-gray-700">
+              <div className="flex items-center gap-2 text-xs">
+                <Cpu className="w-4 h-4 text-indigo-500" />
+                <div>
+                  <div className="text-gray-400">Switch Role</div>
+                  <div className="text-white font-medium">High-speed GPU interconnect</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {node.type === 'host' && (
           <>
             <div className="mb-3">
@@ -181,6 +236,22 @@ export const NetworkNodeDetail: React.FC<NetworkNodeDetailProps> = ({
                     className="px-2 py-1 text-xs bg-yellow-900/50 text-yellow-400 rounded hover:bg-yellow-900"
                   >
                     XID Error
+                  </button>
+                </>
+              )}
+              {node.type === 'nvswitch' && (
+                <>
+                  <button
+                    onClick={() => onInjectFault('nvswitch-down')}
+                    className="px-2 py-1 text-xs bg-red-900/50 text-red-400 rounded hover:bg-red-900"
+                  >
+                    Switch Down
+                  </button>
+                  <button
+                    onClick={() => onInjectFault('nvswitch-thermal')}
+                    className="px-2 py-1 text-xs bg-orange-900/50 text-orange-400 rounded hover:bg-orange-900"
+                  >
+                    Overheat
                   </button>
                 </>
               )}

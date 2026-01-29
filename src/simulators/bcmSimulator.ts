@@ -43,8 +43,8 @@ export class BcmSimulator extends BaseSimulator {
         {
           name: 'bcm-node',
           description: 'Node management commands',
-          usage: 'bcm-node list',
-          examples: ['bcm-node list'],
+          usage: 'bcm-node list | show <node-id>',
+          examples: ['bcm-node list', 'bcm-node show dgx-00'],
         },
         {
           name: 'crm',
@@ -101,8 +101,9 @@ export class BcmSimulator extends BaseSimulator {
       output += 'Options:\n';
       output += '  -h, --help       Show this help message\n\n';
       output += 'Commands:\n';
-      output += '  bcm-node list       List all cluster nodes\n';
-      output += '  bcm ha status       Show HA status\n';
+      output += '  bcm-node list         List all cluster nodes\n';
+      output += '  bcm-node show <id>    Show detailed node information\n';
+      output += '  bcm ha status         Show HA status\n';
       output += '  bcm job list        List deployment jobs\n';
       output += '  bcm job logs <id>   Show job logs\n';
       output += '  bcm validate pod    Validate SuperPOD configuration\n';
@@ -115,8 +116,9 @@ export class BcmSimulator extends BaseSimulator {
         'Type "help" for available commands.\n' +
         'Type "exit" to leave BCM shell.\n\n' +
         'Available commands:\n' +
-        '  bcm-node list       - List all cluster nodes\n' +
-        '  bcm ha status       - Show HA status\n' +
+        '  bcm-node list         - List all cluster nodes\n' +
+        '  bcm-node show <id>    - Show detailed node information\n' +
+        '  bcm ha status         - Show HA status\n' +
         '  bcm job list        - List deployment jobs\n' +
         '  bcm job logs <id>   - Show job logs\n' +
         '  bcm validate pod    - Validate SuperPOD configuration\n' +
@@ -149,14 +151,26 @@ export class BcmSimulator extends BaseSimulator {
     return this.createError(`bcm: unknown command "${command}"\nType "bcm" for help.`);
   }
 
-  // bcm-node list
+  // bcm-node list | show <nodeid>
   private handleBcmNode(parsed: ParsedCommand, context: CommandContext): CommandResult {
     const command = parsed.subcommands[0];
-    if (command !== 'list') {
-      return this.createError('Usage: bcm-node list');
+    const nodes = this.getNodes(context);
+
+    if (command === 'show') {
+      const nodeId = parsed.subcommands[1] || parsed.positionalArgs[0];
+      if (!nodeId) {
+        return this.createError('Usage: bcm-node show <node-id>');
+      }
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node) {
+        return this.createError(`Error: Node '${nodeId}' not found in cluster`);
+      }
+      return this.showNodeDetails(node);
     }
 
-    const nodes = this.getNodes(context);
+    if (command !== 'list') {
+      return this.createError('Usage: bcm-node list | show <node-id>');
+    }
 
     // SOURCE OF TRUTH: Column widths for node inventory
     const COL_NODEID = 17;
@@ -203,6 +217,71 @@ export class BcmSimulator extends BaseSimulator {
     output += '\n';
     output += `Total Nodes: ${nodes.length}\n`;
     output += `Total GPUs:  ${nodes.reduce((sum, n) => sum + n.gpus.length, 0)}\n`;
+
+    return this.createSuccess(output);
+  }
+
+  // Show detailed node information
+  private showNodeDetails(node: ReturnType<typeof this.getNodes>[0]): CommandResult {
+    const healthColor = node.healthStatus === 'OK' ? '\x1b[32m' :
+      node.healthStatus === 'Warning' ? '\x1b[33m' : '\x1b[31m';
+    const reset = '\x1b[0m';
+
+    let output = '\n╔═══════════════════════════════════════════════════════════════════╗\n';
+    output += `║                    Node Details: ${node.id.padEnd(33)}║\n`;
+    output += '╚═══════════════════════════════════════════════════════════════════╝\n\n';
+
+    output += 'General Information:\n';
+    output += '--------------------\n';
+    output += `Node ID:          ${node.id}\n`;
+    output += `Hostname:         ${node.hostname}\n`;
+    output += `System Type:      ${node.systemType}\n`;
+    output += `Health Status:    ${healthColor}${node.healthStatus}${reset}\n`;
+    output += `OS Version:       ${node.osVersion}\n`;
+    output += `Kernel:           ${node.kernelVersion}\n\n`;
+
+    output += 'Hardware Configuration:\n';
+    output += '-----------------------\n';
+    output += `CPU Model:        ${node.cpuModel}\n`;
+    output += `CPU Cores:        ${node.cpuCount}\n`;
+    output += `Total RAM:        ${node.ramTotal} GB\n`;
+    output += `Used RAM:         ${node.ramUsed} GB\n`;
+    output += `GPU Count:        ${node.gpus.length}\n\n`;
+
+    output += 'Software Versions:\n';
+    output += '------------------\n';
+    output += `NVIDIA Driver:    ${node.nvidiaDriverVersion}\n`;
+    output += `CUDA Version:     ${node.cudaVersion}\n\n`;
+
+    output += 'Slurm Status:\n';
+    output += '-------------\n';
+    const slurmColor = node.slurmState === 'idle' ? '\x1b[32m' :
+      node.slurmState === 'alloc' ? '\x1b[34m' :
+        node.slurmState === 'drain' ? '\x1b[33m' : '\x1b[31m';
+    output += `State:            ${slurmColor}${node.slurmState}${reset}\n`;
+    if (node.slurmReason) {
+      output += `Reason:           ${node.slurmReason}\n`;
+    }
+    output += '\n';
+
+    output += 'GPU Summary:\n';
+    output += '------------\n';
+    node.gpus.forEach((gpu, idx) => {
+      const gpuHealth = gpu.healthStatus === 'OK' ? '\x1b[32m●\x1b[0m' :
+        gpu.healthStatus === 'Warning' ? '\x1b[33m●\x1b[0m' : '\x1b[31m●\x1b[0m';
+      output += `  GPU ${idx}: ${gpuHealth} ${gpu.name} - ${Math.round(gpu.utilization)}% util, ${Math.round(gpu.temperature)}°C\n`;
+    });
+
+    output += '\n';
+    output += 'InfiniBand HCAs:\n';
+    output += '----------------\n';
+    if (node.hcas && node.hcas.length > 0) {
+      node.hcas.forEach((hca, idx) => {
+        output += `  HCA ${idx}: ${hca.caType} - ${hca.ports.length} port(s)\n`;
+      });
+    } else {
+      output += '  No HCAs detected\n';
+    }
 
     return this.createSuccess(output);
   }

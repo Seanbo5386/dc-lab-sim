@@ -12,9 +12,20 @@
 
 /* XTerm.js terminal styling */
 .terminal-container {
-  @apply w-full h-full bg-black rounded-lg;
-  overflow: auto;
+  @apply w-full h-full bg-black rounded-lg flex flex-col;
+  overflow: hidden;
   position: relative;
+}
+
+.terminal-container > .terminal-node-indicator {
+  flex-shrink: 0;
+}
+
+.terminal-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
 }
 
 .xterm {

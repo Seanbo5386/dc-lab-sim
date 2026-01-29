@@ -17,7 +17,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { MetricsHistory } from '@/utils/metricsHistory';
-import { Activity, Thermometer, Zap, HardDrive } from 'lucide-react';
+import { useSimulationStore } from '@/store/simulationStore';
+import { Activity, Thermometer, Zap, HardDrive, Play, BarChart3 } from 'lucide-react';
 
 interface MetricsChartProps {
   nodeId: string;
@@ -27,7 +28,10 @@ interface MetricsChartProps {
 type MetricType = 'utilization' | 'temperature' | 'power' | 'memory';
 
 export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => {
+  const isRunning = useSimulationStore(state => state.isRunning);
+  const startSimulation = useSimulationStore(state => state.startSimulation);
   const [selectedMetric, setSelectedMetric] = useState<MetricType>('utilization');
+  const [hasEverCollected, setHasEverCollected] = useState(false);
   interface ChartDataPoint {
     time: string;
     utilization: number;
@@ -50,6 +54,11 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
       if (history.length === 0) {
         setChartData([]);
         return;
+      }
+
+      // Mark that we've collected data at least once
+      if (!hasEverCollected && history.length > 0) {
+        setHasEverCollected(true);
       }
 
       // Format data for Recharts
@@ -79,7 +88,7 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
     const interval = setInterval(updateChart, 1000);
 
     return () => clearInterval(interval);
-  }, [nodeId, gpuId]);
+  }, [nodeId, gpuId, hasEverCollected]);
 
   const metricConfigs = {
     utilization: {
@@ -232,11 +241,30 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
         </ResponsiveContainer>
       ) : (
         <div className="h-[300px] flex items-center justify-center text-gray-400">
-          <div className="text-center">
-            <Activity className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>Collecting metrics data...</p>
-            <p className="text-sm mt-1">Data will appear after a few seconds</p>
-          </div>
+          {isRunning || hasEverCollected ? (
+            // Loading state - simulation is running, waiting for data
+            <div className="text-center">
+              <Activity className="w-12 h-12 mx-auto mb-2 opacity-50 animate-pulse" />
+              <p>Collecting metrics data...</p>
+              <p className="text-sm mt-1">Data will appear after a few seconds</p>
+            </div>
+          ) : (
+            // Initial state - simulation not started yet
+            <div className="text-center">
+              <BarChart3 className="w-16 h-16 mx-auto mb-4 opacity-30" />
+              <p className="text-lg font-medium text-gray-300 mb-2">No Metrics Data Yet</p>
+              <p className="text-sm text-gray-500 mb-6 max-w-md">
+                Start the simulation to begin collecting real-time GPU metrics including utilization, temperature, power draw, and memory usage.
+              </p>
+              <button
+                onClick={startSimulation}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-nvidia-green text-black font-semibold rounded-lg hover:bg-nvidia-darkgreen transition-colors"
+              >
+                <Play className="w-5 h-5" />
+                Run Simulation
+              </button>
+            </div>
+          )}
         </div>
       )}
 

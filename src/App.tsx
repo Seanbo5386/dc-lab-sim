@@ -134,7 +134,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col">
+    <div className="h-screen bg-gray-900 text-gray-100 flex flex-col overflow-hidden">
       {/* Header */}
       <header className={`bg-black border-b border-gray-800 px-6 py-4 transition-all duration-300 ${showLabWorkspace ? 'ml-[600px]' : ''}`}>
         <div className="flex items-center justify-between">

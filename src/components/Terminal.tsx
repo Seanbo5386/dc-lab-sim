@@ -835,7 +835,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = '' }) => {
         <span className="text-gray-400">Terminal connected to:</span>
         <span className="text-green-400 font-semibold">{connectedNode}</span>
       </div>
-      <div ref={terminalRef} className="w-full h-full flex-1" />
+      <div ref={terminalRef} className="terminal-content" />
     </div>
   );
 };

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSimulationStore } from '@/store/simulationStore';
-import { Activity, HardDrive, Thermometer, Zap, AlertTriangle, CheckCircle, XCircle, TrendingUp, Network, Activity as ActivityIcon } from 'lucide-react';
+import { Activity, HardDrive, Thermometer, Zap, AlertTriangle, CheckCircle, XCircle, TrendingUp, Network, Activity as ActivityIcon, ChevronDown } from 'lucide-react';
 import type { GPU, HealthStatus } from '@/types/hardware';
 import { MetricsChart } from './MetricsChart';
 import { TopologyGraph } from './TopologyGraph';
@@ -149,6 +149,8 @@ const NodeSelector: React.FC = () => {
 
 const ClusterHealthSummary: React.FC = () => {
   const cluster = useSimulationStore(state => state.cluster);
+  const selectNode = useSimulationStore(state => state.selectNode);
+  const [alertExpanded, setAlertExpanded] = useState(false);
 
   const totalNodes = cluster.nodes.length;
   const totalGPUs = cluster.nodes.reduce((sum, node) => sum + node.gpus.length, 0);
@@ -159,6 +161,22 @@ const ClusterHealthSummary: React.FC = () => {
   const criticalGPUs = cluster.nodes.reduce(
     (sum, node) => sum + node.gpus.filter(gpu => gpu.healthStatus === 'Critical').length,
     0
+  );
+
+  // Gather critical GPU details for expandable view
+  const criticalGPUDetails = cluster.nodes.flatMap(node =>
+    node.gpus
+      .filter(gpu => gpu.healthStatus === 'Critical')
+      .map(gpu => ({
+        nodeId: node.id,
+        gpuId: gpu.id,
+        gpuName: gpu.name,
+        issue: gpu.xidErrors.length > 0
+          ? `XID Error ${gpu.xidErrors[0].code}`
+          : gpu.temperature > 85
+            ? `Overheating (${Math.round(gpu.temperature)}°C)`
+            : 'Health Critical'
+      }))
   );
 
   const overallHealth: HealthStatus = criticalGPUs > 0 ? 'Critical' : healthyGPUs < totalGPUs ? 'Warning' : 'OK';
@@ -193,10 +211,38 @@ const ClusterHealthSummary: React.FC = () => {
       </div>
 
       {criticalGPUs > 0 && (
-        <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-          <div className="text-sm text-red-400 font-medium">
-            ⚠ {criticalGPUs} GPU(s) in Critical state - check node details
+        <div
+          className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg cursor-pointer hover:bg-red-500/20 transition-colors"
+          onClick={() => setAlertExpanded(!alertExpanded)}
+        >
+          <div className="flex items-center justify-between text-sm text-red-400 font-medium">
+            <span>⚠ {criticalGPUs} GPU(s) in Critical state - click for details</span>
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${alertExpanded ? 'rotate-180' : ''}`} />
           </div>
+
+          {alertExpanded && (
+            <div className="mt-3 space-y-2 border-t border-red-500/30 pt-3">
+              {criticalGPUDetails.map((detail, i) => (
+                <div key={i} className="flex items-center justify-between text-xs bg-red-500/5 rounded p-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-300 font-mono">{detail.nodeId}</span>
+                    <span className="text-gray-500">→</span>
+                    <span className="text-gray-300">GPU {detail.gpuId}</span>
+                  </div>
+                  <span className="text-red-300">{detail.issue}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      selectNode(detail.nodeId);
+                    }}
+                    className="text-nvidia-green hover:underline ml-2"
+                  >
+                    View Node
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -326,22 +372,58 @@ export const Dashboard: React.FC = () => {
             ))}
           </div>
 
-          {/* Node Details */}
+          {/* Enhanced Node Details */}
           <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 mt-6">
             <h3 className="text-lg font-semibold text-gray-200 mb-4">Node Details</h3>
+
+            {/* Primary Info Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div>
                 <div className="text-gray-400">Hostname</div>
-                <div className="text-nvidia-green font-mono">{currentNode.hostname}</div>
+                <div className="text-nvidia-green font-mono text-xs">{currentNode.hostname}</div>
+              </div>
+              <div>
+                <div className="text-gray-400">System Type</div>
+                <div className="text-gray-200">{currentNode.systemType}</div>
               </div>
               <div>
                 <div className="text-gray-400">CPU</div>
-                <div className="text-gray-200">{currentNode.cpuModel.split(' ').slice(0, 4).join(' ')}</div>
+                <div className="text-gray-200 text-xs">{currentNode.cpuModel.split(' ').slice(0, 4).join(' ')}</div>
               </div>
               <div>
-                <div className="text-gray-400">RAM</div>
-                <div className="text-gray-200">{currentNode.ramUsed} / {currentNode.ramTotal} GB</div>
+                <div className="text-gray-400">CPU Cores</div>
+                <div className="text-gray-200">{currentNode.cpuCount}</div>
               </div>
+            </div>
+
+            {/* Secondary Info Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4 pt-4 border-t border-gray-700">
+              <div>
+                <div className="text-gray-400">RAM Usage</div>
+                <div className="text-gray-200">{currentNode.ramUsed} / {currentNode.ramTotal} GB</div>
+                <div className="mt-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full"
+                    style={{ width: `${(currentNode.ramUsed / currentNode.ramTotal) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-400">Driver Version</div>
+                <div className="text-gray-200">{currentNode.nvidiaDriverVersion}</div>
+              </div>
+              <div>
+                <div className="text-gray-400">CUDA Version</div>
+                <div className="text-gray-200">{currentNode.cudaVersion}</div>
+              </div>
+              <div>
+                <div className="text-gray-400">OS Version</div>
+                <div className="text-gray-200 text-xs">{currentNode.osVersion}</div>
+              </div>
+            </div>
+
+            {/* Status Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4 pt-4 border-t border-gray-700">
               <div>
                 <div className="text-gray-400">Slurm State</div>
                 <div className={`font-medium ${
@@ -351,7 +433,26 @@ export const Dashboard: React.FC = () => {
                   'text-red-500'
                 }`}>
                   {currentNode.slurmState}
+                  {currentNode.slurmReason && (
+                    <span className="text-gray-500 text-xs ml-1">({currentNode.slurmReason})</span>
+                  )}
                 </div>
+              </div>
+              <div>
+                <div className="text-gray-400">InfiniBand HCAs</div>
+                <div className="text-green-500">
+                  {currentNode.hcas?.length || 0} Active
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-400">NVLink Health</div>
+                <div className="text-green-500">
+                  {currentNode.gpus.filter(g => g.nvlinks.every(l => l.status === 'Active')).length}/{currentNode.gpus.length} GPUs OK
+                </div>
+              </div>
+              <div>
+                <div className="text-gray-400">Kernel Version</div>
+                <div className="text-gray-200 text-xs">{currentNode.kernelVersion}</div>
               </div>
             </div>
           </div>
