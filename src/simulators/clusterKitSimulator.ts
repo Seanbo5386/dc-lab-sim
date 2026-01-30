@@ -2,6 +2,7 @@ import { BaseSimulator } from './BaseSimulator';
 import type { CommandResult, CommandContext } from '@/types/commands';
 import type { ParsedCommand } from '@/utils/commandParser';
 import type { ClusterKitAssessment } from '@/types/clusterKit';
+import { useSimulationStore } from '@/store/simulationStore';
 
 export class ClusterKitSimulator extends BaseSimulator {
   constructor() {
@@ -67,32 +68,54 @@ export class ClusterKitSimulator extends BaseSimulator {
     }
 
     // Execute handler (handlers in this simulator are synchronous)
-    const result = handler(parsed, context);
-    return result as CommandResult;
+    return handler(parsed, context) as CommandResult;
   }
 
-  private handleAssess(_parsed: ParsedCommand, context: CommandContext): CommandResult {
-    // Skeleton - will be implemented in Task 2
-    const assessment: ClusterKitAssessment = {
-      nodeId: context.currentNode || 'node-001',
-      timestamp: new Date().toISOString(),
-      overallStatus: 'healthy',
-      checks: {
-        gpu: [],
-        network: [],
-        storage: [],
-        firmware: [],
-        drivers: []
-      },
-      summary: {
-        total: 0,
-        passed: 0,
-        failed: 0,
-        warnings: 0
-      }
-    };
+  private getTargetNode(parsed: ParsedCommand, _context: CommandContext): any {
+    const cluster = useSimulationStore.getState().cluster;
+    const nodeFlag = parsed.flags.get('node');
 
-    return this.createSuccess(this.formatAssessmentOutput(assessment));
+    if (nodeFlag) {
+      const node = cluster.nodes.find((n: any) => n.id === nodeFlag);
+      if (!node) {
+        throw new Error(`Node ${nodeFlag} not found in cluster`);
+      }
+      return node;
+    }
+
+    // Default to first node
+    return cluster.nodes[0];
+  }
+
+  private handleAssess(parsed: ParsedCommand, context: CommandContext): CommandResult {
+    try {
+      const node = this.getTargetNode(parsed, context);
+      const verbose = parsed.flags.get('verbose') || parsed.flags.get('v');
+
+      const assessment: ClusterKitAssessment = {
+        nodeId: node.id,
+        hostname: node.hostname || `${node.id}.cluster.local`,
+        timestamp: new Date(),
+        overallHealth: 'pass',
+        checks: {
+          gpu: { status: 'pass', message: 'GPU check placeholder' },
+          network: { status: 'pass', message: 'Network check placeholder' },
+          storage: { status: 'pass', message: 'Storage check placeholder' },
+          firmware: { status: 'pass', message: 'Firmware check placeholder' },
+          drivers: { status: 'pass', message: 'Driver check placeholder' }
+        }
+      };
+
+      return {
+        output: this.formatAssessmentOutput(assessment, !!verbose),
+        exitCode: 0
+      };
+    } catch (error) {
+      return {
+        output: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        exitCode: 1
+      };
+    }
   }
 
   private handleCheck(parsed: ParsedCommand, _context: CommandContext): CommandResult {
@@ -118,17 +141,22 @@ export class ClusterKitSimulator extends BaseSimulator {
     return this.createSuccess('Specific check functionality coming soon');
   }
 
-  private formatAssessmentOutput(assessment: ClusterKitAssessment): string {
+  private formatAssessmentOutput(assessment: ClusterKitAssessment, verbose: boolean = false): string {
     let output = `ClusterKit Assessment Report\n`;
     output += `Node: ${assessment.nodeId}\n`;
-    output += `Timestamp: ${assessment.timestamp}\n`;
-    output += `Overall Status: ${assessment.overallStatus.toUpperCase()}\n\n`;
+    output += `Hostname: ${assessment.hostname}\n`;
+    output += `Timestamp: ${assessment.timestamp.toISOString()}\n`;
+    output += `Overall Health: ${assessment.overallHealth.toUpperCase()}\n\n`;
 
-    output += `Summary:\n`;
-    output += `  Total Checks: ${assessment.summary.total}\n`;
-    output += `  Passed: ${assessment.summary.passed}\n`;
-    output += `  Failed: ${assessment.summary.failed}\n`;
-    output += `  Warnings: ${assessment.summary.warnings}\n`;
+    if (verbose) {
+      output += `Detailed Checks:\n`;
+      Object.entries(assessment.checks).forEach(([category, result]) => {
+        output += `  ${category}: ${result.status} - ${result.message}\n`;
+        if (result.details) {
+          result.details.forEach(detail => output += `    - ${detail}\n`);
+        }
+      });
+    }
 
     return output;
   }

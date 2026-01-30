@@ -1,25 +1,19 @@
 export interface ClusterKitCheckResult {
-  checkName: string;
-  status: 'pass' | 'fail' | 'warning';
+  status: 'pass' | 'warning' | 'fail';
   message: string;
-  details?: Record<string, any>;
+  details?: string[];
 }
 
 export interface ClusterKitAssessment {
   nodeId: string;
-  timestamp: string;
-  overallStatus: 'healthy' | 'degraded' | 'failed';
+  hostname: string;
+  timestamp: Date;
+  overallHealth: 'pass' | 'warning' | 'fail';
   checks: {
-    gpu: ClusterKitCheckResult[];
-    network: ClusterKitCheckResult[];
-    storage: ClusterKitCheckResult[];
-    firmware: ClusterKitCheckResult[];
-    drivers: ClusterKitCheckResult[];
-  };
-  summary: {
-    total: number;
-    passed: number;
-    failed: number;
-    warnings: number;
+    gpu: ClusterKitCheckResult;
+    network: ClusterKitCheckResult;
+    storage: ClusterKitCheckResult;
+    firmware: ClusterKitCheckResult;
+    drivers: ClusterKitCheckResult;
   };
 }
