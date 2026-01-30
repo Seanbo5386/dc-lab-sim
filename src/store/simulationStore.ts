@@ -56,6 +56,11 @@ interface SimulationState {
   completeScenarioStep: (scenarioId: string, stepId: string) => void;
   exitScenario: () => void;
 
+  // Lab Panel visibility (responsive UI)
+  labPanelVisible: boolean;
+  setLabPanelVisible: (visible: boolean) => void;
+  toggleLabPanel: () => void;
+
   // Hint actions
   revealHint: (scenarioId: string, stepId: string, hintId: string) => void;
   recordCommand: (scenarioId: string, stepId: string, command: string) => void;
@@ -597,6 +602,13 @@ export const useSimulationStore = create<SimulationState>()(
           console.error('Failed to import cluster:', error);
         }
       },
+
+      // Lab Panel visibility state
+      labPanelVisible: true, // Default to visible
+
+      setLabPanelVisible: (visible: boolean) => set({ labPanelVisible: visible }),
+
+      toggleLabPanel: () => set((state) => ({ labPanelVisible: !state.labPanelVisible })),
     }),
     {
       name: 'nvidia-simulator-storage',
