@@ -35,15 +35,20 @@ export class BenchmarkSimulator extends BaseSimulator {
 
     this.registerCommand('nccl-test', this.handleNCCL.bind(this), {
       name: 'nccl-test',
-      description: 'NCCL communication benchmark (all-reduce, broadcast, etc.)',
-      usage: 'nccl-test [operation] [options]',
+      description: 'Run NCCL collective tests with burn-in support',
+      usage: 'nccl-test [--burn-in] [--iterations N] [operation] [options]',
       flags: [
         { short: 'b', long: 'minbytes', description: 'Minimum message size (default: 8B)', takesValue: true },
         { short: 'e', long: 'maxbytes', description: 'Maximum message size (default: 128MB)', takesValue: true },
         { short: 'g', long: 'ngpus', description: 'Number of GPUs (default: 8)', takesValue: true },
         { long: 'operation', description: 'Operation: all_reduce, broadcast, reduce_scatter (default: all_reduce)', takesValue: true },
+        { long: 'burn-in', description: 'Run extended burn-in test', takesValue: false },
+        { long: 'burnin', description: 'Run extended burn-in test (alias)', takesValue: false },
+        { long: 'iterations', description: 'Number of burn-in iterations (default: 1000)', takesValue: true },
       ],
       examples: [
+        'nccl-test',
+        'nccl-test --burn-in --iterations 1000',
         'nccl-test --operation all_reduce -b 8M -e 128M -g 8',
         'nccl-test --operation broadcast -g 4',
       ],
@@ -173,6 +178,17 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
   }
 
   private handleNCCL(parsed: ParsedCommand, context: CommandContext): CommandResult {
+    const burnIn = this.hasAnyFlag(parsed, ['burn-in', 'burnin']);
+
+    if (burnIn) {
+      return this.handleBurnIn(parsed, context);
+    }
+
+    // Regular NCCL test logic
+    return this.handleRegularTest(parsed, context);
+  }
+
+  private handleRegularTest(parsed: ParsedCommand, context: CommandContext): CommandResult {
     const minBytesStr = parsed.flags.get('minbytes') || parsed.flags.get('b');
     const maxBytesStr = parsed.flags.get('maxbytes') || parsed.flags.get('e');
     const ngpusStr = parsed.flags.get('ngpus') || parsed.flags.get('g');
@@ -231,6 +247,54 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     return this.createSuccess(output);
   }
 
+  private handleBurnIn(parsed: ParsedCommand, context: CommandContext): CommandResult {
+    const iterationsStr = parsed.flags.get('iterations');
+    const iterations = parseInt(typeof iterationsStr === 'string' ? iterationsStr : '1000', 10);
+
+    const node = this.getNode(context);
+    if (!node) {
+      return this.createError('No node selected');
+    }
+
+    let output = `NCCL Burn-in Test\n`;
+    output += `================\n`;
+    output += `Iterations: ${iterations}\n`;
+    output += `Start time: ${new Date().toLocaleString()}\n\n`;
+
+    // Simulate burn-in test with progress
+    output += `Running NCCL AllReduce burn-in...\n`;
+
+    // Calculate bandwidth statistics
+    const bandwidths: number[] = [];
+
+    for (let i = 1; i <= Math.min(10, iterations); i++) {
+      const bandwidth = 280 + Math.random() * 20; // 280-300 GB/s
+      bandwidths.push(bandwidth);
+      output += `Iteration ${i}/${iterations}: ${bandwidth.toFixed(2)} GB/s\n`;
+    }
+
+    if (iterations > 10) {
+      output += `... (${iterations - 10} more iterations)\n`;
+      // Generate additional bandwidth values for statistics
+      for (let i = 11; i <= iterations; i++) {
+        bandwidths.push(280 + Math.random() * 20);
+      }
+    }
+
+    // Calculate statistics
+    const avgBandwidth = bandwidths.reduce((sum, bw) => sum + bw, 0) / bandwidths.length;
+    const minBandwidth = Math.min(...bandwidths);
+    const maxBandwidth = Math.max(...bandwidths);
+
+    output += `\nBurn-in Status: PASSED\n`;
+    output += `Average Bandwidth: ${avgBandwidth.toFixed(2)} GB/s\n`;
+    output += `Min Bandwidth: ${minBandwidth.toFixed(2)} GB/s\n`;
+    output += `Max Bandwidth: ${maxBandwidth.toFixed(2)} GB/s\n`;
+    output += `Failures: 0\n`;
+
+    return this.createSuccess(output);
+  }
+
   private handleGPUBurn(parsed: ParsedCommand, context: CommandContext): CommandResult {
     const durationStr = parsed.flags.get('duration') || parsed.flags.get('d') || parsed.positionalArgs[0];
     const duration = parseInt(typeof durationStr === 'string' ? durationStr : '60');
@@ -273,7 +337,7 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
 
     gpusToTest.forEach((gpu: GPU, idx: number) => {
       output += `GPU ${idx}: ${gpu.name}\n`;
-      output += `  Temperature: ${gpu.temperature.toFixed(1)}°C\n`;
+      output += `  Temperature: ${Math.round(gpu.temperature)}°C\n`;
       output += `  Power: ${gpu.powerDraw.toFixed(0)}W / ${gpu.powerLimit}W\n`;
       output += `  Utilization: ${gpu.utilization}%\n`;
     });
