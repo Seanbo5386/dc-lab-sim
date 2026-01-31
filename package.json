@@ -11,9 +11,14 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
+    "@rollup/rollup-win32-x64-msvc": "^4.57.0",
     "clsx": "^2.1.1",
     "d3": "^7.8.5",
     "lucide-react": "^0.294.0",
@@ -27,6 +32,7 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^14.3.1",
     "@types/d3": "^7.4.3",
