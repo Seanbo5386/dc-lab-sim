@@ -343,6 +343,42 @@ Common GPU XID errors you'll encounter:
 - API for integration with LMS platforms
 - Instructor dashboard
 
+## 🧪 Testing
+
+### Unit Tests
+
+Run unit tests with Vitest:
+
+```bash
+npm run test           # Watch mode
+npm run test:run       # Single run
+npm run test:coverage  # With coverage report
+npm run test:ui        # Interactive UI
+```
+
+### E2E Tests
+
+Comprehensive Playwright test suite covering all Phase 1 features:
+
+```bash
+npm run test:e2e          # All E2E tests
+npm run test:e2e:ui       # Interactive mode
+npm run test:e2e:debug    # Debug mode
+npm run test:e2e:report   # View HTML report
+```
+
+**E2E Test Coverage:**
+- ClusterKit commands (~20 tests)
+- Burn-in tests: NCCL, HPL, NeMo (~25 tests)
+- Firmware and cable validation (~20 tests)
+- Lab scenarios across all domains (~30 tests)
+- Integration workflows (~15 tests)
+- Visual regression across 3 viewports
+
+Tests run on 3 viewport sizes: Desktop (1920x1080), Laptop (1366x768), Large Display (2560x1440).
+
+See [E2E Test Documentation](tests/e2e/README.md) for details.
+
 ## 🤝 Contributing
 
 Contributions are welcome! This simulator is designed to help engineers prepare for NVIDIA certification. If you'd like to add features or fix issues:
