@@ -114,7 +114,19 @@ export class BenchmarkSimulator extends BaseSimulator {
     // Regular HPL test
     const nodesStr = parsed.flags.get('nodes');
     const gpusPerNodeStr = parsed.flags.get('gpus-per-node');
-    const problemSizeStr = parsed.flags.get('problem-size');
+    const problemSizeStr = parsed.flags.get('problem-size') || parsed.flags.get('N');
+
+    // Validate problem size if provided
+    if (problemSizeStr !== undefined) {
+      const sizeValue = typeof problemSizeStr === 'string' ? problemSizeStr : String(problemSizeStr);
+      const validation = this.validatePositiveInt(sizeValue, 'Problem size');
+      if (!validation.valid) {
+        return this.createError(validation.error!);
+      }
+      if (validation.value === 0) {
+        return this.createError('Problem size must be positive');
+      }
+    }
 
     const nodes = parseInt(typeof nodesStr === 'string' ? nodesStr : '1');
     const gpusPerNode = parseInt(typeof gpusPerNodeStr === 'string' ? gpusPerNodeStr : '8');
@@ -265,6 +277,28 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     const ngpusStr = parsed.flags.get('ngpus') || parsed.flags.get('g');
     const nodesStr = parsed.flags.get('nodes') || parsed.flags.get('n');
     const operationStr = parsed.flags.get('operation') || parsed.flags.get('t');
+
+    // Validate GPU count
+    if (ngpusStr !== undefined) {
+      const ngpusValue = typeof ngpusStr === 'string' ? ngpusStr : String(ngpusStr);
+      const validation = this.validatePositiveInt(ngpusValue, 'GPU count');
+      if (!validation.valid) {
+        return this.createError(validation.error!);
+      }
+      if (validation.value === 0) {
+        return this.createError('GPU count must be at least 1');
+      }
+    }
+
+    // Validate operation type
+    const validOperations = ['all_reduce', 'all_gather', 'reduce_scatter', 'broadcast', 'reduce', 'alltoall'];
+    if (operationStr !== undefined) {
+      const opValue = typeof operationStr === 'string' ? operationStr : String(operationStr);
+      const validation = this.validateInSet(opValue, validOperations, 'operation');
+      if (!validation.valid) {
+        return this.createError(validation.error!);
+      }
+    }
 
     const minBytes = this.parseSize(typeof minBytesStr === 'string' ? minBytesStr : '8');
     const maxBytes = this.parseSize(typeof maxBytesStr === 'string' ? maxBytesStr : '134217728'); // 128MB
@@ -444,6 +478,19 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
 
   private handleGPUBurn(parsed: ParsedCommand, context: CommandContext): CommandResult {
     const durationStr = parsed.flags.get('duration') || parsed.flags.get('d') || parsed.positionalArgs[0];
+
+    // Validate duration if provided
+    if (durationStr !== undefined) {
+      const durValue = typeof durationStr === 'string' ? durationStr : String(durationStr);
+      const validation = this.validatePositiveInt(durValue, 'Duration');
+      if (!validation.valid) {
+        return this.createError(validation.error!);
+      }
+      if (validation.value! <= 0) {
+        return this.createError('Duration must be a positive number of seconds');
+      }
+    }
+
     const duration = parseInt(typeof durationStr === 'string' ? durationStr : '60');
     const specificGPU = parsed.flags.get('gpu') || parsed.flags.get('g');
 
