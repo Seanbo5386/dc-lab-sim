@@ -46,17 +46,19 @@ export class BenchmarkSimulator extends BaseSimulator {
       flags: [
         { short: 'b', long: 'minbytes', description: 'Minimum message size (default: 8B)', takesValue: true },
         { short: 'e', long: 'maxbytes', description: 'Maximum message size (default: 128MB)', takesValue: true },
-        { short: 'g', long: 'ngpus', description: 'Number of GPUs (default: 8)', takesValue: true },
-        { long: 'operation', description: 'Operation: all_reduce, broadcast, reduce_scatter (default: all_reduce)', takesValue: true },
+        { short: 'g', long: 'ngpus', description: 'Number of GPUs per node (default: 8)', takesValue: true },
+        { short: 'n', long: 'nodes', description: 'Number of nodes (default: 1)', takesValue: true },
+        { short: 't', long: 'operation', description: 'Operation: all_reduce, all_gather, reduce_scatter, broadcast (default: all_reduce)', takesValue: true },
+        { long: 'check', description: 'Check results for correctness', takesValue: false },
         { long: 'burn-in', description: 'Run extended burn-in test', takesValue: false },
         { long: 'burnin', description: 'Run extended burn-in test (alias)', takesValue: false },
         { long: 'iterations', description: 'Number of burn-in iterations (default: 1000)', takesValue: true },
       ],
       examples: [
-        'nccl-test',
+        'nccl-test -t all_reduce -b 8M -e 128M -g 8',
+        'nccl-test -t all_reduce -g 8 -n 2',
         'nccl-test --burn-in --iterations 1000',
-        'nccl-test --operation all_reduce -b 8M -e 128M -g 8',
-        'nccl-test --operation broadcast -g 4',
+        'nccl-test -t all_gather -g 8 -n 4 -b 1G -e 8G',
       ],
     });
 
@@ -261,17 +263,23 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     const minBytesStr = parsed.flags.get('minbytes') || parsed.flags.get('b');
     const maxBytesStr = parsed.flags.get('maxbytes') || parsed.flags.get('e');
     const ngpusStr = parsed.flags.get('ngpus') || parsed.flags.get('g');
-    const operationStr = parsed.flags.get('operation');
+    const nodesStr = parsed.flags.get('nodes') || parsed.flags.get('n');
+    const operationStr = parsed.flags.get('operation') || parsed.flags.get('t');
 
     const minBytes = this.parseSize(typeof minBytesStr === 'string' ? minBytesStr : '8');
     const maxBytes = this.parseSize(typeof maxBytesStr === 'string' ? maxBytesStr : '134217728'); // 128MB
     const ngpus = parseInt(typeof ngpusStr === 'string' ? ngpusStr : '8');
+    const numNodes = parseInt(typeof nodesStr === 'string' ? nodesStr : '1');
     const operation = typeof operationStr === 'string' ? operationStr : 'all_reduce';
 
     const node = this.getNode(context);
     if (!node) {
       return this.createError('No node selected');
     }
+
+    const state = useSimulationStore.getState();
+    const totalGPUs = ngpus * numNodes;
+    const isMultiNode = numNodes > 1;
 
     // Generate test results for different message sizes
     const sizes: number[] = [];
@@ -281,26 +289,71 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
       size *= 2;
     }
 
-    let output = `
-# nccl-tests: ${operation}
-#
-# Using devices
-`;
+    let output = `# nccl-tests: ${operation}\n`;
+    output += `#\n`;
+    output += `# nNodes ${numNodes} nGpus ${ngpus} totalGpus ${totalGPUs}\n`;
+    output += `#\n`;
 
-    for (let i = 0; i < Math.min(ngpus, node.gpus.length); i++) {
-      output += `#  Rank ${i.toString().padStart(2)}: GPU ${i} - ${node.gpus[i].name}\n`;
+    if (isMultiNode) {
+      output += `# Using InfiniBand for inter-node communication\n`;
+      output += `# GPUDirect RDMA: Enabled\n`;
+      output += `#\n`;
     }
 
-    output += `#
-#                                                       out-of-place                       in-place
-#       size         count    type   redop     time   algbw   busbw  error     time   algbw   busbw  error
-#        (B)    (elements)                     (us)  (GB/s)  (GB/s)            (us)  (GB/s)  (GB/s)
-`;
+    output += `# Using devices\n`;
 
+    // Show devices from multiple nodes if multi-node
+    let rank = 0;
+    for (let nodeIdx = 0; nodeIdx < numNodes; nodeIdx++) {
+      const currentNode = state.cluster.nodes[nodeIdx] || node;
+      const hostname = currentNode.hostname || `dgx-${nodeIdx.toString().padStart(2, '0')}.cluster.local`;
+
+      for (let gpuIdx = 0; gpuIdx < Math.min(ngpus, currentNode.gpus.length); gpuIdx++) {
+        const gpuName = currentNode.gpus[gpuIdx]?.name || 'NVIDIA H100 80GB HBM3';
+        output += `#  Rank ${rank.toString().padStart(2)}: ${hostname}:${gpuIdx} - ${gpuName}\n`;
+        rank++;
+      }
+    }
+
+    output += `#\n`;
+
+    if (isMultiNode) {
+      output += `# NCCL version 2.19.3+cuda12.2\n`;
+      output += `# NCCL_DEBUG=INFO\n`;
+      output += `# NCCL_IB_DISABLE=0\n`;
+      output += `# NCCL_NET_GDR_LEVEL=5\n`;
+      output += `#\n`;
+    }
+
+    output += `#                                                       out-of-place                       in-place\n`;
+    output += `#       size         count    type   redop     time   algbw   busbw  error     time   algbw   busbw  error\n`;
+    output += `#        (B)    (elements)                     (us)  (GB/s)  (GB/s)            (us)  (GB/s)  (GB/s)\n`;
+
+    let totalBusBW = 0;
     sizes.forEach(sizeBytes => {
-      const bandwidth = this.calculateNCCLBandwidth(sizeBytes, ngpus, node.systemType);
-      const latency = this.calculateNCCLLatency(sizeBytes, ngpus);
-      const busBW = bandwidth * 2; // For all-reduce, bus bandwidth is 2x algorithm bandwidth
+      const bandwidth = this.calculateNCCLBandwidthMultiNode(sizeBytes, ngpus, numNodes, node.systemType);
+      const latency = this.calculateNCCLLatencyMultiNode(sizeBytes, ngpus, numNodes);
+
+      // Bus bandwidth depends on collective type
+      let busBW: number;
+      switch (operation) {
+        case 'all_reduce':
+          busBW = bandwidth * 2 * (totalGPUs - 1) / totalGPUs; // Ring all-reduce
+          break;
+        case 'all_gather':
+          busBW = bandwidth * (totalGPUs - 1) / totalGPUs;
+          break;
+        case 'reduce_scatter':
+          busBW = bandwidth * (totalGPUs - 1) / totalGPUs;
+          break;
+        case 'broadcast':
+          busBW = bandwidth;
+          break;
+        default:
+          busBW = bandwidth * 2;
+      }
+
+      totalBusBW += busBW;
 
       const sizeStr = this.formatSize(sizeBytes).padStart(12);
       const countStr = Math.floor(sizeBytes / 4).toString().padStart(12); // Assuming float32
@@ -311,7 +364,32 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
       output += `${sizeStr} ${countStr}   float     sum   ${timeStr} ${algbwStr} ${busbwStr}  0e+00   ${timeStr} ${algbwStr} ${busbwStr}  0e+00\n`;
     });
 
-    output += `# Out of bounds values : 0 OK\n# Avg bus bandwidth    : ${(this.calculateNCCLBandwidth(maxBytes, ngpus, node.systemType) * 2).toFixed(2)}\n#\n`;
+    const avgBusBW = totalBusBW / sizes.length;
+    output += `# Out of bounds values : 0 OK\n`;
+    output += `# Avg bus bandwidth    : ${avgBusBW.toFixed(2)}\n`;
+    output += `#\n`;
+
+    // Add performance summary for multi-node
+    if (isMultiNode) {
+      const expectedIntraNode = node.systemType.includes('H100') ? 450 : 300;
+      const expectedInterNode = 200; // HDR InfiniBand ~200 GB/s with 8 NICs
+
+      output += `# Performance Summary\n`;
+      output += `# -------------------\n`;
+      output += `# Intra-node (NVLink): ~${expectedIntraNode} GB/s expected\n`;
+      output += `# Inter-node (IB HDR): ~${expectedInterNode} GB/s expected (8x ConnectX-7)\n`;
+      output += `# Achieved avg:        ${avgBusBW.toFixed(2)} GB/s\n`;
+      output += `#\n`;
+
+      if (avgBusBW < expectedInterNode * 0.7) {
+        output += `# \x1b[33mWARNING: Bandwidth lower than expected. Check:\x1b[0m\n`;
+        output += `#   - IB link errors (ibstat, perfquery)\n`;
+        output += `#   - GPU-NIC affinity (nvidia-smi topo -m)\n`;
+        output += `#   - NCCL_IB_DISABLE not set\n`;
+        output += `#   - GPUDirect RDMA enabled\n`;
+        output += `#\n`;
+      }
+    }
 
     return this.createSuccess(output);
   }
@@ -459,32 +537,56 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
     return state.cluster.nodes.find((n: DGXNode) => n.id === context.currentNode) || state.cluster.nodes[0];
   }
 
-  private calculateNCCLBandwidth(sizeBytes: number, _gpuCount: number, systemType: string): number {
-    // Base bandwidth depends on interconnect
-    // H100 with NVSwitch: ~450 GB/s per GPU
-    // A100 with NVSwitch: ~300 GB/s per GPU
-    const baseBW = systemType.includes('H100') ? 450 : 300;
+  private calculateNCCLBandwidthMultiNode(sizeBytes: number, _gpusPerNode: number, numNodes: number, systemType: string): number {
+    // Intra-node bandwidth (NVLink)
+    const intraNodeBW = systemType.includes('H100') ? 450 : 300;
 
-    // Message size efficiency (small messages have lower bandwidth)
+    // Inter-node bandwidth (InfiniBand)
+    // HDR with 8 NICs: ~200 GB/s, NDR with 8 NICs: ~400 GB/s
+    const interNodeBW = systemType.includes('H100') ? 200 : 150;
+
+    // Message size efficiency
     const sizeMB = sizeBytes / (1024 * 1024);
     let efficiency = 1.0;
 
     if (sizeMB < 1) {
-      efficiency = 0.3 + (sizeMB * 0.7); // 30-100% efficiency
+      efficiency = 0.2 + (sizeMB * 0.6);
     } else if (sizeMB < 8) {
-      efficiency = 0.7 + ((sizeMB - 1) / 7 * 0.2); // 70-90% efficiency
+      efficiency = 0.6 + ((sizeMB - 1) / 7 * 0.25);
     } else {
-      efficiency = 0.90 + (Math.min(sizeMB, 128) - 8) / 120 * 0.08; // 90-98% efficiency
+      efficiency = 0.85 + (Math.min(sizeMB, 128) - 8) / 120 * 0.1;
     }
 
-    // Algorithm bandwidth (per GPU perspective)
-    return baseBW * efficiency * 0.8; // 80% of theoretical for all-reduce
+    // For multi-node, bottleneck is inter-node bandwidth
+    if (numNodes > 1) {
+      // Ring algorithm bandwidth is limited by slowest link
+      // With proper NIC-GPU affinity, we get full inter-node BW
+      const effectiveBW = interNodeBW * efficiency * 0.85;
+      return effectiveBW;
+    }
+
+    // Single node uses NVLink
+    return intraNodeBW * efficiency * 0.8;
   }
 
-  private calculateNCCLLatency(sizeBytes: number, _gpuCount: number): number {
-    const baseLatency = 5; // microseconds for small messages
-    const transferTime = (sizeBytes / (300 * 1e9)) * 1e6; // us (assuming 300 GB/s)
-    return baseLatency + transferTime;
+  private calculateNCCLLatencyMultiNode(sizeBytes: number, gpusPerNode: number, numNodes: number): number {
+    // Base latency
+    const intraNodeLatency = 2; // us (NVLink)
+    const interNodeLatency = 5; // us (InfiniBand)
+
+    // Transfer time
+    const bandwidth = numNodes > 1 ? 200 : 300; // GB/s
+    const transferTime = (sizeBytes / (bandwidth * 1e9)) * 1e6; // us
+
+    if (numNodes > 1) {
+      // Multi-node latency includes inter-node hops
+      const hops = Math.ceil(Math.log2(numNodes * gpusPerNode));
+      return interNodeLatency * hops + transferTime;
+    }
+
+    // Single node
+    const hops = Math.ceil(Math.log2(gpusPerNode));
+    return intraNodeLatency * hops + transferTime;
   }
 
   private parseSize(sizeStr: string): number {
