@@ -10,6 +10,7 @@ import { LearningPaths } from './components/LearningPaths';
 import { getTotalPathStats } from './utils/learningPathEngine';
 import { useSimulationStore } from './store/simulationStore';
 import { MetricsSimulator } from './utils/metricsSimulator';
+import { shallowCompareGPU, shallowCompareHCAs } from './utils/shallowCompare';
 import { initializeScenario } from './utils/scenarioLoader';
 import {
   Monitor,
@@ -56,16 +57,15 @@ function App() {
         store.cluster.nodes.forEach(node => {
           const updated = updater({ gpus: node.gpus, hcas: node.hcas });
 
-          // Update GPUs
+          // Update GPUs - use shallow comparison for better performance
           updated.gpus.forEach((gpu, idx) => {
-            if (JSON.stringify(gpu) !== JSON.stringify(node.gpus[idx])) {
+            if (!shallowCompareGPU(gpu, node.gpus[idx])) {
               store.updateGPU(node.id, gpu.id, gpu);
             }
           });
 
-          // Update HCAs (InfiniBand port errors)
-          const hcasChanged = JSON.stringify(updated.hcas) !== JSON.stringify(node.hcas);
-          if (hcasChanged) {
+          // Update HCAs (InfiniBand port errors) - use shallow comparison
+          if (!shallowCompareHCAs(updated.hcas, node.hcas)) {
             store.updateHCAs(node.id, updated.hcas);
           }
         });

@@ -8,16 +8,27 @@
 import type { ClusterConfig, GPU, DGXNode as Node, HealthStatus, XIDError } from '@/types/hardware';
 import { useSimulationStore } from './simulationStore';
 
-export interface StateChange {
-  type: 'gpu-update' | 'node-update' | 'node-health' | 'xid-error' | 'slurm-state' | 'mig-mode';
+/**
+ * Base interface for all state changes
+ */
+interface StateChangeBase {
   timestamp: number;
   nodeId?: string;
   gpuId?: number;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any; // Flexible data payload for various state change types
   command?: string;
   description?: string;
 }
+
+/**
+ * Discriminated union type for state changes with properly typed data
+ */
+export type StateChange =
+  | (StateChangeBase & { type: 'gpu-update'; data: Partial<GPU> })
+  | (StateChangeBase & { type: 'node-update'; data: Partial<Node> })
+  | (StateChangeBase & { type: 'node-health'; data: { health: HealthStatus } })
+  | (StateChangeBase & { type: 'xid-error'; data: XIDError })
+  | (StateChangeBase & { type: 'slurm-state'; data: { state: 'idle' | 'alloc' | 'drain' | 'down'; reason?: string } })
+  | (StateChangeBase & { type: 'mig-mode'; data: { enabled: boolean } });
 
 export class ScenarioContext {
   private scenarioId: string;

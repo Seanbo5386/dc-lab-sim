@@ -4,7 +4,7 @@
  * Provides structured curricula with modules, lessons, and step-by-step tutorials.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   LEARNING_PATHS,
   getNextLesson,
@@ -20,6 +20,7 @@ import {
 } from '../utils/learningPathEngine';
 import { DOMAINS, type DomainId } from '@/types/scenarios';
 import { useLearningStore } from '@/store/learningStore';
+import { useDebouncedStorage } from '@/hooks/useDebouncedStorage';
 
 interface LearningPathsProps {
   onClose?: () => void;
@@ -74,12 +75,15 @@ export const LearningPaths: React.FC<LearningPathsProps> = ({
     }
   }, []);
 
-  // Save progress to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem('ncp-aii-completed-lessons', JSON.stringify([...completedLessons]));
-    localStorage.setItem('ncp-aii-completed-modules', JSON.stringify([...completedModules]));
-    localStorage.setItem('ncp-aii-lesson-progress', JSON.stringify(Object.fromEntries(lessonProgress)));
-  }, [completedLessons, completedModules, lessonProgress]);
+  // Save progress to localStorage with debouncing to prevent UI blocking
+  // Memoize values to ensure stable references for the debounced storage hook
+  const completedLessonsArray = useMemo(() => [...completedLessons], [completedLessons]);
+  const completedModulesArray = useMemo(() => [...completedModules], [completedModules]);
+  const lessonProgressObject = useMemo(() => Object.fromEntries(lessonProgress), [lessonProgress]);
+
+  useDebouncedStorage('ncp-aii-completed-lessons', completedLessonsArray, 500);
+  useDebouncedStorage('ncp-aii-completed-modules', completedModulesArray, 500);
+  useDebouncedStorage('ncp-aii-lesson-progress', lessonProgressObject, 500);
 
   // Calculate path progress when completed lessons change
   useEffect(() => {

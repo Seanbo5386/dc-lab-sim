@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Terminal, Monitor, BookOpen, Cpu, ShieldCheck, Activity, ArrowRight } from 'lucide-react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 
 interface WelcomeScreenProps {
     onClose: () => void;
@@ -7,6 +8,19 @@ interface WelcomeScreenProps {
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onClose }) => {
     const [isVisible, setIsVisible] = useState(false);
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    // Handle close with animation
+    const handleClose = () => {
+        setIsVisible(false);
+        setTimeout(onClose, 500); // Wait for animation
+    };
+
+    // Set up focus trap for accessibility (WCAG 2.1.2)
+    useFocusTrap(modalRef, {
+        isActive: isVisible,
+        onEscape: handleClose,
+    });
 
     useEffect(() => {
         // Trigger animation on mount
@@ -19,7 +33,13 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onClose }) => {
             <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
 
             {/* Main Content Container */}
-            <div className={`relative z-10 w-full max-w-5xl max-h-[90vh] bg-gray-900/90 border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-700 delay-100 flex flex-col ${isVisible ? 'translate-y-0 scale-100' : 'translate-y-10 scale-95'}`}>
+            <div
+                ref={modalRef}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="welcome-dialog-title"
+                className={`relative z-10 w-full max-w-5xl max-h-[90vh] bg-gray-900/90 border border-gray-700/50 rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-700 delay-100 flex flex-col ${isVisible ? 'translate-y-0 scale-100' : 'translate-y-10 scale-95'}`}
+            >
 
                 {/* Header Section */}
                 <div className="relative overflow-hidden bg-gradient-to-r from-black to-gray-900 p-10 text-center border-b border-gray-800 flex-shrink-0">
@@ -32,7 +52,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onClose }) => {
                         </div>
                     </div>
 
-                    <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
+                    <h1 id="welcome-dialog-title" className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
                         AI Infrastructure <span className="text-nvidia-green">Simulator</span>
                     </h1>
                     <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto mt-4 px-4 font-light">
@@ -91,10 +111,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onClose }) => {
                 {/* Footer / Action */}
                 <div className="bg-gray-900 border-t border-gray-800 p-8 flex justify-center flex-shrink-0">
                     <button
-                        onClick={() => {
-                            setIsVisible(false);
-                            setTimeout(onClose, 500); // Wait for animation
-                        }}
+                        onClick={handleClose}
                         className="group relative inline-flex items-center gap-3 px-8 py-4 bg-nvidia-green text-black text-lg font-bold rounded-lg overflow-hidden transition-all duration-300 hover:bg-nvidia-darkgreen hover:scale-105 hover:shadow-[0_0_20px_rgba(118,185,0,0.4)] focus:outline-none focus:ring-2 focus:ring-nvidia-green focus:ring-offset-2 focus:ring-offset-gray-900"
                     >
                         <span className="relative z-10">Enter Virtual Datacenter</span>

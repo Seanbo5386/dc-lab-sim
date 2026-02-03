@@ -15,24 +15,37 @@ import {
 
 const HealthIndicator: React.FC<{ status: HealthStatus }> = ({ status }) => {
   const config = {
-    OK: { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/20' },
-    Warning: { icon: AlertTriangle, color: 'text-yellow-500', bg: 'bg-yellow-500/20' },
-    Critical: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/20' },
-    Unknown: { icon: AlertTriangle, color: 'text-gray-500', bg: 'bg-gray-500/20' },
+    OK: { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/20', symbol: '✓', label: 'Status: OK - System healthy' },
+    Warning: { icon: AlertTriangle, color: 'text-yellow-500', bg: 'bg-yellow-500/20', symbol: '⚠', label: 'Status: Warning - Attention needed' },
+    Critical: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/20', symbol: '✕', label: 'Status: Critical - Immediate action required' },
+    Unknown: { icon: AlertTriangle, color: 'text-gray-500', bg: 'bg-gray-500/20', symbol: '?', label: 'Status: Unknown' },
   };
 
-  const { icon: Icon, color, bg } = config[status];
+  const { icon: Icon, color, bg, symbol, label } = config[status];
 
   return (
-    <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${bg}`}>
-      <Icon className={`w-4 h-4 ${color}`} />
-      <span className={`text-sm font-medium ${color}`}>{status}</span>
+    <div
+      role="status"
+      aria-label={label}
+      className={`flex items-center gap-2 px-3 py-1 rounded-full ${bg}`}
+    >
+      <Icon className={`w-4 h-4 ${color}`} aria-hidden="true" />
+      <span className={`text-sm font-medium ${color}`} aria-hidden="true">
+        <span className="mr-1">{symbol}</span>
+        {status}
+      </span>
     </div>
   );
 };
 
 const GPUCard: React.FC<{ gpu: GPU; nodeId: string }> = ({ gpu }) => {
-  const tempColor = gpu.temperature > 80 ? 'text-red-500' : gpu.temperature > 70 ? 'text-yellow-500' : 'text-green-500';
+  // Temperature status with color AND text alternatives for accessibility (WCAG 1.4.1)
+  const getTempStatus = (temp: number) => {
+    if (temp > 80) return { color: 'text-red-500', symbol: '✕', label: 'Critical', ariaLabel: `Temperature critical: ${Math.round(temp)} degrees Celsius` };
+    if (temp > 70) return { color: 'text-yellow-500', symbol: '⚠', label: 'Warm', ariaLabel: `Temperature warning: ${Math.round(temp)} degrees Celsius` };
+    return { color: 'text-green-500', symbol: '✓', label: 'OK', ariaLabel: `Temperature normal: ${Math.round(temp)} degrees Celsius` };
+  };
+  const tempStatus = getTempStatus(gpu.temperature);
   const memoryPercent = (gpu.memoryUsed / gpu.memoryTotal) * 100;
 
   return (
@@ -84,11 +97,14 @@ const GPUCard: React.FC<{ gpu: GPU; nodeId: string }> = ({ gpu }) => {
 
         {/* Temperature and Power */}
         <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-700">
-          <div className="flex items-center gap-2">
-            <Thermometer className={`w-4 h-4 ${tempColor}`} />
+          <div className="flex items-center gap-2" role="status" aria-label={tempStatus.ariaLabel}>
+            <Thermometer className={`w-4 h-4 ${tempStatus.color}`} aria-hidden="true" />
             <div>
               <div className="text-xs text-gray-400">Temp</div>
-              <div className={`text-sm font-medium ${tempColor}`}>{Math.round(gpu.temperature)}°C</div>
+              <div className={`text-sm font-medium ${tempStatus.color}`}>
+                <span aria-hidden="true">{tempStatus.symbol} </span>
+                {Math.round(gpu.temperature)}°C
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -200,13 +216,17 @@ const ClusterHealthSummary: React.FC = () => {
           <div className="text-sm text-gray-400">GPUs Healthy</div>
         </div>
 
-        <div className="bg-gray-800/50 rounded-lg p-4">
-          <div className="text-2xl font-bold text-green-500">Active</div>
+        <div className="bg-gray-800/50 rounded-lg p-4" role="status" aria-label="InfiniBand status: Active">
+          <div className="text-2xl font-bold text-green-500">
+            <span aria-hidden="true">✓ </span>Active
+          </div>
           <div className="text-sm text-gray-400">InfiniBand</div>
         </div>
 
-        <div className="bg-gray-800/50 rounded-lg p-4">
-          <div className="text-2xl font-bold text-green-500">{cluster.bcmHA.state}</div>
+        <div className="bg-gray-800/50 rounded-lg p-4" role="status" aria-label={`BCM HA state: ${cluster.bcmHA.state}`}>
+          <div className="text-2xl font-bold text-green-500">
+            <span aria-hidden="true">✓ </span>{cluster.bcmHA.state}
+          </div>
           <div className="text-sm text-gray-400">BCM HA</div>
         </div>
       </div>
@@ -427,12 +447,21 @@ export const Dashboard: React.FC = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mt-4 pt-4 border-t border-gray-700">
               <div>
                 <div className="text-gray-400">Slurm State</div>
-                <div className={`font-medium ${
-                  currentNode.slurmState === 'idle' ? 'text-green-500' :
-                  currentNode.slurmState === 'alloc' ? 'text-blue-500' :
-                  currentNode.slurmState === 'drain' ? 'text-yellow-500' :
-                  'text-red-500'
-                }`}>
+                <div
+                  role="status"
+                  aria-label={`Slurm state: ${currentNode.slurmState}${currentNode.slurmReason ? `, reason: ${currentNode.slurmReason}` : ''}`}
+                  className={`font-medium ${
+                    currentNode.slurmState === 'idle' ? 'text-green-500' :
+                    currentNode.slurmState === 'alloc' ? 'text-blue-500' :
+                    currentNode.slurmState === 'drain' ? 'text-yellow-500' :
+                    'text-red-500'
+                  }`}
+                >
+                  <span aria-hidden="true">
+                    {currentNode.slurmState === 'idle' ? '✓ ' :
+                     currentNode.slurmState === 'alloc' ? '● ' :
+                     currentNode.slurmState === 'drain' ? '⚠ ' : '✕ '}
+                  </span>
                   {currentNode.slurmState}
                   {currentNode.slurmReason && (
                     <span className="text-gray-500 text-xs ml-1">({currentNode.slurmReason})</span>
@@ -441,13 +470,23 @@ export const Dashboard: React.FC = () => {
               </div>
               <div>
                 <div className="text-gray-400">InfiniBand HCAs</div>
-                <div className="text-green-500">
+                <div
+                  role="status"
+                  aria-label={`InfiniBand HCAs: ${currentNode.hcas?.length || 0} active`}
+                  className="text-green-500"
+                >
+                  <span aria-hidden="true">✓ </span>
                   {currentNode.hcas?.length || 0} Active
                 </div>
               </div>
               <div>
                 <div className="text-gray-400">NVLink Health</div>
-                <div className="text-green-500">
+                <div
+                  role="status"
+                  aria-label={`NVLink health: ${currentNode.gpus.filter(g => g.nvlinks.every(l => l.status === 'Active')).length} of ${currentNode.gpus.length} GPUs OK`}
+                  className="text-green-500"
+                >
+                  <span aria-hidden="true">✓ </span>
                   {currentNode.gpus.filter(g => g.nvlinks.every(l => l.status === 'Active')).length}/{currentNode.gpus.length} GPUs OK
                 </div>
               </div>
