@@ -1,4 +1,4 @@
-import type { GPU, InfiniBandHCA } from '@/types/hardware';
+import type { GPU, InfiniBandHCA } from "@/types/hardware";
 
 export interface MetricsUpdate {
   gpus: GPU[];
@@ -9,7 +9,12 @@ export class MetricsSimulator {
   private intervalId: number | null = null;
   private isRunning: boolean = false;
 
-  start(updateCallback: (updater: (data: { gpus: GPU[]; hcas: InfiniBandHCA[] }) => MetricsUpdate) => void, interval: number = 1000) {
+  start(
+    updateCallback: (
+      updater: (data: { gpus: GPU[]; hcas: InfiniBandHCA[] }) => MetricsUpdate,
+    ) => void,
+    interval: number = 1000,
+  ) {
     if (this.isRunning) return;
 
     this.isRunning = true;
@@ -19,7 +24,10 @@ export class MetricsSimulator {
   }
 
   // Legacy method for backwards compatibility
-  startGpuOnly(updateCallback: (updater: (gpus: GPU[]) => GPU[]) => void, interval: number = 1000) {
+  startGpuOnly(
+    updateCallback: (updater: (gpus: GPU[]) => GPU[]) => void,
+    interval: number = 1000,
+  ) {
     if (this.isRunning) return;
 
     this.isRunning = true;
@@ -36,7 +44,10 @@ export class MetricsSimulator {
     this.isRunning = false;
   }
 
-  private updateMetrics(data: { gpus: GPU[]; hcas: InfiniBandHCA[] }): MetricsUpdate {
+  private updateMetrics(data: {
+    gpus: GPU[];
+    hcas: InfiniBandHCA[];
+  }): MetricsUpdate {
     return {
       gpus: this.updateGpuMetrics(data.gpus),
       hcas: this.updateHcaMetrics(data.hcas),
@@ -44,50 +55,27 @@ export class MetricsSimulator {
   }
 
   private updateHcaMetrics(hcas: InfiniBandHCA[]): InfiniBandHCA[] {
-    return hcas.map((hca) => ({
-      ...hca,
-      ports: hca.ports.map((port) => {
-        // Only accumulate errors on active ports
-        if (port.state !== 'Active') return port;
-
-        // Simulate occasional errors (rare events, ~2% chance per tick)
-        if (Math.random() < 0.02) {
-          const errorType = Math.floor(Math.random() * 4);
-          const newErrors = { ...port.errors };
-
-          switch (errorType) {
-            case 0:
-              newErrors.symbolErrors += Math.floor(Math.random() * 3) + 1;
-              break;
-            case 1:
-              newErrors.portRcvErrors += 1;
-              break;
-            case 2:
-              newErrors.portXmitWait += Math.floor(Math.random() * 10) + 1;
-              break;
-            case 3:
-              newErrors.portXmitDiscards += Math.floor(Math.random() * 2) + 1;
-              break;
-            // linkDowned only if major fault, not during normal simulation
-          }
-
-          return { ...port, errors: newErrors };
-        }
-
-        return port;
-      }),
-    }));
+    // HCA metrics remain stable during normal operation.
+    // Errors should only be injected through explicit fault scenarios,
+    // not accumulated randomly during regular simulation ticks.
+    return hcas;
   }
 
   private updateGpuMetrics(gpus: GPU[]): GPU[] {
     return gpus.map((gpu) => {
       // Simulate realistic GPU utilization changes
       const utilizationChange = (Math.random() - 0.5) * 10;
-      const newUtilization = Math.max(0, Math.min(100, gpu.utilization + utilizationChange));
+      const newUtilization = Math.max(
+        0,
+        Math.min(100, gpu.utilization + utilizationChange),
+      );
 
       // Memory usage tends to be more stable
       const memoryChange = (Math.random() - 0.5) * 512; // MB
-      const newMemoryUsed = Math.max(0, Math.min(gpu.memoryTotal, gpu.memoryUsed + memoryChange));
+      const newMemoryUsed = Math.max(
+        0,
+        Math.min(gpu.memoryTotal, gpu.memoryUsed + memoryChange),
+      );
 
       // Temperature correlates with utilization
       const targetTemp = 30 + (newUtilization / 100) * 50; // 30-80°C range
@@ -97,12 +85,17 @@ export class MetricsSimulator {
       // Power draw correlates with utilization
       const targetPower = 100 + (newUtilization / 100) * (gpu.powerLimit - 100);
       const powerChange = (targetPower - gpu.powerDraw) * 0.15;
-      const newPower = Math.max(50, Math.min(gpu.powerLimit, gpu.powerDraw + powerChange));
+      const newPower = Math.max(
+        50,
+        Math.min(gpu.powerLimit, gpu.powerDraw + powerChange),
+      );
 
       // Clock speeds adjust based on load
       const targetSMClock = 1410 - (newTemp > 70 ? (newTemp - 70) * 10 : 0); // Thermal throttling
       const smClockChange = (targetSMClock - gpu.clocksSM) * 0.2;
-      const newSMClock = Math.round(Math.max(300, gpu.clocksSM + smClockChange));
+      const newSMClock = Math.round(
+        Math.max(300, gpu.clocksSM + smClockChange),
+      );
 
       // Occasionally increment ECC errors (very rarely)
       const eccSingleBitIncrement = Math.random() < 0.001 ? 1 : 0;
@@ -120,8 +113,10 @@ export class MetricsSimulator {
           singleBit: gpu.eccErrors.singleBit + eccSingleBitIncrement,
           doubleBit: gpu.eccErrors.doubleBit + eccDoubleBitIncrement,
           aggregated: {
-            singleBit: gpu.eccErrors.aggregated.singleBit + eccSingleBitIncrement,
-            doubleBit: gpu.eccErrors.aggregated.doubleBit + eccDoubleBitIncrement,
+            singleBit:
+              gpu.eccErrors.aggregated.singleBit + eccSingleBitIncrement,
+            doubleBit:
+              gpu.eccErrors.aggregated.doubleBit + eccDoubleBitIncrement,
           },
         },
       };
@@ -131,7 +126,7 @@ export class MetricsSimulator {
   // Simulate a specific workload pattern
   simulateWorkload(
     gpus: GPU[],
-    pattern: 'idle' | 'training' | 'inference' | 'stress'
+    pattern: "idle" | "training" | "inference" | "stress",
   ): GPU[] {
     const utilizationTarget = {
       idle: 5,
@@ -144,21 +139,21 @@ export class MetricsSimulator {
       ...gpu,
       utilization: utilizationTarget + (Math.random() - 0.5) * 10,
       memoryUsed:
-        pattern === 'idle'
+        pattern === "idle"
           ? gpu.memoryTotal * 0.01
-          : pattern === 'training'
-          ? gpu.memoryTotal * 0.9
-          : gpu.memoryTotal * 0.6,
+          : pattern === "training"
+            ? gpu.memoryTotal * 0.9
+            : gpu.memoryTotal * 0.6,
     }));
   }
 
   // Inject a fault for troubleshooting practice
   injectFault(
     gpu: GPU,
-    faultType: 'xid' | 'ecc' | 'thermal' | 'nvlink' | 'power' | 'pcie'
+    faultType: "xid" | "ecc" | "thermal" | "nvlink" | "power" | "pcie",
   ): GPU {
     switch (faultType) {
-      case 'xid':
+      case "xid":
         return {
           ...gpu,
           xidErrors: [
@@ -166,24 +161,24 @@ export class MetricsSimulator {
             {
               code: 48,
               timestamp: new Date(),
-              description: 'Double-bit ECC error',
-              severity: 'Critical',
+              description: "Double-bit ECC error",
+              severity: "Critical",
             },
           ],
-          healthStatus: 'Critical',
+          healthStatus: "Critical",
         };
 
-      case 'ecc':
+      case "ecc":
         return {
           ...gpu,
           eccErrors: {
             ...gpu.eccErrors,
             doubleBit: gpu.eccErrors.doubleBit + 1,
           },
-          healthStatus: 'Critical',
+          healthStatus: "Critical",
         };
 
-      case 'thermal':
+      case "thermal": {
         // Apply thermal throttling immediately - same formula as updateMetrics
         const thermalTemp = 85;
         const throttledClocks = Math.round(1410 - (thermalTemp - 70) * 10); // 1260 MHz
@@ -191,28 +186,29 @@ export class MetricsSimulator {
           ...gpu,
           temperature: thermalTemp,
           clocksSM: throttledClocks,
-          healthStatus: 'Warning',
+          healthStatus: "Warning",
         };
+      }
 
-      case 'nvlink':
+      case "nvlink":
         return {
           ...gpu,
           nvlinks: gpu.nvlinks.map((link, idx) =>
             idx === 0
-              ? { ...link, status: 'Down' as const, txErrors: 100 }
-              : link
+              ? { ...link, status: "Down" as const, txErrors: 100 }
+              : link,
           ),
-          healthStatus: 'Warning',
+          healthStatus: "Warning",
         };
 
-      case 'power':
+      case "power":
         return {
           ...gpu,
           powerDraw: gpu.powerLimit * 0.95,
-          healthStatus: 'Warning',
+          healthStatus: "Warning",
         };
 
-      case 'pcie':
+      case "pcie":
         return {
           ...gpu,
           xidErrors: [
@@ -220,11 +216,11 @@ export class MetricsSimulator {
             {
               code: 62,
               timestamp: new Date(),
-              description: 'PCIe Internal error - GPU hardware or software',
-              severity: 'Critical',
+              description: "PCIe Internal error - GPU hardware or software",
+              severity: "Critical",
             },
           ],
-          healthStatus: 'Critical',
+          healthStatus: "Critical",
         };
 
       default:
