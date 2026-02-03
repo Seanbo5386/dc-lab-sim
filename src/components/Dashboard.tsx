@@ -15,13 +15,13 @@ import {
 
 const HealthIndicator: React.FC<{ status: HealthStatus }> = ({ status }) => {
   const config = {
-    OK: { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/20', symbol: '✓', label: 'Status: OK - System healthy' },
-    Warning: { icon: AlertTriangle, color: 'text-yellow-500', bg: 'bg-yellow-500/20', symbol: '⚠', label: 'Status: Warning - Attention needed' },
-    Critical: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/20', symbol: '✕', label: 'Status: Critical - Immediate action required' },
-    Unknown: { icon: AlertTriangle, color: 'text-gray-500', bg: 'bg-gray-500/20', symbol: '?', label: 'Status: Unknown' },
+    OK: { icon: CheckCircle, color: 'text-green-500', bg: 'bg-green-500/20', label: 'Status: OK - System healthy' },
+    Warning: { icon: AlertTriangle, color: 'text-yellow-500', bg: 'bg-yellow-500/20', label: 'Status: Warning - Attention needed' },
+    Critical: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/20', label: 'Status: Critical - Immediate action required' },
+    Unknown: { icon: AlertTriangle, color: 'text-gray-500', bg: 'bg-gray-500/20', label: 'Status: Unknown' },
   };
 
-  const { icon: Icon, color, bg, symbol, label } = config[status];
+  const { icon: Icon, color, bg, label } = config[status];
 
   return (
     <div
@@ -30,8 +30,7 @@ const HealthIndicator: React.FC<{ status: HealthStatus }> = ({ status }) => {
       className={`flex items-center gap-2 px-3 py-1 rounded-full ${bg}`}
     >
       <Icon className={`w-4 h-4 ${color}`} aria-hidden="true" />
-      <span className={`text-sm font-medium ${color}`} aria-hidden="true">
-        <span className="mr-1">{symbol}</span>
+      <span className={`text-sm font-medium ${color}`}>
         {status}
       </span>
     </div>
