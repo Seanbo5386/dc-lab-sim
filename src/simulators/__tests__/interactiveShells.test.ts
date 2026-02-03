@@ -333,8 +333,9 @@ describe('Interactive Shell Tests', () => {
       const longCommand = 'show ' + 'health '.repeat(50);
       const result = simulator.executeInteractive(longCommand, context);
 
-      // Should handle gracefully, even if invalid
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Should handle gracefully - long commands are processed but may fail due to invalid syntax
+      // Either success (0) or error (1) is acceptable as long as it doesn't crash
+      expect([0, 1]).toContain(result.exitCode);
     });
   });
 });

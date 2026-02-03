@@ -9,9 +9,9 @@ import { StudyDashboard } from './components/StudyDashboard';
 import { LearningPaths } from './components/LearningPaths';
 import { getTotalPathStats } from './utils/learningPathEngine';
 import { useSimulationStore } from './store/simulationStore';
-import { MetricsSimulator } from './utils/metricsSimulator';
-import { shallowCompareGPU, shallowCompareHCAs } from './utils/shallowCompare';
+import { useMetricsSimulation } from './hooks/useMetricsSimulation';
 import { initializeScenario } from './utils/scenarioLoader';
+import { safeParseClusterJSON } from './utils/clusterSchema';
 import {
   Monitor,
   BookOpen,
@@ -26,9 +26,6 @@ import {
 } from 'lucide-react';
 
 type View = 'simulator' | 'labs' | 'docs';
-
-// Metrics simulator instance
-const metricsSimulator = new MetricsSimulator();
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('simulator');
@@ -50,34 +47,7 @@ function App() {
   } = useSimulationStore();
 
   // Activate metrics simulation when running
-  useEffect(() => {
-    if (isRunning) {
-      metricsSimulator.start((updater) => {
-        const store = useSimulationStore.getState();
-        store.cluster.nodes.forEach(node => {
-          const updated = updater({ gpus: node.gpus, hcas: node.hcas });
-
-          // Update GPUs - use shallow comparison for better performance
-          updated.gpus.forEach((gpu, idx) => {
-            if (!shallowCompareGPU(gpu, node.gpus[idx])) {
-              store.updateGPU(node.id, gpu.id, gpu);
-            }
-          });
-
-          // Update HCAs (InfiniBand port errors) - use shallow comparison
-          if (!shallowCompareHCAs(updated.hcas, node.hcas)) {
-            store.updateHCAs(node.id, updated.hcas);
-          }
-        });
-      }, 1000);
-    } else {
-      metricsSimulator.stop();
-    }
-
-    return () => {
-      metricsSimulator.stop();
-    };
-  }, [isRunning]);
+  useMetricsSimulation(isRunning);
 
   // Load learning progress on mount and when modal closes
   useEffect(() => {
@@ -108,7 +78,12 @@ function App() {
         const reader = new FileReader();
         reader.onload = (event) => {
           const content = event.target?.result as string;
-          importCluster(content);
+          const result = safeParseClusterJSON(content);
+          if (result.valid && result.data) {
+            importCluster(JSON.stringify(result.data));
+          } else {
+            alert(`Failed to import cluster configuration:\n\n${result.errors.join('\n')}`);
+          }
         };
         reader.readAsText(file);
       }

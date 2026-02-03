@@ -175,9 +175,9 @@ describe('NvidiaSmiSimulator', () => {
       const parsed = parse('nvidia-smi -q -i 99');
       const result = simulator.execute(parsed, context);
 
-      // Simulator may not validate GPU IDs, or returns 0
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
-      // Just verify it completes
+      // Simulator validates GPU IDs and returns error for invalid index
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain('GPU not found');
     });
   });
 
@@ -261,16 +261,17 @@ describe('NvidiaSmiSimulator', () => {
       const parsed = parse('nvidia-smi');
       const result = simulator.execute(parsed, context);
 
-      // May return 0 with empty output or display message
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Returns success with empty GPU listing
+      expect(result.exitCode).toBe(0);
     });
 
     it('should handle unknown flags gracefully', () => {
       const parsed = parse('nvidia-smi --unknown-flag');
       const result = simulator.execute(parsed, context);
 
-      // Should either ignore or error gracefully
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Simulator validates flags using fuzzy matching and returns error for unknown flags
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain('unrecognized option');
     });
 
     it('should handle conflicting flags', () => {

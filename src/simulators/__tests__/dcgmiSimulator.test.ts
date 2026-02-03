@@ -140,8 +140,8 @@ describe('DcgmiSimulator', () => {
       const parsed = parse('dcgmi health -c');
       const result = simulator.execute(parsed, context);
 
-      // May not validate flags strictly
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Health command doesn't require -g flag, only -c
+      expect(result.exitCode).toBe(0);
     });
 
     it('should require check flag', () => {
@@ -193,8 +193,8 @@ describe('DcgmiSimulator', () => {
       const parsed = parse('dcgmi diag -r 1');
       const result = simulator.execute(parsed, context);
 
-      // May not validate strictly
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Diag command doesn't require -g flag, uses default GPU
+      expect(result.exitCode).toBe(0);
     });
   });
 
@@ -203,23 +203,24 @@ describe('DcgmiSimulator', () => {
       const parsed = parse('dcgmi stats -g 0 -e');
       const result = simulator.execute(parsed, context);
 
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
-      // Stats may not be fully implemented
+      // Stats command returns success with informational message
+      expect(result.exitCode).toBe(0);
     });
 
     it('should handle stats disable', () => {
       const parsed = parse('dcgmi stats -g 0 -d');
       const result = simulator.execute(parsed, context);
 
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Stats disable returns success
+      expect(result.exitCode).toBe(0);
     });
 
     it('should validate stats flags', () => {
       const parsed = parse('dcgmi stats -g 0');
       const result = simulator.execute(parsed, context);
 
-      // May require action flag
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Stats without action flag still returns success with message
+      expect(result.exitCode).toBe(0);
     });
   });
 
@@ -228,24 +229,27 @@ describe('DcgmiSimulator', () => {
       const parsed = parse('dcgmi dmon -g 0');
       const result = simulator.execute(parsed, context);
 
-      // Dmon might not be implemented or returns error
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Dmon command returns success with monitoring output
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain('DCGM Device Monitor');
     });
 
     it('should handle dmon with custom fields', () => {
       const parsed = parse('dcgmi dmon -e 155,156');
       const result = simulator.execute(parsed, context);
 
-      // Check if command executes
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Dmon with custom fields returns success
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain('DCGM Device Monitor');
     });
 
     it('should check dmon output exists', () => {
       const parsed = parse('dcgmi dmon -g 0');
       const result = simulator.execute(parsed, context);
 
-      // Just verify it returns output
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Dmon returns output with monitoring data
+      expect(result.exitCode).toBe(0);
+      expect(result.output.length).toBeGreaterThan(0);
     });
   });
 
@@ -275,24 +279,25 @@ describe('DcgmiSimulator', () => {
       const parsed = parse('dcgmi invalidcmd');
       const result = simulator.execute(parsed, context);
 
-      // May not strictly validate
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Invalid subcommand returns error
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain('Unknown command');
     });
 
     it('should validate required flags', () => {
       const parsed = parse('dcgmi diag');
       const result = simulator.execute(parsed, context);
 
-      // Check if validation occurs
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Diag without -r uses default level 1, so succeeds
+      expect(result.exitCode).toBe(0);
     });
 
     it('should handle group ID validation', () => {
       const parsed = parse('dcgmi health -g 99 -c');
       const result = simulator.execute(parsed, context);
 
-      // May not validate group IDs
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Health command doesn't validate group IDs, returns success
+      expect(result.exitCode).toBe(0);
     });
   });
 
@@ -301,24 +306,25 @@ describe('DcgmiSimulator', () => {
       const parsed = parse('dcgmi dmon -g 0');
       const result = simulator.execute(parsed, context);
 
-      // Dmon may not be implemented
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Dmon command returns success
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain('DCGM Device Monitor');
     });
 
     it('should handle power monitoring', () => {
       const parsed = parse('dcgmi dmon -g 0');
       const result = simulator.execute(parsed, context);
 
-      // Check if command executes
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Power monitoring returns success
+      expect(result.exitCode).toBe(0);
     });
 
     it('should handle memory monitoring', () => {
       const parsed = parse('dcgmi dmon -e 155,156 -g 0');
       const result = simulator.execute(parsed, context);
 
-      // Check if command executes
-      expect(result.exitCode).toBeGreaterThanOrEqual(0);
+      // Memory monitoring with specific fields returns success
+      expect(result.exitCode).toBe(0);
     });
   });
 

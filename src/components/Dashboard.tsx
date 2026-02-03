@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useSimulationStore } from '@/store/simulationStore';
 import { Activity, HardDrive, Thermometer, Zap, AlertTriangle, CheckCircle, XCircle, TrendingUp, Network, Activity as ActivityIcon, ChevronDown } from 'lucide-react';
 import type { GPU, HealthStatus } from '@/types/hardware';
@@ -143,22 +143,71 @@ const NodeSelector: React.FC = () => {
   const cluster = useSimulationStore(state => state.cluster);
   const selectedNode = useSimulationStore(state => state.selectedNode);
   const selectNode = useSimulationStore(state => state.selectNode);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const nodeCount = cluster.nodes.length;
+    let newIndex: number | null = null;
+
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        event.preventDefault();
+        newIndex = (index + 1) % nodeCount;
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        event.preventDefault();
+        newIndex = (index - 1 + nodeCount) % nodeCount;
+        break;
+      case 'Home':
+        event.preventDefault();
+        newIndex = 0;
+        break;
+      case 'End':
+        event.preventDefault();
+        newIndex = nodeCount - 1;
+        break;
+      default:
+        return;
+    }
+
+    if (newIndex !== null) {
+      const newNode = cluster.nodes[newIndex];
+      selectNode(newNode.id);
+      buttonRefs.current[newIndex]?.focus();
+    }
+  }, [cluster.nodes, selectNode]);
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2">
-      {cluster.nodes.map(node => (
-        <button
-          key={node.id}
-          onClick={() => selectNode(node.id)}
-          className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
-            selectedNode === node.id
-              ? 'bg-nvidia-green text-black'
-              : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-          }`}
-        >
-          {node.id}
-        </button>
-      ))}
+    <div
+      ref={containerRef}
+      role="tablist"
+      aria-label="Node selection"
+      className="flex gap-2 overflow-x-auto pb-2"
+    >
+      {cluster.nodes.map((node, index) => {
+        const isSelected = selectedNode === node.id;
+        return (
+          <button
+            key={node.id}
+            ref={(el) => { buttonRefs.current[index] = el; }}
+            role="tab"
+            aria-selected={isSelected}
+            tabIndex={isSelected ? 0 : -1}
+            onClick={() => selectNode(node.id)}
+            onKeyDown={(e) => handleKeyDown(e, index)}
+            className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
+              isSelected
+                ? 'bg-nvidia-green text-black'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+            }`}
+          >
+            {node.id}
+          </button>
+        );
+      })}
     </div>
   );
 };
