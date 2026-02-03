@@ -9,10 +9,12 @@ The Master Logic Test Suite identified 18 failing tests revealing actual logic g
 ## Issue 1: Test Context Creation (Root Cause of Multiple Failures)
 
 ### Problem
+
 The test file creates `CommandContext` incorrectly. The context type expects:
+
 ```typescript
 interface CommandContext {
-  currentNode: string;  // Node ID like "dgx-00"
+  currentNode: string; // Node ID like "dgx-00"
   currentPath: string;
   environment: Record<string, string>;
   history: string[];
@@ -20,6 +22,7 @@ interface CommandContext {
 ```
 
 But the test was creating:
+
 ```typescript
 {
   currentNode: node,  // Wrong! This is the DGXNode object
@@ -30,14 +33,16 @@ But the test was creating:
 ```
 
 ### Fix Location
+
 `src/__tests__/logicConsistency.test.ts` - `getContext()` function
 
 ### Fix
+
 ```typescript
 function getContext(nodeId: string): CommandContext {
   return {
-    currentNode: nodeId,  // String, not object
-    currentPath: '/root',
+    currentNode: nodeId, // String, not object
+    currentPath: "/root",
     environment: {},
     history: [],
   };
@@ -45,6 +50,7 @@ function getContext(nodeId: string): CommandContext {
 ```
 
 ### Tests Fixed
+
 - "Unable to determine current node" errors in dcgmi
 - "Unable to determine current node" errors in nv-fabricmanager
 - hostname returning undefined
@@ -54,7 +60,9 @@ function getContext(nodeId: string): CommandContext {
 ## Issue 2: Slurm Simulator Routing
 
 ### Problem
+
 The test calls `simulators.slurm.execute(parsed, context)` but SlurmSimulator's `execute()` method returns a generic error:
+
 ```typescript
 execute(_parsed: ParsedCommand, _context: CommandContext): CommandResult {
   return this.createError('Use specific Slurm commands: sinfo, squeue, scontrol...');
@@ -64,26 +72,39 @@ execute(_parsed: ParsedCommand, _context: CommandContext): CommandResult {
 The actual commands are exposed as separate methods: `executeSinfo()`, `executeScontrol()`, etc.
 
 ### Fix Location
+
 `src/__tests__/logicConsistency.test.ts` - `runCommand()` function
 
 ### Fix
+
 Update the Slurm routing to call the specific methods:
+
 ```typescript
-if (['scontrol', 'sinfo', 'squeue', 'sbatch', 'scancel', 'sacct', 'srun'].includes(baseCmd)) {
+if (
+  [
+    "scontrol",
+    "sinfo",
+    "squeue",
+    "sbatch",
+    "scancel",
+    "sacct",
+    "srun",
+  ].includes(baseCmd)
+) {
   switch (baseCmd) {
-    case 'sinfo':
+    case "sinfo":
       return simulators.slurm.executeSinfo(parsed, context).output;
-    case 'squeue':
+    case "squeue":
       return simulators.slurm.executeSqueue(parsed, context).output;
-    case 'scontrol':
+    case "scontrol":
       return simulators.slurm.executeScontrol(parsed, context).output;
-    case 'sbatch':
+    case "sbatch":
       return simulators.slurm.executeSbatch(parsed, context).output;
-    case 'scancel':
+    case "scancel":
       return simulators.slurm.executeScancel(parsed, context).output;
-    case 'sacct':
+    case "sacct":
       return simulators.slurm.executeSacct(parsed, context).output;
-    case 'srun':
+    case "srun":
       return simulators.slurm.executeSrun(parsed, context).output;
     default:
       return simulators.slurm.execute(parsed, context).output;
@@ -92,6 +113,7 @@ if (['scontrol', 'sinfo', 'squeue', 'sbatch', 'scancel', 'sacct', 'srun'].includ
 ```
 
 ### Tests Fixed
+
 - sinfo output tests
 - scontrol show nodes tests
 - Slurm sync tests
@@ -101,12 +123,15 @@ if (['scontrol', 'sinfo', 'squeue', 'sbatch', 'scancel', 'sacct', 'srun'].includ
 ## Issue 3: ECC Errors Structure in clearFaults
 
 ### Problem
+
 The test's `clearFaults()` function uses flat structure:
+
 ```typescript
 eccErrors: { singleBit: 0, doubleBit: 0, aggregatedSingleBit: 0, aggregatedDoubleBit: 0 }
 ```
 
 But the correct structure (per `types/hardware.ts`) is nested:
+
 ```typescript
 interface ECCErrors {
   singleBit: number;
@@ -119,14 +144,16 @@ interface ECCErrors {
 ```
 
 ### Fix Location
+
 `src/__tests__/logicConsistency.test.ts` - `clearFaults()` function
 
 ### Fix
+
 ```typescript
 function clearFaults(nodeId: string, gpuId: number): void {
   const state = useSimulationStore.getState();
   state.updateGPU(nodeId, gpuId, {
-    healthStatus: 'OK',
+    healthStatus: "OK",
     xidErrors: [],
     eccErrors: {
       singleBit: 0,
@@ -143,12 +170,18 @@ function clearFaults(nodeId: string, gpuId: number): void {
     nvlinks: state.cluster.nodes
       .find((n) => n.id === nodeId)
       ?.gpus.find((g) => g.id === gpuId)
-      ?.nvlinks.map((l) => ({ ...l, status: 'Active' as const, txErrors: 0, rxErrors: 0 })),
+      ?.nvlinks.map((l) => ({
+        ...l,
+        status: "Active" as const,
+        txErrors: 0,
+        rxErrors: 0,
+      })),
   });
 }
 ```
 
 ### Tests Fixed
+
 - nvidia-smi -q ECC output
 - All tests that run after clearFaults
 
@@ -157,15 +190,18 @@ function clearFaults(nodeId: string, gpuId: number): void {
 ## Issue 4: Thermal Throttling Not Immediate
 
 ### Problem
+
 The test expects thermal fault injection to immediately reduce `clocksSM`:
+
 ```typescript
-it('should reduce SM clocks due to throttling', () => {
-  const gpu = injectFault('dgx-00', 0, 'thermal');
-  expect(gpu.clocksSM).toBeLessThan(originalClocks);  // FAILS: 1410 not < 1410
+it("should reduce SM clocks due to throttling", () => {
+  const gpu = injectFault("dgx-00", 0, "thermal");
+  expect(gpu.clocksSM).toBeLessThan(originalClocks); // FAILS: 1410 not < 1410
 });
 ```
 
 But `metricsSimulator.injectFault('thermal')` only sets temperature, not clocks:
+
 ```typescript
 case 'thermal':
   return {
@@ -179,11 +215,14 @@ case 'thermal':
 The throttling formula only applies in `updateMetrics()` during the simulation cycle.
 
 ### Decision Point
+
 Two options:
+
 1. **Option A**: Update `injectFault('thermal')` to also apply clock throttling immediately
 2. **Option B**: Update the test to understand throttling is gradual
 
 ### Recommended Fix (Option A)
+
 Update `metricsSimulator.ts` to apply throttling at injection:
 
 ```typescript
@@ -199,9 +238,11 @@ case 'thermal':
 ```
 
 ### Fix Location
+
 `src/utils/metricsSimulator.ts` - `injectFault()` method, case 'thermal'
 
 ### Tests Fixed
+
 - "should reduce SM clocks due to throttling"
 
 ---
@@ -209,12 +250,15 @@ case 'thermal':
 ## Issue 5: dcgmi health Output Doesn't Match Pattern
 
 ### Problem
+
 Test expects dcgmi health to contain "critical|error|fail|warning" but output says "Unable to determine current node".
 
 ### Root Cause
+
 This is Issue 1 - context not set correctly.
 
 ### Fix
+
 Fixed by Issue 1 fix.
 
 ---
@@ -222,7 +266,9 @@ Fixed by Issue 1 fix.
 ## Issue 6: sinfo Node Count Test
 
 ### Problem
+
 Test expects sinfo output to match `dgx-0[0-7]` pattern:
+
 ```typescript
 const nodeCount = (output.match(/dgx-0[0-7]/g) || []).length;
 expect(nodeCount).toBeGreaterThan(0);
@@ -231,9 +277,11 @@ expect(nodeCount).toBeGreaterThan(0);
 But it gets 0 matches because sinfo returns generic error.
 
 ### Root Cause
+
 This is Issue 2 - Slurm routing incorrect.
 
 ### Fix
+
 Fixed by Issue 2 fix.
 
 ---
@@ -241,14 +289,17 @@ Fixed by Issue 2 fix.
 ## Implementation Order
 
 ### Phase 1: Fix Test Infrastructure (fixes ~15 tests)
+
 1. Fix `getContext()` to use correct CommandContext structure
 2. Fix `runCommand()` Slurm routing to call specific methods
 3. Fix `clearFaults()` to use correct eccErrors structure
 
 ### Phase 2: Fix Thermal Throttling (fixes 1 test)
+
 4. Update `injectFault('thermal')` to apply clock throttling immediately
 
 ### Phase 3: Verify
+
 5. Run test suite to confirm all fixes work
 6. Ensure no regressions in other tests
 
@@ -256,10 +307,10 @@ Fixed by Issue 2 fix.
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/__tests__/logicConsistency.test.ts` | Fix getContext(), runCommand(), clearFaults() |
-| `src/utils/metricsSimulator.ts` | Add clock throttling to thermal fault injection |
+| File                                     | Changes                                         |
+| ---------------------------------------- | ----------------------------------------------- |
+| `src/__tests__/logicConsistency.test.ts` | Fix getContext(), runCommand(), clearFaults()   |
+| `src/utils/metricsSimulator.ts`          | Add clock throttling to thermal fault injection |
 
 ---
 
@@ -281,6 +332,7 @@ npm run build
 ## Expected Outcome
 
 After fixes:
+
 - 91 tests should pass (currently 73 pass, 18 fail)
 - All 6 test categories should have 100% pass rate
 - No regressions in other test files

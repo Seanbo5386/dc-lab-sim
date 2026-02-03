@@ -15,45 +15,46 @@
 ### Task 1.1: Create Data Flow Animation Utilities
 
 **Files:**
+
 - Create: `src/utils/networkFlowAnimation.ts`
 - Test: `src/utils/__tests__/networkFlowAnimation.test.ts`
 
 **Step 1: Write the failing test**
 
 ```typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   createFlowParticle,
   updateParticlePosition,
   calculatePathPoints,
   generateTrafficIntensity,
   FlowParticle,
-} from '../networkFlowAnimation';
+} from "../networkFlowAnimation";
 
-describe('networkFlowAnimation', () => {
-  describe('createFlowParticle', () => {
-    it('should create a particle with correct properties', () => {
+describe("networkFlowAnimation", () => {
+  describe("createFlowParticle", () => {
+    it("should create a particle with correct properties", () => {
       const particle = createFlowParticle({
         sourceX: 0,
         sourceY: 0,
         targetX: 100,
         targetY: 100,
         speed: 2,
-        linkId: 'link-1',
+        linkId: "link-1",
       });
 
       expect(particle.id).toBeDefined();
       expect(particle.x).toBe(0);
       expect(particle.y).toBe(0);
       expect(particle.progress).toBe(0);
-      expect(particle.linkId).toBe('link-1');
+      expect(particle.linkId).toBe("link-1");
     });
   });
 
-  describe('updateParticlePosition', () => {
-    it('should move particle along path', () => {
+  describe("updateParticlePosition", () => {
+    it("should move particle along path", () => {
       const particle: FlowParticle = {
-        id: 'p1',
+        id: "p1",
         x: 0,
         y: 0,
         sourceX: 0,
@@ -62,8 +63,8 @@ describe('networkFlowAnimation', () => {
         targetY: 0,
         progress: 0,
         speed: 0.1,
-        linkId: 'link-1',
-        color: '#76b900',
+        linkId: "link-1",
+        color: "#76b900",
       };
 
       const updated = updateParticlePosition(particle);
@@ -71,9 +72,9 @@ describe('networkFlowAnimation', () => {
       expect(updated.x).toBe(10);
     });
 
-    it('should return null when particle reaches end', () => {
+    it("should return null when particle reaches end", () => {
       const particle: FlowParticle = {
-        id: 'p1',
+        id: "p1",
         x: 90,
         y: 0,
         sourceX: 0,
@@ -82,8 +83,8 @@ describe('networkFlowAnimation', () => {
         targetY: 0,
         progress: 0.95,
         speed: 0.1,
-        linkId: 'link-1',
-        color: '#76b900',
+        linkId: "link-1",
+        color: "#76b900",
       };
 
       const updated = updateParticlePosition(particle);
@@ -91,8 +92,8 @@ describe('networkFlowAnimation', () => {
     });
   });
 
-  describe('calculatePathPoints', () => {
-    it('should return array of points along path', () => {
+  describe("calculatePathPoints", () => {
+    it("should return array of points along path", () => {
       const points = calculatePathPoints(0, 0, 100, 100, 5);
       expect(points).toHaveLength(5);
       expect(points[0]).toEqual({ x: 0, y: 0 });
@@ -100,14 +101,14 @@ describe('networkFlowAnimation', () => {
     });
   });
 
-  describe('generateTrafficIntensity', () => {
-    it('should return value between 0 and 1 based on utilization', () => {
+  describe("generateTrafficIntensity", () => {
+    it("should return value between 0 and 1 based on utilization", () => {
       expect(generateTrafficIntensity(0)).toBe(0);
       expect(generateTrafficIntensity(100)).toBe(1);
       expect(generateTrafficIntensity(50)).toBe(0.5);
     });
 
-    it('should clamp values to valid range', () => {
+    it("should clamp values to valid range", () => {
       expect(generateTrafficIntensity(-10)).toBe(0);
       expect(generateTrafficIntensity(150)).toBe(1);
     });
@@ -138,7 +139,7 @@ export interface FlowParticle {
   targetX: number;
   targetY: number;
   progress: number; // 0 to 1
-  speed: number;    // progress per frame
+  speed: number; // progress per frame
   linkId: string;
   color: string;
   size?: number;
@@ -157,7 +158,9 @@ export interface CreateParticleOptions {
 
 let particleCounter = 0;
 
-export function createFlowParticle(options: CreateParticleOptions): FlowParticle {
+export function createFlowParticle(
+  options: CreateParticleOptions,
+): FlowParticle {
   const {
     sourceX,
     sourceY,
@@ -165,7 +168,7 @@ export function createFlowParticle(options: CreateParticleOptions): FlowParticle
     targetY,
     speed = 0.02,
     linkId,
-    color = '#76b900',
+    color = "#76b900",
     size = 4,
   } = options;
 
@@ -185,15 +188,19 @@ export function createFlowParticle(options: CreateParticleOptions): FlowParticle
   };
 }
 
-export function updateParticlePosition(particle: FlowParticle): FlowParticle | null {
+export function updateParticlePosition(
+  particle: FlowParticle,
+): FlowParticle | null {
   const newProgress = particle.progress + particle.speed;
 
   if (newProgress >= 1) {
     return null; // Particle reached destination
   }
 
-  const x = particle.sourceX + (particle.targetX - particle.sourceX) * newProgress;
-  const y = particle.sourceY + (particle.targetY - particle.sourceY) * newProgress;
+  const x =
+    particle.sourceX + (particle.targetX - particle.sourceX) * newProgress;
+  const y =
+    particle.sourceY + (particle.targetY - particle.sourceY) * newProgress;
 
   return {
     ...particle,
@@ -208,7 +215,7 @@ export function calculatePathPoints(
   sourceY: number,
   targetX: number,
   targetY: number,
-  numPoints: number
+  numPoints: number,
 ): Array<{ x: number; y: number }> {
   const points: Array<{ x: number; y: number }> = [];
 
@@ -231,7 +238,10 @@ export function generateTrafficIntensity(utilization: number): number {
  * Calculate how many particles should be spawned per second based on traffic intensity.
  * Higher utilization = more particles.
  */
-export function calculateSpawnRate(intensity: number, baseRate: number = 2): number {
+export function calculateSpawnRate(
+  intensity: number,
+  baseRate: number = 2,
+): number {
   return Math.floor(baseRate + intensity * 8); // 2-10 particles per second
 }
 
@@ -260,17 +270,18 @@ git commit -m "feat: add network flow animation utilities"
 ### Task 1.2: Add Animation Hook for D3 Components
 
 **Files:**
+
 - Create: `src/hooks/useNetworkAnimation.ts`
 - Test: `src/hooks/__tests__/useNetworkAnimation.test.ts`
 
 **Step 1: Write the failing test**
 
 ```typescript
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useNetworkAnimation } from '../useNetworkAnimation';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook, act } from "@testing-library/react";
+import { useNetworkAnimation } from "../useNetworkAnimation";
 
-describe('useNetworkAnimation', () => {
+describe("useNetworkAnimation", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -279,21 +290,29 @@ describe('useNetworkAnimation', () => {
     vi.useRealTimers();
   });
 
-  it('should start with empty particles array', () => {
+  it("should start with empty particles array", () => {
     const { result } = renderHook(() =>
-      useNetworkAnimation({ enabled: false, links: [] })
+      useNetworkAnimation({ enabled: false, links: [] }),
     );
 
     expect(result.current.particles).toEqual([]);
   });
 
-  it('should not spawn particles when disabled', () => {
+  it("should not spawn particles when disabled", () => {
     const links = [
-      { id: 'link-1', sourceX: 0, sourceY: 0, targetX: 100, targetY: 0, active: true, utilization: 50 },
+      {
+        id: "link-1",
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 100,
+        targetY: 0,
+        active: true,
+        utilization: 50,
+      },
     ];
 
     const { result } = renderHook(() =>
-      useNetworkAnimation({ enabled: false, links })
+      useNetworkAnimation({ enabled: false, links }),
     );
 
     act(() => {
@@ -303,13 +322,21 @@ describe('useNetworkAnimation', () => {
     expect(result.current.particles).toEqual([]);
   });
 
-  it('should spawn particles when enabled', () => {
+  it("should spawn particles when enabled", () => {
     const links = [
-      { id: 'link-1', sourceX: 0, sourceY: 0, targetX: 100, targetY: 0, active: true, utilization: 50 },
+      {
+        id: "link-1",
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 100,
+        targetY: 0,
+        active: true,
+        utilization: 50,
+      },
     ];
 
     const { result } = renderHook(() =>
-      useNetworkAnimation({ enabled: true, links })
+      useNetworkAnimation({ enabled: true, links }),
     );
 
     act(() => {
@@ -319,13 +346,21 @@ describe('useNetworkAnimation', () => {
     expect(result.current.particles.length).toBeGreaterThan(0);
   });
 
-  it('should clean up on unmount', () => {
+  it("should clean up on unmount", () => {
     const links = [
-      { id: 'link-1', sourceX: 0, sourceY: 0, targetX: 100, targetY: 0, active: true, utilization: 50 },
+      {
+        id: "link-1",
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 100,
+        targetY: 0,
+        active: true,
+        utilization: 50,
+      },
     ];
 
     const { result, unmount } = renderHook(() =>
-      useNetworkAnimation({ enabled: true, links })
+      useNetworkAnimation({ enabled: true, links }),
     );
 
     unmount();
@@ -352,7 +387,7 @@ Expected: FAIL with "Cannot find module"
  * Manages animated particle flow for network topology visualizations.
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   FlowParticle,
   createFlowParticle,
@@ -360,7 +395,7 @@ import {
   generateTrafficIntensity,
   calculateSpawnRate,
   generateParticleOffset,
-} from '@/utils/networkFlowAnimation';
+} from "@/utils/networkFlowAnimation";
 
 export interface AnimationLink {
   id: string;
@@ -441,7 +476,9 @@ export function useNetworkAnimation({
             .filter((p): p is FlowParticle => p !== null);
 
           // Spawn new particles for active links
-          const activeLinks = links.filter((l) => l.active && l.utilization > 0);
+          const activeLinks = links.filter(
+            (l) => l.active && l.utilization > 0,
+          );
           const newParticles: FlowParticle[] = [];
 
           activeLinks.forEach((link) => {
@@ -463,8 +500,8 @@ export function useNetworkAnimation({
                     targetY: link.targetY + offset,
                     speed: 0.015 + intensity * 0.01,
                     linkId: link.id,
-                    color: '#76b900',
-                  })
+                    color: "#76b900",
+                  }),
                 );
 
                 // Reverse direction for bidirectional links
@@ -477,8 +514,8 @@ export function useNetworkAnimation({
                       targetY: link.sourceY - offset,
                       speed: 0.015 + intensity * 0.01,
                       linkId: link.id,
-                      color: '#3b82f6',
-                    })
+                      color: "#3b82f6",
+                    }),
                   );
                 }
 
@@ -531,6 +568,7 @@ git commit -m "feat: add useNetworkAnimation hook for particle flow"
 ### Task 1.3: Integrate Animation into TopologyGraph
 
 **Files:**
+
 - Modify: `src/components/TopologyGraph.tsx`
 
 **Step 1: Read current TopologyGraph implementation**
@@ -542,8 +580,11 @@ Review `src/components/TopologyGraph.tsx` to understand the current D3.js struct
 At the top of the file, add:
 
 ```typescript
-import { useNetworkAnimation, AnimationLink } from '@/hooks/useNetworkAnimation';
-import { useSimulationStore } from '@/store/simulationStore';
+import {
+  useNetworkAnimation,
+  AnimationLink,
+} from "@/hooks/useNetworkAnimation";
+import { useSimulationStore } from "@/store/simulationStore";
 ```
 
 **Step 3: Modify the component to include animation**
@@ -690,6 +731,7 @@ git commit -m "feat: add live data flow animation to NVLink topology"
 ### Task 1.4: Integrate Animation into InfiniBandMap
 
 **Files:**
+
 - Modify: `src/components/InfiniBandMap.tsx`
 
 **Step 1: Add imports and animation hook**
@@ -697,9 +739,12 @@ git commit -m "feat: add live data flow animation to NVLink topology"
 Same pattern as TopologyGraph:
 
 ```typescript
-import { useNetworkAnimation, AnimationLink } from '@/hooks/useNetworkAnimation';
-import { useSimulationStore } from '@/store/simulationStore';
-import { useMemo } from 'react';
+import {
+  useNetworkAnimation,
+  AnimationLink,
+} from "@/hooks/useNetworkAnimation";
+import { useSimulationStore } from "@/store/simulationStore";
+import { useMemo } from "react";
 ```
 
 **Step 2: Calculate animation links from fabric topology**
@@ -735,8 +780,11 @@ const animationLinks: AnimationLink[] = useMemo(() => {
     id: node.id,
     x: nodeSpacing * (idx + 1),
     y: 450,
-    active: node.hcas.some((hca) => hca.ports.some((p) => p.state === 'Active')),
-    utilization: node.gpus.reduce((sum, g) => sum + g.utilization, 0) / node.gpus.length,
+    active: node.hcas.some((hca) =>
+      hca.ports.some((p) => p.state === "Active"),
+    ),
+    utilization:
+      node.gpus.reduce((sum, g) => sum + g.utilization, 0) / node.gpus.length,
   }));
 
   // Spine to Leaf links
@@ -757,7 +805,9 @@ const animationLinks: AnimationLink[] = useMemo(() => {
 
   // Leaf to Host links
   hostNodes.forEach((host, idx) => {
-    const leafIdx = Math.floor(idx / Math.ceil(hostNodes.length / leafNodes.length));
+    const leafIdx = Math.floor(
+      idx / Math.ceil(hostNodes.length / leafNodes.length),
+    );
     const leaf = leafNodes[Math.min(leafIdx, leafNodes.length - 1)];
     if (leaf) {
       links.push({
@@ -804,6 +854,7 @@ git commit -m "feat: add live data flow animation to InfiniBand fabric"
 ### Task 2.1: Create Network Node Detail Panel
 
 **Files:**
+
 - Create: `src/components/NetworkNodeDetail.tsx`
 - Test: `src/components/__tests__/NetworkNodeDetail.test.tsx`
 
@@ -1093,6 +1144,7 @@ git commit -m "feat: add NetworkNodeDetail panel for interactive troubleshooting
 ### Task 2.2: Add Click Handlers to TopologyGraph
 
 **Files:**
+
 - Modify: `src/components/TopologyGraph.tsx`
 
 **Step 1: Add state for selected node**
@@ -1106,16 +1158,16 @@ const [selectedNode, setSelectedNode] = useState<NetworkNodeType | null>(null);
 In the D3 useEffect, after creating nodeGroups, add:
 
 ```typescript
-nodeGroups.on('click', function (event, d) {
+nodeGroups.on("click", function (event, d) {
   event.stopPropagation();
   const gpu = node.gpus.find((g) => g.id === d.id);
   if (gpu) {
-    setSelectedNode({ type: 'gpu', data: gpu });
+    setSelectedNode({ type: "gpu", data: gpu });
   }
 });
 
 // Click on background to deselect
-svg.on('click', () => setSelectedNode(null));
+svg.on("click", () => setSelectedNode(null));
 ```
 
 **Step 3: Render NetworkNodeDetail when selected**
@@ -1147,6 +1199,7 @@ git commit -m "feat: add click-to-inspect for NVLink topology nodes"
 ### Task 2.3: Add Click Handlers to InfiniBandMap
 
 **Files:**
+
 - Modify: `src/components/InfiniBandMap.tsx`
 
 Same pattern as TopologyGraph.
@@ -1167,6 +1220,7 @@ git commit -m "feat: add click-to-inspect for InfiniBand fabric nodes"
 ### Task 3.1: Create DGX System Layout Data
 
 **Files:**
+
 - Create: `src/data/dgxLayouts.ts`
 
 **Step 1: Write layout data for DGX systems**
@@ -1180,8 +1234,8 @@ git commit -m "feat: add click-to-inspect for InfiniBand fabric nodes"
 
 export interface GPULayoutPosition {
   gpuIndex: number;
-  x: number;      // Relative X position (0-1)
-  y: number;      // Relative Y position (0-1)
+  x: number; // Relative X position (0-1)
+  y: number; // Relative Y position (0-1)
   nvSwitchGroup: number; // Which NVSwitch group this GPU connects to
 }
 
@@ -1202,7 +1256,7 @@ export interface DGXLayout {
 }
 
 export const DGX_A100_LAYOUT: DGXLayout = {
-  systemType: 'DGX-A100',
+  systemType: "DGX-A100",
   gpuCount: 8,
   nvSwitchCount: 6,
   gpuPositions: [
@@ -1249,7 +1303,7 @@ export const DGX_A100_LAYOUT: DGXLayout = {
 };
 
 export const DGX_H100_LAYOUT: DGXLayout = {
-  systemType: 'DGX-H100',
+  systemType: "DGX-H100",
   gpuCount: 8,
   nvSwitchCount: 4,
   gpuPositions: [
@@ -1271,25 +1325,43 @@ export const DGX_H100_LAYOUT: DGXLayout = {
   ],
   nvLinkConnections: [
     // Full mesh through NVSwitch (all-to-all)
-    { from: 0, to: 1 }, { from: 0, to: 2 }, { from: 0, to: 3 }, { from: 0, to: 4 },
-    { from: 0, to: 5 }, { from: 0, to: 6 }, { from: 0, to: 7 },
-    { from: 1, to: 2 }, { from: 1, to: 3 }, { from: 1, to: 4 },
-    { from: 1, to: 5 }, { from: 1, to: 6 }, { from: 1, to: 7 },
-    { from: 2, to: 3 }, { from: 2, to: 4 }, { from: 2, to: 5 },
-    { from: 2, to: 6 }, { from: 2, to: 7 },
-    { from: 3, to: 4 }, { from: 3, to: 5 }, { from: 3, to: 6 }, { from: 3, to: 7 },
-    { from: 4, to: 5 }, { from: 4, to: 6 }, { from: 4, to: 7 },
-    { from: 5, to: 6 }, { from: 5, to: 7 },
+    { from: 0, to: 1 },
+    { from: 0, to: 2 },
+    { from: 0, to: 3 },
+    { from: 0, to: 4 },
+    { from: 0, to: 5 },
+    { from: 0, to: 6 },
+    { from: 0, to: 7 },
+    { from: 1, to: 2 },
+    { from: 1, to: 3 },
+    { from: 1, to: 4 },
+    { from: 1, to: 5 },
+    { from: 1, to: 6 },
+    { from: 1, to: 7 },
+    { from: 2, to: 3 },
+    { from: 2, to: 4 },
+    { from: 2, to: 5 },
+    { from: 2, to: 6 },
+    { from: 2, to: 7 },
+    { from: 3, to: 4 },
+    { from: 3, to: 5 },
+    { from: 3, to: 6 },
+    { from: 3, to: 7 },
+    { from: 4, to: 5 },
+    { from: 4, to: 6 },
+    { from: 4, to: 7 },
+    { from: 5, to: 6 },
+    { from: 5, to: 7 },
     { from: 6, to: 7 },
   ],
 };
 
 export function getLayoutForSystem(systemType: string): DGXLayout {
   switch (systemType) {
-    case 'DGX-H100':
-    case 'DGX-H200':
+    case "DGX-H100":
+    case "DGX-H200":
       return DGX_H100_LAYOUT;
-    case 'DGX-A100':
+    case "DGX-A100":
     default:
       return DGX_A100_LAYOUT;
   }
@@ -1308,12 +1380,13 @@ git commit -m "feat: add accurate DGX system layout data"
 ### Task 3.2: Update TopologyGraph to Use Accurate Layouts
 
 **Files:**
+
 - Modify: `src/components/TopologyGraph.tsx`
 
 **Step 1: Import layout data**
 
 ```typescript
-import { getLayoutForSystem } from '@/data/dgxLayouts';
+import { getLayoutForSystem } from "@/data/dgxLayouts";
 ```
 
 **Step 2: Use layout positions instead of fixed grid**
@@ -1340,7 +1413,7 @@ const nodes: GraphNode[] = node.gpus.map((gpu, idx) => {
 const nvSwitchNodes = layout.nvSwitchPositions.map((sw) => ({
   id: `nvsw-${sw.id}`,
   name: `NVSwitch ${sw.id}`,
-  type: 'nvswitch' as const,
+  type: "nvswitch" as const,
   x: sw.x * width,
   y: sw.y * height,
 }));
@@ -1350,33 +1423,33 @@ const nvSwitchNodes = layout.nvSwitchPositions.map((sw) => ({
 
 ```typescript
 // NVSwitch rectangles
-const nvSwitchGroup = svg.append('g').attr('class', 'nvswitches');
+const nvSwitchGroup = svg.append("g").attr("class", "nvswitches");
 
 nvSwitchGroup
-  .selectAll('rect')
+  .selectAll("rect")
   .data(nvSwitchNodes)
   .enter()
-  .append('rect')
-  .attr('x', (d) => d.x - 20)
-  .attr('y', (d) => d.y - 10)
-  .attr('width', 40)
-  .attr('height', 20)
-  .attr('fill', '#3b82f6')
-  .attr('stroke', '#1e40af')
-  .attr('stroke-width', 2)
-  .attr('rx', 3);
+  .append("rect")
+  .attr("x", (d) => d.x - 20)
+  .attr("y", (d) => d.y - 10)
+  .attr("width", 40)
+  .attr("height", 20)
+  .attr("fill", "#3b82f6")
+  .attr("stroke", "#1e40af")
+  .attr("stroke-width", 2)
+  .attr("rx", 3);
 
 nvSwitchGroup
-  .selectAll('text')
+  .selectAll("text")
   .data(nvSwitchNodes)
   .enter()
-  .append('text')
-  .attr('x', (d) => d.x)
-  .attr('y', (d) => d.y + 4)
-  .attr('text-anchor', 'middle')
-  .attr('fill', '#fff')
-  .attr('font-size', '9px')
-  .text((d) => `SW${d.id.toString().replace('nvsw-', '')}`);
+  .append("text")
+  .attr("x", (d) => d.x)
+  .attr("y", (d) => d.y + 4)
+  .attr("text-anchor", "middle")
+  .attr("fill", "#fff")
+  .attr("font-size", "9px")
+  .text((d) => `SW${d.id.toString().replace("nvsw-", "")}`);
 ```
 
 **Step 4: Run and verify visually**
@@ -1393,6 +1466,7 @@ git commit -m "feat: use accurate DGX layouts in NVLink topology"
 ### Task 3.3: Add Fat-Tree Tier Configuration
 
 **Files:**
+
 - Modify: `src/components/InfiniBandMap.tsx`
 
 **Step 1: Make fabric topology configurable**
@@ -1421,15 +1495,15 @@ const {
 // Draw bandwidth labels on links
 if (showBandwidth) {
   linkGroup
-    .selectAll('text')
+    .selectAll("text")
     .data(links)
     .enter()
-    .append('text')
-    .attr('x', (d) => (d.source.x + d.target.x) / 2)
-    .attr('y', (d) => (d.source.y + d.target.y) / 2 - 5)
-    .attr('text-anchor', 'middle')
-    .attr('fill', '#9ca3af')
-    .attr('font-size', '8px')
+    .append("text")
+    .attr("x", (d) => (d.source.x + d.target.x) / 2)
+    .attr("y", (d) => (d.source.y + d.target.y) / 2 - 5)
+    .attr("text-anchor", "middle")
+    .attr("fill", "#9ca3af")
+    .attr("font-size", "8px")
     .text((d) => d.speed);
 }
 ```
@@ -1450,71 +1524,83 @@ git commit -m "feat: add configurable fat-tree topology and bandwidth labels"
 ### Task 4.1: Create Scenario-to-Visualization Mapping
 
 **Files:**
+
 - Create: `src/utils/scenarioVisualizationMap.ts`
 - Test: `src/utils/__tests__/scenarioVisualizationMap.test.ts`
 
 **Step 1: Write the failing test**
 
 ```typescript
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
   getVisualizationContext,
   getRelatedScenarios,
   extractHighlightTargets,
   VisualizationContext,
-} from '../scenarioVisualizationMap';
+} from "../scenarioVisualizationMap";
 
-describe('scenarioVisualizationMap', () => {
-  describe('getVisualizationContext', () => {
-    it('should return nvlink context for NVLink scenarios', () => {
-      const context = getVisualizationContext('domain2-nvlink-topo');
+describe("scenarioVisualizationMap", () => {
+  describe("getVisualizationContext", () => {
+    it("should return nvlink context for NVLink scenarios", () => {
+      const context = getVisualizationContext("domain2-nvlink-topo");
       expect(context).not.toBeNull();
-      expect(context?.visualizationType).toBe('nvlink');
-      expect(context?.relevantTab).toBe('topology');
+      expect(context?.visualizationType).toBe("nvlink");
+      expect(context?.relevantTab).toBe("topology");
     });
 
-    it('should return infiniband context for IB scenarios', () => {
-      const context = getVisualizationContext('domain4-ib-stress');
+    it("should return infiniband context for IB scenarios", () => {
+      const context = getVisualizationContext("domain4-ib-stress");
       expect(context).not.toBeNull();
-      expect(context?.visualizationType).toBe('infiniband');
-      expect(context?.relevantTab).toBe('network');
+      expect(context?.visualizationType).toBe("infiniband");
+      expect(context?.relevantTab).toBe("network");
     });
 
-    it('should return null for scenarios without visualization', () => {
-      const context = getVisualizationContext('domain3-slurm-config');
+    it("should return null for scenarios without visualization", () => {
+      const context = getVisualizationContext("domain3-slurm-config");
       expect(context).toBeNull();
     });
   });
 
-  describe('getRelatedScenarios', () => {
-    it('should return NVLink scenarios for topology tab', () => {
-      const scenarios = getRelatedScenarios('topology');
+  describe("getRelatedScenarios", () => {
+    it("should return NVLink scenarios for topology tab", () => {
+      const scenarios = getRelatedScenarios("topology");
       expect(scenarios.length).toBeGreaterThan(0);
-      expect(scenarios.every(s => s.id.includes('nvlink') || s.tags?.includes('nvlink'))).toBe(true);
+      expect(
+        scenarios.every(
+          (s) => s.id.includes("nvlink") || s.tags?.includes("nvlink"),
+        ),
+      ).toBe(true);
     });
 
-    it('should return InfiniBand scenarios for network tab', () => {
-      const scenarios = getRelatedScenarios('network');
+    it("should return InfiniBand scenarios for network tab", () => {
+      const scenarios = getRelatedScenarios("network");
       expect(scenarios.length).toBeGreaterThan(0);
-      expect(scenarios.every(s => s.id.includes('ib') || s.tags?.includes('infiniband'))).toBe(true);
+      expect(
+        scenarios.every(
+          (s) => s.id.includes("ib") || s.tags?.includes("infiniband"),
+        ),
+      ).toBe(true);
     });
   });
 
-  describe('extractHighlightTargets', () => {
-    it('should extract GPU indices from scenario step', () => {
+  describe("extractHighlightTargets", () => {
+    it("should extract GPU indices from scenario step", () => {
       const step = {
-        description: 'Check GPU 2 and GPU 3 for NVLink errors',
-        expectedCommands: ['nvidia-smi nvlink -e -i 2', 'nvidia-smi nvlink -e -i 3'],
+        description: "Check GPU 2 and GPU 3 for NVLink errors",
+        expectedCommands: [
+          "nvidia-smi nvlink -e -i 2",
+          "nvidia-smi nvlink -e -i 3",
+        ],
       };
       const targets = extractHighlightTargets(step);
       expect(targets.gpuIndices).toContain(2);
       expect(targets.gpuIndices).toContain(3);
     });
 
-    it('should extract link references from commands', () => {
+    it("should extract link references from commands", () => {
       const step = {
-        description: 'Check link status',
-        expectedCommands: ['nvidia-smi nvlink --status -i 0'],
+        description: "Check link status",
+        expectedCommands: ["nvidia-smi nvlink --status -i 0"],
       };
       const targets = extractHighlightTargets(step);
       expect(targets.gpuIndices).toContain(0);
@@ -1538,10 +1624,10 @@ Expected: FAIL with "Cannot find module"
  * enabling visual highlighting when users work through labs.
  */
 
-import type { Scenario, ScenarioStep } from '@/types/scenarios';
+import type { Scenario, ScenarioStep } from "@/types/scenarios";
 
-export type VisualizationType = 'nvlink' | 'infiniband' | 'gpu-overview';
-export type DashboardTab = 'overview' | 'metrics' | 'topology' | 'network';
+export type VisualizationType = "nvlink" | "infiniband" | "gpu-overview";
+export type DashboardTab = "overview" | "metrics" | "topology" | "network";
 
 export interface VisualizationContext {
   scenarioId: string;
@@ -1558,52 +1644,55 @@ export interface VisualizationContext {
  * Scenarios that have relevant network visualizations.
  * Maps scenario IDs to their visualization context.
  */
-const SCENARIO_VISUALIZATION_MAP: Record<string, Omit<VisualizationContext, 'scenarioId'>> = {
+const SCENARIO_VISUALIZATION_MAP: Record<
+  string,
+  Omit<VisualizationContext, "scenarioId">
+> = {
   // Domain 2: NVLink scenarios
-  'domain2-nvlink-topo': {
-    visualizationType: 'nvlink',
-    relevantTab: 'topology',
+  "domain2-nvlink-topo": {
+    visualizationType: "nvlink",
+    relevantTab: "topology",
   },
-  'domain2-nvlink-recovery': {
-    visualizationType: 'nvlink',
-    relevantTab: 'topology',
+  "domain2-nvlink-recovery": {
+    visualizationType: "nvlink",
+    relevantTab: "topology",
     defaultHighlights: { gpuIndices: [2] }, // Scenario injects fault on GPU 2
   },
-  'domain2-advanced-mig': {
-    visualizationType: 'gpu-overview',
-    relevantTab: 'overview',
+  "domain2-advanced-mig": {
+    visualizationType: "gpu-overview",
+    relevantTab: "overview",
   },
 
   // Domain 4: Bandwidth and fabric scenarios
-  'domain4-gpu-bandwidth': {
-    visualizationType: 'nvlink',
-    relevantTab: 'topology',
+  "domain4-gpu-bandwidth": {
+    visualizationType: "nvlink",
+    relevantTab: "topology",
   },
-  'domain4-ib-stress': {
-    visualizationType: 'infiniband',
-    relevantTab: 'network',
+  "domain4-ib-stress": {
+    visualizationType: "infiniband",
+    relevantTab: "network",
   },
-  'domain4-nccl-test': {
-    visualizationType: 'nvlink',
-    relevantTab: 'topology',
+  "domain4-nccl-test": {
+    visualizationType: "nvlink",
+    relevantTab: "topology",
   },
-  'domain4-nccl-multinode': {
-    visualizationType: 'infiniband',
-    relevantTab: 'network',
+  "domain4-nccl-multinode": {
+    visualizationType: "infiniband",
+    relevantTab: "network",
   },
 
   // Domain 5: Troubleshooting scenarios
-  'domain5-xid-nvlink': {
-    visualizationType: 'nvlink',
-    relevantTab: 'topology',
+  "domain5-xid-nvlink": {
+    visualizationType: "nvlink",
+    relevantTab: "topology",
   },
-  'domain5-ib-partitioning': {
-    visualizationType: 'infiniband',
-    relevantTab: 'network',
+  "domain5-ib-partitioning": {
+    visualizationType: "infiniband",
+    relevantTab: "network",
   },
-  'domain5-pcie-diagnosis': {
-    visualizationType: 'gpu-overview',
-    relevantTab: 'overview',
+  "domain5-pcie-diagnosis": {
+    visualizationType: "gpu-overview",
+    relevantTab: "overview",
   },
 };
 
@@ -1611,7 +1700,9 @@ const SCENARIO_VISUALIZATION_MAP: Record<string, Omit<VisualizationContext, 'sce
  * Get visualization context for a scenario.
  * Returns null if the scenario doesn't have a relevant visualization.
  */
-export function getVisualizationContext(scenarioId: string): VisualizationContext | null {
+export function getVisualizationContext(
+  scenarioId: string,
+): VisualizationContext | null {
   const mapping = SCENARIO_VISUALIZATION_MAP[scenarioId];
   if (!mapping) return null;
 
@@ -1624,15 +1715,23 @@ export function getVisualizationContext(scenarioId: string): VisualizationContex
 /**
  * Get all scenarios that are relevant to a dashboard tab.
  */
-export function getRelatedScenarios(tab: DashboardTab): Array<{ id: string; title: string; tags?: string[] }> {
+export function getRelatedScenarios(
+  tab: DashboardTab,
+): Array<{ id: string; title: string; tags?: string[] }> {
   const related: Array<{ id: string; title: string; tags?: string[] }> = [];
 
-  for (const [scenarioId, context] of Object.entries(SCENARIO_VISUALIZATION_MAP)) {
+  for (const [scenarioId, context] of Object.entries(
+    SCENARIO_VISUALIZATION_MAP,
+  )) {
     if (context.relevantTab === tab) {
       related.push({
         id: scenarioId,
-        title: scenarioId.replace(/-/g, ' ').replace(/domain\d+/, '').trim(),
-        tags: context.visualizationType === 'nvlink' ? ['nvlink'] : ['infiniband'],
+        title: scenarioId
+          .replace(/-/g, " ")
+          .replace(/domain\d+/, "")
+          .trim(),
+        tags:
+          context.visualizationType === "nvlink" ? ["nvlink"] : ["infiniband"],
       });
     }
   }
@@ -1655,17 +1754,17 @@ export function extractHighlightTargets(step: Partial<ScenarioStep>): {
 
   // Patterns to match GPU references
   const gpuPatterns = [
-    /-i\s*(\d+)/g,           // nvidia-smi -i 0
-    /GPU\s*(\d+)/gi,         // "GPU 0" or "GPU0"
-    /-g\s*(\d+)/g,           // nvidia-smi nvlink -g 0
-    /gpu(\d+)/gi,            // gpu0, gpu1
+    /-i\s*(\d+)/g, // nvidia-smi -i 0
+    /GPU\s*(\d+)/gi, // "GPU 0" or "GPU0"
+    /-g\s*(\d+)/g, // nvidia-smi nvlink -g 0
+    /gpu(\d+)/gi, // gpu0, gpu1
   ];
 
   // Combine all text to search
   const searchText = [
-    step.description || '',
+    step.description || "",
     ...(step.expectedCommands || []),
-  ].join(' ');
+  ].join(" ");
 
   // Extract GPU indices
   for (const pattern of gpuPatterns) {
@@ -1682,7 +1781,7 @@ export function extractHighlightTargets(step: Partial<ScenarioStep>): {
   const nodePattern = /dgx-(\d+)/gi;
   let nodeMatch;
   while ((nodeMatch = nodePattern.exec(searchText)) !== null) {
-    nodeIds.add(`dgx-${nodeMatch[1].padStart(2, '0')}`);
+    nodeIds.add(`dgx-${nodeMatch[1].padStart(2, "0")}`);
   }
 
   return {
@@ -1717,6 +1816,7 @@ git commit -m "feat: add scenario-to-visualization mapping utility"
 ### Task 4.2: Create Visual Context Panel Component
 
 **Files:**
+
 - Create: `src/components/VisualContextPanel.tsx`
 - Test: `src/components/__tests__/VisualContextPanel.test.tsx`
 
@@ -1989,22 +2089,27 @@ git commit -m "feat: add VisualContextPanel for scenario-visualization integrati
 ### Task 4.3: Integrate Context Panel into Dashboard
 
 **Files:**
+
 - Modify: `src/components/Dashboard.tsx`
 
 **Step 1: Import new components and utilities**
 
 ```typescript
-import { VisualContextPanel } from './VisualContextPanel';
-import { getRelatedScenarios, getVisualizationContext, extractHighlightTargets } from '@/utils/scenarioVisualizationMap';
-import { useSimulationStore } from '@/store/simulationStore';
+import { VisualContextPanel } from "./VisualContextPanel";
+import {
+  getRelatedScenarios,
+  getVisualizationContext,
+  extractHighlightTargets,
+} from "@/utils/scenarioVisualizationMap";
+import { useSimulationStore } from "@/store/simulationStore";
 ```
 
 **Step 2: Add state for active scenario tracking**
 
 ```typescript
 // Get active scenario from store (if user is in a lab)
-const activeScenario = useSimulationStore(state => state.activeScenario);
-const launchScenario = useSimulationStore(state => state.launchScenario);
+const activeScenario = useSimulationStore((state) => state.activeScenario);
+const launchScenario = useSimulationStore((state) => state.launchScenario);
 
 // Compute highlights based on active scenario step
 const highlightTargets = useMemo(() => {
@@ -2085,6 +2190,7 @@ npm run dev
 ```
 
 Verify:
+
 - Context panel appears on NVLink Topology tab
 - Shows related labs (domain2-nvlink-topo, domain2-nvlink-recovery, etc.)
 - Clicking a lab launches it in the terminal
@@ -2102,6 +2208,7 @@ git commit -m "feat: integrate VisualContextPanel into Dashboard tabs"
 ### Task 4.4: Add Highlight Props to Visualization Components
 
 **Files:**
+
 - Modify: `src/components/TopologyGraph.tsx`
 - Modify: `src/components/InfiniBandMap.tsx`
 
@@ -2132,26 +2239,26 @@ nodeGroups.each(function (d) {
 
   if (isHighlighted) {
     d3.select(this)
-      .insert('circle', ':first-child')
-      .attr('r', 45)
-      .attr('fill', 'none')
-      .attr('stroke', '#76b900')
-      .attr('stroke-width', 3)
-      .attr('stroke-dasharray', '5,3')
-      .attr('class', 'animate-spin-slow'); // CSS animation for pulsing effect
+      .insert("circle", ":first-child")
+      .attr("r", 45)
+      .attr("fill", "none")
+      .attr("stroke", "#76b900")
+      .attr("stroke-width", 3)
+      .attr("stroke-dasharray", "5,3")
+      .attr("class", "animate-spin-slow"); // CSS animation for pulsing effect
   }
 });
 
 // Modify link styling for highlighted links
 linkGroup
-  .selectAll('line')
-  .attr('stroke', (d) => {
+  .selectAll("line")
+  .attr("stroke", (d) => {
     const linkId = `nvlink-${d.source.id}-${d.target.id}`;
     const isHighlighted = highlightedLinks.includes(linkId);
-    if (isHighlighted) return '#facc15'; // Yellow for highlighted
-    return d.status === 'Active' ? '#10B981' : '#EF4444';
+    if (isHighlighted) return "#facc15"; // Yellow for highlighted
+    return d.status === "Active" ? "#10B981" : "#EF4444";
   })
-  .attr('stroke-width', (d) => {
+  .attr("stroke-width", (d) => {
     const linkId = `nvlink-${d.source.id}-${d.target.id}`;
     return highlightedLinks.includes(linkId) ? 5 : 3;
   });
@@ -2177,8 +2284,12 @@ In `src/index.css` or appropriate stylesheet:
 
 ```css
 @keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-spin-slow {
@@ -2187,8 +2298,13 @@ In `src/index.css` or appropriate stylesheet:
 }
 
 @keyframes pulse-highlight {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .highlight-pulse {
@@ -2216,12 +2332,16 @@ git commit -m "feat: add scenario-driven highlighting to network visualizations"
 ### Task 4.5: Add "Open in Visualization" Button to Lab Steps
 
 **Files:**
+
 - Modify: `src/components/LabWorkspace.tsx` (or wherever lab steps are rendered)
 
 **Step 1: Import visualization utilities**
 
 ```typescript
-import { hasVisualization, getVisualizationContext } from '@/utils/scenarioVisualizationMap';
+import {
+  hasVisualization,
+  getVisualizationContext,
+} from "@/utils/scenarioVisualizationMap";
 ```
 
 **Step 2: Add visualization button to step rendering**
@@ -2258,11 +2378,11 @@ git commit -m "feat: add 'View in Visualization' button to lab steps"
 
 ## Phase Summary
 
-| Phase | Tasks | New Files | Modified Files |
-|-------|-------|-----------|----------------|
-| 1: Live Data Flow | 1.1-1.4 | 4 (utils, hook, tests) | 2 (TopologyGraph, InfiniBandMap) |
-| 2: Interactive Troubleshooting | 2.1-2.3 | 2 (component, test) | 2 (TopologyGraph, InfiniBandMap) |
-| 3: Realistic Hardware | 3.1-3.3 | 1 (data file) | 2 (TopologyGraph, InfiniBandMap) |
+| Phase                          | Tasks   | New Files                              | Modified Files                                            |
+| ------------------------------ | ------- | -------------------------------------- | --------------------------------------------------------- |
+| 1: Live Data Flow              | 1.1-1.4 | 4 (utils, hook, tests)                 | 2 (TopologyGraph, InfiniBandMap)                          |
+| 2: Interactive Troubleshooting | 2.1-2.3 | 2 (component, test)                    | 2 (TopologyGraph, InfiniBandMap)                          |
+| 3: Realistic Hardware          | 3.1-3.3 | 1 (data file)                          | 2 (TopologyGraph, InfiniBandMap)                          |
 | 4: Visual-Scenario Integration | 4.1-4.5 | 4 (mapping util, context panel, tests) | 4 (Dashboard, TopologyGraph, InfiniBandMap, LabWorkspace) |
 
 **Total New Files:** 11
@@ -2274,17 +2394,20 @@ git commit -m "feat: add 'View in Visualization' button to lab steps"
 ## Key Differences in Phase 4 (Revised)
 
 **What changed:**
+
 - ❌ Removed: Creating new duplicate training scenarios
 - ❌ Removed: NetworkScenarioOverlay with redundant scenario content
 - ❌ Removed: `networkTrainingScenarios.ts` with duplicate labs
 
 **What was added instead:**
+
 - ✅ `scenarioVisualizationMap.ts` - Maps existing 53 scenarios to visualization contexts
 - ✅ `VisualContextPanel.tsx` - Shows related labs and active step info
 - ✅ Highlight props - Visualization components can highlight elements based on active lab step
 - ✅ Bidirectional integration - Labs can link to visualizations, visualizations can launch labs
 
 **Benefits:**
+
 - No content duplication with existing labs
 - Visualizations enhance existing training rather than replacing it
 - Users can seamlessly move between terminal-based labs and visual context

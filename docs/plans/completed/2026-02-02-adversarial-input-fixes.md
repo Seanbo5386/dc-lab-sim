@@ -13,6 +13,7 @@
 ## Task 1: Fix BaseSimulator Crash on Empty Commands
 
 **Files:**
+
 - Modify: `src/simulators/BaseSimulator.ts:540`
 - Test: `src/simulators/__tests__/adversarialInputs.test.ts`
 
@@ -46,6 +47,7 @@ Expected: PASS (or different error, not the crash)
 **Step 4: Fix similar null-safety issues in BaseSimulator**
 
 Check and fix these methods if they have similar issues:
+
 - `hasFlag()`
 - `getFlag()`
 - Any method accessing `parsed.flags` or `parsed.positionalArgs`
@@ -81,6 +83,7 @@ parsed.flags gracefully."
 ## Task 2: Add Input Validation Utility Functions
 
 **Files:**
+
 - Modify: `src/simulators/BaseSimulator.ts`
 - Test: `src/simulators/__tests__/BaseSimulator.test.ts`
 
@@ -89,48 +92,51 @@ parsed.flags gracefully."
 Add to `src/simulators/__tests__/BaseSimulator.test.ts`:
 
 ```typescript
-describe('Input Validation Utilities', () => {
-  it('validateGpuIndex rejects negative numbers', () => {
+describe("Input Validation Utilities", () => {
+  it("validateGpuIndex rejects negative numbers", () => {
     const simulator = new TestSimulator();
     expect(simulator.testValidateGpuIndex(-1, 8)).toEqual({
       valid: false,
-      error: 'Invalid GPU index: -1. Valid range is 0-7.'
+      error: "Invalid GPU index: -1. Valid range is 0-7.",
     });
   });
 
-  it('validateGpuIndex rejects out of range', () => {
+  it("validateGpuIndex rejects out of range", () => {
     const simulator = new TestSimulator();
     expect(simulator.testValidateGpuIndex(8, 8)).toEqual({
       valid: false,
-      error: 'Invalid GPU index: 8. Valid range is 0-7.'
+      error: "Invalid GPU index: 8. Valid range is 0-7.",
     });
   });
 
-  it('validateGpuIndex accepts valid index', () => {
+  it("validateGpuIndex accepts valid index", () => {
     const simulator = new TestSimulator();
     expect(simulator.testValidateGpuIndex(0, 8)).toEqual({ valid: true });
     expect(simulator.testValidateGpuIndex(7, 8)).toEqual({ valid: true });
   });
 
-  it('validatePositiveInt rejects non-numeric strings', () => {
+  it("validatePositiveInt rejects non-numeric strings", () => {
     const simulator = new TestSimulator();
-    expect(simulator.testValidatePositiveInt('abc')).toEqual({
+    expect(simulator.testValidatePositiveInt("abc")).toEqual({
       valid: false,
-      error: "Invalid number: 'abc'"
+      error: "Invalid number: 'abc'",
     });
   });
 
-  it('validatePositiveInt rejects negative numbers', () => {
+  it("validatePositiveInt rejects negative numbers", () => {
     const simulator = new TestSimulator();
-    expect(simulator.testValidatePositiveInt('-5')).toEqual({
+    expect(simulator.testValidatePositiveInt("-5")).toEqual({
       valid: false,
-      error: 'Value must be positive: -5'
+      error: "Value must be positive: -5",
     });
   });
 
-  it('validatePositiveInt accepts valid numbers', () => {
+  it("validatePositiveInt accepts valid numbers", () => {
     const simulator = new TestSimulator();
-    expect(simulator.testValidatePositiveInt('42')).toEqual({ valid: true, value: 42 });
+    expect(simulator.testValidatePositiveInt("42")).toEqual({
+      valid: true,
+      value: 42,
+    });
   });
 });
 ```
@@ -203,6 +209,7 @@ helpers for consistent input validation across all simulators."
 ## Task 3: Fix nvidia-smi Invalid GPU Index Handling
 
 **Files:**
+
 - Modify: `src/simulators/nvidiaSmiSimulator.ts`
 - Test: `src/simulators/__tests__/adversarialInputs.test.ts`
 
@@ -217,7 +224,7 @@ Find where `-i` flag is processed in `nvidiaSmiSimulator.ts` and add validation:
 
 ```typescript
 // In the method that handles -i flag
-const gpuIndexStr = parsed.flags.get('i') || parsed.flags.get('id');
+const gpuIndexStr = parsed.flags.get("i") || parsed.flags.get("id");
 if (gpuIndexStr !== undefined) {
   const gpuIndex = parseInt(String(gpuIndexStr), 10);
   const validation = this.validateGpuIndex(gpuIndex, node.gpus.length);
@@ -261,6 +268,7 @@ git commit -m "fix: add input validation to nvidia-smi simulator
 ## Task 4: Fix dcgmi Input Validation
 
 **Files:**
+
 - Modify: `src/simulators/dcgmiSimulator.ts`
 - Test: `src/simulators/__tests__/adversarialInputs.test.ts`
 
@@ -273,7 +281,16 @@ Expected: 6 failures
 
 ```typescript
 // At start of execute method
-const validSubcommands = ['discovery', 'health', 'diag', 'group', 'config', 'policy', 'stats', 'topo'];
+const validSubcommands = [
+  "discovery",
+  "health",
+  "diag",
+  "group",
+  "config",
+  "policy",
+  "stats",
+  "topo",
+];
 const subcommand = parsed.positionalArgs[0];
 
 if (!subcommand) {
@@ -281,7 +298,9 @@ if (!subcommand) {
 }
 
 if (!validSubcommands.includes(subcommand)) {
-  return this.createError(`Unknown subcommand: '${subcommand}'\nValid subcommands: ${validSubcommands.join(', ')}`);
+  return this.createError(
+    `Unknown subcommand: '${subcommand}'\nValid subcommands: ${validSubcommands.join(", ")}`,
+  );
 }
 ```
 
@@ -289,9 +308,9 @@ if (!validSubcommands.includes(subcommand)) {
 
 ```typescript
 // In health command handler
-const groupId = parsed.flags.get('g') || parsed.flags.get('group');
+const groupId = parsed.flags.get("g") || parsed.flags.get("group");
 if (groupId !== undefined) {
-  const validation = this.validatePositiveInt(String(groupId), 'Group ID');
+  const validation = this.validatePositiveInt(String(groupId), "Group ID");
   if (!validation.valid) {
     return this.createError(validation.error!);
   }
@@ -303,9 +322,13 @@ if (groupId !== undefined) {
 
 ```typescript
 // In diag command handler
-const runLevel = parsed.flags.get('r') || parsed.flags.get('run');
+const runLevel = parsed.flags.get("r") || parsed.flags.get("run");
 if (runLevel !== undefined) {
-  const validation = this.validateInSet(String(runLevel), ['1', '2', '3', '4'], 'diagnostic level');
+  const validation = this.validateInSet(
+    String(runLevel),
+    ["1", "2", "3", "4"],
+    "diagnostic level",
+  );
   if (!validation.valid) {
     return this.createError(validation.error!);
   }
@@ -333,6 +356,7 @@ git commit -m "fix: add input validation to dcgmi simulator
 ## Task 5: Fix Slurm Input Validation
 
 **Files:**
+
 - Modify: `src/simulators/slurmSimulator.ts`
 - Test: `src/simulators/__tests__/adversarialInputs.test.ts`
 
@@ -345,12 +369,22 @@ Expected: 4 failures
 
 ```typescript
 // In scontrol handler
-const validEntities = ['node', 'nodes', 'job', 'jobs', 'partition', 'partitions', 'reservation'];
+const validEntities = [
+  "node",
+  "nodes",
+  "job",
+  "jobs",
+  "partition",
+  "partitions",
+  "reservation",
+];
 const entity = parsed.positionalArgs[1]; // "show <entity>"
 
-if (parsed.positionalArgs[0] === 'show' && entity) {
+if (parsed.positionalArgs[0] === "show" && entity) {
   if (!validEntities.includes(entity)) {
-    return this.createError(`Invalid entity: '${entity}'\nValid entities: ${validEntities.join(', ')}`);
+    return this.createError(
+      `Invalid entity: '${entity}'\nValid entities: ${validEntities.join(", ")}`,
+    );
   }
 }
 ```
@@ -359,12 +393,14 @@ if (parsed.positionalArgs[0] === 'show' && entity) {
 
 ```typescript
 // In scontrol update handler
-const validStates = ['idle', 'drain', 'resume', 'down', 'undrain'];
+const validStates = ["idle", "drain", "resume", "down", "undrain"];
 const stateMatch = command.match(/state=(\w+)/i);
 if (stateMatch) {
   const state = stateMatch[1].toLowerCase();
   if (!validStates.includes(state)) {
-    return this.createError(`Invalid state: '${state}'\nValid states: ${validStates.join(', ')}`);
+    return this.createError(
+      `Invalid state: '${state}'\nValid states: ${validStates.join(", ")}`,
+    );
   }
 }
 ```
@@ -373,8 +409,10 @@ if (stateMatch) {
 
 ```typescript
 // In sbatch handler
-if (parsed.positionalArgs.length === 0 && !parsed.flags.has('wrap')) {
-  return this.createError('sbatch: error: No script provided\nUsage: sbatch [options] script.sh');
+if (parsed.positionalArgs.length === 0 && !parsed.flags.has("wrap")) {
+  return this.createError(
+    "sbatch: error: No script provided\nUsage: sbatch [options] script.sh",
+  );
 }
 ```
 
@@ -384,9 +422,9 @@ if (parsed.positionalArgs.length === 0 && !parsed.flags.has('wrap')) {
 // In scancel handler
 const jobId = parsed.positionalArgs[0];
 if (!jobId) {
-  return this.createError('scancel: error: No job ID specified');
+  return this.createError("scancel: error: No job ID specified");
 }
-const validation = this.validatePositiveInt(jobId, 'Job ID');
+const validation = this.validatePositiveInt(jobId, "Job ID");
 if (!validation.valid) {
   return this.createError(`scancel: error: Invalid job ID '${jobId}'`);
 }
@@ -414,6 +452,7 @@ git commit -m "fix: add input validation to slurm simulator
 ## Task 6: Fix InfiniBand Input Validation
 
 **Files:**
+
 - Modify: `src/simulators/infinibandSimulator.ts`
 - Test: `src/simulators/__tests__/adversarialInputs.test.ts`
 
@@ -428,9 +467,20 @@ Expected: 4 failures
 // In ibstat handler
 const device = parsed.positionalArgs[0];
 if (device) {
-  const validDevices = ['mlx5_0', 'mlx5_1', 'mlx5_2', 'mlx5_3', 'mlx5_4', 'mlx5_5', 'mlx5_6', 'mlx5_7'];
-  if (!validDevices.some(d => device.startsWith('mlx5_'))) {
-    return this.createError(`ibstat: '${device}' not found\nAvailable devices: ${validDevices.join(', ')}`);
+  const validDevices = [
+    "mlx5_0",
+    "mlx5_1",
+    "mlx5_2",
+    "mlx5_3",
+    "mlx5_4",
+    "mlx5_5",
+    "mlx5_6",
+    "mlx5_7",
+  ];
+  if (!validDevices.some((d) => device.startsWith("mlx5_"))) {
+    return this.createError(
+      `ibstat: '${device}' not found\nAvailable devices: ${validDevices.join(", ")}`,
+    );
   }
 }
 ```
@@ -439,11 +489,13 @@ if (device) {
 
 ```typescript
 // In perfquery handler
-const lid = parsed.flags.get('x');
+const lid = parsed.flags.get("x");
 if (lid !== undefined) {
-  const validation = this.validatePositiveInt(String(lid), 'LID');
+  const validation = this.validatePositiveInt(String(lid), "LID");
   if (!validation.valid || validation.value! > 65535) {
-    return this.createError(`perfquery: Invalid LID '${lid}'. Valid range: 1-65535`);
+    return this.createError(
+      `perfquery: Invalid LID '${lid}'. Valid range: 1-65535`,
+    );
   }
 }
 ```
@@ -454,7 +506,7 @@ if (lid !== undefined) {
 // In ibportstate handler
 const port = parsed.positionalArgs[1];
 if (port !== undefined) {
-  const validation = this.validatePositiveInt(port, 'Port number');
+  const validation = this.validatePositiveInt(port, "Port number");
   if (!validation.valid || validation.value! < 1 || validation.value! > 8) {
     return this.createError(`Invalid port number: ${port}. Valid range: 1-8`);
   }
@@ -482,6 +534,7 @@ git commit -m "fix: add input validation to infiniband simulator
 ## Task 7: Fix Benchmark Input Validation
 
 **Files:**
+
 - Modify: `src/simulators/benchmarkSimulator.ts`
 - Test: `src/simulators/__tests__/adversarialInputs.test.ts`
 
@@ -494,17 +547,19 @@ Expected: 6 failures
 
 ```typescript
 // In handleNCCL or handleRegularTest
-const ngpusStr = parsed.flags.get('ngpus') || parsed.flags.get('g');
+const ngpusStr = parsed.flags.get("ngpus") || parsed.flags.get("g");
 if (ngpusStr !== undefined) {
-  const validation = this.validatePositiveInt(String(ngpusStr), 'GPU count');
+  const validation = this.validatePositiveInt(String(ngpusStr), "GPU count");
   if (!validation.valid) {
     return this.createError(validation.error!);
   }
   if (validation.value === 0) {
-    return this.createError('GPU count must be at least 1');
+    return this.createError("GPU count must be at least 1");
   }
   if (validation.value! > node.gpus.length) {
-    return this.createError(`GPU count ${validation.value} exceeds available GPUs (${node.gpus.length})`);
+    return this.createError(
+      `GPU count ${validation.value} exceeds available GPUs (${node.gpus.length})`,
+    );
   }
 }
 ```
@@ -513,10 +568,20 @@ if (ngpusStr !== undefined) {
 
 ```typescript
 // In handleNCCL
-const validOperations = ['all_reduce', 'all_gather', 'reduce_scatter', 'broadcast', 'reduce', 'alltoall'];
-const operation = parsed.flags.get('operation') || parsed.flags.get('t') || 'all_reduce';
+const validOperations = [
+  "all_reduce",
+  "all_gather",
+  "reduce_scatter",
+  "broadcast",
+  "reduce",
+  "alltoall",
+];
+const operation =
+  parsed.flags.get("operation") || parsed.flags.get("t") || "all_reduce";
 if (!validOperations.includes(String(operation))) {
-  return this.createError(`Invalid operation: '${operation}'\nValid operations: ${validOperations.join(', ')}`);
+  return this.createError(
+    `Invalid operation: '${operation}'\nValid operations: ${validOperations.join(", ")}`,
+  );
 }
 ```
 
@@ -527,7 +592,9 @@ if (!validOperations.includes(String(operation))) {
 const minBytes = this.parseSize(minBytesStr);
 const maxBytes = this.parseSize(maxBytesStr);
 if (minBytes > maxBytes) {
-  return this.createError(`minbytes (${minBytesStr}) cannot be greater than maxbytes (${maxBytesStr})`);
+  return this.createError(
+    `minbytes (${minBytesStr}) cannot be greater than maxbytes (${maxBytesStr})`,
+  );
 }
 ```
 
@@ -537,7 +604,9 @@ if (minBytes > maxBytes) {
 // In handleGPUBurn
 const duration = parseInt(durationStr, 10);
 if (isNaN(duration) || duration <= 0) {
-  return this.createError(`Invalid duration: '${durationStr}'. Must be a positive number of seconds.`);
+  return this.createError(
+    `Invalid duration: '${durationStr}'. Must be a positive number of seconds.`,
+  );
 }
 ```
 
@@ -563,6 +632,7 @@ git commit -m "fix: add input validation to benchmark simulator
 ## Task 8: Fix Basic System and Fabric Manager Validation
 
 **Files:**
+
 - Modify: `src/simulators/basicSystemSimulator.ts`
 - Modify: `src/simulators/fabricManagerSimulator.ts`
 - Test: `src/simulators/__tests__/adversarialInputs.test.ts`
@@ -595,7 +665,7 @@ execute(command: string, context: CommandContext): CommandResult {
 // In cat handler
 const filePath = parsed.positionalArgs[0];
 if (!filePath) {
-  return this.createError('cat: missing file operand');
+  return this.createError("cat: missing file operand");
 }
 // Check if file exists in simulated filesystem
 if (!this.fileExists(filePath)) {
@@ -612,7 +682,7 @@ if (!subcommand) {
   return this.createSuccess(this.getUsageHelp());
 }
 
-const validSubcommands = ['query', 'status', '--start', '--stop'];
+const validSubcommands = ["query", "status", "--start", "--stop"];
 if (!validSubcommands.includes(subcommand)) {
   return this.createError(`Unknown subcommand: '${subcommand}'`);
 }
@@ -639,6 +709,7 @@ git commit -m "fix: add input validation to basic system and fabric manager
 ## Task 9: Final Verification and Cleanup
 
 **Files:**
+
 - Test: `src/simulators/__tests__/adversarialInputs.test.ts`
 
 **Step 1: Run all adversarial tests**
@@ -669,19 +740,19 @@ Completes input validation improvements across all simulators.
 
 ## Summary
 
-| Task | Component | Tests Fixed |
-|------|-----------|-------------|
-| 1 | BaseSimulator null-safety | 4 |
-| 2 | Validation utilities | 0 (infrastructure) |
-| 3 | nvidia-smi | 10 |
-| 4 | dcgmi | 6 |
-| 5 | slurm | 4 |
-| 6 | infiniband | 4 |
-| 7 | benchmark | 6 |
-| 8 | basic system + fabric manager | 7 |
-| 9 | Final verification | 4 (boundary) |
-| **Total** | | **45** |
+| Task      | Component                     | Tests Fixed        |
+| --------- | ----------------------------- | ------------------ |
+| 1         | BaseSimulator null-safety     | 4                  |
+| 2         | Validation utilities          | 0 (infrastructure) |
+| 3         | nvidia-smi                    | 10                 |
+| 4         | dcgmi                         | 6                  |
+| 5         | slurm                         | 4                  |
+| 6         | infiniband                    | 4                  |
+| 7         | benchmark                     | 6                  |
+| 8         | basic system + fabric manager | 7                  |
+| 9         | Final verification            | 4 (boundary)       |
+| **Total** |                               | **45**             |
 
 ---
 
-*Plan created: 2026-02-02*
+_Plan created: 2026-02-02_

@@ -13,12 +13,15 @@
 ## Overview
 
 ### Feature 1: Rich Host Detail Panel
+
 Enhance the host click panel to show detailed HCA information, per-port statistics, error counters, and relevant commands.
 
 ### Feature 2: Fabric Health Summary Panel
+
 Add a new panel above the topology showing overall fabric health score, active/down link counts, and error summaries.
 
 ### Feature 3: Link Error Highlighting
+
 Color-code links based on simulated error rates and highlight degraded connections visually.
 
 ---
@@ -28,6 +31,7 @@ Color-code links based on simulated error rates and highlight degraded connectio
 The current simulation doesn't generate varied error data for ports. We need to add simulated error counters that the visualizations can use.
 
 **Files:**
+
 - Modify: `src/utils/simulationEngine.ts` (or wherever port state is updated)
 - Reference: `src/types/hardware.ts:109-116` for InfiniBandPort.errors structure
 
@@ -41,15 +45,22 @@ In the simulation tick function, add logic to occasionally increment port error 
 
 ```typescript
 // Inside the node update loop where ports are processed
-hca.ports.forEach(port => {
-  if (port.state === 'Active') {
+hca.ports.forEach((port) => {
+  if (port.state === "Active") {
     // Simulate occasional errors (rare events)
-    if (Math.random() < 0.02) { // 2% chance per tick
+    if (Math.random() < 0.02) {
+      // 2% chance per tick
       const errorType = Math.floor(Math.random() * 4);
-      switch(errorType) {
-        case 0: port.errors.symbolErrors += Math.floor(Math.random() * 3); break;
-        case 1: port.errors.portRcvErrors += 1; break;
-        case 2: port.errors.portXmitWait += Math.floor(Math.random() * 10); break;
+      switch (errorType) {
+        case 0:
+          port.errors.symbolErrors += Math.floor(Math.random() * 3);
+          break;
+        case 1:
+          port.errors.portRcvErrors += 1;
+          break;
+        case 2:
+          port.errors.portXmitWait += Math.floor(Math.random() * 10);
+          break;
         // linkDowned only if major fault
       }
     }
@@ -81,6 +92,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 Create a new summary panel that calculates and displays fabric-wide health metrics.
 
 **Files:**
+
 - Create: `src/components/FabricHealthSummary.tsx`
 - Reference: `src/types/hardware.ts:101-125` for HCA/Port types
 
@@ -315,6 +327,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 Add the new summary component to the InfiniBand Fabric tab view.
 
 **Files:**
+
 - Modify: `src/components/Dashboard.tsx:503-521`
 
 **Step 1: Add import**
@@ -322,7 +335,7 @@ Add the new summary component to the InfiniBand Fabric tab view.
 At the imports section (around line 7), add:
 
 ```typescript
-import { FabricHealthSummary } from './FabricHealthSummary';
+import { FabricHealthSummary } from "./FabricHealthSummary";
 ```
 
 **Step 2: Add component to network view**
@@ -381,6 +394,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 Expand the host node detail panel in NetworkNodeDetail to show detailed HCA and port information.
 
 **Files:**
+
 - Modify: `src/components/NetworkNodeDetail.tsx:203-213`
 
 **Step 1: Read the current host section**
@@ -517,6 +531,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 Color-code links in the topology based on aggregated port error counts.
 
 **Files:**
+
 - Modify: `src/components/InfiniBandMap.tsx:262-286`
 
 **Step 1: Create helper function for link color calculation**
@@ -527,21 +542,29 @@ Add this function near the top of the file (around line 45, after bandwidthLabel
 // Helper to determine link color based on host port errors
 const getLinkColor = (
   host: DGXNode | undefined,
-  baseStatus: 'active' | 'down'
+  baseStatus: "active" | "down",
 ): string => {
-  if (baseStatus === 'down' || !host) return '#EF4444'; // Red for down
+  if (baseStatus === "down" || !host) return "#EF4444"; // Red for down
 
   // Sum errors across all HCA ports
-  const totalErrors = host.hcas.reduce((sum, hca) =>
-    sum + hca.ports.reduce((portSum, port) =>
-      portSum + port.errors.symbolErrors + port.errors.portRcvErrors + port.errors.linkDowned, 0
-    ), 0
+  const totalErrors = host.hcas.reduce(
+    (sum, hca) =>
+      sum +
+      hca.ports.reduce(
+        (portSum, port) =>
+          portSum +
+          port.errors.symbolErrors +
+          port.errors.portRcvErrors +
+          port.errors.linkDowned,
+        0,
+      ),
+    0,
   );
 
-  if (totalErrors === 0) return '#10B981'; // Green - healthy
-  if (totalErrors < 10) return '#EAB308';  // Yellow - minor errors
-  if (totalErrors < 50) return '#F97316';  // Orange - moderate errors
-  return '#EF4444';                         // Red - high errors
+  if (totalErrors === 0) return "#10B981"; // Green - healthy
+  if (totalErrors < 10) return "#EAB308"; // Yellow - minor errors
+  if (totalErrors < 50) return "#F97316"; // Orange - moderate errors
+  return "#EF4444"; // Red - high errors
 };
 ```
 
@@ -550,7 +573,7 @@ const getLinkColor = (
 Update the import at line 11:
 
 ```typescript
-import type { ClusterConfig, DGXNode } from '@/types/hardware';
+import type { ClusterConfig, DGXNode } from "@/types/hardware";
 ```
 
 **Step 3: Modify link drawing to use error-based colors**
@@ -559,56 +582,67 @@ Replace lines 262-286 with:
 
 ```typescript
 // Draw links with error-based coloring
-const linkGroup = svg.append('g').attr('class', 'links');
+const linkGroup = svg.append("g").attr("class", "links");
 
 linkGroup
-  .selectAll('line')
+  .selectAll("line")
   .data(links)
   .enter()
-  .append('line')
-  .attr('x1', (d) => d.source.x)
-  .attr('y1', (d) => d.source.y)
-  .attr('x2', (d) => d.target.x)
-  .attr('y2', (d) => d.target.y)
-  .attr('stroke', (d) => {
+  .append("line")
+  .attr("x1", (d) => d.source.x)
+  .attr("y1", (d) => d.source.y)
+  .attr("x2", (d) => d.target.x)
+  .attr("y2", (d) => d.target.y)
+  .attr("stroke", (d) => {
     // For host links, check host's port errors
-    if (d.target.type === 'host') {
-      const hostNode = cluster.nodes.find(n => n.id === d.target.id);
+    if (d.target.type === "host") {
+      const hostNode = cluster.nodes.find((n) => n.id === d.target.id);
       return getLinkColor(hostNode, d.status);
     }
     // Spine-leaf links use simple status
-    return d.status === 'active' ? '#10B981' : '#EF4444';
+    return d.status === "active" ? "#10B981" : "#EF4444";
   })
-  .attr('stroke-width', (d) => {
-    const isBackbone = d.source.type === 'spine' || d.target.type === 'spine';
+  .attr("stroke-width", (d) => {
+    const isBackbone = d.source.type === "spine" || d.target.type === "spine";
     return isBackbone
       ? bandwidthToWidth(fabricConfig.spineToLeafBandwidth)
       : bandwidthToWidth(fabricConfig.leafToHostBandwidth);
   })
-  .attr('stroke-dasharray', (d) => (d.status === 'active' ? '0' : '5,5'))
-  .attr('opacity', (d) => {
+  .attr("stroke-dasharray", (d) => (d.status === "active" ? "0" : "5,5"))
+  .attr("opacity", (d) => {
     // Highlight degraded links slightly
-    if (d.target.type === 'host') {
-      const hostNode = cluster.nodes.find(n => n.id === d.target.id);
-      const totalErrors = hostNode?.hcas.reduce((sum, hca) =>
-        sum + hca.ports.reduce((portSum, port) =>
-          portSum + port.errors.symbolErrors + port.errors.portRcvErrors, 0
-        ), 0
-      ) || 0;
+    if (d.target.type === "host") {
+      const hostNode = cluster.nodes.find((n) => n.id === d.target.id);
+      const totalErrors =
+        hostNode?.hcas.reduce(
+          (sum, hca) =>
+            sum +
+            hca.ports.reduce(
+              (portSum, port) =>
+                portSum + port.errors.symbolErrors + port.errors.portRcvErrors,
+              0,
+            ),
+          0,
+        ) || 0;
       return totalErrors > 0 ? 0.8 : 0.5;
     }
     return 0.5;
   })
-  .append('title')
+  .append("title")
   .text((d) => {
     let tooltip = `${d.source.label} → ${d.target.label}\nStatus: ${d.status}\nSpeed: ${d.speed}`;
-    if (d.target.type === 'host') {
-      const hostNode = cluster.nodes.find(n => n.id === d.target.id);
+    if (d.target.type === "host") {
+      const hostNode = cluster.nodes.find((n) => n.id === d.target.id);
       if (hostNode) {
-        const totalErrors = hostNode.hcas.reduce((sum, hca) =>
-          sum + hca.ports.reduce((portSum, port) =>
-            portSum + port.errors.symbolErrors + port.errors.portRcvErrors, 0
-          ), 0
+        const totalErrors = hostNode.hcas.reduce(
+          (sum, hca) =>
+            sum +
+            hca.ports.reduce(
+              (portSum, port) =>
+                portSum + port.errors.symbolErrors + port.errors.portRcvErrors,
+              0,
+            ),
+          0,
         );
         tooltip += `\nPort Errors: ${totalErrors}`;
       }
@@ -681,6 +715,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>"
 Perform comprehensive testing of all three features working together.
 
 **Files:**
+
 - None (testing only)
 
 **Step 1: Build verification**
@@ -694,6 +729,7 @@ Run: `npm run dev`
 Open browser to the app
 
 Test checklist:
+
 - [ ] Navigate to Simulator → InfiniBand Fabric tab
 - [ ] Verify FabricHealthSummary panel shows above topology
 - [ ] Health score, link counts, error counts all display
@@ -708,6 +744,7 @@ Test checklist:
 **Step 3: Test error scenarios**
 
 If fault injection is wired:
+
 - Inject a link-down fault
 - Verify the link turns red and dashed
 - Verify fabric health score decreases

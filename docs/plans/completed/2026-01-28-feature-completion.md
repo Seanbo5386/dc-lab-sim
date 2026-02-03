@@ -13,12 +13,13 @@
 ## Task 1: Create Learning Path Engine Tests
 
 **Files:**
+
 - Create: `src/utils/__tests__/learningPathEngine.test.ts`
 
 **Step 1: Write basic structure and import tests**
 
 ```typescript
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 import {
   LEARNING_PATHS,
   ALL_PATHS,
@@ -37,11 +38,11 @@ import {
   XID_REFERENCE,
   DGX_A100_SPECS,
   getStudyPriorities,
-} from '../learningPathEngine';
+} from "../learningPathEngine";
 
-describe('learningPathEngine', () => {
-  describe('LEARNING_PATHS constant', () => {
-    it('should have paths for all 5 domains', () => {
+describe("learningPathEngine", () => {
+  describe("LEARNING_PATHS constant", () => {
+    it("should have paths for all 5 domains", () => {
       expect(Object.keys(LEARNING_PATHS)).toHaveLength(5);
       expect(LEARNING_PATHS.domain1).toBeDefined();
       expect(LEARNING_PATHS.domain2).toBeDefined();
@@ -50,182 +51,190 @@ describe('learningPathEngine', () => {
       expect(LEARNING_PATHS.domain5).toBeDefined();
     });
 
-    it('should have correct exam weights totaling 100%', () => {
-      const totalWeight = ALL_PATHS.reduce((sum, path) => sum + path.examWeight, 0);
+    it("should have correct exam weights totaling 100%", () => {
+      const totalWeight = ALL_PATHS.reduce(
+        (sum, path) => sum + path.examWeight,
+        0,
+      );
       expect(totalWeight).toBe(100);
     });
 
-    it('should have at least one module per path', () => {
-      ALL_PATHS.forEach(path => {
+    it("should have at least one module per path", () => {
+      ALL_PATHS.forEach((path) => {
         expect(path.modules.length).toBeGreaterThan(0);
       });
     });
 
-    it('should have at least one lesson per module', () => {
-      ALL_PATHS.forEach(path => {
-        path.modules.forEach(module => {
+    it("should have at least one lesson per module", () => {
+      ALL_PATHS.forEach((path) => {
+        path.modules.forEach((module) => {
           expect(module.lessons.length).toBeGreaterThan(0);
         });
       });
     });
   });
 
-  describe('getLearningPath', () => {
-    it('should return correct path for domain1', () => {
-      const path = getLearningPath('domain1');
-      expect(path.domainId).toBe('domain1');
+  describe("getLearningPath", () => {
+    it("should return correct path for domain1", () => {
+      const path = getLearningPath("domain1");
+      expect(path.domainId).toBe("domain1");
       expect(path.examWeight).toBe(31);
     });
 
-    it('should return correct path for domain4', () => {
-      const path = getLearningPath('domain4');
-      expect(path.domainId).toBe('domain4');
+    it("should return correct path for domain4", () => {
+      const path = getLearningPath("domain4");
+      expect(path.domainId).toBe("domain4");
       expect(path.examWeight).toBe(33);
     });
   });
 
-  describe('getPathsByWeight', () => {
-    it('should return paths sorted by exam weight descending', () => {
+  describe("getPathsByWeight", () => {
+    it("should return paths sorted by exam weight descending", () => {
       const paths = getPathsByWeight();
       for (let i = 0; i < paths.length - 1; i++) {
-        expect(paths[i].examWeight).toBeGreaterThanOrEqual(paths[i + 1].examWeight);
+        expect(paths[i].examWeight).toBeGreaterThanOrEqual(
+          paths[i + 1].examWeight,
+        );
       }
     });
   });
 
-  describe('getLessonById', () => {
-    it('should find existing lesson', () => {
-      const result = getLessonById('lesson-d1-dmidecode');
+  describe("getLessonById", () => {
+    it("should find existing lesson", () => {
+      const result = getLessonById("lesson-d1-dmidecode");
       expect(result).not.toBeNull();
-      expect(result?.lesson.title).toContain('dmidecode');
+      expect(result?.lesson.title).toContain("dmidecode");
     });
 
-    it('should return null for non-existent lesson', () => {
-      const result = getLessonById('non-existent-lesson');
+    it("should return null for non-existent lesson", () => {
+      const result = getLessonById("non-existent-lesson");
       expect(result).toBeNull();
     });
   });
 
-  describe('getModuleById', () => {
-    it('should find existing module', () => {
-      const result = getModuleById('mod-d1-bios-bmc');
+  describe("getModuleById", () => {
+    it("should find existing module", () => {
+      const result = getModuleById("mod-d1-bios-bmc");
       expect(result).not.toBeNull();
-      expect(result?.module.title).toContain('BIOS');
+      expect(result?.module.title).toContain("BIOS");
     });
 
-    it('should return null for non-existent module', () => {
-      const result = getModuleById('non-existent-module');
+    it("should return null for non-existent module", () => {
+      const result = getModuleById("non-existent-module");
       expect(result).toBeNull();
     });
   });
 
-  describe('areLessonPrerequisitesMet', () => {
-    it('should return true when no prerequisites', () => {
-      const result = areLessonPrerequisitesMet('lesson-d1-dmidecode', new Set());
+  describe("areLessonPrerequisitesMet", () => {
+    it("should return true when no prerequisites", () => {
+      const result = areLessonPrerequisitesMet(
+        "lesson-d1-dmidecode",
+        new Set(),
+      );
       expect(result).toBe(true);
     });
 
-    it('should return false when prerequisites not met', () => {
-      const result = areLessonPrerequisitesMet('lesson-d1-ipmitool', new Set());
+    it("should return false when prerequisites not met", () => {
+      const result = areLessonPrerequisitesMet("lesson-d1-ipmitool", new Set());
       expect(result).toBe(false);
     });
 
-    it('should return true when prerequisites are met', () => {
-      const completed = new Set(['lesson-d1-dmidecode']);
-      const result = areLessonPrerequisitesMet('lesson-d1-ipmitool', completed);
+    it("should return true when prerequisites are met", () => {
+      const completed = new Set(["lesson-d1-dmidecode"]);
+      const result = areLessonPrerequisitesMet("lesson-d1-ipmitool", completed);
       expect(result).toBe(true);
     });
   });
 
-  describe('areModulePrerequisitesMet', () => {
-    it('should return true when no prerequisites', () => {
-      const result = areModulePrerequisitesMet('mod-d1-bios-bmc', new Set());
+  describe("areModulePrerequisitesMet", () => {
+    it("should return true when no prerequisites", () => {
+      const result = areModulePrerequisitesMet("mod-d1-bios-bmc", new Set());
       expect(result).toBe(true);
     });
 
-    it('should return false when prerequisites not met', () => {
-      const result = areModulePrerequisitesMet('mod-d1-drivers', new Set());
+    it("should return false when prerequisites not met", () => {
+      const result = areModulePrerequisitesMet("mod-d1-drivers", new Set());
       expect(result).toBe(false);
     });
 
-    it('should return true when prerequisites are met', () => {
-      const completed = new Set(['mod-d1-bios-bmc']);
-      const result = areModulePrerequisitesMet('mod-d1-drivers', completed);
+    it("should return true when prerequisites are met", () => {
+      const completed = new Set(["mod-d1-bios-bmc"]);
+      const result = areModulePrerequisitesMet("mod-d1-drivers", completed);
       expect(result).toBe(true);
     });
   });
 
-  describe('getNextLesson', () => {
-    it('should return first lesson when nothing completed', () => {
+  describe("getNextLesson", () => {
+    it("should return first lesson when nothing completed", () => {
       const result = getNextLesson(new Set(), new Set());
       expect(result).not.toBeNull();
       expect(result?.lesson).toBeDefined();
     });
 
-    it('should return next incomplete lesson', () => {
-      const completedLessons = new Set(['lesson-d1-dmidecode']);
+    it("should return next incomplete lesson", () => {
+      const completedLessons = new Set(["lesson-d1-dmidecode"]);
       const result = getNextLesson(completedLessons, new Set());
       expect(result).not.toBeNull();
-      expect(result?.lesson.id).not.toBe('lesson-d1-dmidecode');
+      expect(result?.lesson.id).not.toBe("lesson-d1-dmidecode");
     });
   });
 
-  describe('calculatePathProgress', () => {
-    it('should return 0% when no lessons completed', () => {
-      const progress = calculatePathProgress('path-domain1', new Set());
+  describe("calculatePathProgress", () => {
+    it("should return 0% when no lessons completed", () => {
+      const progress = calculatePathProgress("path-domain1", new Set());
       expect(progress.completedLessons).toBe(0);
       expect(progress.overallPercentage).toBe(0);
     });
 
-    it('should calculate correct percentage when lessons completed', () => {
-      const completedLessons = new Set(['lesson-d1-dmidecode']);
-      const progress = calculatePathProgress('path-domain1', completedLessons);
+    it("should calculate correct percentage when lessons completed", () => {
+      const completedLessons = new Set(["lesson-d1-dmidecode"]);
+      const progress = calculatePathProgress("path-domain1", completedLessons);
       expect(progress.completedLessons).toBe(1);
       expect(progress.overallPercentage).toBeGreaterThan(0);
     });
   });
 
-  describe('validateCommand', () => {
-    it('should validate exact command match', () => {
+  describe("validateCommand", () => {
+    it("should validate exact command match", () => {
       const step = {
-        id: 'test',
-        type: 'command' as const,
-        title: 'Test',
-        content: 'Test',
-        expectedCommand: 'nvidia-smi',
+        id: "test",
+        type: "command" as const,
+        title: "Test",
+        content: "Test",
+        expectedCommand: "nvidia-smi",
       };
-      const result = validateCommand('nvidia-smi', step);
+      const result = validateCommand("nvidia-smi", step);
       expect(result.valid).toBe(true);
     });
 
-    it('should validate command with pattern', () => {
+    it("should validate command with pattern", () => {
       const step = {
-        id: 'test',
-        type: 'command' as const,
-        title: 'Test',
-        content: 'Test',
-        expectedCommand: 'dmidecode -t bios',
+        id: "test",
+        type: "command" as const,
+        title: "Test",
+        content: "Test",
+        expectedCommand: "dmidecode -t bios",
         validationPattern: /dmidecode\s+(-t\s+bios|-t\s+0)/,
       };
-      const result = validateCommand('dmidecode -t 0', step);
+      const result = validateCommand("dmidecode -t 0", step);
       expect(result.valid).toBe(true);
     });
 
-    it('should reject incorrect command', () => {
+    it("should reject incorrect command", () => {
       const step = {
-        id: 'test',
-        type: 'command' as const,
-        title: 'Test',
-        content: 'Test',
-        expectedCommand: 'nvidia-smi',
+        id: "test",
+        type: "command" as const,
+        title: "Test",
+        content: "Test",
+        expectedCommand: "nvidia-smi",
       };
-      const result = validateCommand('wrong-command', step);
+      const result = validateCommand("wrong-command", step);
       expect(result.valid).toBe(false);
     });
   });
 
-  describe('getTotalPathStats', () => {
-    it('should return correct totals', () => {
+  describe("getTotalPathStats", () => {
+    it("should return correct totals", () => {
       const stats = getTotalPathStats();
       expect(stats.totalPaths).toBe(5);
       expect(stats.totalModules).toBeGreaterThan(0);
@@ -234,34 +243,34 @@ describe('learningPathEngine', () => {
     });
   });
 
-  describe('Reference data', () => {
-    it('EXAM_COMMAND_REFERENCE should have commands for each domain', () => {
+  describe("Reference data", () => {
+    it("EXAM_COMMAND_REFERENCE should have commands for each domain", () => {
       expect(EXAM_COMMAND_REFERENCE.domain1).toBeDefined();
       expect(EXAM_COMMAND_REFERENCE.domain1.length).toBeGreaterThan(0);
     });
 
-    it('XID_REFERENCE should have XID codes', () => {
+    it("XID_REFERENCE should have XID codes", () => {
       expect(XID_REFERENCE.length).toBeGreaterThan(0);
-      expect(XID_REFERENCE[0]).toHaveProperty('xid');
-      expect(XID_REFERENCE[0]).toHaveProperty('desc');
+      expect(XID_REFERENCE[0]).toHaveProperty("xid");
+      expect(XID_REFERENCE[0]).toHaveProperty("desc");
     });
 
-    it('DGX_A100_SPECS should have GPU specs', () => {
+    it("DGX_A100_SPECS should have GPU specs", () => {
       expect(DGX_A100_SPECS.gpus.count).toBe(8);
       expect(DGX_A100_SPECS.nvlink.nvSwitchCount).toBe(6);
     });
   });
 
-  describe('getStudyPriorities', () => {
-    it('should return priorities for all 5 domains', () => {
+  describe("getStudyPriorities", () => {
+    it("should return priorities for all 5 domains", () => {
       const priorities = getStudyPriorities();
       expect(priorities).toHaveLength(5);
     });
 
-    it('should have High priority for Domain 4 (33%)', () => {
+    it("should have High priority for Domain 4 (33%)", () => {
       const priorities = getStudyPriorities();
-      const domain4 = priorities.find(p => p.domain.includes('Domain 4'));
-      expect(domain4?.priority).toBe('High');
+      const domain4 = priorities.find((p) => p.domain.includes("Domain 4"));
+      expect(domain4?.priority).toBe("High");
     });
   });
 });
@@ -287,6 +296,7 @@ git commit -m "test: add comprehensive tests for learningPathEngine"
 ## Task 2: Create Learning Paths Component Tests
 
 **Files:**
+
 - Create: `src/components/__tests__/LearningPaths.test.tsx`
 
 **Step 1: Write component tests**
@@ -443,6 +453,7 @@ git commit -m "test: add tests for LearningPaths component"
 ## Task 3: Wire Up Command Execution in LearningPaths
 
 **Files:**
+
 - Modify: `src/App.tsx:562-570`
 
 **Step 1: Read Terminal implementation to understand executeCommand**
@@ -461,7 +472,9 @@ In `src/App.tsx`, add state and ref near the top of the App function (around lin
 
 ```typescript
 // Command executor ref for Learning Paths integration
-const terminalExecuteRef = useRef<((cmd: string) => Promise<string>) | null>(null);
+const terminalExecuteRef = useRef<((cmd: string) => Promise<string>) | null>(
+  null,
+);
 ```
 
 **Step 4: Pass the onExecuteCommand prop to LearningPaths**
@@ -506,6 +519,7 @@ git commit -m "feat: wire up command execution placeholder for LearningPaths"
 ## Task 4: Add Practice/Observe Step Types Support
 
 **Files:**
+
 - Modify: `src/components/LearningPaths.tsx:386-392`
 
 **Step 1: Read current renderTutorialStep to understand structure**
@@ -644,6 +658,7 @@ git commit -m "feat: add observe and practice step types to LearningPaths"
 ## Task 5: Add Reset Progress Feature
 
 **Files:**
+
 - Modify: `src/components/LearningPaths.tsx`
 
 **Step 1: Add reset function**
@@ -653,13 +668,17 @@ Add after the completeLesson function (around line 114):
 ```typescript
 // Reset all progress
 const resetProgress = useCallback(() => {
-  if (window.confirm('Are you sure you want to reset all learning progress? This cannot be undone.')) {
+  if (
+    window.confirm(
+      "Are you sure you want to reset all learning progress? This cannot be undone.",
+    )
+  ) {
     setCompletedLessons(new Set());
     setCompletedModules(new Set());
     setLessonProgress(new Map());
-    localStorage.removeItem('ncp-aii-completed-lessons');
-    localStorage.removeItem('ncp-aii-completed-modules');
-    localStorage.removeItem('ncp-aii-lesson-progress');
+    localStorage.removeItem("ncp-aii-completed-lessons");
+    localStorage.removeItem("ncp-aii-completed-modules");
+    localStorage.removeItem("ncp-aii-lesson-progress");
   }
 }, []);
 ```
@@ -731,6 +750,7 @@ git commit -m "feat: add reset progress feature to LearningPaths"
 ## Task 6: Add Domain Progress Summary to Welcome Screen
 
 **Files:**
+
 - Modify: `src/App.tsx:437-470`
 
 **Step 1: Import learning path utilities**
@@ -738,7 +758,7 @@ git commit -m "feat: add reset progress feature to LearningPaths"
 Add to imports at top of App.tsx:
 
 ```typescript
-import { getTotalPathStats, LEARNING_PATHS } from './utils/learningPathEngine';
+import { getTotalPathStats, LEARNING_PATHS } from "./utils/learningPathEngine";
 ```
 
 **Step 2: Add progress state**
@@ -746,11 +766,14 @@ import { getTotalPathStats, LEARNING_PATHS } from './utils/learningPathEngine';
 Add near other state declarations (around line 37):
 
 ```typescript
-const [learningProgress, setLearningProgress] = useState({ completed: 0, total: 0 });
+const [learningProgress, setLearningProgress] = useState({
+  completed: 0,
+  total: 0,
+});
 
 // Load learning progress on mount
 useEffect(() => {
-  const savedLessons = localStorage.getItem('ncp-aii-completed-lessons');
+  const savedLessons = localStorage.getItem("ncp-aii-completed-lessons");
   const completed = savedLessons ? JSON.parse(savedLessons).length : 0;
   const stats = getTotalPathStats();
   setLearningProgress({ completed, total: stats.totalLessons });
@@ -829,6 +852,7 @@ git commit -m "feat: add learning progress indicator to Labs view"
 ## Task 7: Commit Staged Changes from SimulatorView
 
 **Files:**
+
 - Already modified: `src/components/SimulatorView.tsx`
 
 **Step 1: Review the changes**
@@ -838,6 +862,7 @@ git diff src/components/SimulatorView.tsx
 ```
 
 The changes add:
+
 - Touch support for mobile dragging
 - Better resize handling with ResizeObserver
 - Container height tracking
@@ -860,6 +885,7 @@ git commit -m "feat: add touch support and improve resize handling in SimulatorV
 ## Task 8: Commit Remaining Staged Changes
 
 **Files:**
+
 - `src/components/Terminal.tsx` - Auto-SSH improvements
 - `src/simulators/dcgmiSimulator.ts` - DCGM improvements
 - `src/simulators/fabricManagerSimulator.ts` - Fabric Manager improvements
@@ -921,6 +947,7 @@ npm run dev
 ```
 
 Manual verification checklist:
+
 - [ ] Learning Paths modal opens from Labs tab
 - [ ] Can navigate: Paths → Modules → Lessons → Tutorial
 - [ ] Back button works at each level
@@ -945,17 +972,17 @@ git commit -m "chore: final polish for feature completion"
 
 ## Summary
 
-| Task | Description | Files |
-|------|-------------|-------|
-| 1 | Learning Path Engine Tests | New test file |
-| 2 | Learning Paths Component Tests | New test file |
-| 3 | Wire Up Command Execution | App.tsx |
-| 4 | Add Practice/Observe Steps | LearningPaths.tsx |
-| 5 | Add Reset Progress Feature | LearningPaths.tsx |
-| 6 | Progress Indicator in Labs | App.tsx |
-| 7 | Commit SimulatorView Changes | SimulatorView.tsx |
-| 8 | Commit Remaining Changes | Terminal, simulators |
-| 9 | Final Verification | All |
+| Task | Description                    | Files                |
+| ---- | ------------------------------ | -------------------- |
+| 1    | Learning Path Engine Tests     | New test file        |
+| 2    | Learning Paths Component Tests | New test file        |
+| 3    | Wire Up Command Execution      | App.tsx              |
+| 4    | Add Practice/Observe Steps     | LearningPaths.tsx    |
+| 5    | Add Reset Progress Feature     | LearningPaths.tsx    |
+| 6    | Progress Indicator in Labs     | App.tsx              |
+| 7    | Commit SimulatorView Changes   | SimulatorView.tsx    |
+| 8    | Commit Remaining Changes       | Terminal, simulators |
+| 9    | Final Verification             | All                  |
 
 **New Files Created:** 2 test files
 **Files Modified:** 5 (App.tsx, LearningPaths.tsx, SimulatorView.tsx, Terminal.tsx, simulators)

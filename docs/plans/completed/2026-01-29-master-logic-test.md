@@ -1,14 +1,17 @@
 # Master Logic Test Suite Plan
 
 ## Overview
+
 Create a comprehensive test suite that validates logical consistency across the entire simulation. When faults are injected or state changes occur, all related metrics, commands, and visualizations must reflect those changes accurately.
 
 ## Output Format
+
 - Vitest test suite running with `npm test`
 - Detailed console output showing what was tested and any inconsistencies
 - Tests fail if logic gaps are found
 
 ## Files to Create
+
 - `src/__tests__/logicConsistency.test.ts` - Main test file with all categories
 
 ## Test Categories
@@ -20,6 +23,7 @@ Create a comprehensive test suite that validates logical consistency across the 
 For each fault type, verify the complete cascade of effects.
 
 #### 1.1 XID Error Injection
+
 ```
 Inject XID 79 (GPU fallen off bus) on GPU 0
 ├─ Verify: gpu.healthStatus === 'Critical'
@@ -33,6 +37,7 @@ Inject XID 79 (GPU fallen off bus) on GPU 0
 ```
 
 #### 1.2 ECC Double-Bit Error
+
 ```
 Inject ECC DBE on GPU 0
 ├─ Verify: gpu.healthStatus === 'Critical'
@@ -44,6 +49,7 @@ Inject ECC DBE on GPU 0
 ```
 
 #### 1.3 Thermal Fault (85°C)
+
 ```
 Inject thermal fault on GPU 0
 ├─ Verify: gpu.temperature >= 85
@@ -57,6 +63,7 @@ Inject thermal fault on GPU 0
 ```
 
 #### 1.4 NVLink Failure
+
 ```
 Inject NVLink failure on GPU 0, link 0
 ├─ Verify: gpu.nvlinks[0].status === 'Down'
@@ -70,6 +77,7 @@ Inject NVLink failure on GPU 0, link 0
 ```
 
 #### 1.5 Power Fault
+
 ```
 Inject power fault on GPU 0
 ├─ Verify: gpu.powerDraw significantly changed
@@ -80,6 +88,7 @@ Inject power fault on GPU 0
 ```
 
 #### 1.6 PCIe Error
+
 ```
 Inject PCIe error on GPU 0
 ├─ Verify: gpu.healthStatus === 'Critical' or 'Warning'
@@ -90,6 +99,7 @@ Inject PCIe error on GPU 0
 ```
 
 Note: The following fault types are NOT currently implemented in metricsSimulator:
+
 - memory-full
 - gpu-hang
 - driver-error
@@ -103,6 +113,7 @@ If these are needed, they should be added to metricsSimulator.ts first.
 After any state change, ALL commands reading that state must report consistently.
 
 #### 2.1 Cross-Command GPU State Consistency
+
 ```
 For each GPU in each node:
 ├─ Get GPU state from store
@@ -118,6 +129,7 @@ For each GPU in each node:
 ```
 
 #### 2.2 Cross-Command NVLink Consistency
+
 ```
 For each GPU:
 ├─ Get NVLink state from store
@@ -131,6 +143,7 @@ For each GPU:
 ```
 
 #### 2.3 Cross-Command Slurm Consistency
+
 ```
 For each node:
 ├─ Get node.slurmState from store
@@ -143,6 +156,7 @@ For each node:
 ```
 
 #### 2.4 Cross-Command Cluster Consistency
+
 ```
 ├─ Get cluster state from store
 ├─ Run bcm-node list
@@ -155,6 +169,7 @@ For each node:
 ```
 
 #### 2.5 All Simulators Output Validation
+
 For each simulator, verify it produces valid output and reflects current state:
 
 ```
@@ -255,6 +270,7 @@ NVIDIA Bug Report (nvidiaBugReportSimulator):
 ### Category 3: Slurm ↔ GPU State Synchronization
 
 #### 3.1 Job Allocation Updates GPU State
+
 ```
 Submit job requiring 4 GPUs on node dgx-00
 ├─ Wait for job to start (state = RUNNING)
@@ -268,6 +284,7 @@ Submit job requiring 4 GPUs on node dgx-00
 ```
 
 #### 3.2 Job Completion Releases GPU State
+
 ```
 After job completes or is cancelled:
 ├─ Verify: GPUs have allocatedJobId cleared
@@ -280,6 +297,7 @@ After job completes or is cancelled:
 ```
 
 #### 3.3 Node Drain Prevents Scheduling
+
 ```
 Drain node dgx-00 with reason "maintenance"
 ├─ Verify: node.slurmState === 'drain'
@@ -291,6 +309,7 @@ Drain node dgx-00 with reason "maintenance"
 ```
 
 #### 3.4 GPU Failure Affects Job Scheduling
+
 ```
 Inject critical fault on GPU 0 of dgx-00
 ├─ If job was running on that GPU:
@@ -305,6 +324,7 @@ Inject critical fault on GPU 0 of dgx-00
 ### Category 4: Metrics History Accuracy
 
 #### 4.1 State Changes Appear in History
+
 ```
 ├─ Record initial metrics at T0
 ├─ Inject thermal fault at T1
@@ -318,6 +338,7 @@ Inject critical fault on GPU 0 of dgx-00
 ```
 
 #### 4.2 Aggregated Cluster Metrics Track Correctly
+
 ```
 ├─ Get initial cluster aggregates (total power, avg temp, healthy GPUs)
 ├─ Inject fault on one GPU
@@ -329,6 +350,7 @@ Inject critical fault on GPU 0 of dgx-00
 ```
 
 #### 4.3 No Stale Data in History
+
 ```
 ├─ Make rapid state changes
 ├─ Verify: Each change is captured (no dropped updates)
@@ -342,6 +364,7 @@ Inject critical fault on GPU 0 of dgx-00
 ### Category 5: Cross-Node Cluster Effects
 
 #### 5.1 Node Failure Reduces Cluster Capacity
+
 ```
 ├─ Get initial cluster: 8 nodes, 64 GPUs
 ├─ Mark dgx-00 as down (all GPUs critical)
@@ -352,6 +375,7 @@ Inject critical fault on GPU 0 of dgx-00
 ```
 
 #### 5.2 Scheduler Respects Node Availability
+
 ```
 ├─ Drain 7 of 8 nodes
 ├─ Submit job requiring 2 nodes
@@ -362,6 +386,7 @@ Inject critical fault on GPU 0 of dgx-00
 ```
 
 #### 5.3 Cluster Health Aggregation
+
 ```
 ├─ Verify: Cluster health = OK when all nodes OK
 ├─ Inject Warning on one node
@@ -377,6 +402,7 @@ Inject critical fault on GPU 0 of dgx-00
 ### Category 6: Scenario/Lab State Setup
 
 #### 6.1 Scenario Loads Expected State
+
 ```
 For each defined scenario:
 ├─ Load scenario
@@ -388,6 +414,7 @@ For each defined scenario:
 ```
 
 #### 6.2 Scenario State Isolation
+
 ```
 ├─ Load scenario A (with faults)
 ├─ Verify: Faults present
@@ -399,6 +426,7 @@ For each defined scenario:
 ```
 
 #### 6.3 Scenario Does Not Pollute Baseline
+
 ```
 ├─ Record baseline state
 ├─ Load scenario with faults
@@ -413,6 +441,7 @@ For each defined scenario:
 ## Implementation Steps
 
 ### Step 1: Create Test Infrastructure
+
 - Create `src/__tests__/logicConsistency.test.ts`
 - Import all simulators and store
 - Create helper functions for:
@@ -422,32 +451,38 @@ For each defined scenario:
   - Resetting state between tests
 
 ### Step 2: Implement Category 1 Tests (Fault Cascades)
+
 - Test each fault type (6 implemented: xid, ecc, thermal, nvlink, power, pcie)
 - Verify GPU state changes
 - Verify command outputs reflect faults
 - Use describe/it blocks for organization
 
 ### Step 3: Implement Category 2 Tests (Command Consistency)
+
 - Create cross-command comparison tests
 - Test all simulators produce valid output
 - Verify state consistency across tools
 
 ### Step 4: Implement Category 3 Tests (Slurm Sync)
+
 - Test job lifecycle effects on GPU state
 - Test node state affects scheduling
 - Test bidirectional synchronization
 
 ### Step 5: Implement Category 5 Tests (Cluster Effects)
+
 - Test node failure impacts cluster metrics
 - Test scheduler respects availability
 - Test health aggregation
 
 ### Step 6: Implement Category 4 Tests (History Accuracy)
+
 - Test state changes appear in history
 - Test aggregated metrics
 - Test no stale data
 
 ### Step 7: Implement Category 6 Tests (Scenarios)
+
 - Test scenario loading
 - Test state isolation
 - Test baseline preservation
@@ -458,30 +493,39 @@ For each defined scenario:
 
 ```typescript
 // Fault injection helpers
-function injectFault(nodeId: string, gpuId: number, faultType: FaultType): void
-function clearFault(nodeId: string, gpuId: number): void
-function clearAllFaults(): void
+function injectFault(nodeId: string, gpuId: number, faultType: FaultType): void;
+function clearFault(nodeId: string, gpuId: number): void;
+function clearAllFaults(): void;
 
 // Command execution helpers
-function runCommand(command: string): CommandResult
-function parseNvidiaSmiOutput(output: string): ParsedGpuInfo
-function parseDcgmiOutput(output: string): ParsedGpuInfo
+function runCommand(command: string): CommandResult;
+function parseNvidiaSmiOutput(output: string): ParsedGpuInfo;
+function parseDcgmiOutput(output: string): ParsedGpuInfo;
 
 // Comparison helpers
-function assertValuesMatch(actual: number, expected: number, tolerance: number, message: string): void
-function assertHealthStatus(nodeId: string, gpuId: number, expected: HealthStatus): void
-function assertCommandContains(output: string, expected: string): void
-function assertCommandNotContains(output: string, unexpected: string): void
+function assertValuesMatch(
+  actual: number,
+  expected: number,
+  tolerance: number,
+  message: string,
+): void;
+function assertHealthStatus(
+  nodeId: string,
+  gpuId: number,
+  expected: HealthStatus,
+): void;
+function assertCommandContains(output: string, expected: string): void;
+function assertCommandNotContains(output: string, unexpected: string): void;
 
 // State helpers
-function getGpuState(nodeId: string, gpuId: number): GPU
-function getNodeState(nodeId: string): DGXNode
-function getClusterMetrics(): ClusterMetrics
-function resetSimulationState(): void
+function getGpuState(nodeId: string, gpuId: number): GPU;
+function getNodeState(nodeId: string): DGXNode;
+function getClusterMetrics(): ClusterMetrics;
+function resetSimulationState(): void;
 
 // Timing helpers
-function waitForMetricsUpdate(): Promise<void>
-function waitForJobState(jobId: number, state: string): Promise<void>
+function waitForMetricsUpdate(): Promise<void>;
+function waitForJobState(jobId: number, state: string): Promise<void>;
 ```
 
 ---
@@ -489,6 +533,7 @@ function waitForJobState(jobId: number, state: string): Promise<void>
 ## Success Criteria
 
 All tests pass, meaning:
+
 1. Fault injection produces expected state changes
 2. All commands report consistent state
 3. Slurm and GPU state stay synchronized

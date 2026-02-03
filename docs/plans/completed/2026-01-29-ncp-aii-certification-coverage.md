@@ -12,12 +12,12 @@
 
 ## Phase Overview
 
-| Phase | Focus Area | Exam Coverage Impact | Effort |
-|-------|------------|---------------------|--------|
-| 1 | Control Plane Installation (Domain 3) | +15% coverage | Medium |
-| 2 | System Bring-up Gaps (Domain 1) | +12% coverage | Medium |
-| 3 | Multi-Node Verification (Domain 2) | +8% coverage | Medium |
-| 4 | Physical Layer & Advanced (Domain 5) | +3% coverage | Small |
+| Phase | Focus Area                            | Exam Coverage Impact | Effort |
+| ----- | ------------------------------------- | -------------------- | ------ |
+| 1     | Control Plane Installation (Domain 3) | +15% coverage        | Medium |
+| 2     | System Bring-up Gaps (Domain 1)       | +12% coverage        | Medium |
+| 3     | Multi-Node Verification (Domain 2)    | +8% coverage         | Medium |
+| 4     | Physical Layer & Advanced (Domain 5)  | +3% coverage         | Small  |
 
 **Total Estimated Impact:** Domain coverage from ~55% → ~90%
 
@@ -32,6 +32,7 @@ This is the weakest area. Focus on Slurm configuration, DCGM policies, and Kuber
 ### Task 1.1: Add Slurm Configuration Scenario
 
 **Files:**
+
 - Create: `src/data/scenarios/domain3/slurm-gres-configuration.json`
 - Modify: `src/utils/scenarioLoader.ts:15-25` (add to scenarioFiles)
 
@@ -84,7 +85,10 @@ This is the weakest area. Focus on Slurm configuration, DCGM policies, and Kuber
       ],
       "estimatedDuration": 3,
       "documentationLinks": [
-        { "title": "Slurm GRES Documentation", "url": "https://slurm.schedmd.com/gres.html" }
+        {
+          "title": "Slurm GRES Documentation",
+          "url": "https://slurm.schedmd.com/gres.html"
+        }
       ]
     },
     {
@@ -195,6 +199,7 @@ git commit -m "feat(scenarios): add Slurm GRES configuration scenario"
 ### Task 1.2: Add DCGM Policy Configuration Scenario
 
 **Files:**
+
 - Create: `src/data/scenarios/domain3/dcgm-policy-setup.json`
 - Modify: `src/utils/scenarioLoader.ts`
 
@@ -348,6 +353,7 @@ git commit -m "feat(scenarios): add DCGM policy configuration scenario"
 ### Task 1.3: Add Kubernetes GPU Operator Concepts Scenario
 
 **Files:**
+
 - Create: `src/data/scenarios/domain3/kubernetes-gpu-operator.json`
 - Modify: `src/utils/scenarioLoader.ts`
 
@@ -386,7 +392,10 @@ git commit -m "feat(scenarios): add DCGM policy configuration scenario"
       "hints": ["Review the component list above, then try kubectl commands"],
       "estimatedDuration": 5,
       "documentationLinks": [
-        { "title": "NVIDIA GPU Operator Docs", "url": "https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/index.html" }
+        {
+          "title": "NVIDIA GPU Operator Docs",
+          "url": "https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/index.html"
+        }
       ]
     },
     {
@@ -437,7 +446,9 @@ git commit -m "feat(scenarios): add DCGM policy configuration scenario"
           "requireAllCommands": false
         }
       ],
-      "hints": ["In K8s, GPUs are requested via resources.limits.nvidia.com/gpu: 1"],
+      "hints": [
+        "In K8s, GPUs are requested via resources.limits.nvidia.com/gpu: 1"
+      ],
       "enhancedHints": [
         {
           "id": "step4-hint1",
@@ -457,7 +468,13 @@ git commit -m "feat(scenarios): add DCGM policy configuration scenario"
   ],
   "estimatedTime": 20,
   "prerequisites": [],
-  "tags": ["kubernetes", "gpu-operator", "containers", "device-plugin", "cloud-native"]
+  "tags": [
+    "kubernetes",
+    "gpu-operator",
+    "containers",
+    "device-plugin",
+    "cloud-native"
+  ]
 }
 ```
 
@@ -470,24 +487,25 @@ git commit -m "feat(scenarios): add DCGM policy configuration scenario"
 ### Task 1.4: Enhance Slurm Simulator with GRES Output
 
 **Files:**
+
 - Modify: `src/simulators/slurmSimulator.ts`
 - Create: `src/simulators/__tests__/slurmSimulator.gres.test.ts`
 
 **Step 1: Write failing test**
 
 ```typescript
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { SlurmSimulator } from '../slurmSimulator';
-import { useSimulationStore } from '@/store/simulationStore';
-import { parse } from '@/utils/commandParser';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { SlurmSimulator } from "../slurmSimulator";
+import { useSimulationStore } from "@/store/simulationStore";
+import { parse } from "@/utils/commandParser";
 
-vi.mock('@/store/simulationStore');
+vi.mock("@/store/simulationStore");
 
-describe('SlurmSimulator GRES', () => {
+describe("SlurmSimulator GRES", () => {
   let simulator: SlurmSimulator;
   const context = {
-    currentNode: 'dgx-00',
-    currentPath: '/root',
+    currentNode: "dgx-00",
+    currentPath: "/root",
     environment: {},
     history: [],
   };
@@ -496,21 +514,22 @@ describe('SlurmSimulator GRES', () => {
     simulator = new SlurmSimulator();
     vi.mocked(useSimulationStore.getState).mockReturnValue({
       cluster: {
-        nodes: [
-          { id: 'dgx-00', gpus: Array(8).fill({ id: 0 }) },
-        ],
+        nodes: [{ id: "dgx-00", gpus: Array(8).fill({ id: 0 }) }],
       },
     } as any);
   });
 
-  it('should show GRES in sinfo output', () => {
+  it("should show GRES in sinfo output", () => {
     const result = simulator.executeSinfo(parse('sinfo -o "%n %G"'), context);
-    expect(result.output).toContain('gpu:');
+    expect(result.output).toContain("gpu:");
   });
 
-  it('should show GRES in scontrol show node', () => {
-    const result = simulator.executeScontrol(parse('scontrol show node dgx-00'), context);
-    expect(result.output).toContain('Gres=');
+  it("should show GRES in scontrol show node", () => {
+    const result = simulator.executeScontrol(
+      parse("scontrol show node dgx-00"),
+      context,
+    );
+    expect(result.output).toContain("Gres=");
   });
 });
 ```
@@ -526,7 +545,7 @@ In `slurmSimulator.ts`, update `executeSinfo` to include GRES column when format
 
 ```typescript
 // Add to sinfo format handling
-if (format.includes('%G')) {
+if (format.includes("%G")) {
   // Add GRES column showing gpu:8 for each node
   const gresCount = node.gpus?.length || 8;
   row += ` gpu:${gresCount}`;
@@ -559,24 +578,25 @@ git commit -m "feat(slurm): add GRES output for GPU scheduling"
 ### Task 1.5: Add DCGM Policy Commands to Simulator
 
 **Files:**
+
 - Modify: `src/simulators/dcgmiSimulator.ts`
 - Create: `src/simulators/__tests__/dcgmiSimulator.policy.test.ts`
 
 **Step 1: Write failing test**
 
 ```typescript
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { DcgmiSimulator } from '../dcgmiSimulator';
-import { useSimulationStore } from '@/store/simulationStore';
-import { parse } from '@/utils/commandParser';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { DcgmiSimulator } from "../dcgmiSimulator";
+import { useSimulationStore } from "@/store/simulationStore";
+import { parse } from "@/utils/commandParser";
 
-vi.mock('@/store/simulationStore');
+vi.mock("@/store/simulationStore");
 
-describe('DcgmiSimulator Policy', () => {
+describe("DcgmiSimulator Policy", () => {
   let simulator: DcgmiSimulator;
   const context = {
-    currentNode: 'dgx-00',
-    currentPath: '/root',
+    currentNode: "dgx-00",
+    currentPath: "/root",
     environment: {},
     history: [],
   };
@@ -586,14 +606,17 @@ describe('DcgmiSimulator Policy', () => {
     // Mock store...
   });
 
-  it('should handle dcgmi policy --set', () => {
-    const result = simulator.execute(parse('dcgmi policy --set -g 1 -e'), context);
+  it("should handle dcgmi policy --set", () => {
+    const result = simulator.execute(
+      parse("dcgmi policy --set -g 1 -e"),
+      context,
+    );
     expect(result.exitCode).toBe(0);
-    expect(result.output).toContain('Policy');
+    expect(result.output).toContain("Policy");
   });
 
-  it('should handle dcgmi policy --get', () => {
-    const result = simulator.execute(parse('dcgmi policy --get -g 1'), context);
+  it("should handle dcgmi policy --get", () => {
+    const result = simulator.execute(parse("dcgmi policy --get -g 1"), context);
     expect(result.exitCode).toBe(0);
     expect(result.output).toMatch(/ECC|Thermal|Power/i);
   });
@@ -661,6 +684,7 @@ Focus on firmware, BMC configuration, and network setup.
 ### Task 2.1: Add Firmware Update Scenario
 
 **Files:**
+
 - Create: `src/data/scenarios/domain1/firmware-update-procedure.json`
 - Modify: `src/utils/scenarioLoader.ts`
 
@@ -686,7 +710,10 @@ Focus on firmware, BMC configuration, and network setup.
       "title": "Check Current GPU Firmware",
       "description": "Before updating, document the current firmware versions.",
       "objectives": ["Record current GPU VBIOS version"],
-      "expectedCommands": ["nvidia-smi -q", "nvidia-smi --query-gpu=vbios_version --format=csv"],
+      "expectedCommands": [
+        "nvidia-smi -q",
+        "nvidia-smi --query-gpu=vbios_version --format=csv"
+      ],
       "validationRules": [
         {
           "type": "command-executed",
@@ -720,7 +747,9 @@ Focus on firmware, BMC configuration, and network setup.
       "title": "Review Update Prerequisites",
       "description": "Before updating:\n- Drain node from scheduler\n- Stop running workloads\n- Ensure BMC access for recovery\n- Have previous firmware for rollback",
       "objectives": ["Understand update safety requirements"],
-      "expectedCommands": ["scontrol update node=dgx-00 state=drain reason=firmware"],
+      "expectedCommands": [
+        "scontrol update node=dgx-00 state=drain reason=firmware"
+      ],
       "validationRules": [
         {
           "type": "command-executed",
@@ -737,7 +766,11 @@ Focus on firmware, BMC configuration, and network setup.
       "title": "Verify Post-Update",
       "description": "After firmware update and reboot, verify the new versions are active.",
       "objectives": ["Confirm firmware update success"],
-      "expectedCommands": ["nvidia-smi -q", "mlxfwmanager --query", "dcgmi diag -r 1"],
+      "expectedCommands": [
+        "nvidia-smi -q",
+        "mlxfwmanager --query",
+        "dcgmi diag -r 1"
+      ],
       "validationRules": [
         {
           "type": "command-executed",
@@ -769,6 +802,7 @@ Focus on firmware, BMC configuration, and network setup.
 ### Task 2.2: Add BMC/IPMI Configuration Scenario
 
 **Files:**
+
 - Create: `src/data/scenarios/domain1/bmc-ipmi-configuration.json`
 
 **Step 1: Create scenario**
@@ -844,7 +878,10 @@ Focus on firmware, BMC configuration, and network setup.
       "title": "Power Management",
       "description": "IPMI allows remote power control - essential for hung systems.",
       "objectives": ["Understand power commands"],
-      "expectedCommands": ["ipmitool chassis status", "ipmitool dcmi get_power_reading"],
+      "expectedCommands": [
+        "ipmitool chassis status",
+        "ipmitool dcmi get_power_reading"
+      ],
       "validationRules": [
         {
           "type": "command-executed",
@@ -874,6 +911,7 @@ Focus on firmware, BMC configuration, and network setup.
 ### Task 2.3: Add Network Bonding Concepts Scenario
 
 **Files:**
+
 - Create: `src/data/scenarios/domain1/network-bonding.json`
 
 **Step 1: Create scenario covering InfiniBand link aggregation concepts**
@@ -889,6 +927,7 @@ Focus on cluster-wide testing and GPUDirect RDMA verification.
 ### Task 3.1: Add Multi-Node NCCL Test Scenario
 
 **Files:**
+
 - Create: `src/data/scenarios/domain4/multi-node-nccl-test.json`
 
 **Step 1: Create scenario**
@@ -993,7 +1032,14 @@ Focus on cluster-wide testing and GPUDirect RDMA verification.
   ],
   "estimatedTime": 20,
   "prerequisites": ["domain4-nccl-basics"],
-  "tags": ["nccl", "multi-node", "bandwidth", "all-reduce", "collective", "infiniband"]
+  "tags": [
+    "nccl",
+    "multi-node",
+    "bandwidth",
+    "all-reduce",
+    "collective",
+    "infiniband"
+  ]
 }
 ```
 
@@ -1002,6 +1048,7 @@ Focus on cluster-wide testing and GPUDirect RDMA verification.
 ### Task 3.2: Add GPUDirect RDMA Verification Scenario
 
 **Files:**
+
 - Create: `src/data/scenarios/domain4/gpudirect-rdma-verify.json`
 
 ---
@@ -1009,6 +1056,7 @@ Focus on cluster-wide testing and GPUDirect RDMA verification.
 ### Task 3.3: Enhance NCCL Simulator with Multi-Node Output
 
 **Files:**
+
 - Modify: `src/simulators/benchmarkSimulator.ts`
 
 ---
@@ -1020,6 +1068,7 @@ Focus on cluster-wide testing and GPUDirect RDMA verification.
 ### Task 4.1: Add Hardware Inspection Scenario
 
 **Files:**
+
 - Create: `src/data/scenarios/domain5/physical-inspection.json`
 
 ---
@@ -1027,6 +1076,7 @@ Focus on cluster-wide testing and GPUDirect RDMA verification.
 ### Task 4.2: Add Cable Diagnostics Scenario
 
 **Files:**
+
 - Create: `src/data/scenarios/domain5/cable-diagnostics.json`
 
 ---
@@ -1054,12 +1104,12 @@ npm run dev
 
 ## Summary
 
-| Phase | Tasks | New Scenarios | Simulator Changes |
-|-------|-------|---------------|-------------------|
-| 1 | 5 | 3 | Slurm GRES, DCGM Policy |
-| 2 | 3 | 3 | None |
-| 3 | 3 | 2 | NCCL multi-node |
-| 4 | 2 | 2 | None |
-| **Total** | **13** | **10** | **3** |
+| Phase     | Tasks  | New Scenarios | Simulator Changes       |
+| --------- | ------ | ------------- | ----------------------- |
+| 1         | 5      | 3             | Slurm GRES, DCGM Policy |
+| 2         | 3      | 3             | None                    |
+| 3         | 3      | 2             | NCCL multi-node         |
+| 4         | 2      | 2             | None                    |
+| **Total** | **13** | **10**        | **3**                   |
 
 This plan adds 10 new scenarios and enhances 3 simulators to significantly improve NCP-AI Infrastructure certification coverage from ~55% to ~90%.

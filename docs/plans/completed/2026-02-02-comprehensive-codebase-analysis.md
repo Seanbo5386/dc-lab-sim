@@ -21,6 +21,7 @@
 ### Task 1: Architecture & Design Analysis
 
 **Files to analyze:**
+
 - `src/App.tsx` - Main application structure
 - `src/store/` - State management patterns
 - `src/simulators/` - Simulator architecture
@@ -30,6 +31,7 @@
 **Step 1: Invoke code-reviewer agent for architecture analysis**
 
 Prompt for agent:
+
 ```
 Analyze the ARCHITECTURE & DESIGN of this codebase. Focus on:
 
@@ -73,12 +75,14 @@ git commit -m "docs: add architecture analysis findings"
 ### Task 2: Code Quality Analysis
 
 **Files to analyze:**
+
 - All `src/**/*.ts` and `src/**/*.tsx` files
 - Focus on patterns, consistency, and maintainability
 
 **Step 1: Invoke code-reviewer agent for code quality analysis**
 
 Prompt for agent:
+
 ```
 Analyze the CODE QUALITY of this codebase. Focus on:
 
@@ -131,6 +135,7 @@ git commit -m "docs: add code quality analysis findings"
 ### Task 3: Security Analysis
 
 **Files to analyze:**
+
 - All input handling code
 - Any API or external data processing
 - Authentication/authorization patterns
@@ -139,6 +144,7 @@ git commit -m "docs: add code quality analysis findings"
 **Step 1: Invoke code-reviewer agent for security analysis**
 
 Prompt for agent:
+
 ```
 Analyze the SECURITY of this codebase. Focus on:
 
@@ -184,6 +190,7 @@ git commit -m "docs: add security analysis findings"
 ### Task 4: Performance Analysis
 
 **Files to analyze:**
+
 - React components for render optimization
 - State management for unnecessary updates
 - Large computations and memoization
@@ -192,6 +199,7 @@ git commit -m "docs: add security analysis findings"
 **Step 1: Invoke code-reviewer agent for performance analysis**
 
 Prompt for agent:
+
 ```
 Analyze the PERFORMANCE of this codebase. Focus on:
 
@@ -245,6 +253,7 @@ git commit -m "docs: add performance analysis findings"
 ### Task 5: Testing Analysis
 
 **Files to analyze:**
+
 - All `__tests__/` directories
 - Test coverage and quality
 - Missing test categories
@@ -252,6 +261,7 @@ git commit -m "docs: add performance analysis findings"
 **Step 1: Invoke code-reviewer agent for testing analysis**
 
 Prompt for agent:
+
 ```
 Analyze the TESTING of this codebase. Focus on:
 
@@ -313,6 +323,7 @@ git commit -m "docs: add testing analysis findings"
 ### Task 6: Accessibility Analysis
 
 **Files to analyze:**
+
 - All React components
 - Interactive elements
 - Forms and inputs
@@ -320,6 +331,7 @@ git commit -m "docs: add testing analysis findings"
 **Step 1: Invoke code-reviewer agent for accessibility analysis**
 
 Prompt for agent:
+
 ```
 Analyze the ACCESSIBILITY of this codebase. Focus on:
 
@@ -372,6 +384,7 @@ git commit -m "docs: add accessibility analysis findings"
 ### Task 7: Maintainability Analysis
 
 **Files to analyze:**
+
 - Documentation files
 - Configuration files
 - Build setup
@@ -380,6 +393,7 @@ git commit -m "docs: add accessibility analysis findings"
 **Step 1: Invoke code-reviewer agent for maintainability analysis**
 
 Prompt for agent:
+
 ```
 Analyze the MAINTAINABILITY of this codebase. Focus on:
 
@@ -435,6 +449,7 @@ git commit -m "docs: add maintainability analysis findings"
 ### Task 8: Synthesize Final Report
 
 **Files to read:**
+
 - `docs/analysis/architecture-findings.md`
 - `docs/analysis/code-quality-findings.md`
 - `docs/analysis/security-findings.md`
@@ -465,11 +480,13 @@ Create `docs/analysis/COMPREHENSIVE-CODEBASE-ANALYSIS.md` with:
 [3-5 sentence overview of codebase health]
 
 ### Top 3 Strengths
+
 1. [Strength]
 2. [Strength]
 3. [Strength]
 
 ### Top 3 Critical Concerns
+
 1. [Concern]
 2. [Concern]
 3. [Concern]
@@ -514,16 +531,16 @@ Create `docs/analysis/COMPREHENSIVE-CODEBASE-ANALYSIS.md` with:
 
 ## Metrics Summary
 
-| Dimension | Critical | High | Medium | Low |
-|-----------|----------|------|--------|-----|
-| Architecture | X | X | X | X |
-| Code Quality | X | X | X | X |
-| Security | X | X | X | X |
-| Performance | X | X | X | X |
-| Testing | X | X | X | X |
-| Accessibility | X | X | X | X |
-| Maintainability | X | X | X | X |
-| **Total** | X | X | X | X |
+| Dimension       | Critical | High | Medium | Low |
+| --------------- | -------- | ---- | ------ | --- |
+| Architecture    | X        | X    | X      | X   |
+| Code Quality    | X        | X    | X      | X   |
+| Security        | X        | X    | X      | X   |
+| Performance     | X        | X    | X      | X   |
+| Testing         | X        | X    | X      | X   |
+| Accessibility   | X        | X    | X      | X   |
+| Maintainability | X        | X    | X      | X   |
+| **Total**       | X        | X    | X      | X   |
 
 ---
 
@@ -555,6 +572,7 @@ git commit -m "docs: add comprehensive codebase analysis report"
 - Create `docs/analysis/` directory before starting
 
 **Pre-flight command:**
+
 ```bash
 mkdir -p docs/analysis
 ```
@@ -563,8 +581,8 @@ mkdir -p docs/analysis
 
 ## Estimated Duration
 
-| Task | Estimated Time |
-|------|----------------|
-| Tasks 1-7 (parallel) | 10-15 minutes |
-| Task 8 (synthesis) | 5-10 minutes |
-| **Total** | 15-25 minutes |
+| Task                 | Estimated Time |
+| -------------------- | -------------- |
+| Tasks 1-7 (parallel) | 10-15 minutes  |
+| Task 8 (synthesis)   | 5-10 minutes   |
+| **Total**            | 15-25 minutes  |

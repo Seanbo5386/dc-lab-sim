@@ -13,6 +13,7 @@
 ## Task 1: Auto-fixable Issues
 
 **Files:**
+
 - Multiple files with `let` that should be `const`
 - Test files with useless escape characters
 
@@ -42,72 +43,93 @@ git commit -m "fix: apply ESLint auto-fixes (let→const, escape chars)"
 ## Task 2: Remove Unused Variables in Components
 
 **Files:**
+
 - Modify: `src/components/Terminal.tsx:45`
 - Modify: `src/components/MIGConfigurator.tsx:51`
 - Modify: `src/components/SplitPane.tsx:42`
 - Modify: `src/components/StudyModes.tsx:47,53`
 - Modify: `src/components/TopologyViewer.tsx:53`
 
-**Step 1: Fix Terminal.tsx - remove _currentCommand**
+**Step 1: Fix Terminal.tsx - remove \_currentCommand**
 
 Change line 45 from:
+
 ```typescript
-const [_currentCommand, setCurrentCommand] = useState('');
-```
-to:
-```typescript
-const [, setCurrentCommand] = useState('');
+const [_currentCommand, setCurrentCommand] = useState("");
 ```
 
-**Step 2: Fix MIGConfigurator.tsx - remove _selectedProfile**
+to:
+
+```typescript
+const [, setCurrentCommand] = useState("");
+```
+
+**Step 2: Fix MIGConfigurator.tsx - remove \_selectedProfile**
 
 Change line 51 from:
+
 ```typescript
-const [_selectedProfile, setSelectedProfile] = useState<MIGProfile | null>(null);
+const [_selectedProfile, setSelectedProfile] = useState<MIGProfile | null>(
+  null,
+);
 ```
+
 to:
+
 ```typescript
 const [, setSelectedProfile] = useState<MIGProfile | null>(null);
 ```
 
-**Step 3: Fix SplitPane.tsx - remove _resizing and _setResizing**
+**Step 3: Fix SplitPane.tsx - remove \_resizing and \_setResizing**
 
 Change line 42 from:
+
 ```typescript
 const [_resizing, _setResizing] = useState(false);
 ```
+
 to (remove the line entirely since neither is used):
+
 ```typescript
 // Remove entirely - resizing state not needed
 ```
 
-**Step 4: Fix StudyModes.tsx - remove _selectedDomain and _setCommandsUsed**
+**Step 4: Fix StudyModes.tsx - remove \_selectedDomain and \_setCommandsUsed**
 
 Change line 47 from:
+
 ```typescript
 const [_selectedDomain, setSelectedDomain] = useState<string | null>(null);
 ```
+
 to:
+
 ```typescript
 const [, setSelectedDomain] = useState<string | null>(null);
 ```
 
 Change line 53 from:
+
 ```typescript
 const [commandsUsed, _setCommandsUsed] = useState<string[]>([]);
 ```
+
 to:
+
 ```typescript
 const [commandsUsed] = useState<string[]>([]);
 ```
 
-**Step 5: Fix TopologyViewer.tsx - remove _setDataFlowPath**
+**Step 5: Fix TopologyViewer.tsx - remove \_setDataFlowPath**
 
 Change line 53 from:
+
 ```typescript
 const [dataFlowPath, _setDataFlowPath] = useState<string[]>([]);
 ```
+
 to:
+
 ```typescript
 const [dataFlowPath] = useState<string[]>([]);
 ```
@@ -132,6 +154,7 @@ git commit -m "fix: remove unused variables in React components"
 ## Task 3: Remove Unused Variables in Utils/Tests
 
 **Files:**
+
 - Modify: `src/utils/terminalKeyboardHandler.ts:264`
 - Modify: `src/utils/__tests__/studyModeEngine.test.ts:1`
 - Modify: `src/utils/__tests__/terminalSplitManager.test.ts:24`
@@ -140,6 +163,7 @@ git commit -m "fix: remove unused variables in React components"
 **Step 1: Fix terminalKeyboardHandler.ts**
 
 Line 264 - find and fix the unused `_currentNode`:
+
 ```typescript
 // Change destructuring to omit unused variable
 ```
@@ -147,8 +171,9 @@ Line 264 - find and fix the unused `_currentNode`:
 **Step 2: Fix studyModeEngine.test.ts**
 
 Line 1 - remove `beforeEach` from import if not used:
+
 ```typescript
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from "vitest";
 ```
 
 **Step 3: Fix terminalSplitManager.test.ts**
@@ -177,6 +202,7 @@ git commit -m "fix: remove unused variables in utils and simulators"
 ## Task 4: Fix Case Block Declarations
 
 **Files:**
+
 - Modify: `src/components/PerformanceComparison.tsx:88`
 - Modify: `src/simulators/fabricManagerSimulator.ts:156`
 - Modify: `src/utils/examEngine.ts:144,155`
@@ -186,6 +212,7 @@ git commit -m "fix: remove unused variables in utils and simulators"
 **Step 1: Fix PerformanceComparison.tsx**
 
 Wrap case block in braces at line 88:
+
 ```typescript
 case 'bandwidth': {
   const activeLinks = gpu.nvlinks.filter(l => l.status === 'Active').length;
@@ -201,6 +228,7 @@ Wrap case block in braces at line 156.
 **Step 3: Fix examEngine.ts**
 
 Wrap case blocks in braces at lines 144 and 155:
+
 ```typescript
 case 'weak-area-focus': {
   // code...
@@ -216,6 +244,7 @@ case 'review-mode': {
 **Step 4: Fix outputTemplates.ts**
 
 Wrap case block in braces at lines 42-43:
+
 ```typescript
 case 'nvidia-smi': {
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -227,6 +256,7 @@ case 'nvidia-smi': {
 **Step 5: Fix studyModeEngine.ts**
 
 Wrap case blocks in braces at lines 387 and 396:
+
 ```typescript
 case 'timed-practice': {
   const timedConfig = createExamConfig('full-practice');
@@ -261,6 +291,7 @@ git commit -m "fix: wrap case blocks with lexical declarations in braces"
 ## Task 5: Fix `any` Types in Components
 
 **Files:**
+
 - Modify: `src/components/FaultInjection.tsx:323`
 - Modify: `src/components/MetricsChart.tsx:31`
 - Modify: `src/components/PerformanceComparison.tsx:257`
@@ -268,10 +299,13 @@ git commit -m "fix: wrap case blocks with lexical declarations in braces"
 **Step 1: Fix FaultInjection.tsx**
 
 Line 323 - change:
+
 ```typescript
 onChange={(e) => setWorkloadPattern(e.target.value as any)}
 ```
+
 to:
+
 ```typescript
 onChange={(e) => setWorkloadPattern(e.target.value as 'idle' | 'inference' | 'training' | 'stress')}
 ```
@@ -279,6 +313,7 @@ onChange={(e) => setWorkloadPattern(e.target.value as 'idle' | 'inference' | 'tr
 **Step 2: Fix MetricsChart.tsx**
 
 Line 31 - define proper type for chartData:
+
 ```typescript
 interface ChartDataPoint {
   time: string;
@@ -293,6 +328,7 @@ const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
 **Step 3: Fix PerformanceComparison.tsx**
 
 Line 257 - define proper Recharts tooltip type:
+
 ```typescript
 import { TooltipProps } from 'recharts';
 
@@ -318,6 +354,7 @@ git commit -m "fix: replace any types with proper types in components"
 ## Task 6: Fix `any` Types in Simulators
 
 **Files:**
+
 - Modify: `src/simulators/benchmarkSimulator.ts` (8 occurrences)
 - Modify: `src/simulators/mellanoxSimulator.ts` (2 occurrences)
 - Modify: `src/simulators/nvlinkAuditSimulator.ts` (12 occurrences)
@@ -361,6 +398,7 @@ git commit -m "fix: replace any types with proper types in simulators"
 ## Task 7: Fix `any` Types in Utils
 
 **Files:**
+
 - Modify: `src/utils/commandRegistry.ts:261`
 - Modify: `src/utils/commandValidator.ts:207`
 
@@ -390,6 +428,7 @@ git commit -m "fix: replace any types with proper types in utils"
 ## Task 8: Fix `any` Types in Test Files
 
 **Files:**
+
 - Modify: `src/components/__tests__/TopologyViewer.test.tsx` (3 occurrences)
 - Modify: `src/simulators/__tests__/dcgmiSimulator.test.ts`
 - Modify: `src/simulators/__tests__/nvidiaSmiSimulator.test.ts`
@@ -424,6 +463,7 @@ git commit -m "fix: replace any types with proper types in tests"
 ## Task 9: Fix Control Character Regex Warnings
 
 **Files:**
+
 - Modify: `src/simulators/bcmSimulator.ts:170,253`
 - Modify: `src/simulators/dcgmiSimulator.ts:213`
 - Modify: `src/utils/__tests__/syntaxHighlighter.test.ts:190`
@@ -459,6 +499,7 @@ git commit -m "fix: add eslint-disable for intentional ANSI control char regex"
 ## Task 10: Fix React Hook Dependencies
 
 **Files:**
+
 - Modify: `src/components/ExamWorkspace.tsx:94`
 - Modify: `src/components/PracticalExams.tsx:73`
 - Modify: `src/components/StudyModes.tsx:89`
@@ -473,9 +514,14 @@ const handleTimeExpired = useCallback(() => {
   handleSubmitExam();
 }, [handleSubmitExam]);
 
-const startExam = useCallback(async () => {
-  // existing code
-}, [/* deps */]);
+const startExam = useCallback(
+  async () => {
+    // existing code
+  },
+  [
+    /* deps */
+  ],
+);
 ```
 
 Then update the useEffect dependency array.
@@ -491,6 +537,7 @@ Line 89 - wrap `handleSessionComplete` in useCallback and add to deps.
 **Step 4: Fix Terminal.tsx useEffect**
 
 Line 826 - this is intentionally run once on mount. Add eslint-disable comment:
+
 ```typescript
 // eslint-disable-next-line react-hooks/exhaustive-deps
 }, []);
@@ -543,18 +590,18 @@ git commit -m "fix: final lint cleanup"
 
 ## Summary
 
-| Task | Type | Files | Est. Changes |
-|------|------|-------|--------------|
-| 1 | Auto-fix | Multiple | 7 auto-fixes |
-| 2 | Unused vars | 5 components | 6 changes |
-| 3 | Unused vars | 4 utils/tests | 4 changes |
-| 4 | Case blocks | 5 files | 8 case wraps |
-| 5 | any→types | 3 components | 3 type fixes |
-| 6 | any→types | 4 simulators | 29 type fixes |
-| 7 | any→types | 2 utils | 2 type fixes |
-| 8 | any→types | 3 test files | 5 type fixes |
-| 9 | Control regex | 3 files | 4 eslint-disable |
-| 10 | Hook deps | 4 components | 4 useCallback wraps |
-| 11 | Verify | All | Final check |
+| Task | Type          | Files         | Est. Changes        |
+| ---- | ------------- | ------------- | ------------------- |
+| 1    | Auto-fix      | Multiple      | 7 auto-fixes        |
+| 2    | Unused vars   | 5 components  | 6 changes           |
+| 3    | Unused vars   | 4 utils/tests | 4 changes           |
+| 4    | Case blocks   | 5 files       | 8 case wraps        |
+| 5    | any→types     | 3 components  | 3 type fixes        |
+| 6    | any→types     | 4 simulators  | 29 type fixes       |
+| 7    | any→types     | 2 utils       | 2 type fixes        |
+| 8    | any→types     | 3 test files  | 5 type fixes        |
+| 9    | Control regex | 3 files       | 4 eslint-disable    |
+| 10   | Hook deps     | 4 components  | 4 useCallback wraps |
+| 11   | Verify        | All           | Final check         |
 
 **Total: 102 issues across ~30 files**
