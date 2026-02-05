@@ -1,25 +1,25 @@
-import type { ClusterConfig } from './hardware';
+import type { ClusterConfig } from "./hardware";
 
 // ============================================================================
 // FAULT INJECTION
 // ============================================================================
 
 export type FaultType =
-  | 'xid-error'
-  | 'ecc-error'
-  | 'thermal'
-  | 'power'
-  | 'nvlink-failure'
-  | 'gpu-hang'
-  | 'memory-full'
-  | 'driver-error'
-  | 'pcie-error';
+  | "xid-error"
+  | "ecc-error"
+  | "thermal"
+  | "power"
+  | "nvlink-failure"
+  | "gpu-hang"
+  | "memory-full"
+  | "driver-error"
+  | "pcie-error";
 
 export interface FaultInjectionConfig {
   nodeId: string;
   gpuId?: number;
   type: FaultType;
-  severity: 'warning' | 'critical';
+  severity: "warning" | "critical";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parameters?: Record<string, any>;
 }
@@ -29,10 +29,10 @@ export interface FaultInjectionConfig {
 // ============================================================================
 
 export type ValidationType =
-  | 'command-executed'
-  | 'output-match'
-  | 'state-check'
-  | 'time-limit';
+  | "command-executed"
+  | "output-match"
+  | "state-check"
+  | "time-limit";
 
 export interface ValidationRule {
   type: ValidationType;
@@ -48,7 +48,12 @@ export interface ValidationRule {
   outputPattern?: string;
 
   // For state-check: function name to call on cluster state
-  stateCheck?: 'gpu-healthy' | 'nvlink-active' | 'slurm-online' | 'temperature-normal' | 'ecc-cleared';
+  stateCheck?:
+    | "gpu-healthy"
+    | "nvlink-active"
+    | "slurm-online"
+    | "temperature-normal"
+    | "ecc-cleared";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   stateParams?: Record<string, any>;
 
@@ -72,10 +77,10 @@ export interface ValidationResult {
 // ============================================================================
 
 export type HintTriggerType =
-  | 'manual'           // User clicks hint button
-  | 'time-based'       // After N seconds of inactivity
-  | 'attempt-based'    // After N failed attempts
-  | 'command-based';   // After specific wrong command
+  | "manual" // User clicks hint button
+  | "time-based" // After N seconds of inactivity
+  | "attempt-based" // After N failed attempts
+  | "command-based"; // After specific wrong command
 
 export interface HintTrigger {
   type: HintTriggerType;
@@ -125,7 +130,7 @@ export interface ScenarioStep {
     minimumScore?: number; // Minimum percentage to pass (0-100, defaults to 100)
     rules?: Array<{
       id: string;
-      type: 'command' | 'output' | 'state' | 'sequence';
+      type: "command" | "output" | "state" | "sequence";
       pattern?: string | RegExp;
       commandPattern?: string;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -156,8 +161,8 @@ export interface ScenarioStep {
 export interface Scenario {
   id: string;
   title: string;
-  domain: 'domain1' | 'domain2' | 'domain3' | 'domain4' | 'domain5';
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  domain: "domain1" | "domain2" | "domain3" | "domain4" | "domain5";
+  difficulty: "beginner" | "intermediate" | "advanced";
   description: string;
   learningObjectives: string[];
 
@@ -181,11 +186,19 @@ export interface Scenario {
 
   // Tags for filtering/search
   tags?: string[];
+
+  // Learning system fields
+  tier?: 1 | 2 | 3;
+  commandFamilies?: string[];
+  prerequisiteSkills?: string[];
+  cumulativeSkills?: string[];
+  explanationGateId?: string;
+  toolHints?: boolean;
 }
 
 export interface Lab {
   id: string;
-  domain: 'domain1' | 'domain2' | 'domain3' | 'domain4' | 'domain5';
+  domain: "domain1" | "domain2" | "domain3" | "domain4" | "domain5";
   title: string;
   description: string;
   scenarios: Scenario[];
@@ -211,7 +224,7 @@ export interface StepProgress {
 
   // Enhanced hint tracking
   lastCommandTime?: number; // Timestamp of last command for time-based hints
-  failedAttempts: number;   // For attempt-based hints
+  failedAttempts: number; // For attempt-based hints
   revealedHintIds: string[]; // IDs of enhanced hints already revealed
 }
 
@@ -242,14 +255,14 @@ export interface LabProgress {
 // ============================================================================
 
 export type QuestionType =
-  | 'multiple-choice'
-  | 'multiple-select'
-  | 'true-false'
-  | 'practical';
+  | "multiple-choice"
+  | "multiple-select"
+  | "true-false"
+  | "practical";
 
 export interface ExamQuestion {
   id: string;
-  domain: 'domain1' | 'domain2' | 'domain3' | 'domain4' | 'domain5';
+  domain: "domain1" | "domain2" | "domain3" | "domain4" | "domain5";
   questionText: string;
   type: QuestionType;
 
@@ -266,7 +279,7 @@ export interface ExamQuestion {
   points: number;
 
   // Difficulty for balanced question selection
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  difficulty: "beginner" | "intermediate" | "advanced";
 
   // For practical questions: scenario to load
   practicalScenarioId?: string;
@@ -391,7 +404,12 @@ export interface ExamAttempt {
 // UTILITY TYPES
 // ============================================================================
 
-export type DomainId = 'domain1' | 'domain2' | 'domain3' | 'domain4' | 'domain5';
+export type DomainId =
+  | "domain1"
+  | "domain2"
+  | "domain3"
+  | "domain4"
+  | "domain5";
 
 export interface DomainInfo {
   id: DomainId;
@@ -403,38 +421,38 @@ export interface DomainInfo {
 
 export const DOMAINS: Record<DomainId, DomainInfo> = {
   domain1: {
-    id: 'domain1',
-    title: 'Domain 1: Platform Bring-Up',
-    description: 'Server POST, BIOS, BMC, drivers, firmware',
+    id: "domain1",
+    title: "Domain 1: Platform Bring-Up",
+    description: "Server POST, BIOS, BMC, drivers, firmware",
     weight: 31,
-    color: 'blue',
+    color: "blue",
   },
   domain2: {
-    id: 'domain2',
-    title: 'Domain 2: Accelerator Configuration',
-    description: 'BlueField DPU, MIG, NVLink, GPU topology',
+    id: "domain2",
+    title: "Domain 2: Accelerator Configuration",
+    description: "BlueField DPU, MIG, NVLink, GPU topology",
     weight: 5,
-    color: 'green',
+    color: "green",
   },
   domain3: {
-    id: 'domain3',
-    title: 'Domain 3: Base Infrastructure',
-    description: 'BCM, HA, Slurm, containers, storage',
+    id: "domain3",
+    title: "Domain 3: Base Infrastructure",
+    description: "BCM, HA, Slurm, containers, storage",
     weight: 19,
-    color: 'purple',
+    color: "purple",
   },
   domain4: {
-    id: 'domain4',
-    title: 'Domain 4: Validation & Testing',
-    description: 'NCCL, DCGMI, health checks, benchmarks',
+    id: "domain4",
+    title: "Domain 4: Validation & Testing",
+    description: "NCCL, DCGMI, health checks, benchmarks",
     weight: 33,
-    color: 'orange',
+    color: "orange",
   },
   domain5: {
-    id: 'domain5',
-    title: 'Domain 5: Troubleshooting',
-    description: 'XID errors, thermal, NVLink, performance',
+    id: "domain5",
+    title: "Domain 5: Troubleshooting",
+    description: "XID errors, thermal, NVLink, performance",
     weight: 12,
-    color: 'red',
+    color: "red",
   },
 };

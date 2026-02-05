@@ -79,7 +79,7 @@ export const MS_PER_DAY = 24 * 60 * 60 * 1000;
 export function calculateNextReview(
   lastReviewDate: number,
   consecutiveSuccesses: number,
-  currentInterval: number,
+  _currentInterval: number,
 ): { nextReviewDate: number; newInterval: number } {
   // Determine the new interval based on consecutive successes
   // Cap at the maximum interval index

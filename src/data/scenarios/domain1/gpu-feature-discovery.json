@@ -31,10 +31,7 @@
         {
           "type": "command-executed",
           "description": "Query GPU architecture details",
-          "expectedCommands": [
-            "nvidia-smi --query-gpu",
-            "nvidia-smi -q"
-          ],
+          "expectedCommands": ["nvidia-smi --query-gpu", "nvidia-smi -q"],
           "requireAllCommands": true
         }
       ],
@@ -61,18 +58,12 @@
         "Check NVLink topology between GPUs",
         "Understand bandwidth differences vs PCIe"
       ],
-      "expectedCommands": [
-        "nvidia-smi nvlink --status",
-        "nvidia-smi topo -m"
-      ],
+      "expectedCommands": ["nvidia-smi nvlink --status", "nvidia-smi topo -m"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Check NVLink capabilities",
-          "expectedCommands": [
-            "nvidia-smi nvlink",
-            "nvidia-smi topo"
-          ],
+          "expectedCommands": ["nvidia-smi nvlink", "nvidia-smi topo"],
           "requireAllCommands": true
         }
       ],
@@ -224,10 +215,7 @@
         {
           "type": "command-executed",
           "description": "Compare GPU models",
-          "expectedCommands": [
-            "nvidia-smi --query-gpu",
-            "nvidia-smi -L"
-          ],
+          "expectedCommands": ["nvidia-smi --query-gpu", "nvidia-smi -L"],
           "requireAllCommands": true
         }
       ],
@@ -254,17 +242,12 @@
         "Know when NVLink is beneficial",
         "Identify GPU Direct use cases"
       ],
-      "expectedCommands": [
-        "nvidia-smi",
-        "nvidia-smi topo -m"
-      ],
+      "expectedCommands": ["nvidia-smi", "nvidia-smi topo -m"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Review GPU configuration",
-          "expectedCommands": [
-            "nvidia-smi"
-          ],
+          "expectedCommands": ["nvidia-smi"],
           "requireAllCommands": true
         }
       ],
@@ -293,9 +276,7 @@
     "Created decision framework for feature usage"
   ],
   "estimatedTime": 38,
-  "prerequisites": [
-    "domain1-driver-install"
-  ],
+  "prerequisites": ["domain1-driver-install"],
   "tags": [
     "gpu",
     "architecture",
@@ -303,5 +284,8 @@
     "capabilities",
     "features",
     "intermediate"
-  ]
+  ],
+  "tier": 2,
+  "commandFamilies": ["gpu-monitoring", "infiniband-tools"],
+  "explanationGateId": "gate-domain1-gpu-discovery"
 }

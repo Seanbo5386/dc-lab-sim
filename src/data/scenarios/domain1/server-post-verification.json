@@ -22,10 +22,7 @@
         "Retrieve and review the System Event Log",
         "Identify any critical or warning events related to POST"
       ],
-      "expectedCommands": [
-        "ipmitool sel list",
-        "ipmitool sel elist"
-      ],
+      "expectedCommands": ["ipmitool sel list", "ipmitool sel elist"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -88,10 +85,7 @@
         "Compare against recommended BIOS version",
         "Document the current BIOS version for compliance"
       ],
-      "expectedCommands": [
-        "ipmitool fru print 0",
-        "ipmitool mc info"
-      ],
+      "expectedCommands": ["ipmitool fru print 0", "ipmitool mc info"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -122,16 +116,17 @@
         "Confirm all installed memory is recognized",
         "Check for any memory training errors"
       ],
-      "expectedCommands": [
-        "lscpu",
-        "free -h",
-        "dmidecode -t memory"
-      ],
+      "expectedCommands": ["lscpu", "free -h", "dmidecode -t memory"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must check CPU and memory status",
-          "expectedCommands": ["lscpu", "free -h", "dmidecode -t memory", "dmidecode -t processor"],
+          "expectedCommands": [
+            "lscpu",
+            "free -h",
+            "dmidecode -t memory",
+            "dmidecode -t processor"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -199,11 +194,7 @@
         "Verify GPU devices are present on expected PCIe buses",
         "Check for any PCIe link errors or degraded links"
       ],
-      "expectedCommands": [
-        "lspci",
-        "lspci -tv",
-        "nvidia-smi"
-      ],
+      "expectedCommands": ["lspci", "lspci -tv", "nvidia-smi"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -244,7 +235,12 @@
         {
           "type": "command-executed",
           "description": "Must review boot messages",
-          "expectedCommands": ["dmesg", "dmesg | grep -i error", "dmesg | grep -i warning", "journalctl -b"],
+          "expectedCommands": [
+            "dmesg",
+            "dmesg | grep -i error",
+            "dmesg | grep -i warning",
+            "journalctl -b"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -272,5 +268,8 @@
   ],
   "estimatedTime": 25,
   "prerequisites": [],
-  "tags": ["post", "bios", "boot", "hardware-initialization", "beginner"]
+  "tags": ["post", "bios", "boot", "hardware-initialization", "beginner"],
+  "tier": 1,
+  "commandFamilies": ["bmc-hardware", "diagnostics"],
+  "toolHints": true
 }

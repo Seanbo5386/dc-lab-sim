@@ -62,10 +62,7 @@
         "Identify BMC manufacturer info",
         "Document current version for compliance"
       ],
-      "expectedCommands": [
-        "ipmitool mc info",
-        "ipmitool bmc info"
-      ],
+      "expectedCommands": ["ipmitool mc info", "ipmitool bmc info"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -98,15 +95,15 @@
         "Verify NVSwitch firmware version",
         "Check NVSwitch health status"
       ],
-      "expectedCommands": [
-        "nvidia-smi nvlink --status",
-        "nvsm show nvswitch"
-      ],
+      "expectedCommands": ["nvidia-smi nvlink --status", "nvsm show nvswitch"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must check NVSwitch status",
-          "expectedCommands": ["nvidia-smi nvlink --status", "nvsm show nvswitch"],
+          "expectedCommands": [
+            "nvidia-smi nvlink --status",
+            "nvsm show nvswitch"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -180,7 +177,10 @@
         {
           "type": "command-executed",
           "description": "Must check BIOS version",
-          "expectedCommands": ["dmidecode -s bios-version", "dmidecode -t bios"],
+          "expectedCommands": [
+            "dmidecode -s bios-version",
+            "dmidecode -t bios"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -247,5 +247,15 @@
   ],
   "estimatedTime": 35,
   "prerequisites": ["domain1-server-post"],
-  "tags": ["firmware", "compliance", "verification", "driver", "bios", "intermediate"]
+  "tags": [
+    "firmware",
+    "compliance",
+    "verification",
+    "driver",
+    "bios",
+    "intermediate"
+  ],
+  "tier": 2,
+  "commandFamilies": ["gpu-monitoring", "bmc-hardware", "infiniband-tools"],
+  "explanationGateId": "gate-domain1-firmware-verification"
 }

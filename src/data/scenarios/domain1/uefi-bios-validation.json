@@ -254,7 +254,10 @@
         {
           "type": "command-executed",
           "description": "Must check virtualization settings",
-          "expectedCommands": ["lscpu | grep -i virtual", "cat /proc/cpuinfo | grep vmx"],
+          "expectedCommands": [
+            "lscpu | grep -i virtual",
+            "cat /proc/cpuinfo | grep vmx"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -285,5 +288,16 @@
   ],
   "estimatedTime": 37,
   "prerequisites": ["domain1-server-post"],
-  "tags": ["uefi", "bios", "pcie", "memory", "numa", "validation", "intermediate"]
+  "tags": [
+    "uefi",
+    "bios",
+    "pcie",
+    "memory",
+    "numa",
+    "validation",
+    "intermediate"
+  ],
+  "tier": 2,
+  "commandFamilies": ["bmc-hardware", "gpu-monitoring", "diagnostics"],
+  "explanationGateId": "gate-domain1-uefi-validation"
 }

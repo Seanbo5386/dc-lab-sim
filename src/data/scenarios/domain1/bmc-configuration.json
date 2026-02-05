@@ -22,10 +22,7 @@
         "Verify BMC IP address is correctly assigned",
         "Test BMC network connectivity"
       ],
-      "expectedCommands": [
-        "ipmitool lan print",
-        "ipmitool lan print 1"
-      ],
+      "expectedCommands": ["ipmitool lan print", "ipmitool lan print 1"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -67,7 +64,11 @@
         {
           "type": "command-executed",
           "description": "Must query system sensors",
-          "expectedCommands": ["ipmitool sensor list", "ipmitool sdr list", "ipmitool dcmi power reading"],
+          "expectedCommands": [
+            "ipmitool sensor list",
+            "ipmitool sdr list",
+            "ipmitool dcmi power reading"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -95,10 +96,7 @@
         "Identify privilege levels for each user",
         "Understand BMC access control model"
       ],
-      "expectedCommands": [
-        "ipmitool user list",
-        "ipmitool user list 1"
-      ],
+      "expectedCommands": ["ipmitool user list", "ipmitool user list 1"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -130,10 +128,7 @@
         "Identify BMC manufacturer and device ID",
         "Document current BMC version for compliance"
       ],
-      "expectedCommands": [
-        "ipmitool mc info",
-        "ipmitool mc guid"
-      ],
+      "expectedCommands": ["ipmitool mc info", "ipmitool mc guid"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -208,7 +203,10 @@
         {
           "type": "command-executed",
           "description": "Must query power status",
-          "expectedCommands": ["ipmitool chassis power status", "ipmitool chassis status"],
+          "expectedCommands": [
+            "ipmitool chassis power status",
+            "ipmitool chassis status"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -238,5 +236,15 @@
   ],
   "estimatedTime": 30,
   "prerequisites": ["domain1-server-post"],
-  "tags": ["bmc", "ipmi", "monitoring", "sensors", "remote-management", "intermediate"]
+  "tags": [
+    "bmc",
+    "ipmi",
+    "monitoring",
+    "sensors",
+    "remote-management",
+    "intermediate"
+  ],
+  "tier": 2,
+  "commandFamilies": ["bmc-hardware"],
+  "explanationGateId": "gate-domain1-bmc-config"
 }

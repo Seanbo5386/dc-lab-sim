@@ -31,9 +31,7 @@
         {
           "type": "command-executed",
           "description": "Must check driver status with nvidia-smi",
-          "expectedCommands": [
-            "nvidia-smi"
-          ],
+          "expectedCommands": ["nvidia-smi"],
           "requireAllCommands": true
         }
       ],
@@ -60,18 +58,12 @@
         "Verify GPU PCIe addresses",
         "Check PCIe link speed and width"
       ],
-      "expectedCommands": [
-        "lspci | grep -i nvidia",
-        "lspci -d 10de: -vv"
-      ],
+      "expectedCommands": ["lspci | grep -i nvidia", "lspci -d 10de: -vv"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must list NVIDIA PCIe devices",
-          "expectedCommands": [
-            "lspci | grep -i nvidia",
-            "lspci -d 10de:"
-          ],
+          "expectedCommands": ["lspci | grep -i nvidia", "lspci -d 10de:"],
           "requireAllCommands": true
         }
       ],
@@ -147,9 +139,7 @@
         {
           "type": "command-executed",
           "description": "Must query GPU properties",
-          "expectedCommands": [
-            "nvidia-smi -q"
-          ],
+          "expectedCommands": ["nvidia-smi -q"],
           "requireAllCommands": true
         }
       ],
@@ -218,10 +208,7 @@
         "Verify NVLink connections",
         "Check PCIe topology"
       ],
-      "expectedCommands": [
-        "nvidia-smi topo -m",
-        "nvidia-smi topo --matrix"
-      ],
+      "expectedCommands": ["nvidia-smi topo -m", "nvidia-smi topo --matrix"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -264,9 +251,7 @@
         {
           "type": "command-executed",
           "description": "Must enable persistence mode",
-          "expectedCommands": [
-            "nvidia-smi -pm 1"
-          ],
+          "expectedCommands": ["nvidia-smi -pm 1"],
           "requireAllCommands": true
         }
       ],
@@ -296,9 +281,7 @@
     "Configured persistence mode for optimal performance"
   ],
   "estimatedTime": 37,
-  "prerequisites": [
-    "domain1-server-post"
-  ],
+  "prerequisites": ["domain1-server-post"],
   "tags": [
     "driver",
     "nvidia-smi",
@@ -307,5 +290,8 @@
     "installation",
     "validation",
     "intermediate"
-  ]
+  ],
+  "tier": 1,
+  "commandFamilies": ["gpu-monitoring", "diagnostics"],
+  "toolHints": true
 }

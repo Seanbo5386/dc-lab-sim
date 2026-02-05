@@ -1,0 +1,508 @@
+{
+  "questions": [
+    {
+      "id": "gpu-mon-q1",
+      "familyId": "gpu-monitoring",
+      "scenario": "You need to quickly check if any GPU processes are running on a server before restarting it. You need an immediate answer.",
+      "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
+      "correctAnswer": "nvidia-smi",
+      "explanation": "nvidia-smi provides an immediate snapshot of running processes. It's the fastest way to see what's using the GPUs right now without requiring any setup or continuous monitoring.",
+      "whyNotOthers": [
+        {
+          "tool": "nvtop",
+          "reason": "nvtop is designed for continuous monitoring with a live dashboard, which is overkill for a quick one-time check"
+        },
+        {
+          "tool": "dcgmi",
+          "reason": "dcgmi requires more setup and is designed for detailed metrics collection, not quick process checks"
+        },
+        {
+          "tool": "nvsm",
+          "reason": "nvsm is for fleet management across multiple DGX nodes, not single server process checks"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "gpu-mon-q2",
+      "familyId": "gpu-monitoring",
+      "scenario": "A machine learning job is running slowly and you want to watch GPU utilization and memory usage in real-time while the job runs to identify bottlenecks.",
+      "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
+      "correctAnswer": "nvtop",
+      "explanation": "nvtop provides a continuously updating dashboard showing GPU utilization, memory, and processes in real-time. It's specifically designed for watching workloads as they run.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-smi",
+          "reason": "nvidia-smi provides point-in-time snapshots; you'd need to run it repeatedly in a loop which is less convenient than nvtop's live view"
+        },
+        {
+          "tool": "dcgmi",
+          "reason": "dcgmi dmon can show live metrics but nvtop's visual interface is better for real-time monitoring during debugging"
+        },
+        {
+          "tool": "nvsm",
+          "reason": "nvsm is for multi-node fleet management, not detailed single-node process monitoring"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "gpu-mon-q3",
+      "familyId": "gpu-monitoring",
+      "scenario": "You need to set up automated monitoring to track ECC memory errors across all GPUs over the next week and generate reports for capacity planning.",
+      "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
+      "correctAnswer": "dcgmi",
+      "explanation": "dcgmi (DCGM) provides detailed telemetry including ECC error tracking, can run as a service, and supports policy-based monitoring. It's designed for this kind of ongoing data collection and analysis.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-smi",
+          "reason": "nvidia-smi can show ECC errors but doesn't provide automated collection, policies, or reporting capabilities"
+        },
+        {
+          "tool": "nvtop",
+          "reason": "nvtop is an interactive tool for real-time viewing, not automated data collection"
+        },
+        {
+          "tool": "nvsm",
+          "reason": "nvsm provides health status but dcgmi offers more granular ECC tracking and custom metric collection"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "gpu-mon-q4",
+      "familyId": "gpu-monitoring",
+      "scenario": "You manage 50 DGX nodes in a BasePOD cluster and need to quickly check the overall health status of all GPU systems from a central location.",
+      "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
+      "correctAnswer": "nvsm",
+      "explanation": "nvsm (NVIDIA System Management) is specifically designed for fleet management of multiple DGX systems. It provides cluster-wide health views and centralized management for DGX BasePOD environments.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-smi",
+          "reason": "nvidia-smi runs on individual nodes; you'd need to SSH to each of the 50 nodes separately"
+        },
+        {
+          "tool": "nvtop",
+          "reason": "nvtop is for single-node monitoring only and has no multi-node capabilities"
+        },
+        {
+          "tool": "dcgmi",
+          "reason": "dcgmi runs per-node; while it can be deployed across nodes, nvsm provides the integrated DGX fleet view"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "ib-q1",
+      "familyId": "infiniband-tools",
+      "scenario": "A user reports their multi-node training job is failing to start. You need to quickly verify that the InfiniBand ports on the compute node are active and connected.",
+      "choices": ["ibstat", "perfquery", "ibdiagnet", "iblinkinfo"],
+      "correctAnswer": "ibstat",
+      "explanation": "ibstat provides a quick view of local HCA port status including physical state and link layer. It's the fastest way to verify if ports are Active and properly connected.",
+      "whyNotOthers": [
+        {
+          "tool": "perfquery",
+          "reason": "perfquery shows performance counters, not connection status; the port could be connected but showing zero traffic"
+        },
+        {
+          "tool": "ibdiagnet",
+          "reason": "ibdiagnet runs a full fabric diagnostic which takes much longer; it's overkill for a quick port status check"
+        },
+        {
+          "tool": "iblinkinfo",
+          "reason": "iblinkinfo shows fabric topology which is useful but requires querying the subnet manager; ibstat is faster for local port checks"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "ib-q2",
+      "familyId": "infiniband-tools",
+      "scenario": "Distributed training jobs are completing but running slower than expected. You suspect there might be packet drops or link errors on the InfiniBand fabric.",
+      "choices": ["ibstat", "perfquery", "ibdiagnet", "iblinkinfo"],
+      "correctAnswer": "perfquery",
+      "explanation": "perfquery retrieves performance counters including error statistics like symbol errors, link integrity errors, and packet discards. It's the right tool for investigating performance issues related to link quality.",
+      "whyNotOthers": [
+        {
+          "tool": "ibstat",
+          "reason": "ibstat shows port state but not error counters; the port could be Active but still have errors"
+        },
+        {
+          "tool": "ibdiagnet",
+          "reason": "ibdiagnet is comprehensive but perfquery is faster for checking specific port error counters"
+        },
+        {
+          "tool": "iblinkinfo",
+          "reason": "iblinkinfo shows topology and link speeds but not error statistics"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "ib-q3",
+      "familyId": "infiniband-tools",
+      "scenario": "You're commissioning a new HPC cluster and need to validate the entire InfiniBand fabric including checking for routing issues, cable problems, and configuration errors.",
+      "choices": ["ibstat", "perfquery", "ibdiagnet", "iblinkinfo"],
+      "correctAnswer": "ibdiagnet",
+      "explanation": "ibdiagnet performs comprehensive fabric diagnostics including topology validation, routing checks, error detection, and cable verification. It's the standard tool for pre-deployment validation.",
+      "whyNotOthers": [
+        {
+          "tool": "ibstat",
+          "reason": "ibstat only checks local ports, not the entire fabric health"
+        },
+        {
+          "tool": "perfquery",
+          "reason": "perfquery checks individual port counters but doesn't validate routing or fabric-wide configuration"
+        },
+        {
+          "tool": "iblinkinfo",
+          "reason": "iblinkinfo shows topology but doesn't run diagnostic tests or identify configuration issues"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "ib-q4",
+      "familyId": "infiniband-tools",
+      "scenario": "A new switch was added to the fabric and you need to verify it's properly connected, see what nodes are attached to it, and confirm all links are running at the expected speed.",
+      "choices": ["ibstat", "perfquery", "ibdiagnet", "iblinkinfo"],
+      "correctAnswer": "iblinkinfo",
+      "explanation": "iblinkinfo displays fabric topology showing all switches, their connected nodes, and link speeds. It's ideal for verifying switch connectivity and link configuration.",
+      "whyNotOthers": [
+        {
+          "tool": "ibstat",
+          "reason": "ibstat only shows local HCA ports, not switch-level connectivity"
+        },
+        {
+          "tool": "perfquery",
+          "reason": "perfquery shows performance counters, not topology or connection information"
+        },
+        {
+          "tool": "ibdiagnet",
+          "reason": "ibdiagnet can show topology but iblinkinfo is faster and more focused for viewing connections"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "bmc-q1",
+      "familyId": "bmc-hardware",
+      "scenario": "A server is unresponsive and you need to remotely check its power status and potentially power cycle it without physical access to the machine room.",
+      "choices": ["ipmitool", "sensors", "dmidecode"],
+      "correctAnswer": "ipmitool",
+      "explanation": "ipmitool provides out-of-band BMC access for remote power management. You can check power status and perform power cycles even when the OS is completely unresponsive.",
+      "whyNotOthers": [
+        {
+          "tool": "sensors",
+          "reason": "sensors requires a running OS to execute; it cannot be used when the server is unresponsive"
+        },
+        {
+          "tool": "dmidecode",
+          "reason": "dmidecode runs within the OS and cannot be used for remote power management or when the system is hung"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "bmc-q2",
+      "familyId": "bmc-hardware",
+      "scenario": "Users are complaining about thermal throttling. You want to quickly check the current CPU and GPU temperatures and fan speeds on a running server.",
+      "choices": ["ipmitool", "sensors", "dmidecode"],
+      "correctAnswer": "sensors",
+      "explanation": "sensors provides a quick, readable display of temperature, fan, and voltage readings from all hardware monitoring chips. It's the fastest way to check thermals on a running system.",
+      "whyNotOthers": [
+        {
+          "tool": "ipmitool",
+          "reason": "ipmitool sensor list also works but sensors provides cleaner output and is faster for quick thermal checks"
+        },
+        {
+          "tool": "dmidecode",
+          "reason": "dmidecode shows hardware inventory information, not real-time sensor readings"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "bmc-q3",
+      "familyId": "bmc-hardware",
+      "scenario": "You're preparing for a BIOS update and need to document the current BIOS version, memory configuration, and serial numbers for change management records.",
+      "choices": ["ipmitool", "sensors", "dmidecode"],
+      "correctAnswer": "dmidecode",
+      "explanation": "dmidecode reads SMBIOS/DMI data providing detailed hardware inventory including BIOS version, memory layout, serial numbers, and system identification. It's the standard tool for hardware documentation.",
+      "whyNotOthers": [
+        {
+          "tool": "ipmitool",
+          "reason": "ipmitool fru shows some inventory data but dmidecode provides more comprehensive SMBIOS information"
+        },
+        {
+          "tool": "sensors",
+          "reason": "sensors shows real-time readings, not hardware inventory or version information"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "bmc-q4",
+      "familyId": "bmc-hardware",
+      "scenario": "A server experienced a crash overnight. You need to review the hardware event log to see if there were any sensor alerts or hardware warnings that preceded the failure.",
+      "choices": ["ipmitool", "sensors", "dmidecode"],
+      "correctAnswer": "ipmitool",
+      "explanation": "ipmitool sel elist displays the System Event Log (SEL) which records hardware events including sensor threshold alerts, power events, and hardware errors. This is essential for post-incident analysis.",
+      "whyNotOthers": [
+        {
+          "tool": "sensors",
+          "reason": "sensors only shows current readings, not historical events or logs"
+        },
+        {
+          "tool": "dmidecode",
+          "reason": "dmidecode shows static hardware information, not event logs or historical data"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "cluster-q1",
+      "familyId": "cluster-tools",
+      "scenario": "You want to see which Slurm partitions are available and how many nodes are idle versus in use before submitting a job.",
+      "choices": ["sinfo", "squeue", "scontrol", "sacct"],
+      "correctAnswer": "sinfo",
+      "explanation": "sinfo displays partition and node state information including available resources, node counts by state (idle, allocated, down), and partition limits. It's the go-to command for checking cluster availability.",
+      "whyNotOthers": [
+        {
+          "tool": "squeue",
+          "reason": "squeue shows jobs in the queue, not node availability or partition status"
+        },
+        {
+          "tool": "scontrol",
+          "reason": "scontrol can show node details but sinfo provides a better summary view of availability"
+        },
+        {
+          "tool": "sacct",
+          "reason": "sacct shows job history, not current resource availability"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "cluster-q2",
+      "familyId": "cluster-tools",
+      "scenario": "Your job has been pending for an hour. You want to see why it's waiting and what other jobs are ahead of it in the queue.",
+      "choices": ["sinfo", "squeue", "scontrol", "sacct"],
+      "correctAnswer": "squeue",
+      "explanation": "squeue displays the job queue with pending reason codes, priority information, and resource requests. It shows exactly what jobs are waiting and why, helping you understand queue position.",
+      "whyNotOthers": [
+        {
+          "tool": "sinfo",
+          "reason": "sinfo shows node availability but not job queue order or pending reasons"
+        },
+        {
+          "tool": "scontrol",
+          "reason": "scontrol show job gives details for one job but squeue shows the full queue picture"
+        },
+        {
+          "tool": "sacct",
+          "reason": "sacct shows completed job history, not currently pending jobs"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "cluster-q3",
+      "familyId": "cluster-tools",
+      "scenario": "A compute node is experiencing hardware issues. You need to drain it so no new jobs are scheduled while allowing current jobs to finish, then mark it for maintenance.",
+      "choices": ["sinfo", "squeue", "scontrol", "sacct"],
+      "correctAnswer": "scontrol",
+      "explanation": "scontrol is the administrative command for modifying Slurm state. 'scontrol update nodename=X state=drain' drains the node gracefully, allowing running jobs to complete while preventing new allocations.",
+      "whyNotOthers": [
+        {
+          "tool": "sinfo",
+          "reason": "sinfo is read-only for viewing state; it cannot modify node status"
+        },
+        {
+          "tool": "squeue",
+          "reason": "squeue shows and manages jobs in queue but cannot change node state"
+        },
+        {
+          "tool": "sacct",
+          "reason": "sacct is for job accounting and history, not administrative state changes"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "cluster-q4",
+      "familyId": "cluster-tools",
+      "scenario": "A user's job from last week failed and they want to know how much memory it actually used before it crashed. You need to investigate the resource usage.",
+      "choices": ["sinfo", "squeue", "scontrol", "sacct"],
+      "correctAnswer": "sacct",
+      "explanation": "sacct displays accounting data for past jobs including actual memory usage (MaxRSS), CPU time, exit codes, and failure reasons. It's the only tool that can show historical resource consumption.",
+      "whyNotOthers": [
+        {
+          "tool": "sinfo",
+          "reason": "sinfo shows current cluster state, not historical job data"
+        },
+        {
+          "tool": "squeue",
+          "reason": "squeue only shows currently pending and running jobs, not completed ones"
+        },
+        {
+          "tool": "scontrol",
+          "reason": "scontrol show job only works for active jobs; completed job data is purged"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "container-q1",
+      "familyId": "container-tools",
+      "scenario": "You're a developer testing a new PyTorch model locally on your workstation with a single GPU. You want to quickly spin up an NGC container to run some experiments.",
+      "choices": ["docker", "enroot", "pyxis"],
+      "correctAnswer": "docker",
+      "explanation": "Docker with the NVIDIA Container Toolkit is ideal for local development and testing. It provides a familiar interface for interactive GPU container work on single nodes without requiring HPC infrastructure.",
+      "whyNotOthers": [
+        {
+          "tool": "enroot",
+          "reason": "enroot is designed for HPC environments; Docker is simpler for local development workflows"
+        },
+        {
+          "tool": "pyxis",
+          "reason": "pyxis requires Slurm integration which is unnecessary for local workstation testing"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "container-q2",
+      "familyId": "container-tools",
+      "scenario": "You need to convert an NGC Docker image into a format that can run without root privileges on your HPC cluster's shared filesystem.",
+      "choices": ["docker", "enroot", "pyxis"],
+      "correctAnswer": "enroot",
+      "explanation": "enroot is specifically designed to import Docker images and convert them into unprivileged sandboxes for HPC environments. It creates rootless container images that can run on shared filesystems.",
+      "whyNotOthers": [
+        {
+          "tool": "docker",
+          "reason": "Docker typically requires root or docker group membership and doesn't integrate well with shared HPC filesystems"
+        },
+        {
+          "tool": "pyxis",
+          "reason": "pyxis uses enroot as its backend; you need enroot to create the converted image first"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "container-q3",
+      "familyId": "container-tools",
+      "scenario": "You have a production training job that needs to run across 16 nodes using Slurm, and you want to run it inside a container with proper MPI and GPU support.",
+      "choices": ["docker", "enroot", "pyxis"],
+      "correctAnswer": "pyxis",
+      "explanation": "pyxis is a Slurm plugin that enables seamless multi-node container execution with srun. It handles MPI, GPU allocation, and node coordination automatically through Slurm's native mechanisms.",
+      "whyNotOthers": [
+        {
+          "tool": "docker",
+          "reason": "Docker doesn't integrate with Slurm's resource management; multi-node coordination would be manual and error-prone"
+        },
+        {
+          "tool": "enroot",
+          "reason": "enroot runs containers but doesn't provide Slurm integration; pyxis uses enroot as its backend while adding Slurm support"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "container-q4",
+      "familyId": "container-tools",
+      "scenario": "Your CI/CD pipeline needs to build and test GPU containers before deploying them. The build server has Docker installed and you need to validate CUDA functionality.",
+      "choices": ["docker", "enroot", "pyxis"],
+      "correctAnswer": "docker",
+      "explanation": "Docker is the standard for CI/CD container workflows. With the NVIDIA Container Toolkit, it supports GPU passthrough for testing CUDA functionality during automated builds.",
+      "whyNotOthers": [
+        {
+          "tool": "enroot",
+          "reason": "enroot is for running containers, not building them; CI/CD pipelines typically use Docker for the build phase"
+        },
+        {
+          "tool": "pyxis",
+          "reason": "pyxis requires Slurm which is not typically available in CI/CD environments"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "diag-q1",
+      "familyId": "diagnostics",
+      "scenario": "A new DGX server has arrived. Before putting it into production, you want to run a comprehensive hardware validation to verify all GPUs, NVLinks, and PCIe connections are working correctly.",
+      "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
+      "correctAnswer": "dcgmi diag",
+      "explanation": "dcgmi diag runs comprehensive diagnostic tests including memory checks, PCIe bandwidth tests, and NVLink validation. It's the standard tool for pre-deployment hardware validation.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "nvidia-bug-report collects system information but doesn't run active diagnostic tests"
+        },
+        {
+          "tool": "gpu-burn",
+          "reason": "gpu-burn is a stress test that tests stability under load, but dcgmi diag provides more comprehensive validation including NVLink and PCIe"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "diag-q2",
+      "familyId": "diagnostics",
+      "scenario": "NVIDIA support has asked you to provide complete system diagnostic information to help troubleshoot a driver issue you've been experiencing.",
+      "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
+      "correctAnswer": "nvidia-bug-report",
+      "explanation": "nvidia-bug-report generates a comprehensive diagnostic bundle including driver information, GPU state, system logs, and configuration files. It's specifically designed for creating support tickets.",
+      "whyNotOthers": [
+        {
+          "tool": "dcgmi diag",
+          "reason": "dcgmi diag tests hardware but doesn't collect the system logs and driver information support needs"
+        },
+        {
+          "tool": "gpu-burn",
+          "reason": "gpu-burn is a stress test tool, not a diagnostic information collector"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "diag-q3",
+      "familyId": "diagnostics",
+      "scenario": "You've replaced the thermal paste on GPUs after a cooling issue. You need to verify the system is now stable under maximum thermal and power load for an extended period.",
+      "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
+      "correctAnswer": "gpu-burn",
+      "explanation": "gpu-burn runs intensive CUDA workloads that push GPUs to maximum thermal and power limits for extended periods. It's ideal for validating thermal solutions and identifying stability issues under sustained load.",
+      "whyNotOthers": [
+        {
+          "tool": "dcgmi diag",
+          "reason": "dcgmi diag runs shorter diagnostic tests; gpu-burn provides sustained load testing for thermal validation"
+        },
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "nvidia-bug-report collects information but doesn't stress test the hardware"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "diag-q4",
+      "familyId": "diagnostics",
+      "scenario": "Users report intermittent GPU memory errors during training jobs. You want to run thorough memory diagnostics overnight to identify if there's a hardware fault.",
+      "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
+      "correctAnswer": "dcgmi diag",
+      "explanation": "dcgmi diag with level 3 runs extensive memory tests that can identify subtle memory faults. It specifically tests for memory errors including ECC issues that may only appear under certain conditions.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "nvidia-bug-report collects ECC error counts but doesn't actively test for memory faults"
+        },
+        {
+          "tool": "gpu-burn",
+          "reason": "gpu-burn stresses compute and thermals but isn't designed for targeted memory fault detection"
+        }
+      ],
+      "difficulty": "advanced"
+    }
+  ]
+}

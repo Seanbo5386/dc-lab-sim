@@ -52,17 +52,12 @@
         "Identify which nodes have GPU problems",
         "Document the symptoms"
       ],
-      "expectedCommands": [
-        "nvidia-smi",
-        "nvidia-smi -L"
-      ],
+      "expectedCommands": ["nvidia-smi", "nvidia-smi -L"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Check GPU status",
-          "expectedCommands": [
-            "nvidia-smi"
-          ],
+          "expectedCommands": ["nvidia-smi"],
           "requireAllCommands": true
         }
       ],
@@ -137,10 +132,7 @@
         {
           "type": "command-executed",
           "description": "Check kernel modules",
-          "expectedCommands": [
-            "lsmod | grep nvidia",
-            "modinfo nvidia"
-          ],
+          "expectedCommands": ["lsmod | grep nvidia", "modinfo nvidia"],
           "requireAllCommands": true
         }
       ],
@@ -176,9 +168,7 @@
         {
           "type": "command-executed",
           "description": "Check PCIe status",
-          "expectedCommands": [
-            "lspci | grep -i nvidia"
-          ],
+          "expectedCommands": ["lspci | grep -i nvidia"],
           "requireAllCommands": true
         }
       ],
@@ -214,10 +204,7 @@
         {
           "type": "command-executed",
           "description": "Reload driver modules",
-          "expectedCommands": [
-            "modprobe nvidia",
-            "nvidia-smi"
-          ],
+          "expectedCommands": ["modprobe nvidia", "nvidia-smi"],
           "requireAllCommands": true
         }
       ],
@@ -253,10 +240,7 @@
         {
           "type": "command-executed",
           "description": "Attempt GPU recovery",
-          "expectedCommands": [
-            "nvidia-smi -r",
-            "echo 1 > /sys/bus/pci/rescan"
-          ],
+          "expectedCommands": ["nvidia-smi -r", "echo 1 > /sys/bus/pci/rescan"],
           "requireAllCommands": true
         }
       ],
@@ -292,10 +276,7 @@
         {
           "type": "command-executed",
           "description": "Verify GPU recovery",
-          "expectedCommands": [
-            "nvidia-smi",
-            "nvidia-smi -q"
-          ],
+          "expectedCommands": ["nvidia-smi", "nvidia-smi -q"],
           "requireAllCommands": true
         }
       ],
@@ -323,14 +304,15 @@
     "Documented troubleshooting methodology"
   ],
   "estimatedTime": 44,
-  "prerequisites": [
-    "domain1-driver-install"
-  ],
+  "prerequisites": ["domain1-driver-install"],
   "tags": [
     "troubleshooting",
     "driver",
     "recovery",
     "debugging",
     "intermediate"
-  ]
+  ],
+  "tier": 2,
+  "commandFamilies": ["gpu-monitoring", "diagnostics"],
+  "explanationGateId": "gate-domain1-driver-troubleshoot"
 }

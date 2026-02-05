@@ -59,15 +59,15 @@
         "Learn privilege assignment",
         "Know password requirements"
       ],
-      "expectedCommands": [
-        "ipmitool user list 1",
-        "ipmitool user summary 1"
-      ],
+      "expectedCommands": ["ipmitool user list 1", "ipmitool user summary 1"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must review user configuration options",
-          "expectedCommands": ["ipmitool user list 1", "ipmitool user summary 1"],
+          "expectedCommands": [
+            "ipmitool user list 1",
+            "ipmitool user summary 1"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -96,10 +96,7 @@
         "Verify network isolation",
         "Review access restrictions"
       ],
-      "expectedCommands": [
-        "ipmitool lan print 1",
-        "ipmitool lan print"
-      ],
+      "expectedCommands": ["ipmitool lan print 1", "ipmitool lan print"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -170,10 +167,7 @@
         "Identify security events",
         "Understand event interpretation"
       ],
-      "expectedCommands": [
-        "ipmitool sel list",
-        "ipmitool sel info"
-      ],
+      "expectedCommands": ["ipmitool sel list", "ipmitool sel info"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -207,10 +201,7 @@
         "Understand event filtering",
         "Learn alert destinations"
       ],
-      "expectedCommands": [
-        "ipmitool pef info",
-        "ipmitool lan alert print 1"
-      ],
+      "expectedCommands": ["ipmitool pef info", "ipmitool lan alert print 1"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -253,7 +244,11 @@
         {
           "type": "command-executed",
           "description": "Must document security config",
-          "expectedCommands": ["ipmitool user list 1", "ipmitool lan print 1", "ipmitool mc info"],
+          "expectedCommands": [
+            "ipmitool user list 1",
+            "ipmitool lan print 1",
+            "ipmitool mc info"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -285,5 +280,16 @@
   ],
   "estimatedTime": 45,
   "prerequisites": ["domain1-bmc-config"],
-  "tags": ["bmc", "security", "hardening", "ipmi", "access-control", "advanced"]
+  "tags": [
+    "bmc",
+    "security",
+    "hardening",
+    "ipmi",
+    "access-control",
+    "advanced"
+  ],
+  "tier": 3,
+  "commandFamilies": ["bmc-hardware"],
+  "explanationGateId": "gate-domain1-bmc-security",
+  "toolHints": false
 }
