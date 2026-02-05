@@ -636,6 +636,7 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
       .node();
     // Only depend on structural changes (node count, config), NOT on metrics that change every tick
     // Dynamic data updates are handled by clusterRef in click handlers
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     cluster.nodes.length,
     fabricConfig,

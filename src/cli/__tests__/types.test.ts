@@ -1,10 +1,6 @@
 // src/cli/__tests__/types.test.ts
 import { describe, it, expect } from "vitest";
-import type {
-  CommandDefinition,
-  StateInteraction,
-  CommandOption,
-} from "../types";
+import type { CommandDefinition, StateInteraction } from "../types";
 
 describe("CommandDefinition types", () => {
   it("should allow valid CommandDefinition structure", () => {

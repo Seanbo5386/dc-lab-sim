@@ -188,6 +188,7 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
 
     return { nodes: nodeList, links: linkList, nvSwitchPositions: nvSwitchPos };
     // Only depend on layout and GPU count, NOT on GPU metrics that change every tick
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layout, node.gpus.length]);
 
   // Initial SVG setup - only runs when layout changes, NOT on every node data update

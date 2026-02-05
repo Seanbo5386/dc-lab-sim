@@ -56,6 +56,7 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
   useEffect(() => {
     // Only auto-hide on component mount, not on resize
     setLabPanelVisible(!isSmallScreen);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - run once on mount
 
   if (!activeScenario) {

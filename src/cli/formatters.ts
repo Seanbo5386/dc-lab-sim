@@ -2,10 +2,8 @@
 import type {
   CommandDefinition,
   CommandOption,
-  Subcommand,
   ExitCode,
   ErrorMessage,
-  UsagePattern,
 } from "./types";
 import type { ValidationResult } from "./CommandDefinitionRegistry";
 
