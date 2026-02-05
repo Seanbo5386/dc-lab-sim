@@ -1,0 +1,247 @@
+{
+  "families": [
+    {
+      "id": "gpu-monitoring",
+      "name": "GPU Monitoring",
+      "icon": "📊",
+      "description": "Tools for monitoring GPU status, utilization, memory, and performance metrics in real-time or on-demand",
+      "quickRule": "Quick check? nvidia-smi. Continuous monitoring? nvtop. Deep metrics? dcgmi. Fleet management? nvsm.",
+      "tools": [
+        {
+          "name": "nvidia-smi",
+          "tagline": "Quick snapshot",
+          "description": "Displays GPU state including memory usage, utilization, temperature, running processes, and driver version",
+          "bestFor": "Spot checks, seeing what processes are using GPUs, quick health verification",
+          "exampleCommand": "nvidia-smi -q -i 0 -d MEMORY,UTILIZATION",
+          "permissions": "user",
+          "relatedTools": ["nvtop", "dcgmi"]
+        },
+        {
+          "name": "nvsm",
+          "tagline": "Fleet management",
+          "description": "NVIDIA System Management interface for managing multiple DGX systems, viewing health status, and performing administrative tasks",
+          "bestFor": "Managing multiple DGX nodes, viewing cluster-wide GPU health, administrative tasks on DGX BasePOD",
+          "exampleCommand": "nvsm show health",
+          "permissions": "root",
+          "relatedTools": ["nvidia-smi", "dcgmi"]
+        },
+        {
+          "name": "dcgmi",
+          "tagline": "Deep metrics",
+          "description": "NVIDIA Data Center GPU Manager CLI providing detailed GPU telemetry, diagnostics, policy management, and health monitoring",
+          "bestFor": "Detailed performance profiling, running GPU diagnostics, setting up monitoring policies, ECC error tracking",
+          "exampleCommand": "dcgmi dmon -e 155,150,156 -d 1000",
+          "permissions": "user",
+          "relatedTools": ["nvidia-smi", "nvsm"]
+        },
+        {
+          "name": "nvtop",
+          "tagline": "Live dashboard",
+          "description": "Interactive real-time GPU monitoring tool with a top-like interface showing utilization, memory, temperature, and processes",
+          "bestFor": "Continuous monitoring during workloads, watching GPU utilization in real-time, identifying resource hogs",
+          "exampleCommand": "nvtop",
+          "permissions": "user",
+          "relatedTools": ["nvidia-smi", "dcgmi"]
+        }
+      ]
+    },
+    {
+      "id": "infiniband-tools",
+      "name": "InfiniBand Tools",
+      "icon": "🔗",
+      "description": "Tools for managing and troubleshooting InfiniBand high-speed networking used for GPU-to-GPU communication across nodes",
+      "quickRule": "Port status? ibstat. Performance counters? perfquery. Full diagnostics? ibdiagnet. Topology? iblinkinfo.",
+      "tools": [
+        {
+          "name": "ibstat",
+          "tagline": "Port status",
+          "description": "Shows InfiniBand HCA port state, physical state, link layer, base LID, SM LID, and port capabilities",
+          "bestFor": "Quick check of IB port status, verifying link is active, checking LIDs are assigned",
+          "exampleCommand": "ibstat",
+          "permissions": "user",
+          "relatedTools": ["iblinkinfo", "perfquery"]
+        },
+        {
+          "name": "perfquery",
+          "tagline": "Performance counters",
+          "description": "Queries InfiniBand port performance counters including data transmitted/received, packet counts, and error statistics",
+          "bestFor": "Checking for port errors, measuring bandwidth utilization, investigating packet drops or link errors",
+          "exampleCommand": "perfquery -x",
+          "permissions": "user",
+          "relatedTools": ["ibstat", "ibdiagnet"]
+        },
+        {
+          "name": "ibdiagnet",
+          "tagline": "Full diagnostics",
+          "description": "Comprehensive InfiniBand fabric diagnostic tool that scans the entire fabric for errors, routing issues, and configuration problems",
+          "bestFor": "Full fabric health check, diagnosing routing issues, finding faulty cables or switches, pre-deployment validation",
+          "exampleCommand": "ibdiagnet -r",
+          "permissions": "root",
+          "relatedTools": ["ibstat", "iblinkinfo", "perfquery"]
+        },
+        {
+          "name": "iblinkinfo",
+          "tagline": "Topology view",
+          "description": "Displays InfiniBand fabric topology showing all nodes, switches, and their interconnections with link speeds and states",
+          "bestFor": "Viewing fabric topology, identifying node connections, checking link speeds and widths across the fabric",
+          "exampleCommand": "iblinkinfo --switches-only",
+          "permissions": "user",
+          "relatedTools": ["ibstat", "ibdiagnet"]
+        }
+      ]
+    },
+    {
+      "id": "bmc-hardware",
+      "name": "BMC & Hardware",
+      "icon": "🖥️",
+      "description": "Tools for baseboard management controller access, hardware sensors, and system inventory on DGX and HPC servers",
+      "quickRule": "Remote management? ipmitool. Temperature/voltage? sensors. Hardware inventory? dmidecode.",
+      "tools": [
+        {
+          "name": "ipmitool",
+          "tagline": "Remote management",
+          "description": "IPMI interface for BMC management including power control, sensor readings, event logs, FRU data, and SOL console access",
+          "bestFor": "Remote power cycling, reading BMC sensors, viewing System Event Log (SEL), out-of-band management",
+          "exampleCommand": "ipmitool sel elist",
+          "permissions": "root",
+          "relatedTools": ["sensors", "dmidecode"]
+        },
+        {
+          "name": "sensors",
+          "tagline": "Sensor readings",
+          "description": "Displays readings from hardware monitoring sensors including CPU/GPU temperatures, fan speeds, and voltage levels",
+          "bestFor": "Quick temperature checks, monitoring fan speeds, verifying voltage levels, thermal troubleshooting",
+          "exampleCommand": "sensors -A",
+          "permissions": "user",
+          "relatedTools": ["ipmitool"]
+        },
+        {
+          "name": "dmidecode",
+          "tagline": "Hardware inventory",
+          "description": "Reads system DMI/SMBIOS data to display hardware information including BIOS, memory, CPU, and chassis details",
+          "bestFor": "Hardware inventory, checking BIOS version, memory configuration, serial numbers, system identification",
+          "exampleCommand": "dmidecode -t memory",
+          "permissions": "root",
+          "relatedTools": ["ipmitool", "sensors"]
+        }
+      ]
+    },
+    {
+      "id": "cluster-tools",
+      "name": "Slurm Cluster Tools",
+      "icon": "🗂️",
+      "description": "Slurm workload manager commands for job scheduling, queue management, and cluster administration on HPC systems",
+      "quickRule": "Node status? sinfo. Job queue? squeue. Modify state? scontrol. Job history? sacct.",
+      "tools": [
+        {
+          "name": "sinfo",
+          "tagline": "Node status",
+          "description": "Displays Slurm cluster partition and node state information including availability, CPU/GPU counts, and node features",
+          "bestFor": "Checking node availability, viewing partition configuration, identifying drained or down nodes",
+          "exampleCommand": "sinfo -N -l",
+          "permissions": "user",
+          "relatedTools": ["squeue", "scontrol"]
+        },
+        {
+          "name": "squeue",
+          "tagline": "Job queue",
+          "description": "Shows jobs in the Slurm queue with their state, priority, resource requests, and scheduling information",
+          "bestFor": "Viewing pending and running jobs, checking job status, seeing queue wait times",
+          "exampleCommand": "squeue -u $USER --format=\"%.18i %.9P %.30j %.8u %.8T %.10M %.9l %.6D %R\"",
+          "permissions": "user",
+          "relatedTools": ["sinfo", "scontrol", "sacct"]
+        },
+        {
+          "name": "scontrol",
+          "tagline": "Admin control",
+          "description": "Slurm control command for viewing and modifying Slurm configuration, jobs, nodes, partitions, and reservations",
+          "bestFor": "Draining nodes for maintenance, modifying job parameters, viewing detailed job/node information, admin tasks",
+          "exampleCommand": "scontrol show node dgx-01",
+          "permissions": "root",
+          "relatedTools": ["sinfo", "squeue"]
+        },
+        {
+          "name": "sacct",
+          "tagline": "Job history",
+          "description": "Displays accounting data for past and present Slurm jobs including CPU time, memory usage, and exit status",
+          "bestFor": "Reviewing job history, analyzing resource usage patterns, troubleshooting failed jobs, usage reporting",
+          "exampleCommand": "sacct -j 12345 --format=JobID,JobName,Elapsed,MaxRSS,ExitCode",
+          "permissions": "user",
+          "relatedTools": ["squeue", "scontrol"]
+        }
+      ]
+    },
+    {
+      "id": "container-tools",
+      "name": "Container Tools",
+      "icon": "📦",
+      "description": "Container runtimes and tools for running GPU-accelerated workloads in isolated environments on HPC systems",
+      "quickRule": "Standard containers? docker. HPC images? enroot. Slurm integration? pyxis.",
+      "tools": [
+        {
+          "name": "docker",
+          "tagline": "Standard containers",
+          "description": "Docker container runtime with NVIDIA Container Toolkit support for running GPU-accelerated containers",
+          "bestFor": "Development and testing, running NGC containers interactively, CI/CD pipelines, single-node GPU workloads",
+          "exampleCommand": "docker run --gpus all -it nvcr.io/nvidia/pytorch:24.01-py3",
+          "permissions": "user",
+          "relatedTools": ["enroot", "pyxis"]
+        },
+        {
+          "name": "enroot",
+          "tagline": "HPC containers",
+          "description": "NVIDIA Enroot is a simple yet powerful tool to turn container images into unprivileged sandboxes for HPC environments",
+          "bestFor": "Converting Docker/NGC images to HPC-friendly format, running containers without root, rootless container execution",
+          "exampleCommand": "enroot import docker://nvcr.io#nvidia/pytorch:24.01-py3",
+          "permissions": "user",
+          "relatedTools": ["docker", "pyxis"]
+        },
+        {
+          "name": "pyxis",
+          "tagline": "Slurm integration",
+          "description": "Slurm plugin that enables seamless container execution with srun using Enroot as the backend runtime",
+          "bestFor": "Running containers through Slurm, multi-node containerized jobs, production HPC container workloads",
+          "exampleCommand": "srun --container-image=nvcr.io#nvidia/pytorch:24.01-py3 python train.py",
+          "permissions": "user",
+          "relatedTools": ["enroot", "docker"]
+        }
+      ]
+    },
+    {
+      "id": "diagnostics",
+      "name": "Diagnostics & Testing",
+      "icon": "🔬",
+      "description": "Tools for GPU health diagnostics, stress testing, and generating support bundles for NVIDIA systems",
+      "quickRule": "Health check? dcgmi diag. Support bundle? nvidia-bug-report. Stress test? gpu-burn.",
+      "tools": [
+        {
+          "name": "dcgmi diag",
+          "tagline": "Health check",
+          "description": "DCGM diagnostic tool that runs comprehensive GPU health tests including memory, PCIe, NVLink, and compute diagnostics",
+          "bestFor": "Pre-deployment validation, scheduled health checks, investigating intermittent GPU issues, burn-in testing",
+          "exampleCommand": "dcgmi diag -r 3",
+          "permissions": "root",
+          "relatedTools": ["nvidia-bug-report", "gpu-burn"]
+        },
+        {
+          "name": "nvidia-bug-report",
+          "tagline": "Support bundle",
+          "description": "Generates comprehensive diagnostic log bundle including driver info, GPU state, system logs, and configuration for NVIDIA support",
+          "bestFor": "Creating support tickets, capturing full system state for troubleshooting, documenting issues before changes",
+          "exampleCommand": "nvidia-bug-report.sh",
+          "permissions": "root",
+          "relatedTools": ["dcgmi diag"]
+        },
+        {
+          "name": "gpu-burn",
+          "tagline": "Stress test",
+          "description": "GPU stress testing tool that runs intensive CUDA workloads to test GPU stability under maximum thermal and power load",
+          "bestFor": "Stability testing, thermal validation, identifying hardware issues under load, burn-in testing new systems",
+          "exampleCommand": "gpu-burn -d 300",
+          "permissions": "user",
+          "relatedTools": ["dcgmi diag"]
+        }
+      ]
+    }
+  ]
+}
