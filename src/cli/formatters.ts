@@ -99,5 +99,54 @@ export function formatCommandHelp(def: CommandDefinition): string {
     output += "\n";
   }
 
+  // Exit Codes
+  if (def.exit_codes && def.exit_codes.length > 0) {
+    output += `${ANSI.BOLD}Exit Codes:${ANSI.RESET}\n`;
+    for (const ec of def.exit_codes.slice(0, 6)) {
+      output += formatExitCode(ec);
+    }
+    output += "\n";
+  }
+
+  // Error Messages
+  if (def.error_messages && def.error_messages.length > 0) {
+    output += `${ANSI.BOLD}Common Errors:${ANSI.RESET}\n`;
+    for (const err of def.error_messages.slice(0, 3)) {
+      const msgPreview =
+        err.message.length > 50
+          ? err.message.substring(0, 47) + "..."
+          : err.message;
+      output += `  ${ANSI.RED}${msgPreview}${ANSI.RESET}\n`;
+      output += `    Meaning: ${err.meaning}\n`;
+      if (err.resolution) {
+        const resPreview =
+          err.resolution.length > 70
+            ? err.resolution.substring(0, 67) + "..."
+            : err.resolution;
+        output += `    ${ANSI.GREEN}Fix: ${resPreview}${ANSI.RESET}\n`;
+      }
+    }
+    output += "\n";
+  }
+
   return output;
+}
+
+/**
+ * Format a single error message with resolution
+ */
+export function formatErrorMessage(error: ErrorMessage): string {
+  let output = `${ANSI.RED}${error.message}${ANSI.RESET}\n`;
+  output += `  Meaning: ${error.meaning}\n`;
+  if (error.resolution) {
+    output += `  ${ANSI.GREEN}Fix: ${error.resolution}${ANSI.RESET}\n`;
+  }
+  return output;
+}
+
+/**
+ * Format an exit code with its meaning
+ */
+export function formatExitCode(exitCode: ExitCode): string {
+  return `  ${ANSI.CYAN}${exitCode.code.toString().padEnd(5)}${ANSI.RESET} ${exitCode.meaning}\n`;
 }

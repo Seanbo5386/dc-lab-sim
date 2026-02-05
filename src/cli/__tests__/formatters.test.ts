@@ -1,6 +1,11 @@
 // src/cli/__tests__/formatters.test.ts
 import { describe, it, expect } from "vitest";
-import { ANSI, formatCommandHelp } from "../formatters";
+import {
+  ANSI,
+  formatCommandHelp,
+  formatErrorMessage,
+  formatExitCode,
+} from "../formatters";
 
 describe("Formatter Constants", () => {
   it("should export ANSI color codes", () => {
@@ -146,5 +151,80 @@ describe("formatCommandHelp with examples", () => {
     expect(output).toContain("test-cmd");
     expect(output).toContain("Run with defaults");
     expect(output).toContain("⚠ Requires root privileges");
+  });
+});
+
+describe("formatCommandHelp with exit codes", () => {
+  it("should format exit_codes", () => {
+    const def = {
+      command: "test-cmd",
+      category: "general" as const,
+      description: "Test",
+      synopsis: "test-cmd",
+      exit_codes: [
+        { code: 0, meaning: "Success" },
+        { code: 1, meaning: "General error" },
+        { code: 2, meaning: "Invalid arguments" },
+      ],
+    };
+
+    const output = formatCommandHelp(def);
+
+    expect(output).toContain("Exit Codes:");
+    expect(output).toContain("0");
+    expect(output).toContain("Success");
+    expect(output).toContain("2");
+  });
+});
+
+describe("formatCommandHelp with error messages", () => {
+  it("should format error_messages with resolutions", () => {
+    const def = {
+      command: "test-cmd",
+      category: "general" as const,
+      description: "Test",
+      synopsis: "test-cmd",
+      error_messages: [
+        {
+          message: "Connection refused",
+          meaning: "Cannot connect to server",
+          resolution: "Check if server is running",
+        },
+      ],
+    };
+
+    const output = formatCommandHelp(def);
+
+    expect(output).toContain("Common Errors:");
+    expect(output).toContain("Connection refused");
+    expect(output).toContain("Cannot connect to server");
+    expect(output).toContain("Fix:");
+  });
+});
+
+describe("formatErrorMessage", () => {
+  it("should format a single error with resolution", () => {
+    const error = {
+      message: "File not found",
+      meaning: "The specified file does not exist",
+      resolution: "Check the file path and try again",
+    };
+
+    const output = formatErrorMessage(error);
+
+    expect(output).toContain("File not found");
+    expect(output).toContain("The specified file does not exist");
+    expect(output).toContain("Check the file path");
+  });
+});
+
+describe("formatExitCode", () => {
+  it("should format an exit code with meaning", () => {
+    const exitCode = { code: 13, meaning: "Permission denied" };
+
+    const output = formatExitCode(exitCode);
+
+    expect(output).toContain("13");
+    expect(output).toContain("Permission denied");
   });
 });
