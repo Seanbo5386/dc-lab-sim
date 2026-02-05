@@ -7,90 +7,168 @@
  * - GPU-Burn - GPU stress testing and thermal validation
  */
 
-import { BaseSimulator } from './BaseSimulator';
-import type { CommandContext, CommandResult } from '@/types/commands';
-import type { ParsedCommand } from '@/utils/commandParser';
-import { useSimulationStore } from '@/store/simulationStore';
-import type { GPU, DGXNode } from '@/types/hardware';
+import { BaseSimulator } from "./BaseSimulator";
+import type { CommandContext, CommandResult } from "@/types/commands";
+import type { ParsedCommand } from "@/utils/commandParser";
+import { useSimulationStore } from "@/store/simulationStore";
+import type { GPU, DGXNode } from "@/types/hardware";
 
 export class BenchmarkSimulator extends BaseSimulator {
   constructor() {
     super();
+    this.initializeDefinitionRegistry();
 
-    this.registerCommand('hpl', this.handleHPL.bind(this), {
-      name: 'hpl',
-      description: 'High-Performance Linpack benchmark for measuring FLOPS',
-      usage: 'hpl [--burn-in] [--iterations N] [--nodes N] [--gpus-per-node N]',
+    this.registerCommand("hpl", this.handleHPL.bind(this), {
+      name: "hpl",
+      description: "High-Performance Linpack benchmark for measuring FLOPS",
+      usage: "hpl [--burn-in] [--iterations N] [--nodes N] [--gpus-per-node N]",
       flags: [
-        { long: 'nodes', description: 'Number of nodes to use (default: 1)', takesValue: true },
-        { long: 'gpus-per-node', description: 'GPUs per node (default: 8)', takesValue: true },
-        { long: 'problem-size', description: 'Problem size N (default: auto)', takesValue: true },
-        { long: 'N', description: 'Problem size N (alias for --problem-size)', takesValue: true },
-        { long: 'burn-in', description: 'Run extended burn-in test', takesValue: false },
-        { long: 'burnin', description: 'Run extended burn-in test (alias)', takesValue: false },
-        { long: 'iterations', description: 'Number of burn-in iterations (default: 100)', takesValue: true },
+        {
+          long: "nodes",
+          description: "Number of nodes to use (default: 1)",
+          takesValue: true,
+        },
+        {
+          long: "gpus-per-node",
+          description: "GPUs per node (default: 8)",
+          takesValue: true,
+        },
+        {
+          long: "problem-size",
+          description: "Problem size N (default: auto)",
+          takesValue: true,
+        },
+        {
+          long: "N",
+          description: "Problem size N (alias for --problem-size)",
+          takesValue: true,
+        },
+        {
+          long: "burn-in",
+          description: "Run extended burn-in test",
+          takesValue: false,
+        },
+        {
+          long: "burnin",
+          description: "Run extended burn-in test (alias)",
+          takesValue: false,
+        },
+        {
+          long: "iterations",
+          description: "Number of burn-in iterations (default: 100)",
+          takesValue: true,
+        },
       ],
       examples: [
-        'hpl',
-        'hpl --nodes 4 --gpus-per-node 8',
-        'hpl --problem-size 100000',
-        'hpl --burn-in --iterations 100',
-        'hpl --burn-in --N 90000 --iterations 50',
+        "hpl",
+        "hpl --nodes 4 --gpus-per-node 8",
+        "hpl --problem-size 100000",
+        "hpl --burn-in --iterations 100",
+        "hpl --burn-in --N 90000 --iterations 50",
       ],
     });
 
-    this.registerCommand('nccl-test', this.handleNCCL.bind(this), {
-      name: 'nccl-test',
-      description: 'Run NCCL collective tests with burn-in support',
-      usage: 'nccl-test [--burn-in] [--iterations N] [operation] [options]',
+    this.registerCommand("nccl-test", this.handleNCCL.bind(this), {
+      name: "nccl-test",
+      description: "Run NCCL collective tests with burn-in support",
+      usage: "nccl-test [--burn-in] [--iterations N] [operation] [options]",
       flags: [
-        { short: 'b', long: 'minbytes', description: 'Minimum message size (default: 8B)', takesValue: true },
-        { short: 'e', long: 'maxbytes', description: 'Maximum message size (default: 128MB)', takesValue: true },
-        { short: 'g', long: 'ngpus', description: 'Number of GPUs per node (default: 8)', takesValue: true },
-        { short: 'n', long: 'nodes', description: 'Number of nodes (default: 1)', takesValue: true },
-        { short: 't', long: 'operation', description: 'Operation: all_reduce, all_gather, reduce_scatter, broadcast (default: all_reduce)', takesValue: true },
-        { long: 'check', description: 'Check results for correctness', takesValue: false },
-        { long: 'burn-in', description: 'Run extended burn-in test', takesValue: false },
-        { long: 'burnin', description: 'Run extended burn-in test (alias)', takesValue: false },
-        { long: 'iterations', description: 'Number of burn-in iterations (default: 1000)', takesValue: true },
+        {
+          short: "b",
+          long: "minbytes",
+          description: "Minimum message size (default: 8B)",
+          takesValue: true,
+        },
+        {
+          short: "e",
+          long: "maxbytes",
+          description: "Maximum message size (default: 128MB)",
+          takesValue: true,
+        },
+        {
+          short: "g",
+          long: "ngpus",
+          description: "Number of GPUs per node (default: 8)",
+          takesValue: true,
+        },
+        {
+          short: "n",
+          long: "nodes",
+          description: "Number of nodes (default: 1)",
+          takesValue: true,
+        },
+        {
+          short: "t",
+          long: "operation",
+          description:
+            "Operation: all_reduce, all_gather, reduce_scatter, broadcast (default: all_reduce)",
+          takesValue: true,
+        },
+        {
+          long: "check",
+          description: "Check results for correctness",
+          takesValue: false,
+        },
+        {
+          long: "burn-in",
+          description: "Run extended burn-in test",
+          takesValue: false,
+        },
+        {
+          long: "burnin",
+          description: "Run extended burn-in test (alias)",
+          takesValue: false,
+        },
+        {
+          long: "iterations",
+          description: "Number of burn-in iterations (default: 1000)",
+          takesValue: true,
+        },
       ],
       examples: [
-        'nccl-test -t all_reduce -b 8M -e 128M -g 8',
-        'nccl-test -t all_reduce -g 8 -n 2',
-        'nccl-test --burn-in --iterations 1000',
-        'nccl-test -t all_gather -g 8 -n 4 -b 1G -e 8G',
+        "nccl-test -t all_reduce -b 8M -e 128M -g 8",
+        "nccl-test -t all_reduce -g 8 -n 2",
+        "nccl-test --burn-in --iterations 1000",
+        "nccl-test -t all_gather -g 8 -n 4 -b 1G -e 8G",
       ],
     });
 
-    this.registerCommand('gpu-burn', this.handleGPUBurn.bind(this), {
-      name: 'gpu-burn',
-      description: 'GPU stress test for thermal and stability validation',
-      usage: 'gpu-burn [duration]',
+    this.registerCommand("gpu-burn", this.handleGPUBurn.bind(this), {
+      name: "gpu-burn",
+      description: "GPU stress test for thermal and stability validation",
+      usage: "gpu-burn [duration]",
       flags: [
-        { short: 'd', long: 'duration', description: 'Test duration in seconds (default: 60)', takesValue: true },
-        { short: 'g', long: 'gpu', description: 'GPU index to test (default: all)', takesValue: true },
+        {
+          short: "d",
+          long: "duration",
+          description: "Test duration in seconds (default: 60)",
+          takesValue: true,
+        },
+        {
+          short: "g",
+          long: "gpu",
+          description: "GPU index to test (default: all)",
+          takesValue: true,
+        },
       ],
-      examples: [
-        'gpu-burn 300',
-        'gpu-burn -d 60 -g 0',
-      ],
+      examples: ["gpu-burn 300", "gpu-burn -d 60 -g 0"],
     });
   }
 
   getMetadata() {
     return {
-      name: 'benchmark-tools',
-      version: '1.0.0',
-      description: 'Performance benchmarking tools for GPU clusters',
+      name: "benchmark-tools",
+      version: "1.0.0",
+      description: "Performance benchmarking tools for GPU clusters",
       commands: Array.from(this.commandMetadata.values()),
     };
   }
 
   execute(parsed: ParsedCommand, context: CommandContext): CommandResult {
-    if (this.hasAnyFlag(parsed, ['version', 'v'])) {
+    if (this.hasAnyFlag(parsed, ["version", "v"])) {
       return this.handleVersion();
     }
-    if (this.hasAnyFlag(parsed, ['help', 'h'])) {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
       return this.handleHelp();
     }
 
@@ -104,46 +182,59 @@ export class BenchmarkSimulator extends BaseSimulator {
     return result as CommandResult;
   }
 
-  private handleHPL(parsed: ParsedCommand, context: CommandContext): CommandResult {
-    const burnIn = this.hasAnyFlag(parsed, ['burn-in', 'burnin']);
+  private handleHPL(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    const burnIn = this.hasAnyFlag(parsed, ["burn-in", "burnin"]);
 
     if (burnIn) {
       return this.handleHPLBurnIn(parsed, context);
     }
 
     // Regular HPL test
-    const nodesStr = parsed.flags.get('nodes');
-    const gpusPerNodeStr = parsed.flags.get('gpus-per-node');
-    const problemSizeStr = parsed.flags.get('problem-size') || parsed.flags.get('N');
+    const nodesStr = parsed.flags.get("nodes");
+    const gpusPerNodeStr = parsed.flags.get("gpus-per-node");
+    const problemSizeStr =
+      parsed.flags.get("problem-size") || parsed.flags.get("N");
 
     // Validate problem size if provided
     if (problemSizeStr !== undefined) {
-      const sizeValue = typeof problemSizeStr === 'string' ? problemSizeStr : String(problemSizeStr);
-      const validation = this.validatePositiveInt(sizeValue, 'Problem size');
+      const sizeValue =
+        typeof problemSizeStr === "string"
+          ? problemSizeStr
+          : String(problemSizeStr);
+      const validation = this.validatePositiveInt(sizeValue, "Problem size");
       if (!validation.valid) {
         return this.createError(validation.error!);
       }
       if (validation.value === 0) {
-        return this.createError('Problem size must be positive');
+        return this.createError("Problem size must be positive");
       }
     }
 
-    const nodes = parseInt(typeof nodesStr === 'string' ? nodesStr : '1');
-    const gpusPerNode = parseInt(typeof gpusPerNodeStr === 'string' ? gpusPerNodeStr : '8');
+    const nodes = parseInt(typeof nodesStr === "string" ? nodesStr : "1");
+    const gpusPerNode = parseInt(
+      typeof gpusPerNodeStr === "string" ? gpusPerNodeStr : "8",
+    );
     const totalGPUs = nodes * gpusPerNode;
-    const problemSize = parseInt(typeof problemSizeStr === 'string' ? problemSizeStr : String(100000 * Math.sqrt(totalGPUs)));
+    const problemSize = parseInt(
+      typeof problemSizeStr === "string"
+        ? problemSizeStr
+        : String(100000 * Math.sqrt(totalGPUs)),
+    );
 
     // Simulate HPL execution
     const node = this.getNode(context);
     if (!node) {
-      return this.createError('No node selected');
+      return this.createError("No node selected");
     }
 
     // Calculate theoretical peak performance (TFLOPS)
     // H100 SXM: ~60 TFLOPS FP64, ~990 TFLOPS FP16 Tensor
     // A100 SXM: ~19.5 TFLOPS FP64, ~312 TFLOPS FP16 Tensor
     let tflopsPerGPU = 60; // H100 FP64
-    if (node.systemType.includes('A100')) {
+    if (node.systemType.includes("A100")) {
       tflopsPerGPU = 19.5;
     }
 
@@ -154,7 +245,7 @@ export class BenchmarkSimulator extends BaseSimulator {
     const achievedTFLOPS = theoreticalPeak * efficiency;
 
     // Execution time estimate (scales with problem size^3 and inversely with FLOPS)
-    const operations = Math.pow(problemSize, 3) * (2/3); // FLOPS for LU factorization
+    const operations = Math.pow(problemSize, 3) * (2 / 3); // FLOPS for LU factorization
     const timeSeconds = operations / (achievedTFLOPS * 1e12);
 
     const output = `
@@ -170,7 +261,7 @@ Configuration:
 
 System:
   Node type:       ${node.systemType}
-  GPU model:       ${node.gpus[0]?.name || 'Unknown'}
+  GPU model:       ${node.gpus[0]?.name || "Unknown"}
   Driver version:  ${node.nvidiaDriverVersion}
   CUDA version:    ${node.cudaVersion}
 
@@ -195,24 +286,32 @@ Efficiency:          ${(efficiency * 100).toFixed(2)}%
 Time:                ${timeSeconds.toFixed(2)} seconds
 Gflops:              ${(achievedTFLOPS * 1000).toFixed(2)}
 
-Status: ${efficiency > 0.80 ? '\x1b[32mPASSED\x1b[0m' : '\x1b[33mWARNING - Low efficiency\x1b[0m'}
+Status: ${efficiency > 0.8 ? "\x1b[32mPASSED\x1b[0m" : "\x1b[33mWARNING - Low efficiency\x1b[0m"}
 
-${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Suboptimal configuration\n  - Hardware issues\n  - Thermal throttling\n  - Network bottlenecks\x1b[0m\n' : ''}
+${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Suboptimal configuration\n  - Hardware issues\n  - Thermal throttling\n  - Network bottlenecks\x1b[0m\n" : ""}
 ================================================================================
 `;
 
     return this.createSuccess(output);
   }
 
-  private handleHPLBurnIn(parsed: ParsedCommand, context: CommandContext): CommandResult {
-    const iterationsStr = parsed.flags.get('iterations');
-    const iterations = parseInt(typeof iterationsStr === 'string' ? iterationsStr : '100', 10);
-    const problemSizeStr = parsed.flags.get('N') || parsed.flags.get('problem-size');
-    const problemSize = typeof problemSizeStr === 'string' ? problemSizeStr : '90000';
+  private handleHPLBurnIn(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    const iterationsStr = parsed.flags.get("iterations");
+    const iterations = parseInt(
+      typeof iterationsStr === "string" ? iterationsStr : "100",
+      10,
+    );
+    const problemSizeStr =
+      parsed.flags.get("N") || parsed.flags.get("problem-size");
+    const problemSize =
+      typeof problemSizeStr === "string" ? problemSizeStr : "90000";
 
     const node = this.getNode(context);
     if (!node) {
-      return this.createError('No node selected');
+      return this.createError("No node selected");
     }
 
     let output = `HPL Burn-in Test\n`;
@@ -241,12 +340,15 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     }
 
     // Calculate statistics
-    const avgTFLOPS = tflopsValues.reduce((sum, tf) => sum + tf, 0) / tflopsValues.length;
+    const avgTFLOPS =
+      tflopsValues.reduce((sum, tf) => sum + tf, 0) / tflopsValues.length;
     const minTFLOPS = Math.min(...tflopsValues);
     const maxTFLOPS = Math.max(...tflopsValues);
 
     // Calculate standard deviation
-    const variance = tflopsValues.reduce((sum, tf) => sum + Math.pow(tf - avgTFLOPS, 2), 0) / tflopsValues.length;
+    const variance =
+      tflopsValues.reduce((sum, tf) => sum + Math.pow(tf - avgTFLOPS, 2), 0) /
+      tflopsValues.length;
     const stdDev = Math.sqrt(variance);
 
     output += `\nBurn-in Results:\n`;
@@ -260,8 +362,11 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     return this.createSuccess(output);
   }
 
-  private handleNCCL(parsed: ParsedCommand, context: CommandContext): CommandResult {
-    const burnIn = this.hasAnyFlag(parsed, ['burn-in', 'burnin']);
+  private handleNCCL(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    const burnIn = this.hasAnyFlag(parsed, ["burn-in", "burnin"]);
 
     if (burnIn) {
       return this.handleBurnIn(parsed, context);
@@ -271,44 +376,65 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     return this.handleRegularTest(parsed, context);
   }
 
-  private handleRegularTest(parsed: ParsedCommand, context: CommandContext): CommandResult {
-    const minBytesStr = parsed.flags.get('minbytes') || parsed.flags.get('b');
-    const maxBytesStr = parsed.flags.get('maxbytes') || parsed.flags.get('e');
-    const ngpusStr = parsed.flags.get('ngpus') || parsed.flags.get('g');
-    const nodesStr = parsed.flags.get('nodes') || parsed.flags.get('n');
-    const operationStr = parsed.flags.get('operation') || parsed.flags.get('t');
+  private handleRegularTest(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    const minBytesStr = parsed.flags.get("minbytes") || parsed.flags.get("b");
+    const maxBytesStr = parsed.flags.get("maxbytes") || parsed.flags.get("e");
+    const ngpusStr = parsed.flags.get("ngpus") || parsed.flags.get("g");
+    const nodesStr = parsed.flags.get("nodes") || parsed.flags.get("n");
+    const operationStr = parsed.flags.get("operation") || parsed.flags.get("t");
 
     // Validate GPU count
     if (ngpusStr !== undefined) {
-      const ngpusValue = typeof ngpusStr === 'string' ? ngpusStr : String(ngpusStr);
-      const validation = this.validatePositiveInt(ngpusValue, 'GPU count');
+      const ngpusValue =
+        typeof ngpusStr === "string" ? ngpusStr : String(ngpusStr);
+      const validation = this.validatePositiveInt(ngpusValue, "GPU count");
       if (!validation.valid) {
         return this.createError(validation.error!);
       }
       if (validation.value === 0) {
-        return this.createError('GPU count must be at least 1');
+        return this.createError("GPU count must be at least 1");
       }
     }
 
     // Validate operation type
-    const validOperations = ['all_reduce', 'all_gather', 'reduce_scatter', 'broadcast', 'reduce', 'alltoall'];
+    const validOperations = [
+      "all_reduce",
+      "all_gather",
+      "reduce_scatter",
+      "broadcast",
+      "reduce",
+      "alltoall",
+    ];
     if (operationStr !== undefined) {
-      const opValue = typeof operationStr === 'string' ? operationStr : String(operationStr);
-      const validation = this.validateInSet(opValue, validOperations, 'operation');
+      const opValue =
+        typeof operationStr === "string" ? operationStr : String(operationStr);
+      const validation = this.validateInSet(
+        opValue,
+        validOperations,
+        "operation",
+      );
       if (!validation.valid) {
         return this.createError(validation.error!);
       }
     }
 
-    const minBytes = this.parseSize(typeof minBytesStr === 'string' ? minBytesStr : '8');
-    const maxBytes = this.parseSize(typeof maxBytesStr === 'string' ? maxBytesStr : '134217728'); // 128MB
-    const ngpus = parseInt(typeof ngpusStr === 'string' ? ngpusStr : '8');
-    const numNodes = parseInt(typeof nodesStr === 'string' ? nodesStr : '1');
-    const operation = typeof operationStr === 'string' ? operationStr : 'all_reduce';
+    const minBytes = this.parseSize(
+      typeof minBytesStr === "string" ? minBytesStr : "8",
+    );
+    const maxBytes = this.parseSize(
+      typeof maxBytesStr === "string" ? maxBytesStr : "134217728",
+    ); // 128MB
+    const ngpus = parseInt(typeof ngpusStr === "string" ? ngpusStr : "8");
+    const numNodes = parseInt(typeof nodesStr === "string" ? nodesStr : "1");
+    const operation =
+      typeof operationStr === "string" ? operationStr : "all_reduce";
 
     const node = this.getNode(context);
     if (!node) {
-      return this.createError('No node selected');
+      return this.createError("No node selected");
     }
 
     const state = useSimulationStore.getState();
@@ -340,10 +466,17 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     let rank = 0;
     for (let nodeIdx = 0; nodeIdx < numNodes; nodeIdx++) {
       const currentNode = state.cluster.nodes[nodeIdx] || node;
-      const hostname = currentNode.hostname || `dgx-${nodeIdx.toString().padStart(2, '0')}.cluster.local`;
+      const hostname =
+        currentNode.hostname ||
+        `dgx-${nodeIdx.toString().padStart(2, "0")}.cluster.local`;
 
-      for (let gpuIdx = 0; gpuIdx < Math.min(ngpus, currentNode.gpus.length); gpuIdx++) {
-        const gpuName = currentNode.gpus[gpuIdx]?.name || 'NVIDIA H100 80GB HBM3';
+      for (
+        let gpuIdx = 0;
+        gpuIdx < Math.min(ngpus, currentNode.gpus.length);
+        gpuIdx++
+      ) {
+        const gpuName =
+          currentNode.gpus[gpuIdx]?.name || "NVIDIA H100 80GB HBM3";
         output += `#  Rank ${rank.toString().padStart(2)}: ${hostname}:${gpuIdx} - ${gpuName}\n`;
         rank++;
       }
@@ -364,23 +497,32 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     output += `#        (B)    (elements)                     (us)  (GB/s)  (GB/s)            (us)  (GB/s)  (GB/s)\n`;
 
     let totalBusBW = 0;
-    sizes.forEach(sizeBytes => {
-      const bandwidth = this.calculateNCCLBandwidthMultiNode(sizeBytes, ngpus, numNodes, node.systemType);
-      const latency = this.calculateNCCLLatencyMultiNode(sizeBytes, ngpus, numNodes);
+    sizes.forEach((sizeBytes) => {
+      const bandwidth = this.calculateNCCLBandwidthMultiNode(
+        sizeBytes,
+        ngpus,
+        numNodes,
+        node.systemType,
+      );
+      const latency = this.calculateNCCLLatencyMultiNode(
+        sizeBytes,
+        ngpus,
+        numNodes,
+      );
 
       // Bus bandwidth depends on collective type
       let busBW: number;
       switch (operation) {
-        case 'all_reduce':
-          busBW = bandwidth * 2 * (totalGPUs - 1) / totalGPUs; // Ring all-reduce
+        case "all_reduce":
+          busBW = (bandwidth * 2 * (totalGPUs - 1)) / totalGPUs; // Ring all-reduce
           break;
-        case 'all_gather':
-          busBW = bandwidth * (totalGPUs - 1) / totalGPUs;
+        case "all_gather":
+          busBW = (bandwidth * (totalGPUs - 1)) / totalGPUs;
           break;
-        case 'reduce_scatter':
-          busBW = bandwidth * (totalGPUs - 1) / totalGPUs;
+        case "reduce_scatter":
+          busBW = (bandwidth * (totalGPUs - 1)) / totalGPUs;
           break;
-        case 'broadcast':
+        case "broadcast":
           busBW = bandwidth;
           break;
         default:
@@ -390,7 +532,9 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
       totalBusBW += busBW;
 
       const sizeStr = this.formatSize(sizeBytes).padStart(12);
-      const countStr = Math.floor(sizeBytes / 4).toString().padStart(12); // Assuming float32
+      const countStr = Math.floor(sizeBytes / 4)
+        .toString()
+        .padStart(12); // Assuming float32
       const timeStr = latency.toFixed(1).padStart(8);
       const algbwStr = bandwidth.toFixed(2).padStart(7);
       const busbwStr = busBW.toFixed(2).padStart(7);
@@ -405,7 +549,7 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
 
     // Add performance summary for multi-node
     if (isMultiNode) {
-      const expectedIntraNode = node.systemType.includes('H100') ? 450 : 300;
+      const expectedIntraNode = node.systemType.includes("H100") ? 450 : 300;
       const expectedInterNode = 200; // HDR InfiniBand ~200 GB/s with 8 NICs
 
       output += `# Performance Summary\n`;
@@ -428,13 +572,19 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     return this.createSuccess(output);
   }
 
-  private handleBurnIn(parsed: ParsedCommand, context: CommandContext): CommandResult {
-    const iterationsStr = parsed.flags.get('iterations');
-    const iterations = parseInt(typeof iterationsStr === 'string' ? iterationsStr : '1000', 10);
+  private handleBurnIn(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    const iterationsStr = parsed.flags.get("iterations");
+    const iterations = parseInt(
+      typeof iterationsStr === "string" ? iterationsStr : "1000",
+      10,
+    );
 
     const node = this.getNode(context);
     if (!node) {
-      return this.createError('No node selected');
+      return this.createError("No node selected");
     }
 
     let output = `NCCL Burn-in Test\n`;
@@ -463,7 +613,8 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     }
 
     // Calculate statistics
-    const avgBandwidth = bandwidths.reduce((sum, bw) => sum + bw, 0) / bandwidths.length;
+    const avgBandwidth =
+      bandwidths.reduce((sum, bw) => sum + bw, 0) / bandwidths.length;
     const minBandwidth = Math.min(...bandwidths);
     const maxBandwidth = Math.max(...bandwidths);
 
@@ -476,32 +627,48 @@ ${efficiency < 0.80 ? '\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - S
     return this.createSuccess(output);
   }
 
-  private handleGPUBurn(parsed: ParsedCommand, context: CommandContext): CommandResult {
-    const durationStr = parsed.flags.get('duration') || parsed.flags.get('d') || parsed.positionalArgs[0];
+  private handleGPUBurn(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    const durationStr =
+      parsed.flags.get("duration") ||
+      parsed.flags.get("d") ||
+      parsed.positionalArgs[0];
 
     // Validate duration if provided
     if (durationStr !== undefined) {
-      const durValue = typeof durationStr === 'string' ? durationStr : String(durationStr);
-      const validation = this.validatePositiveInt(durValue, 'Duration');
+      const durValue =
+        typeof durationStr === "string" ? durationStr : String(durationStr);
+      const validation = this.validatePositiveInt(durValue, "Duration");
       if (!validation.valid) {
         return this.createError(validation.error!);
       }
       if (validation.value! <= 0) {
-        return this.createError('Duration must be a positive number of seconds');
+        return this.createError(
+          "Duration must be a positive number of seconds",
+        );
       }
     }
 
-    const duration = parseInt(typeof durationStr === 'string' ? durationStr : '60');
-    const specificGPU = parsed.flags.get('gpu') || parsed.flags.get('g');
+    const duration = parseInt(
+      typeof durationStr === "string" ? durationStr : "60",
+    );
+    const specificGPU = parsed.flags.get("gpu") || parsed.flags.get("g");
 
     const node = this.getNode(context);
     if (!node) {
-      return this.createError('No node selected');
+      return this.createError("No node selected");
     }
 
-    const gpusToTest = specificGPU !== undefined
-      ? [node.gpus[parseInt(typeof specificGPU === 'string' ? specificGPU : '0')]]
-      : node.gpus;
+    const gpusToTest =
+      specificGPU !== undefined
+        ? [
+            node.gpus[
+              parseInt(typeof specificGPU === "string" ? specificGPU : "0")
+            ],
+          ]
+        : node.gpus;
 
     if (!gpusToTest[0]) {
       return this.createError(`GPU not found`);
@@ -542,13 +709,16 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
     const interval = Math.floor(duration / 10);
     for (let i = 1; i <= 10; i++) {
       const elapsed = i * interval;
-      const percent = (elapsed / duration * 100).toFixed(0);
-      output += `[${elapsed}s] ${'█'.repeat(i)}${'░'.repeat(10 - i)} ${percent}%\n`;
+      const percent = ((elapsed / duration) * 100).toFixed(0);
+      output += `[${elapsed}s] ${"█".repeat(i)}${"░".repeat(10 - i)} ${percent}%\n`;
     }
 
     // Check for thermal issues
     const thermalIssues = gpusToTest.filter((gpu: GPU) => gpu.temperature > 83);
-    const status = thermalIssues.length === 0 ? '\x1b[32mPASSED\x1b[0m' : '\x1b[33mWARNING\x1b[0m';
+    const status =
+      thermalIssues.length === 0
+        ? "\x1b[32mPASSED\x1b[0m"
+        : "\x1b[33mWARNING\x1b[0m";
 
     output += `\n==========================\n`;
     output += `Test Duration: ${duration}s\n`;
@@ -564,7 +734,7 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
       output += `GPU ${idx} Results:\n`;
       output += `  Avg Temperature: ${avgTemp.toFixed(1)}°C\n`;
       output += `  Peak Power: ${gpu.powerDraw.toFixed(0)}W\n`;
-      output += `  Passed: ${gpu.temperature < 85 ? '\x1b[32mYES\x1b[0m' : '\x1b[31mNO\x1b[0m'}\n\n`;
+      output += `  Passed: ${gpu.temperature < 85 ? "\x1b[32mYES\x1b[0m" : "\x1b[31mNO\x1b[0m"}\n\n`;
     });
 
     // Reset GPUs to original state after test
@@ -581,27 +751,35 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
 
   private getNode(context: CommandContext): DGXNode | undefined {
     const state = useSimulationStore.getState();
-    return state.cluster.nodes.find((n: DGXNode) => n.id === context.currentNode) || state.cluster.nodes[0];
+    return (
+      state.cluster.nodes.find((n: DGXNode) => n.id === context.currentNode) ||
+      state.cluster.nodes[0]
+    );
   }
 
-  private calculateNCCLBandwidthMultiNode(sizeBytes: number, _gpusPerNode: number, numNodes: number, systemType: string): number {
+  private calculateNCCLBandwidthMultiNode(
+    sizeBytes: number,
+    _gpusPerNode: number,
+    numNodes: number,
+    systemType: string,
+  ): number {
     // Intra-node bandwidth (NVLink)
-    const intraNodeBW = systemType.includes('H100') ? 450 : 300;
+    const intraNodeBW = systemType.includes("H100") ? 450 : 300;
 
     // Inter-node bandwidth (InfiniBand)
     // HDR with 8 NICs: ~200 GB/s, NDR with 8 NICs: ~400 GB/s
-    const interNodeBW = systemType.includes('H100') ? 200 : 150;
+    const interNodeBW = systemType.includes("H100") ? 200 : 150;
 
     // Message size efficiency
     const sizeMB = sizeBytes / (1024 * 1024);
     let efficiency = 1.0;
 
     if (sizeMB < 1) {
-      efficiency = 0.2 + (sizeMB * 0.6);
+      efficiency = 0.2 + sizeMB * 0.6;
     } else if (sizeMB < 8) {
-      efficiency = 0.6 + ((sizeMB - 1) / 7 * 0.25);
+      efficiency = 0.6 + ((sizeMB - 1) / 7) * 0.25;
     } else {
-      efficiency = 0.85 + (Math.min(sizeMB, 128) - 8) / 120 * 0.1;
+      efficiency = 0.85 + ((Math.min(sizeMB, 128) - 8) / 120) * 0.1;
     }
 
     // For multi-node, bottleneck is inter-node bandwidth
@@ -616,7 +794,11 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
     return intraNodeBW * efficiency * 0.8;
   }
 
-  private calculateNCCLLatencyMultiNode(sizeBytes: number, gpusPerNode: number, numNodes: number): number {
+  private calculateNCCLLatencyMultiNode(
+    sizeBytes: number,
+    gpusPerNode: number,
+    numNodes: number,
+  ): number {
     // Base latency
     const intraNodeLatency = 2; // us (NVLink)
     const interNodeLatency = 5; // us (InfiniBand)
@@ -641,13 +823,13 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
     if (!match) return parseInt(sizeStr) || 8;
 
     const value = parseFloat(match[1]);
-    const unit = (match[2] || 'B').toUpperCase();
+    const unit = (match[2] || "B").toUpperCase();
 
     const multipliers: Record<string, number> = {
-      'B': 1,
-      'K': 1024,
-      'M': 1024 * 1024,
-      'G': 1024 * 1024 * 1024,
+      B: 1,
+      K: 1024,
+      M: 1024 * 1024,
+      G: 1024 * 1024 * 1024,
     };
 
     return Math.floor(value * multipliers[unit]);
@@ -656,7 +838,8 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
   private formatSize(bytes: number): string {
     if (bytes < 1024) return `${bytes}B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)}K`;
-    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(0)}M`;
+    if (bytes < 1024 * 1024 * 1024)
+      return `${(bytes / (1024 * 1024)).toFixed(0)}M`;
     return `${(bytes / (1024 * 1024 * 1024)).toFixed(0)}G`;
   }
 }
