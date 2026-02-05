@@ -63,94 +63,6 @@ export class SlurmSimulator extends BaseSimulator {
     );
   }
 
-  /**
-   * Generate sinfo --help output
-   */
-  private generateSinfoHelp(): string {
-    let output = `Usage: sinfo [OPTIONS]\n`;
-    output += `  -a, --all                  show all partitions\n`;
-    output += `  -d, --dead                 show only non-responding nodes\n`;
-    output += `  -e, --exact                group nodes only on exact match of configuration\n`;
-    output += `  -h, --noheader             no headers on output\n`;
-    output += `      --hide                 do not show hidden or non-accessible partitions\n`;
-    output += `  -i, --iterate=seconds      specify an iteration period\n`;
-    output += `  -l, --long                 long output - displays more information\n`;
-    output += `  -M, --clusters=names       comma separated list of clusters\n`;
-    output += `  -n, --nodes=nodes          report on specific node(s)\n`;
-    output += `  -N, --Node                 Node-centric format\n`;
-    output += `  -o, --format=format        format specification\n`;
-    output += `  -O, --Format=format        long format specification\n`;
-    output += `  -p, --partition=partition  report on specific partition(s)\n`;
-    output += `  -r, --responding           report only responding nodes\n`;
-    output += `  -R, --list-reasons         list reasons nodes are down or drained\n`;
-    output += `  -s, --summarize            report state summary only\n`;
-    output += `  -S, --sort=fields          comma separated list of fields to sort on\n`;
-    output += `  -t, --states=states        report nodes in specific state(s)\n`;
-    output += `  -T, --reservation          show reservation status\n`;
-    output += `  -v, --verbose              verbosity level\n`;
-    output += `  -V, --version              output version information and exit\n`;
-    output += `\nHelp options:\n`;
-    output += `      --help                 show this help message\n`;
-    output += `      --usage                display brief usage message\n`;
-    return output;
-  }
-
-  /**
-   * Generate squeue --help output
-   */
-  private generateSqueueHelp(): string {
-    let output = `Usage: squeue [OPTIONS]\n`;
-    output += `  -A, --account=account(s)   comma separated list of accounts\n`;
-    output += `  -a, --all                  display all jobs in all partitions\n`;
-    output += `  -h, --noheader             no headers on output\n`;
-    output += `  -i, --iterate=seconds      specify an iteration period\n`;
-    output += `  -j, --jobs=job_id(s)       comma separated list of jobs IDs\n`;
-    output += `  -l, --long                 long report\n`;
-    output += `  -M, --clusters=names       comma separated list of clusters\n`;
-    output += `  -n, --name=name(s)         comma separated list of job names\n`;
-    output += `  -o, --format=format        format specification\n`;
-    output += `  -O, --Format=format        long format specification\n`;
-    output += `  -p, --partition=partition  comma separated list of partitions\n`;
-    output += `  -q, --qos=qos(s)           comma separated list of QOS\n`;
-    output += `  -r, --array                display array job information\n`;
-    output += `  -s, --steps                show steps only\n`;
-    output += `  -S, --sort=fields          comma separated list of fields to sort on\n`;
-    output += `  -t, --states=states        comma separated list of states\n`;
-    output += `  -u, --user=user(s)         comma separated list of users\n`;
-    output += `  -v, --verbose              verbosity level\n`;
-    output += `  -V, --version              output version information and exit\n`;
-    output += `  -w, --nodelist=nodes       node name(s)\n`;
-    output += `\nHelp options:\n`;
-    output += `      --help                 show this help message\n`;
-    output += `      --usage                display brief usage message\n`;
-    return output;
-  }
-
-  /**
-   * Generate scontrol --help output
-   */
-  private generateScontrolHelp(): string {
-    let output = `Usage: scontrol [OPTIONS] COMMAND [COMMAND OPTIONS]\n\n`;
-    output += `COMMAND may be:\n`;
-    output += `  show                     show information about slurm objects\n`;
-    output += `  update                   update slurm objects\n`;
-    output += `  create                   create slurm objects\n`;
-    output += `  delete                   delete slurm objects\n`;
-    output += `  ping                     ping slurm controllers\n`;
-    output += `  reconfigure              reconfigure slurmctld\n`;
-    output += `  shutdown                 shutdown slurmctld\n`;
-    output += `  takeover                 take over as primary slurmctld\n`;
-    output += `  setdebug                 set slurmctld debug level\n\n`;
-    output += `Examples:\n`;
-    output += `  scontrol show nodes\n`;
-    output += `  scontrol show partition\n`;
-    output += `  scontrol update NodeName=node01 State=DRAIN Reason="Maintenance"\n`;
-    output += `\nHelp options:\n`;
-    output += `      --help                 show this help message\n`;
-    output += `  -V, --version              output version information and exit\n`;
-    return output;
-  }
-
   private getNode(context: CommandContext) {
     const state = useSimulationStore.getState();
     return state.cluster.nodes.find((n) => n.id === context.currentNode);
@@ -214,9 +126,10 @@ export class SlurmSimulator extends BaseSimulator {
   executeSinfo(parsed: ParsedCommand, _context: CommandContext): CommandResult {
     // Handle --help
     if (this.hasAnyFlag(parsed, ["help"])) {
-      const registryHelp = this.getHelpFromRegistry("sinfo");
-      if (registryHelp) return registryHelp;
-      return this.createSuccess(this.generateSinfoHelp()); // Fallback
+      return (
+        this.getHelpFromRegistry("sinfo") ||
+        this.createError("Help not available")
+      );
     }
 
     // Handle --version / -V
@@ -441,9 +354,10 @@ export class SlurmSimulator extends BaseSimulator {
   ): CommandResult {
     // Handle --help
     if (this.hasAnyFlag(parsed, ["help"])) {
-      const registryHelp = this.getHelpFromRegistry("squeue");
-      if (registryHelp) return registryHelp;
-      return this.createSuccess(this.generateSqueueHelp()); // Fallback
+      return (
+        this.getHelpFromRegistry("squeue") ||
+        this.createError("Help not available")
+      );
     }
 
     // Handle --version / -V
@@ -770,9 +684,10 @@ export class SlurmSimulator extends BaseSimulator {
   ): CommandResult {
     // Handle --help
     if (this.hasAnyFlag(parsed, ["help"])) {
-      const registryHelp = this.getHelpFromRegistry("scontrol");
-      if (registryHelp) return registryHelp;
-      return this.createSuccess(this.generateScontrolHelp()); // Fallback
+      return (
+        this.getHelpFromRegistry("scontrol") ||
+        this.createError("Help not available")
+      );
     }
 
     // Handle --version / -V
@@ -1028,42 +943,10 @@ export class SlurmSimulator extends BaseSimulator {
   ): CommandResult {
     // Handle --help
     if (this.hasAnyFlag(parsed, ["help"])) {
-      const registryHelp = this.getHelpFromRegistry("sbatch");
-      if (registryHelp) return registryHelp;
-      // Fallback to hardcoded help
-      let output = `Usage: sbatch [OPTIONS] script [args...]\n`;
-      output += `  -N, --nodes=N              number of nodes to use\n`;
-      output += `  -n, --ntasks=N             number of tasks to run\n`;
-      output += `  -c, --cpus-per-task=N      number of CPUs per task\n`;
-      output += `  -t, --time=TIME            time limit (e.g., 1:00:00, 1-00:00:00)\n`;
-      output += `  -p, --partition=PARTITION  partition to submit to\n`;
-      output += `  -o, --output=FILE          output file pattern (%j=jobid, %x=jobname)\n`;
-      output += `  -e, --error=FILE           error file pattern\n`;
-      output += `  -J, --job-name=NAME        job name\n`;
-      output += `      --gres=GRES            generic resources (e.g., gpu:4, gpu:h100:8)\n`;
-      output += `      --gpus=N               shortcut for number of GPUs\n`;
-      output += `      --gpus-per-node=N      GPUs per node\n`;
-      output += `      --gpus-per-task=N      GPUs per task\n`;
-      output += `      --mem=SIZE             memory per node (e.g., 100G)\n`;
-      output += `      --mem-per-cpu=SIZE     memory per CPU\n`;
-      output += `      --mem-per-gpu=SIZE     memory per GPU\n`;
-      output += `  -A, --account=ACCOUNT      charge job to this account\n`;
-      output += `      --qos=QOS              quality of service\n`;
-      output += `  -d, --dependency=TYPE:JOBID\n`;
-      output += `                             job dependency (after, afterok, afternotok,\n`;
-      output += `                             afterany, singleton)\n`;
-      output += `      --array=SPEC           job array specification (e.g., 0-15, 0-15%4)\n`;
-      output += `      --exclusive            exclusive node access\n`;
-      output += `      --reservation=NAME     use this reservation\n`;
-      output += `  -V, --version              output version and exit\n`;
-      output += `      --help                 show this help\n`;
-      output += `\nDependency Types:\n`;
-      output += `  after:jobid       - begin after job starts\n`;
-      output += `  afterok:jobid     - begin after job completes successfully\n`;
-      output += `  afternotok:jobid  - begin after job fails\n`;
-      output += `  afterany:jobid    - begin after job completes (any status)\n`;
-      output += `  singleton         - begin after all previous jobs with same name complete\n`;
-      return this.createSuccess(output);
+      return (
+        this.getHelpFromRegistry("sbatch") ||
+        this.createError("Help not available")
+      );
     }
 
     if (this.hasAnyFlag(parsed, ["version", "V"])) {
@@ -1237,20 +1120,10 @@ export class SlurmSimulator extends BaseSimulator {
   executeSrun(parsed: ParsedCommand, context: CommandContext): CommandResult {
     // Handle --help
     if (this.hasAnyFlag(parsed, ["help"])) {
-      const registryHelp = this.getHelpFromRegistry("srun");
-      if (registryHelp) return registryHelp;
-      // Fallback to hardcoded help
-      let output = `Usage: srun [OPTIONS] command [args...]\n`;
-      output += `  -N, --nodes=N              number of nodes\n`;
-      output += `  -n, --ntasks=N             number of tasks\n`;
-      output += `  -c, --cpus-per-task=N      CPUs per task\n`;
-      output += `  -t, --time=TIME            time limit\n`;
-      output += `  -p, --partition=PARTITION  partition\n`;
-      output += `      --gpus=N               number of GPUs\n`;
-      output += `      --container-image=IMG  container image\n`;
-      output += `  -V, --version              output version and exit\n`;
-      output += `      --help                 show this help\n`;
-      return this.createSuccess(output);
+      return (
+        this.getHelpFromRegistry("srun") ||
+        this.createError("Help not available")
+      );
     }
 
     if (this.hasAnyFlag(parsed, ["version", "V"])) {
@@ -1303,18 +1176,10 @@ export class SlurmSimulator extends BaseSimulator {
   ): CommandResult {
     // Handle --help
     if (this.hasAnyFlag(parsed, ["help"])) {
-      const registryHelp = this.getHelpFromRegistry("scancel");
-      if (registryHelp) return registryHelp;
-      // Fallback to hardcoded help
-      let output = `Usage: scancel [OPTIONS] [job_id[_array_id][.step_id]]\n`;
-      output += `  -u, --user=user            cancel jobs of a specific user\n`;
-      output += `  -A, --account=account      cancel jobs of a specific account\n`;
-      output += `  -n, --name=name            cancel jobs with this name\n`;
-      output += `  -p, --partition=partition  cancel jobs in this partition\n`;
-      output += `  -t, --state=state          cancel jobs in this state\n`;
-      output += `  -V, --version              output version and exit\n`;
-      output += `      --help                 show this help\n`;
-      return this.createSuccess(output);
+      return (
+        this.getHelpFromRegistry("scancel") ||
+        this.createError("Help not available")
+      );
     }
 
     if (this.hasAnyFlag(parsed, ["version", "V"])) {
@@ -1356,20 +1221,10 @@ export class SlurmSimulator extends BaseSimulator {
   executeSacct(parsed: ParsedCommand, _context: CommandContext): CommandResult {
     // Handle --help
     if (this.hasAnyFlag(parsed, ["help"])) {
-      const registryHelp = this.getHelpFromRegistry("sacct");
-      if (registryHelp) return registryHelp;
-      // Fallback to hardcoded help
-      let output = `Usage: sacct [OPTIONS]\n`;
-      output += `  -a, --allusers             display all users\n`;
-      output += `  -j, --jobs=job_id(s)       comma separated list of jobs\n`;
-      output += `  -n, --noheader             no header\n`;
-      output += `  -o, --format=format        comma separated list of fields\n`;
-      output += `  -S, --starttime=time       start time\n`;
-      output += `  -E, --endtime=time         end time\n`;
-      output += `  -u, --user=user(s)         comma separated list of users\n`;
-      output += `  -V, --version              output version and exit\n`;
-      output += `      --help                 show this help\n`;
-      return this.createSuccess(output);
+      return (
+        this.getHelpFromRegistry("sacct") ||
+        this.createError("Help not available")
+      );
     }
 
     if (this.hasAnyFlag(parsed, ["version", "V"])) {
