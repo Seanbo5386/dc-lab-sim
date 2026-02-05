@@ -240,7 +240,9 @@ export class NvidiaSmiSimulator extends BaseSimulator {
 
     if (this.hasAnyFlag(parsed, ["help", "h"])) {
       const subcommand = parsed.subcommands[0];
-      return this.handleHelp(subcommand);
+      return (
+        this.getHelpFromRegistry("nvidia-smi") || this.handleHelp(subcommand)
+      );
     }
 
     // Validate flags using registry (with fallback to fuzzy matching)

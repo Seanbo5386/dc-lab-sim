@@ -325,4 +325,18 @@ describe("NvidiaSmiSimulator", () => {
       expect(result.exitCode).toBe(0);
     });
   });
+
+  describe("Help from JSON definitions", () => {
+    it("nvidia-smi --help should return registry-based help", async () => {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const parsed = parse("nvidia-smi --help");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("nvidia-smi");
+      expect(result.output).toContain("Description:");
+      expect(result.output).toContain("Options:");
+    });
+  });
 });
