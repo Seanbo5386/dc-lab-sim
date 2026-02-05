@@ -61,10 +61,7 @@
         "Understand topology matrix notation",
         "Identify NVLink connections between GPUs"
       ],
-      "expectedCommands": [
-        "nvidia-smi topo -m",
-        "nvidia-smi topo --matrix"
-      ],
+      "expectedCommands": ["nvidia-smi topo -m", "nvidia-smi topo --matrix"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -228,9 +225,7 @@
         {
           "type": "command-executed",
           "description": "Must understand NVSwitch topology",
-          "expectedCommands": [
-            "nvidia-smi topo -m"
-          ],
+          "expectedCommands": ["nvidia-smi topo -m"],
           "requireAllCommands": true
         }
       ],
@@ -259,14 +254,15 @@
     "Understood NVSwitch topology (if applicable)"
   ],
   "estimatedTime": 35,
-  "prerequisites": [
-    "domain1-driver-install"
-  ],
+  "prerequisites": ["domain1-driver-install"],
   "tags": [
     "nvlink",
     "topology",
     "gpu-interconnect",
     "nvswitch",
     "intermediate"
-  ]
+  ],
+  "tier": 2,
+  "commandFamilies": ["gpu-monitoring"],
+  "explanationGateId": "gate-domain2-nvlink-topo"
 }

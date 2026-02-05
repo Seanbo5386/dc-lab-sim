@@ -23,10 +23,7 @@
         "Understand slurmd role",
         "Know configuration file locations"
       ],
-      "expectedCommands": [
-        "scontrol show config | head -30",
-        "sinfo"
-      ],
+      "expectedCommands": ["scontrol show config | head -30", "sinfo"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -67,7 +64,10 @@
         {
           "type": "command-executed",
           "description": "Must review slurm.conf",
-          "expectedCommands": ["cat /etc/slurm/slurm.conf", "scontrol show config"],
+          "expectedCommands": [
+            "cat /etc/slurm/slurm.conf",
+            "scontrol show config"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -103,7 +103,10 @@
         {
           "type": "command-executed",
           "description": "Must configure GRES",
-          "expectedCommands": ["cat /etc/slurm/gres.conf", "scontrol show node"],
+          "expectedCommands": [
+            "cat /etc/slurm/gres.conf",
+            "scontrol show node"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -131,10 +134,7 @@
         "Configure GPU resources per node",
         "Set node features and weights"
       ],
-      "expectedCommands": [
-        "scontrol show node",
-        "sinfo -N -l"
-      ],
+      "expectedCommands": ["scontrol show node", "sinfo -N -l"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -167,10 +167,7 @@
         "Set partition limits",
         "Configure partition priorities"
       ],
-      "expectedCommands": [
-        "sinfo -s",
-        "scontrol show partition"
-      ],
+      "expectedCommands": ["sinfo -s", "scontrol show partition"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -203,10 +200,7 @@
         "Create QOS policies",
         "Assign QOS to users/accounts"
       ],
-      "expectedCommands": [
-        "sacctmgr show qos",
-        "sacctmgr show assoc"
-      ],
+      "expectedCommands": ["sacctmgr show qos", "sacctmgr show assoc"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -316,5 +310,16 @@
   ],
   "estimatedTime": 55,
   "prerequisites": ["domain3-slurm-config"],
-  "tags": ["slurm", "cluster", "scheduler", "gres", "configuration", "advanced"]
+  "tags": [
+    "slurm",
+    "cluster",
+    "scheduler",
+    "gres",
+    "configuration",
+    "advanced"
+  ],
+  "tier": 3,
+  "commandFamilies": ["cluster-tools"],
+  "explanationGateId": "gate-domain3-slurm-full-setup",
+  "toolHints": false
 }

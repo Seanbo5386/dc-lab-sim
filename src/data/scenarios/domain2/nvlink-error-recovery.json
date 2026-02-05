@@ -30,15 +30,15 @@
         "Check link status",
         "Identify potential issues"
       ],
-      "expectedCommands": [
-        "nvidia-smi nvlink --status",
-        "nvidia-smi topo -m"
-      ],
+      "expectedCommands": ["nvidia-smi nvlink --status", "nvidia-smi topo -m"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must check NVLink status",
-          "expectedCommands": ["nvidia-smi nvlink --status", "nvidia-smi topo -m"],
+          "expectedCommands": [
+            "nvidia-smi nvlink --status",
+            "nvidia-smi topo -m"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -66,10 +66,7 @@
         "Identify links with errors",
         "Understand error types"
       ],
-      "expectedCommands": [
-        "nvidia-smi nvlink -e",
-        "nvidia-smi nvlink -e -i 0"
-      ],
+      "expectedCommands": ["nvidia-smi nvlink -e", "nvidia-smi nvlink -e -i 0"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -110,7 +107,10 @@
         {
           "type": "command-executed",
           "description": "Must identify affected links",
-          "expectedCommands": ["nvidia-smi nvlink -e -i 2", "nvidia-smi nvlink --status -i 2"],
+          "expectedCommands": [
+            "nvidia-smi nvlink -e -i 2",
+            "nvidia-smi nvlink --status -i 2"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -147,7 +147,10 @@
         {
           "type": "command-executed",
           "description": "Must check thermal status",
-          "expectedCommands": ["nvidia-smi -q -d TEMPERATURE", "ipmitool sensor list"],
+          "expectedCommands": [
+            "nvidia-smi -q -d TEMPERATURE",
+            "ipmitool sensor list"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -175,10 +178,7 @@
         "Establish monitoring baseline",
         "Prepare for error rate measurement"
       ],
-      "expectedCommands": [
-        "nvidia-smi nvlink -r",
-        "nvidia-smi nvlink -e"
-      ],
+      "expectedCommands": ["nvidia-smi nvlink -r", "nvidia-smi nvlink -e"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -211,15 +211,15 @@
         "Identify bandwidth reduction",
         "Correlate with error counters"
       ],
-      "expectedCommands": [
-        "nvidia-smi topo -m",
-        "nvidia-smi nvlink --status"
-      ],
+      "expectedCommands": ["nvidia-smi topo -m", "nvidia-smi nvlink --status"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must test NVLink bandwidth",
-          "expectedCommands": ["nvidia-smi topo -m", "nvidia-smi nvlink --status"],
+          "expectedCommands": [
+            "nvidia-smi topo -m",
+            "nvidia-smi nvlink --status"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -256,7 +256,10 @@
         {
           "type": "command-executed",
           "description": "Must attempt recovery",
-          "expectedCommands": ["nvidia-smi -r", "systemctl restart nvidia-fabricmanager"],
+          "expectedCommands": [
+            "nvidia-smi -r",
+            "systemctl restart nvidia-fabricmanager"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -325,5 +328,9 @@
   ],
   "estimatedTime": 50,
   "prerequisites": ["domain2-nvlink-topo"],
-  "tags": ["nvlink", "error-recovery", "troubleshooting", "fabric", "advanced"]
+  "tags": ["nvlink", "error-recovery", "troubleshooting", "fabric", "advanced"],
+  "tier": 3,
+  "commandFamilies": ["gpu-monitoring", "bmc-hardware", "diagnostics"],
+  "explanationGateId": "gate-domain2-nvlink-recovery",
+  "toolHints": false
 }

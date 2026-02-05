@@ -68,7 +68,10 @@
         {
           "type": "command-executed",
           "description": "Must check clock frequencies",
-          "expectedCommands": ["nvidia-smi -q -d CLOCK", "nvidia-smi -q -d SUPPORTED_CLOCKS"],
+          "expectedCommands": [
+            "nvidia-smi -q -d CLOCK",
+            "nvidia-smi -q -d SUPPORTED_CLOCKS"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -142,7 +145,10 @@
         {
           "type": "command-executed",
           "description": "Must set power limit",
-          "expectedCommands": ["nvidia-smi -pl", "nvidia-smi --query-gpu=power.limit --format=csv"],
+          "expectedCommands": [
+            "nvidia-smi -pl",
+            "nvidia-smi --query-gpu=power.limit --format=csv"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -215,7 +221,10 @@
         {
           "type": "command-executed",
           "description": "Must monitor power and performance",
-          "expectedCommands": ["nvidia-smi dmon", "nvidia-smi --query-gpu=power.draw"],
+          "expectedCommands": [
+            "nvidia-smi dmon",
+            "nvidia-smi --query-gpu=power.draw"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -243,10 +252,7 @@
         "Configure appropriate limits",
         "Balance latency and efficiency"
       ],
-      "expectedCommands": [
-        "nvidia-smi -pl 300 -i 0",
-        "nvidia-smi -q -d POWER"
-      ],
+      "expectedCommands": ["nvidia-smi -pl 300 -i 0", "nvidia-smi -q -d POWER"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -320,5 +326,8 @@
   ],
   "estimatedTime": 44,
   "prerequisites": ["domain1-driver-install"],
-  "tags": ["power", "clocks", "optimization", "performance", "intermediate"]
+  "tags": ["power", "clocks", "optimization", "performance", "intermediate"],
+  "tier": 2,
+  "commandFamilies": ["gpu-monitoring"],
+  "explanationGateId": "gate-domain2-gpu-power"
 }

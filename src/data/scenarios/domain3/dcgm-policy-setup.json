@@ -44,7 +44,10 @@
       ],
       "estimatedDuration": 3,
       "documentationLinks": [
-        { "title": "DCGM Group Management", "url": "https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/getting-started.html" }
+        {
+          "title": "DCGM Group Management",
+          "url": "https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/getting-started.html"
+        }
       ]
     },
     {
@@ -103,7 +106,10 @@
       ],
       "estimatedDuration": 5,
       "documentationLinks": [
-        { "title": "DCGM Policy Management", "url": "https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/feature-overview.html" }
+        {
+          "title": "DCGM Policy Management",
+          "url": "https://docs.nvidia.com/datacenter/dcgm/latest/user-guide/feature-overview.html"
+        }
       ]
     },
     {
@@ -163,5 +169,16 @@
   ],
   "estimatedTime": 15,
   "prerequisites": [],
-  "tags": ["dcgm", "policy", "monitoring", "health", "configuration", "intermediate", "domain3"]
+  "tags": [
+    "dcgm",
+    "policy",
+    "monitoring",
+    "health",
+    "configuration",
+    "intermediate",
+    "domain3"
+  ],
+  "tier": 2,
+  "commandFamilies": ["diagnostics"],
+  "explanationGateId": "gate-domain3-dcgm-policy"
 }

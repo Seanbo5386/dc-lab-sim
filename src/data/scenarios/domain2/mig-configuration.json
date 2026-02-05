@@ -100,17 +100,12 @@
         "Understand profile naming (e.g., 1g.5gb, 3g.20gb)",
         "Learn resource allocation for each profile"
       ],
-      "expectedCommands": [
-        "nvidia-smi mig -lgip",
-        "nvidia-smi mig -lcip"
-      ],
+      "expectedCommands": ["nvidia-smi mig -lgip", "nvidia-smi mig -lcip"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must list GPU Instance Profiles",
-          "expectedCommands": [
-            "nvidia-smi mig -lgip"
-          ],
+          "expectedCommands": ["nvidia-smi mig -lgip"],
           "requireAllCommands": true
         }
       ],
@@ -146,9 +141,7 @@
         {
           "type": "command-executed",
           "description": "Must create MIG GPU Instance",
-          "expectedCommands": [
-            "nvidia-smi mig -cgi"
-          ],
+          "expectedCommands": ["nvidia-smi mig -cgi"],
           "requireAllCommands": true
         }
       ],
@@ -176,18 +169,12 @@
         "List all Compute Instances",
         "Verify instance IDs and UUIDs"
       ],
-      "expectedCommands": [
-        "nvidia-smi mig -lgi",
-        "nvidia-smi mig -lci"
-      ],
+      "expectedCommands": ["nvidia-smi mig -lgi", "nvidia-smi mig -lci"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must list GPU and Compute Instances",
-          "expectedCommands": [
-            "nvidia-smi mig -lgi",
-            "nvidia-smi mig -lci"
-          ],
+          "expectedCommands": ["nvidia-smi mig -lgi", "nvidia-smi mig -lci"],
           "requireAllCommands": true
         }
       ],
@@ -223,9 +210,7 @@
         {
           "type": "command-executed",
           "description": "Must list MIG devices",
-          "expectedCommands": [
-            "nvidia-smi -L"
-          ],
+          "expectedCommands": ["nvidia-smi -L"],
           "requireAllCommands": true
         }
       ],
@@ -254,18 +239,12 @@
         "Understand MIG error isolation",
         "Review QoS guarantees"
       ],
-      "expectedCommands": [
-        "nvidia-smi mig -lgi",
-        "nvidia-smi -q -i 0"
-      ],
+      "expectedCommands": ["nvidia-smi mig -lgi", "nvidia-smi -q -i 0"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must review MIG configuration",
-          "expectedCommands": [
-            "nvidia-smi mig -lgi",
-            "nvidia-smi -q"
-          ],
+          "expectedCommands": ["nvidia-smi mig -lgi", "nvidia-smi -q"],
           "requireAllCommands": true
         }
       ],
@@ -296,14 +275,10 @@
     "Understood MIG isolation guarantees"
   ],
   "estimatedTime": 40,
-  "prerequisites": [
-    "domain1-driver-install"
-  ],
-  "tags": [
-    "mig",
-    "multi-instance-gpu",
-    "partitioning",
-    "h100",
-    "advanced"
-  ]
+  "prerequisites": ["domain1-driver-install"],
+  "tags": ["mig", "multi-instance-gpu", "partitioning", "h100", "advanced"],
+  "tier": 3,
+  "commandFamilies": ["gpu-monitoring"],
+  "explanationGateId": "gate-domain2-mig-setup",
+  "toolHints": false
 }

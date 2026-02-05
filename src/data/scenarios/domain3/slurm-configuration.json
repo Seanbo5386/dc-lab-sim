@@ -22,25 +22,18 @@
         "Check Slurm configuration with 'scontrol show config'",
         "Verify Slurm version information"
       ],
-      "expectedCommands": [
-        "sinfo",
-        "scontrol show config"
-      ],
+      "expectedCommands": ["sinfo", "scontrol show config"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Check Slurm is responding",
-          "expectedCommands": [
-            "sinfo"
-          ],
+          "expectedCommands": ["sinfo"],
           "requireAllCommands": true
         },
         {
           "type": "command-executed",
           "description": "View Slurm configuration",
-          "expectedCommands": [
-            "scontrol show config"
-          ],
+          "expectedCommands": ["scontrol show config"],
           "requireAllCommands": true
         }
       ],
@@ -67,25 +60,18 @@
         "List partitions with detailed node information using 'sinfo -Nel'",
         "Show detailed partition configuration with 'scontrol show partition'"
       ],
-      "expectedCommands": [
-        "sinfo -Nel",
-        "scontrol show partition"
-      ],
+      "expectedCommands": ["sinfo -Nel", "scontrol show partition"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "View detailed node list",
-          "expectedCommands": [
-            "sinfo -Nel"
-          ],
+          "expectedCommands": ["sinfo -Nel"],
           "requireAllCommands": true
         },
         {
           "type": "command-executed",
           "description": "Show partition details",
-          "expectedCommands": [
-            "scontrol show partition"
-          ],
+          "expectedCommands": ["scontrol show partition"],
           "requireAllCommands": true
         }
       ],
@@ -113,18 +99,12 @@
         "Show GRES resources using 'sinfo -o \"%n %G\"' format",
         "Display detailed node information with 'scontrol show node dgx-00'"
       ],
-      "expectedCommands": [
-        "sinfo -o \"%n %G\"",
-        "scontrol show node dgx-00"
-      ],
+      "expectedCommands": ["sinfo -o \"%n %G\"", "scontrol show node dgx-00"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Display GRES configuration",
-          "expectedCommands": [
-            "sinfo -o \"%n %G\"",
-            "sinfo -o \"%20n %10G\""
-          ],
+          "expectedCommands": ["sinfo -o \"%n %G\"", "sinfo -o \"%20n %10G\""],
           "requireAllCommands": true
         },
         {
@@ -160,25 +140,18 @@
         "Review node states with 'sinfo -Nel' (should all be 'idle')",
         "Check for down/drained nodes with 'sinfo -R' (should be empty)"
       ],
-      "expectedCommands": [
-        "sinfo -Nel",
-        "sinfo -R"
-      ],
+      "expectedCommands": ["sinfo -Nel", "sinfo -R"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Check detailed node status",
-          "expectedCommands": [
-            "sinfo -Nel"
-          ],
+          "expectedCommands": ["sinfo -Nel"],
           "requireAllCommands": true
         },
         {
           "type": "command-executed",
           "description": "Check for node issues",
-          "expectedCommands": [
-            "sinfo -R"
-          ],
+          "expectedCommands": ["sinfo -R"],
           "requireAllCommands": true
         }
       ],
@@ -207,25 +180,18 @@
         "Check current job queue with 'squeue'",
         "View job accounting history with 'sacct'"
       ],
-      "expectedCommands": [
-        "squeue",
-        "sacct"
-      ],
+      "expectedCommands": ["squeue", "sacct"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Check job queue",
-          "expectedCommands": [
-            "squeue"
-          ],
+          "expectedCommands": ["squeue"],
           "requireAllCommands": true
         },
         {
           "type": "command-executed",
           "description": "View job history",
-          "expectedCommands": [
-            "sacct"
-          ],
+          "expectedCommands": ["sacct"],
           "requireAllCommands": true
         }
       ],
@@ -255,14 +221,15 @@
     "Monitored job queue and history"
   ],
   "estimatedTime": 32,
-  "prerequisites": [
-    "domain1-driver-install"
-  ],
+  "prerequisites": ["domain1-driver-install"],
   "tags": [
     "slurm",
     "job-scheduler",
     "workload-manager",
     "gpu-scheduling",
     "intermediate"
-  ]
+  ],
+  "tier": 2,
+  "commandFamilies": ["cluster-tools"],
+  "explanationGateId": "gate-domain3-slurm-config"
 }

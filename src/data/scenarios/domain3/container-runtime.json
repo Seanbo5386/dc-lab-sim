@@ -24,20 +24,12 @@
         "Test basic Docker functionality",
         "Check user Docker permissions"
       ],
-      "expectedCommands": [
-        "docker --version",
-        "docker ps",
-        "docker info"
-      ],
+      "expectedCommands": ["docker --version", "docker ps", "docker info"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must verify Docker installation",
-          "expectedCommands": [
-            "docker --version",
-            "docker ps",
-            "docker info"
-          ],
+          "expectedCommands": ["docker --version", "docker ps", "docker info"],
           "requireAllCommands": true
         }
       ],
@@ -73,10 +65,7 @@
         {
           "type": "command-executed",
           "description": "Must verify NVIDIA Container Toolkit",
-          "expectedCommands": [
-            "docker info",
-            "docker run --rm --gpus"
-          ],
+          "expectedCommands": ["docker info", "docker run --rm --gpus"],
           "requireAllCommands": true
         }
       ],
@@ -156,9 +145,7 @@
         {
           "type": "command-executed",
           "description": "Must run GPU container",
-          "expectedCommands": [
-            "docker run --rm --gpus"
-          ],
+          "expectedCommands": ["docker run --rm --gpus"],
           "requireAllCommands": true
         }
       ],
@@ -196,10 +183,7 @@
         {
           "type": "command-executed",
           "description": "Must configure NGC CLI",
-          "expectedCommands": [
-            "ngc config",
-            "ngc registry image list"
-          ],
+          "expectedCommands": ["ngc config", "ngc registry image list"],
           "requireAllCommands": true
         }
       ],
@@ -238,11 +222,7 @@
         {
           "type": "command-executed",
           "description": "Must use Enroot",
-          "expectedCommands": [
-            "enroot import",
-            "enroot create",
-            "enroot list"
-          ],
+          "expectedCommands": ["enroot import", "enroot create", "enroot list"],
           "requireAllCommands": true
         }
       ],
@@ -273,9 +253,7 @@
     "Used Enroot to create and run containers"
   ],
   "estimatedTime": 40,
-  "prerequisites": [
-    "domain1-driver-install"
-  ],
+  "prerequisites": ["domain1-driver-install"],
   "tags": [
     "docker",
     "containers",
@@ -283,5 +261,8 @@
     "enroot",
     "ngc",
     "intermediate"
-  ]
+  ],
+  "tier": 2,
+  "commandFamilies": ["container-tools"],
+  "explanationGateId": "gate-domain3-containers"
 }

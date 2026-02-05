@@ -44,7 +44,10 @@
       ],
       "estimatedDuration": 3,
       "documentationLinks": [
-        { "title": "Slurm GRES Documentation", "url": "https://slurm.schedmd.com/gres.html" }
+        {
+          "title": "Slurm GRES Documentation",
+          "url": "https://slurm.schedmd.com/gres.html"
+        }
       ]
     },
     {
@@ -122,7 +125,9 @@
           "requireAllCommands": false
         }
       ],
-      "hints": ["scontrol show job shows detailed allocation info including GRES"],
+      "hints": [
+        "scontrol show job shows detailed allocation info including GRES"
+      ],
       "enhancedHints": [
         {
           "id": "step4-hint1",
@@ -142,5 +147,16 @@
   ],
   "estimatedTime": 15,
   "prerequisites": ["domain3-slurm-config"],
-  "tags": ["slurm", "gres", "gpu", "scheduling", "configuration", "intermediate", "domain3"]
+  "tags": [
+    "slurm",
+    "gres",
+    "gpu",
+    "scheduling",
+    "configuration",
+    "intermediate",
+    "domain3"
+  ],
+  "tier": 2,
+  "commandFamilies": ["cluster-tools"],
+  "explanationGateId": "gate-domain3-slurm-gres"
 }

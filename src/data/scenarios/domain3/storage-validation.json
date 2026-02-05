@@ -24,18 +24,12 @@
         "Check available capacity",
         "Understand usage patterns"
       ],
-      "expectedCommands": [
-        "df -h",
-        "df -hT"
-      ],
+      "expectedCommands": ["df -h", "df -hT"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must check disk space usage",
-          "expectedCommands": [
-            "df -h",
-            "df -hT"
-          ],
+          "expectedCommands": ["df -h", "df -hT"],
           "requireAllCommands": true
         }
       ],
@@ -65,17 +59,12 @@
         "Identify potential inode exhaustion",
         "Differentiate between disk space and inode limits"
       ],
-      "expectedCommands": [
-        "df -i",
-        "df -ih"
-      ],
+      "expectedCommands": ["df -i", "df -ih"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must check inode usage",
-          "expectedCommands": [
-            "df -i"
-          ],
+          "expectedCommands": ["df -i"],
           "requireAllCommands": true
         }
       ],
@@ -105,16 +94,12 @@
         "Identify filesystem types",
         "Verify NFS and Lustre mounts"
       ],
-      "expectedCommands": [
-        "mount"
-      ],
+      "expectedCommands": ["mount"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must view mounted filesystems",
-          "expectedCommands": [
-            "mount"
-          ],
+          "expectedCommands": ["mount"],
           "requireAllCommands": true
         }
       ],
@@ -145,17 +130,12 @@
         "Verify OST (Object Storage Target) balance",
         "Understand Lustre filesystem capacity"
       ],
-      "expectedCommands": [
-        "lfs df -h",
-        "lfs df"
-      ],
+      "expectedCommands": ["lfs df -h", "lfs df"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must check Lustre status",
-          "expectedCommands": [
-            "lfs df"
-          ],
+          "expectedCommands": ["lfs df"],
           "requireAllCommands": true
         }
       ],
@@ -189,16 +169,12 @@
         "Identify offline storage targets",
         "Understand Lustre high availability"
       ],
-      "expectedCommands": [
-        "lfs check servers"
-      ],
+      "expectedCommands": ["lfs check servers"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must verify Lustre servers",
-          "expectedCommands": [
-            "lfs check servers"
-          ],
+          "expectedCommands": ["lfs check servers"],
           "requireAllCommands": true
         }
       ],
@@ -229,18 +205,12 @@
         "Understand storage requirements for AI workloads",
         "Plan for storage expansion"
       ],
-      "expectedCommands": [
-        "df -h",
-        "lfs df -h"
-      ],
+      "expectedCommands": ["df -h", "lfs df -h"],
       "validationRules": [
         {
           "type": "command-executed",
           "description": "Must analyze storage capacity",
-          "expectedCommands": [
-            "df -h",
-            "lfs df"
-          ],
+          "expectedCommands": ["df -h", "lfs df"],
           "requireAllCommands": true
         }
       ],
@@ -273,9 +243,7 @@
     "Analyzed storage capacity for AI workloads"
   ],
   "estimatedTime": 35,
-  "prerequisites": [
-    "domain1-driver-install"
-  ],
+  "prerequisites": ["domain1-driver-install"],
   "tags": [
     "storage",
     "lustre",
@@ -284,5 +252,8 @@
     "df",
     "lfs",
     "intermediate"
-  ]
+  ],
+  "tier": 2,
+  "commandFamilies": ["cluster-tools"],
+  "explanationGateId": "gate-domain3-storage"
 }

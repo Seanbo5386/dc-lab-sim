@@ -283,9 +283,7 @@
     "Documented HA configuration"
   ],
   "estimatedTime": 45,
-  "prerequisites": [
-    "domain3-slurm"
-  ],
+  "prerequisites": ["domain3-slurm"],
   "tags": [
     "bcm",
     "high-availability",
@@ -294,5 +292,9 @@
     "advanced",
     "exam-critical",
     "domain3"
-  ]
+  ],
+  "tier": 3,
+  "commandFamilies": ["cluster-tools"],
+  "explanationGateId": "gate-domain3-bcm-ha",
+  "toolHints": false
 }

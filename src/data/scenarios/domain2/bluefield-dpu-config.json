@@ -23,10 +23,7 @@
         "Learn about Arm cores and ConnectX",
         "Know operational modes"
       ],
-      "expectedCommands": [
-        "lspci | grep -i mellanox",
-        "mst status"
-      ],
+      "expectedCommands": ["lspci | grep -i mellanox", "mst status"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -59,11 +56,7 @@
         "List MST devices",
         "Identify BlueField devices"
       ],
-      "expectedCommands": [
-        "mst start",
-        "mst status",
-        "mst status -v"
-      ],
+      "expectedCommands": ["mst start", "mst status", "mst status -v"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -140,7 +133,10 @@
         {
           "type": "command-executed",
           "description": "Must understand DPU modes",
-          "expectedCommands": ["mlxconfig -d /dev/mst/mt41686_pciconf0 q", "ibstat"],
+          "expectedCommands": [
+            "mlxconfig -d /dev/mst/mt41686_pciconf0 q",
+            "ibstat"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -249,7 +245,10 @@
         {
           "type": "command-executed",
           "description": "Must understand mode switching",
-          "expectedCommands": ["mlxconfig -d /dev/mst/mt41686_pciconf0 q", "mst status"],
+          "expectedCommands": [
+            "mlxconfig -d /dev/mst/mt41686_pciconf0 q",
+            "mst status"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -286,7 +285,10 @@
         {
           "type": "command-executed",
           "description": "Must verify DPU health",
-          "expectedCommands": ["ibstat", "mlxlink -d /dev/mst/mt41686_pciconf0"],
+          "expectedCommands": [
+            "ibstat",
+            "mlxlink -d /dev/mst/mt41686_pciconf0"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -318,5 +320,9 @@
   ],
   "estimatedTime": 48,
   "prerequisites": ["domain1-driver-install"],
-  "tags": ["bluefield", "dpu", "networking", "offload", "advanced"]
+  "tags": ["bluefield", "dpu", "networking", "offload", "advanced"],
+  "tier": 3,
+  "commandFamilies": ["infiniband-tools"],
+  "explanationGateId": "gate-domain2-bluefield-dpu",
+  "toolHints": false
 }

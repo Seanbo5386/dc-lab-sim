@@ -103,7 +103,10 @@
         {
           "type": "command-executed",
           "description": "Must pull NGC containers",
-          "expectedCommands": ["docker pull nvcr.io/nvidia/pytorch", "docker images"],
+          "expectedCommands": [
+            "docker pull nvcr.io/nvidia/pytorch",
+            "docker images"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -139,7 +142,9 @@
         {
           "type": "command-executed",
           "description": "Must run GPU containers",
-          "expectedCommands": ["docker run --rm --gpus all nvcr.io/nvidia/pytorch"],
+          "expectedCommands": [
+            "docker run --rm --gpus all nvcr.io/nvidia/pytorch"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -175,7 +180,10 @@
         {
           "type": "command-executed",
           "description": "Must configure runtime options",
-          "expectedCommands": ["docker run --rm --gpus all --shm-size", "docker run --rm --gpus all --ipc"],
+          "expectedCommands": [
+            "docker run --rm --gpus all --shm-size",
+            "docker run --rm --gpus all --ipc"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -284,7 +292,10 @@
         {
           "type": "command-executed",
           "description": "Must run container jobs with Slurm",
-          "expectedCommands": ["srun --gres=gpu --container-image", "sbatch --gres=gpu --container-image"],
+          "expectedCommands": [
+            "srun --gres=gpu --container-image",
+            "sbatch --gres=gpu --container-image"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -316,5 +327,8 @@
   ],
   "estimatedTime": 50,
   "prerequisites": ["domain3-container-runtime"],
-  "tags": ["ngc", "containers", "docker", "enroot", "pyxis", "intermediate"]
+  "tags": ["ngc", "containers", "docker", "enroot", "pyxis", "intermediate"],
+  "tier": 2,
+  "commandFamilies": ["container-tools"],
+  "explanationGateId": "gate-domain3-ngc-pipeline"
 }

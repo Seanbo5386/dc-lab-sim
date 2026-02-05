@@ -321,5 +321,8 @@
   ],
   "estimatedTime": 48,
   "prerequisites": ["domain3-storage-validation"],
-  "tags": ["nfs", "storage", "performance", "tuning", "intermediate"]
+  "tags": ["nfs", "storage", "performance", "tuning", "intermediate"],
+  "tier": 2,
+  "commandFamilies": ["cluster-tools"],
+  "explanationGateId": "gate-domain3-nfs-tuning"
 }

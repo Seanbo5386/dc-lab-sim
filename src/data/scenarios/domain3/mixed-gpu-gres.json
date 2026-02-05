@@ -212,7 +212,10 @@
         {
           "type": "command-executed",
           "description": "Must configure MIG as GRES",
-          "expectedCommands": ["nvidia-smi mig -lgi", "cat /etc/slurm/gres.conf"],
+          "expectedCommands": [
+            "nvidia-smi mig -lgi",
+            "cat /etc/slurm/gres.conf"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -317,5 +320,9 @@
   ],
   "estimatedTime": 53,
   "prerequisites": ["domain3-slurm-config"],
-  "tags": ["slurm", "gres", "mixed-gpu", "mig", "scheduling", "advanced"]
+  "tags": ["slurm", "gres", "mixed-gpu", "mig", "scheduling", "advanced"],
+  "tier": 3,
+  "commandFamilies": ["gpu-monitoring", "cluster-tools"],
+  "explanationGateId": "gate-domain3-mixed-gpu-gres",
+  "toolHints": false
 }

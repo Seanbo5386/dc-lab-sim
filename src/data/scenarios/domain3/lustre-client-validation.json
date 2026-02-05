@@ -142,7 +142,11 @@
         {
           "type": "command-executed",
           "description": "Must mount Lustre filesystem",
-          "expectedCommands": ["mkdir -p /lustre", "mount -t lustre", "df -h /lustre"],
+          "expectedCommands": [
+            "mkdir -p /lustre",
+            "mount -t lustre",
+            "df -h /lustre"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -290,7 +294,10 @@
         {
           "type": "command-executed",
           "description": "Must troubleshoot Lustre",
-          "expectedCommands": ["lctl get_param llite", "dmesg | grep -i lustre"],
+          "expectedCommands": [
+            "lctl get_param llite",
+            "dmesg | grep -i lustre"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -322,5 +329,14 @@
   ],
   "estimatedTime": 48,
   "prerequisites": ["domain3-storage-validation"],
-  "tags": ["lustre", "storage", "parallel-filesystem", "performance", "intermediate"]
+  "tags": [
+    "lustre",
+    "storage",
+    "parallel-filesystem",
+    "performance",
+    "intermediate"
+  ],
+  "tier": 2,
+  "commandFamilies": ["cluster-tools"],
+  "explanationGateId": "gate-domain3-lustre-validation"
 }

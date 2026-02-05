@@ -60,10 +60,7 @@
         "Understand profile naming convention",
         "Compare profile resource allocation"
       ],
-      "expectedCommands": [
-        "nvidia-smi mig -lgip",
-        "nvidia-smi mig -lgipp"
-      ],
+      "expectedCommands": ["nvidia-smi mig -lgip", "nvidia-smi mig -lgipp"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -96,10 +93,7 @@
         "Determine resource requirements",
         "Plan migration steps"
       ],
-      "expectedCommands": [
-        "nvidia-smi mig -lgip",
-        "nvidia-smi"
-      ],
+      "expectedCommands": ["nvidia-smi mig -lgip", "nvidia-smi"],
       "validationRules": [
         {
           "type": "command-executed",
@@ -252,7 +246,11 @@
         {
           "type": "command-executed",
           "description": "Must verify MIG configuration",
-          "expectedCommands": ["nvidia-smi mig -lgi", "nvidia-smi mig -lci", "nvidia-smi"],
+          "expectedCommands": [
+            "nvidia-smi mig -lgi",
+            "nvidia-smi mig -lci",
+            "nvidia-smi"
+          ],
           "requireAllCommands": true
         }
       ],
@@ -321,5 +319,15 @@
   ],
   "estimatedTime": 47,
   "prerequisites": ["domain2-mig-config"],
-  "tags": ["mig", "reconfiguration", "gpu-partitioning", "resource-management", "advanced"]
+  "tags": [
+    "mig",
+    "reconfiguration",
+    "gpu-partitioning",
+    "resource-management",
+    "advanced"
+  ],
+  "tier": 3,
+  "commandFamilies": ["gpu-monitoring", "diagnostics"],
+  "explanationGateId": "gate-domain2-advanced-mig",
+  "toolHints": false
 }
