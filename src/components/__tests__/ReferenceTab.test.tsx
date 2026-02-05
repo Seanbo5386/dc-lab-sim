@@ -70,4 +70,11 @@ describe("ReferenceTab", () => {
     expect(screen.getByText("Check GPU Health")).toBeInTheDocument();
     expect(screen.queryByText("Manage Cluster Jobs")).not.toBeInTheDocument();
   });
+
+  it("shows XID Error Reference when 'Understand Errors' category is clicked", () => {
+    render(<ReferenceTab />);
+    fireEvent.click(screen.getByText("Understand Errors"));
+    expect(screen.getByText("XID Error Reference")).toBeInTheDocument();
+    expect(screen.getByText(/XID 48/)).toBeInTheDocument();
+  });
 });

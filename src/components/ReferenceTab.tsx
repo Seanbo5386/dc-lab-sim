@@ -2,6 +2,7 @@
 import { useState, useMemo } from "react";
 import { Search, ChevronRight, ChevronDown } from "lucide-react";
 import taskCategoriesData from "../data/taskCategories.json";
+import { XidErrorReference } from "./XidErrorReference";
 
 interface CommandReference {
   name: string;
@@ -68,6 +69,26 @@ export function ReferenceTab() {
 
   // Category detail view
   if (selectedCategory) {
+    // Special case: Understand Errors shows XidErrorReference
+    if (selectedCategory.id === "understand-errors") {
+      return (
+        <div className="h-full overflow-auto p-6 bg-gray-900">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+            <button
+              onClick={handleBackToMain}
+              className="hover:text-white transition-colors"
+            >
+              Reference
+            </button>
+            <ChevronRight className="w-4 h-4" />
+            <span className="text-white">{selectedCategory.title}</span>
+          </div>
+          <XidErrorReference />
+        </div>
+      );
+    }
+
     return (
       <div className="h-full overflow-auto p-6 bg-gray-900">
         {/* Breadcrumb */}
