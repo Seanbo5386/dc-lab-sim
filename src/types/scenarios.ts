@@ -419,6 +419,50 @@ export interface DomainInfo {
   color: string; // UI color theme
 }
 
+// ─── Narrative Scenario Types ───────────────────────────────────
+
+export interface NarrativeScenario {
+  id: string;
+  domain: 1 | 2 | 3 | 4 | 5;
+  title: string;
+  difficulty: "beginner" | "intermediate" | "advanced";
+  narrative: {
+    hook: string;
+    setting: string;
+    resolution: string;
+  };
+  commandFamilies: string[];
+  estimatedMinutes: number;
+  tier?: 1 | 2 | 3;
+  faults?: FaultInjectionConfig[];
+  steps: NarrativeStep[];
+}
+
+export interface NarrativeStep {
+  id: string;
+  situation: string;
+  task: string;
+  expectedCommands: string[];
+  hints: string[];
+  validation: {
+    type: "command" | "output" | "state";
+    command?: string;
+    pattern?: string;
+  };
+  quiz?: NarrativeQuiz;
+}
+
+export interface NarrativeQuiz {
+  question: string;
+  options: string[];
+  correctIndex: number;
+  explanation: string;
+}
+
+export interface NarrativeScenariosFile {
+  scenarios: NarrativeScenario[];
+}
+
 export const DOMAINS: Record<DomainId, DomainInfo> = {
   domain1: {
     id: "domain1",
