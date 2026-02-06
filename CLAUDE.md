@@ -58,7 +58,7 @@ The codebase has a comprehensive learning system that transforms step-following 
 - `src/data/commandFamilies.json` - 6 families with tools, taglines, best-for scenarios
 - `src/data/quizQuestions.json` - "Which tool?" quiz questions (4 per family)
 - `src/data/explanationGates.json` - Post-scenario conceptual checks (56 gates)
-- `src/data/scenarios/` - 56 lab scenarios with tier/family fields
+- `src/data/narrativeScenarios.json` - 28 narrative scenarios with story-driven steps and quizzes
 
 #### Components
 
@@ -112,18 +112,28 @@ npm run test:run     # Single test run
 npm run lint         # ESLint check
 ```
 
-## Scenario JSON Schema
+## Narrative Scenario JSON Schema
 
 ```typescript
-interface Scenario {
-  id: string; // "domain1-bmc-config"
-  name: string;
+interface NarrativeScenario {
+  id: string; // "domain1-midnight-deployment"
   domain: 1 | 2 | 3 | 4 | 5;
-  tier: 1 | 2 | 3; // NEW: Guided/Choice/Realistic
-  commandFamily: string; // NEW: "bmc-hardware"
-  prerequisiteSkills?: string[];
-  steps: Step[];
+  title: string;
+  narrative: { hook: string; setting: string; resolution: string };
+  commandFamilies: string[];
+  estimatedMinutes: number;
+  difficulty: "beginner" | "intermediate" | "advanced";
+  steps: NarrativeStep[];
+}
+
+interface NarrativeStep {
+  id: string;
+  situation: string;
+  task: string;
+  expectedCommands: string[];
   hints: string[];
+  validation: { type: string; command?: string; pattern?: string };
+  quiz?: NarrativeQuiz;
 }
 ```
 
