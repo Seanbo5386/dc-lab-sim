@@ -11,11 +11,13 @@
       },
       "commandFamilies": ["bmc-hardware", "gpu-monitoring", "diagnostics"],
       "estimatedMinutes": 25,
+      "difficulty": "intermediate",
       "steps": [
         {
           "id": "step-1",
           "situation": "The shipping crates are open. Four pristine DGX H100 nodes sit on the rack rails, power cables ready.",
           "task": "Before powering on, use ipmitool to verify BMC connectivity and check the System Event Log for any shipping damage alerts.",
+          "expectedCommands": ["ipmitool sel list", "ipmitool sel elist"],
           "hints": [
             "Use ipmitool to access BMC",
             "Check SEL for hardware events",
@@ -31,6 +33,7 @@
           "id": "step-2",
           "situation": "BMC responds. SEL shows normal power-off events from factory. Time to verify hardware inventory.",
           "task": "Use dmidecode to check memory configuration and verify all DIMMs are detected.",
+          "expectedCommands": ["dmidecode -t memory"],
           "hints": [
             "dmidecode -t memory shows DIMM info",
             "Look for 2TB total system memory",
@@ -57,6 +60,7 @@
           "id": "step-3",
           "situation": "All 2TB of system memory detected across 32 DIMMs. OS boots cleanly.",
           "task": "Run nvidia-smi to verify all 8 GPUs are detected and check their initial state.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows all GPUs",
             "Look for 8x H100 GPUs",
@@ -72,6 +76,7 @@
           "id": "step-4",
           "situation": "nvidia-smi shows 8 GPUs but GPU 6 shows 'ERR!' in the temperature column.",
           "task": "Use nvidia-smi -q to get detailed information about GPU 6 and identify the issue.",
+          "expectedCommands": ["nvidia-smi -q -i 6"],
           "hints": [
             "nvidia-smi -q -i 6 for detailed info",
             "Check for driver or hardware errors",
@@ -98,6 +103,7 @@
           "id": "step-5",
           "situation": "Detailed query shows GPU 6 has a pending GPU reset required flag.",
           "task": "Check the sensors output to verify thermal conditions before attempting any GPU reset.",
+          "expectedCommands": ["sensors"],
           "hints": [
             "sensors command shows temperatures",
             "Check ambient and GPU temps",
@@ -113,6 +119,7 @@
           "id": "step-6",
           "situation": "Temperatures are normal. The issue appears to be a post-shipping initialization problem.",
           "task": "Use dcgmi diag to run a quick health check on all GPUs before proceeding.",
+          "expectedCommands": ["dcgmi diag -r 1"],
           "hints": [
             "dcgmi diag -r 1 for quick check",
             "Level 1 is fastest diagnostic",
@@ -128,6 +135,7 @@
           "id": "step-7",
           "situation": "Diagnostics show GPU 6 needs a reset. Other 7 GPUs pass all tests.",
           "task": "Document the GPU state using nvidia-bug-report before attempting any reset operations.",
+          "expectedCommands": ["nvidia-bug-report.sh"],
           "hints": [
             "nvidia-bug-report.sh creates log bundle",
             "Document before making changes",
@@ -154,6 +162,7 @@
           "id": "step-8",
           "situation": "Bug report saved. Time to attempt recovery of GPU 6.",
           "task": "Use nvidia-smi to attempt a GPU reset on GPU 6 and verify recovery.",
+          "expectedCommands": ["nvidia-smi -r -i 6"],
           "hints": [
             "nvidia-smi -r resets GPUs",
             "May need to specify GPU index",
@@ -169,6 +178,7 @@
           "id": "step-9",
           "situation": "GPU 6 recovered after reset. All 8 GPUs now showing healthy status.",
           "task": "Run a comprehensive DCGM diagnostic to validate the cluster is ready for production.",
+          "expectedCommands": ["dcgmi diag -r 3"],
           "hints": [
             "dcgmi diag -r 3 for thorough test",
             "Takes longer but more complete",
@@ -184,6 +194,7 @@
           "id": "step-10",
           "situation": "All diagnostics pass. The cluster is ready for the AI team's Monday morning deadline.",
           "task": "Final verification: check nvidia-smi to confirm all GPUs are operational and document the deployment.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi for final check",
             "All 8 GPUs should show healthy",
@@ -213,11 +224,13 @@
         "cluster-tools"
       ],
       "estimatedMinutes": 20,
+      "difficulty": "intermediate",
       "steps": [
         {
           "id": "step-1",
           "situation": "The security team has flagged 16 nodes for immediate BMC firmware update. Downtime approved.",
           "task": "Use sinfo to check which nodes are currently running jobs before starting updates.",
+          "expectedCommands": ["sinfo"],
           "hints": [
             "sinfo shows node states",
             "Check for allocated vs idle nodes",
@@ -233,6 +246,9 @@
           "id": "step-2",
           "situation": "8 nodes are running jobs. You need to gracefully drain them for maintenance.",
           "task": "Use scontrol to drain nodes with a maintenance reason before starting firmware updates.",
+          "expectedCommands": [
+            "scontrol update nodename=dgx-01 state=drain reason='BMC firmware update'"
+          ],
           "hints": [
             "scontrol update nodename state=drain",
             "Add reason for audit trail",
@@ -259,6 +275,7 @@
           "id": "step-3",
           "situation": "Nodes are draining. While waiting, verify current BMC firmware versions.",
           "task": "Use ipmitool to check the current BMC firmware version on the first node.",
+          "expectedCommands": ["ipmitool mc info"],
           "hints": [
             "ipmitool mc info shows BMC version",
             "Document current version",
@@ -274,6 +291,7 @@
           "id": "step-4",
           "situation": "Current BMC version confirmed as vulnerable. Jobs have completed, nodes fully drained.",
           "task": "Before firmware update, capture the current BMC sensor baselines using ipmitool.",
+          "expectedCommands": ["ipmitool sensor list"],
           "hints": [
             "ipmitool sensor list shows all sensors",
             "Document normal values",
@@ -289,6 +307,7 @@
           "id": "step-5",
           "situation": "Sensor baselines captured. Time to verify GPU state before BMC update.",
           "task": "Run nvidia-smi to document GPU state before the BMC firmware change.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi captures GPU state",
             "Note driver version",
@@ -315,6 +334,7 @@
           "id": "step-6",
           "situation": "GPU state documented. Ready to proceed with BMC firmware update.",
           "task": "Check BMC event log for any hardware warnings before rebooting for firmware update.",
+          "expectedCommands": ["ipmitool sel elist"],
           "hints": [
             "ipmitool sel elist shows events",
             "Look for recent warnings",
@@ -330,6 +350,7 @@
           "id": "step-7",
           "situation": "Event log clean. Firmware update completed via BMC web interface. Node rebooting.",
           "task": "After reboot, verify the new BMC firmware version is installed correctly.",
+          "expectedCommands": ["ipmitool mc info"],
           "hints": [
             "ipmitool mc info shows version",
             "Verify against security bulletin",
@@ -345,6 +366,7 @@
           "id": "step-8",
           "situation": "BMC firmware updated successfully. Now verify GPU subsystem survived the reboot.",
           "task": "Run nvidia-smi to verify all GPUs are detected after the BMC update and reboot.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows GPU status",
             "Compare to pre-update state",
@@ -371,6 +393,7 @@
           "id": "step-9",
           "situation": "All GPUs detected. Run quick diagnostics to verify GPU health post-update.",
           "task": "Use dcgmi diag to run a health check on all GPUs after the firmware update.",
+          "expectedCommands": ["dcgmi diag -r 1"],
           "hints": [
             "dcgmi diag -r 1 for quick check",
             "Verify all tests pass",
@@ -386,6 +409,7 @@
           "id": "step-10",
           "situation": "Diagnostics pass. Node ready to return to production.",
           "task": "Use scontrol to return the node to service and verify its state.",
+          "expectedCommands": ["scontrol update nodename=dgx-01 state=resume"],
           "hints": [
             "scontrol update state=resume",
             "Verify with sinfo",
@@ -415,11 +439,13 @@
         "cluster-tools"
       ],
       "estimatedMinutes": 22,
+      "difficulty": "advanced",
       "steps": [
         {
           "id": "step-1",
           "situation": "Users report 'CUDA error: no CUDA-capable device' on dgx-01 through dgx-08. Panic ensues.",
           "task": "Start triage by checking nvidia-smi on an affected node to understand the GPU state.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi is the first check",
             "Look for error messages",
@@ -435,6 +461,7 @@
           "id": "step-2",
           "situation": "nvidia-smi shows 'NVIDIA-SMI has failed because it couldn't communicate with the NVIDIA driver.'",
           "task": "Check if the NVIDIA kernel modules are loaded using system commands.",
+          "expectedCommands": ["lsmod | grep nvidia"],
           "hints": [
             "lsmod shows loaded modules",
             "grep for nvidia modules",
@@ -461,6 +488,7 @@
           "id": "step-3",
           "situation": "lsmod shows nvidia module is loaded but version 550.54 doesn't match expected 535.154.",
           "task": "Check system logs for driver initialization errors using journalctl or dmesg.",
+          "expectedCommands": ["dmesg | grep -i nvrm"],
           "hints": [
             "dmesg shows kernel messages",
             "Look for NVRM errors",
@@ -476,23 +504,34 @@
           "id": "step-4",
           "situation": "dmesg shows NVRM: GPU firmware mismatch - driver expects newer GSP firmware.",
           "task": "Document the current driver and CUDA versions for the rollback plan.",
+          "expectedCommands": [
+            "cat /proc/driver/nvidia/version",
+            "nvcc --version"
+          ],
           "hints": [
             "cat /proc/driver/nvidia/version",
             "nvcc --version for CUDA",
             "Document both versions"
           ],
-          "validation": { "type": "command", "pattern": "nvidia/version|nvcc" }
+          "validation": {
+            "type": "command",
+            "pattern": "nvidia/version|nvcc"
+          }
         },
         {
           "id": "step-5",
           "situation": "Driver 550.54 requires GSP firmware update, but cluster policy prohibits firmware changes without approval.",
           "task": "Check what driver packages are available for rollback using package manager.",
+          "expectedCommands": ["apt list --installed nvidia-driver*"],
           "hints": [
             "apt list or dnf list for packages",
             "Look for older nvidia-driver versions",
             "535.154 was the previous version"
           ],
-          "validation": { "type": "command", "pattern": "nvidia|driver|list" },
+          "validation": {
+            "type": "command",
+            "pattern": "nvidia|driver|list"
+          },
           "quiz": {
             "question": "Why might a newer driver require firmware updates?",
             "options": [
@@ -509,6 +548,9 @@
           "id": "step-6",
           "situation": "Previous driver package 535.154 is still cached in the repository. Rollback is possible.",
           "task": "Use scontrol to drain the affected nodes before starting the driver rollback.",
+          "expectedCommands": [
+            "scontrol update nodename=dgx-01 state=drain reason='driver rollback'"
+          ],
           "hints": [
             "scontrol update state=drain",
             "Add maintenance reason",
@@ -524,6 +566,7 @@
           "id": "step-7",
           "situation": "Nodes draining. Time to document the current state before making changes.",
           "task": "Create a bug report to capture system state before the rollback.",
+          "expectedCommands": ["nvidia-bug-report.sh"],
           "hints": [
             "nvidia-bug-report.sh creates bundle",
             "Useful for post-incident review",
@@ -539,6 +582,7 @@
           "id": "step-8",
           "situation": "Bug report saved. Driver rollback completed via package manager. Reboot required.",
           "task": "After reboot, verify nvidia-smi now communicates with the GPUs successfully.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi should work now",
             "Check all 8 GPUs visible",
@@ -565,6 +609,7 @@
           "id": "step-9",
           "situation": "nvidia-smi shows all 8 GPUs with driver 535.154. Basic communication restored.",
           "task": "Run DCGM diagnostics to verify GPU health after the driver change.",
+          "expectedCommands": ["dcgmi diag -r 2"],
           "hints": [
             "dcgmi diag -r 2 for moderate test",
             "Verify compute and memory",
@@ -580,6 +625,7 @@
           "id": "step-10",
           "situation": "All diagnostics pass. Nodes ready to return to production.",
           "task": "Resume the nodes in Slurm and verify they return to idle state.",
+          "expectedCommands": ["scontrol update nodename=dgx-01 state=resume"],
           "hints": [
             "scontrol update state=resume",
             "sinfo to verify state",
@@ -609,11 +655,13 @@
         "diagnostics"
       ],
       "estimatedMinutes": 28,
+      "difficulty": "beginner",
       "steps": [
         {
           "id": "step-1",
           "situation": "Four new DGX A100 nodes are racked, cabled, and powered on. BMC LEDs show network activity.",
           "task": "Use ipmitool to verify BMC connectivity and check system power state.",
+          "expectedCommands": ["ipmitool chassis status"],
           "hints": [
             "ipmitool chassis status",
             "Verify power is on",
@@ -629,6 +677,7 @@
           "id": "step-2",
           "situation": "BMC responds. System is powered on. Time to verify hardware inventory.",
           "task": "Use dmidecode to verify the system model and memory configuration.",
+          "expectedCommands": ["dmidecode -t system", "dmidecode -t memory"],
           "hints": [
             "dmidecode -t system for model",
             "dmidecode -t memory for RAM",
@@ -655,6 +704,7 @@
           "id": "step-3",
           "situation": "Hardware matches spec: DGX A100 with 1TB RAM, 8 GPUs expected.",
           "task": "Run nvidia-smi to verify all 8 A100 GPUs are detected.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows GPU inventory",
             "Should see 8 A100 GPUs",
@@ -670,6 +720,7 @@
           "id": "step-4",
           "situation": "All 8 GPUs detected: A100-SXM4-80GB. Time for health validation.",
           "task": "Check GPU topology to verify NVLink connectivity between GPUs.",
+          "expectedCommands": ["nvidia-smi topo -m"],
           "hints": [
             "nvidia-smi topo -m shows topology",
             "All GPUs should connect via NVLink",
@@ -696,6 +747,7 @@
           "id": "step-5",
           "situation": "NVLink topology looks correct. Run diagnostics to validate GPU health.",
           "task": "Use dcgmi diag to run a comprehensive health check on all GPUs.",
+          "expectedCommands": ["dcgmi diag -r 3"],
           "hints": [
             "dcgmi diag -r 3 for full test",
             "Takes 10-15 minutes",
@@ -711,6 +763,7 @@
           "id": "step-6",
           "situation": "All 8 GPUs pass diagnostics. Time to verify thermal performance.",
           "task": "Check system thermal sensors to ensure cooling is adequate.",
+          "expectedCommands": ["sensors"],
           "hints": [
             "sensors shows temperatures",
             "GPU temps should be under 45C at idle",
@@ -726,6 +779,7 @@
           "id": "step-7",
           "situation": "Thermals look good. Now verify the node can join the Slurm cluster.",
           "task": "Check sinfo to see the current cluster configuration before adding new nodes.",
+          "expectedCommands": ["sinfo"],
           "hints": [
             "sinfo shows all nodes",
             "Note current node count",
@@ -741,12 +795,16 @@
           "id": "step-8",
           "situation": "Current cluster has 8 nodes in 'gpu' partition. New nodes need to be added.",
           "task": "Verify the new node's hostname and IP are configured correctly for Slurm.",
+          "expectedCommands": ["hostname"],
           "hints": [
             "hostname command shows name",
             "Should follow naming convention",
             "Check /etc/hosts or DNS"
           ],
-          "validation": { "type": "command", "pattern": "hostname|host" },
+          "validation": {
+            "type": "command",
+            "pattern": "hostname|host"
+          },
           "quiz": {
             "question": "Why is consistent hostname naming important for Slurm?",
             "options": [
@@ -763,6 +821,7 @@
           "id": "step-9",
           "situation": "Hostname dgx-09 configured correctly. Slurm client configured.",
           "task": "Use scontrol to add the new node to the cluster and verify its state.",
+          "expectedCommands": ["scontrol show node dgx-09"],
           "hints": [
             "scontrol update may be needed",
             "Admin may need to update slurm.conf",
@@ -778,6 +837,7 @@
           "id": "step-10",
           "situation": "New nodes added to Slurm. Final validation required.",
           "task": "Use sinfo to verify all 12 nodes (8 original + 4 new) are visible and idle.",
+          "expectedCommands": ["sinfo -N -l"],
           "hints": [
             "sinfo -N -l for detailed view",
             "All nodes should show idle",
@@ -807,11 +867,13 @@
         "bmc-hardware"
       ],
       "estimatedMinutes": 25,
+      "difficulty": "advanced",
       "steps": [
         {
           "id": "step-1",
           "situation": "User reports 8-GPU PyTorch training is 2x slower than last week. Same code, same data.",
           "task": "Start by checking nvidia-smi to verify all 8 GPUs are detected and healthy.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows GPU status",
             "Check for errors or warnings",
@@ -827,6 +889,7 @@
           "id": "step-2",
           "situation": "All 8 GPUs show healthy, but you notice GPU utilization varies widely during training.",
           "task": "Check the GPU topology to understand the NVLink connectivity matrix.",
+          "expectedCommands": ["nvidia-smi topo -m"],
           "hints": [
             "nvidia-smi topo -m shows connections",
             "Look for NVLink vs PCIe paths",
@@ -853,6 +916,7 @@
           "id": "step-3",
           "situation": "Topology shows GPUs 0-3 and 4-7 are connected via NVLink, but 0-4, 1-5, etc. show 'SYS' (PCIe)!",
           "task": "Check NVLink status in detail to identify which links are degraded.",
+          "expectedCommands": ["nvidia-smi nvlink --status"],
           "hints": [
             "nvidia-smi nvlink --status",
             "Check all link states",
@@ -868,6 +932,7 @@
           "id": "step-4",
           "situation": "NVLink status shows links through NVSwitch 2 are all inactive. The switch may be failing.",
           "task": "Check NVLink error counters to see if there are physical layer errors.",
+          "expectedCommands": ["nvidia-smi nvlink -e"],
           "hints": [
             "nvidia-smi nvlink -e shows errors",
             "Look for CRC or replay errors",
@@ -894,6 +959,7 @@
           "id": "step-5",
           "situation": "Error counters show CRC errors on all links going through NVSwitch 2.",
           "task": "Use nvsm to check NVSwitch health status directly.",
+          "expectedCommands": ["nvsm show nvswitch"],
           "hints": [
             "nvsm show nvswitch",
             "Check health status",
@@ -909,6 +975,7 @@
           "id": "step-6",
           "situation": "nvsm shows NVSwitch 2 in 'Degraded' state with thermal warning.",
           "task": "Check system thermal sensors to understand the temperature situation.",
+          "expectedCommands": ["sensors"],
           "hints": [
             "sensors shows temperatures",
             "Look for NVSwitch temps",
@@ -924,6 +991,7 @@
           "id": "step-7",
           "situation": "NVSwitch 2 is running 15C hotter than others. Possible cooling issue.",
           "task": "Check BMC sensor data for fan speeds and cooling system status.",
+          "expectedCommands": ["ipmitool sensor list"],
           "hints": [
             "ipmitool sensor list",
             "Look for fan RPM",
@@ -950,6 +1018,7 @@
           "id": "step-8",
           "situation": "Fan 4 (cooling NVSwitch 2 zone) is running at 50% of normal RPM. Bearing failure suspected.",
           "task": "Document the issue using nvidia-bug-report before scheduling maintenance.",
+          "expectedCommands": ["nvidia-bug-report.sh"],
           "hints": [
             "nvidia-bug-report.sh captures state",
             "Include thermal data",
@@ -965,6 +1034,9 @@
           "id": "step-9",
           "situation": "Bug report captured. Need to take node offline for fan replacement.",
           "task": "Use scontrol to drain the node for maintenance.",
+          "expectedCommands": [
+            "scontrol update nodename=dgx-01 state=drain reason='fan replacement'"
+          ],
           "hints": [
             "scontrol update state=drain",
             "Add reason for records",
@@ -980,6 +1052,7 @@
           "id": "step-10",
           "situation": "Node draining. Document final GPU state before shutdown.",
           "task": "Run dcgmi diag to document current GPU health for comparison after repair.",
+          "expectedCommands": ["dcgmi diag -r 1"],
           "hints": [
             "dcgmi diag -r 1 quick check",
             "Document any failures",
@@ -1009,11 +1082,13 @@
         "cluster-tools"
       ],
       "estimatedMinutes": 23,
+      "difficulty": "advanced",
       "steps": [
         {
           "id": "step-1",
           "situation": "System logs show 'NVRM: GPU at PCI:0000:41:00.0 has fallen off the bus' errors, seemingly random.",
           "task": "Check nvidia-smi to see current GPU state and identify which GPU is affected.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows GPU status",
             "Look for ERR! or missing GPUs",
@@ -1029,6 +1104,7 @@
           "id": "step-2",
           "situation": "nvidia-smi shows 7 GPUs instead of 8. GPU 3 (PCI 41:00.0) is missing.",
           "task": "Check system logs for the exact error messages and timestamps.",
+          "expectedCommands": ["dmesg | grep -i nvrm"],
           "hints": [
             "dmesg shows kernel messages",
             "grep for NVRM or nvidia",
@@ -1055,6 +1131,7 @@
           "id": "step-3",
           "situation": "Logs show the error occurs during high-power training phases. Possible power issue.",
           "task": "Check BMC power sensor readings to understand power delivery health.",
+          "expectedCommands": ["ipmitool sensor list"],
           "hints": [
             "ipmitool sensor list",
             "Look for power readings",
@@ -1070,6 +1147,7 @@
           "id": "step-4",
           "situation": "Power readings show PSU 2 output voltage is 0.3V below nominal during peaks.",
           "task": "Check the BMC System Event Log for any power-related warnings.",
+          "expectedCommands": ["ipmitool sel elist"],
           "hints": [
             "ipmitool sel elist",
             "Look for power events",
@@ -1096,6 +1174,7 @@
           "id": "step-5",
           "situation": "SEL shows multiple 'PSU 2 Assert' events correlating with GPU dropout times.",
           "task": "Document PSU configuration and check for redundancy status.",
+          "expectedCommands": ["ipmitool fru print"],
           "hints": [
             "ipmitool fru print for PSU info",
             "Check redundancy status",
@@ -1111,6 +1190,7 @@
           "id": "step-6",
           "situation": "PSU 2 FRU shows it's an older unit - possible degradation. Need thermal check.",
           "task": "Check system temperatures to rule out thermal contribution to the issue.",
+          "expectedCommands": ["sensors"],
           "hints": [
             "sensors shows temperatures",
             "Check all zones",
@@ -1126,6 +1206,7 @@
           "id": "step-7",
           "situation": "Temperatures normal. Issue isolated to PSU 2. Need to schedule replacement.",
           "task": "Create bug report documenting the power and GPU dropout correlation.",
+          "expectedCommands": ["nvidia-bug-report.sh"],
           "hints": [
             "nvidia-bug-report.sh",
             "Document power events",
@@ -1141,6 +1222,7 @@
           "id": "step-8",
           "situation": "Bug report created. The GPU is still missing. Attempt recovery.",
           "task": "Try to reset the GPUs to see if the missing one recovers.",
+          "expectedCommands": ["nvidia-smi -r"],
           "hints": [
             "nvidia-smi -r for reset",
             "May need reboot if fails",
@@ -1167,6 +1249,9 @@
           "id": "step-9",
           "situation": "Reset didn't recover GPU 3. Full reboot required, but must drain first.",
           "task": "Drain the node from Slurm before scheduling the reboot.",
+          "expectedCommands": [
+            "scontrol update nodename=dgx-01 state=drain reason='PSU replacement'"
+          ],
           "hints": [
             "scontrol update state=drain",
             "Add reason for maintenance",
@@ -1182,6 +1267,7 @@
           "id": "step-10",
           "situation": "Node drained. After reboot, verify all 8 GPUs are back.",
           "task": "Run nvidia-smi after reboot to verify all GPUs are detected.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi after reboot",
             "Should show all 8 GPUs",
@@ -1211,11 +1297,13 @@
         "diagnostics"
       ],
       "estimatedMinutes": 25,
+      "difficulty": "beginner",
       "steps": [
         {
           "id": "step-1",
           "situation": "Fresh 12-node DGX A100 cluster with Slurm installed but not configured for GPUs.",
           "task": "Check the current Slurm configuration to understand what's already set up.",
+          "expectedCommands": ["scontrol show config"],
           "hints": [
             "sinfo shows partitions",
             "scontrol show config",
@@ -1231,6 +1319,7 @@
           "id": "step-2",
           "situation": "Basic Slurm is running but no GPU resources (GRES) are configured.",
           "task": "First verify GPU inventory on a compute node using nvidia-smi.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi on compute node",
             "Count GPUs per node",
@@ -1257,6 +1346,7 @@
           "id": "step-3",
           "situation": "Each node has 8 A100-80GB GPUs. Need to configure Slurm to recognize them.",
           "task": "Check if dcgmi is running to provide GPU telemetry for Slurm.",
+          "expectedCommands": ["dcgmi discovery -l"],
           "hints": [
             "dcgmi discovery -l lists GPUs",
             "DCGM provides GPU metrics",
@@ -1272,6 +1362,7 @@
           "id": "step-4",
           "situation": "DCGM is running and sees all GPUs. Slurm config files need editing.",
           "task": "Check current node information in Slurm to see feature configuration.",
+          "expectedCommands": ["scontrol show node"],
           "hints": [
             "scontrol show node",
             "Look for Gres entries",
@@ -1298,6 +1389,7 @@
           "id": "step-5",
           "situation": "Nodes show Gres=gpu:8 after config update. Time to test job submission.",
           "task": "Check sinfo to verify the GPU partition is available with correct resources.",
+          "expectedCommands": ["sinfo -N -l"],
           "hints": [
             "sinfo -N -l for detailed view",
             "Check GPU counts",
@@ -1313,6 +1405,7 @@
           "id": "step-6",
           "situation": "GPU partition shows 96 total GPUs (12 nodes x 8 GPUs). Ready for testing.",
           "task": "Check squeue to see current job activity on the cluster.",
+          "expectedCommands": ["squeue"],
           "hints": [
             "squeue shows job queue",
             "Should be empty on new cluster",
@@ -1328,6 +1421,7 @@
           "id": "step-7",
           "situation": "Queue is empty. Need to configure container support for AI workloads.",
           "task": "Verify Docker/Enroot is available for containerized workloads.",
+          "expectedCommands": ["docker --version", "enroot version"],
           "hints": [
             "docker --version for Docker",
             "enroot version for Enroot",
@@ -1342,6 +1436,9 @@
           "id": "step-8",
           "situation": "Enroot is installed for HPC containers. Test GPU visibility in containers.",
           "task": "Use docker to verify GPUs are visible inside containers.",
+          "expectedCommands": [
+            "docker run --gpus all nvidia/cuda:12.0-base nvidia-smi"
+          ],
           "hints": [
             "docker run --gpus all nvidia-smi",
             "Should see all GPUs",
@@ -1368,6 +1465,7 @@
           "id": "step-9",
           "situation": "Container GPU access works. Run a final validation test.",
           "task": "Use dcgmi diag to run a quick health check before declaring cluster ready.",
+          "expectedCommands": ["dcgmi diag -r 1"],
           "hints": [
             "dcgmi diag -r 1 quick test",
             "Run on sample node",
@@ -1383,6 +1481,7 @@
           "id": "step-10",
           "situation": "All systems validated. Document cluster readiness.",
           "task": "Final sinfo check to confirm cluster is ready for production workloads.",
+          "expectedCommands": ["sinfo -N -l"],
           "hints": [
             "sinfo -N -l",
             "All nodes should be idle",
@@ -1412,11 +1511,13 @@
         "diagnostics"
       ],
       "estimatedMinutes": 20,
+      "difficulty": "intermediate",
       "steps": [
         {
           "id": "step-1",
           "situation": "Users report 'CUDA initialization error' when running GPU containers after yesterday's update.",
           "task": "Verify GPUs work outside containers using nvidia-smi directly.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi on host",
             "Should show all GPUs",
@@ -1432,6 +1533,9 @@
           "id": "step-2",
           "situation": "nvidia-smi works on host - all 8 GPUs visible with driver 535.154.",
           "task": "Test GPU visibility inside a Docker container.",
+          "expectedCommands": [
+            "docker run --gpus all nvidia/cuda:12.0-base nvidia-smi"
+          ],
           "hints": [
             "docker run --gpus all nvidia-smi",
             "Should show GPUs if working",
@@ -1458,6 +1562,7 @@
           "id": "step-3",
           "situation": "Container test shows 'Failed to initialize NVML: Unknown Error'. Version mismatch suspected.",
           "task": "Check the nvidia-container-toolkit version installed on the system.",
+          "expectedCommands": ["dpkg -l | grep nvidia-container-toolkit"],
           "hints": [
             "dpkg -l or rpm -q for package",
             "Look for nvidia-container-toolkit",
@@ -1472,6 +1577,7 @@
           "id": "step-4",
           "situation": "nvidia-container-toolkit is version 1.13.0 but driver is 535.154 requiring 1.14.x.",
           "task": "Check Docker daemon logs for more details about the GPU initialization failure.",
+          "expectedCommands": ["journalctl -u docker --no-pager | grep nvidia"],
           "hints": [
             "journalctl -u docker",
             "Look for nvidia runtime errors",
@@ -1498,6 +1604,7 @@
           "id": "step-5",
           "situation": "Logs confirm: 'nvidia-container-cli: driver mismatch'. Need to update toolkit.",
           "task": "Check which Slurm jobs are currently affected by this issue.",
+          "expectedCommands": ["squeue"],
           "hints": [
             "squeue shows running jobs",
             "Look for job states",
@@ -1513,6 +1620,9 @@
           "id": "step-6",
           "situation": "Multiple container jobs are failing. Need to communicate and fix quickly.",
           "task": "Drain nodes for toolkit update while allowing current non-container jobs to finish.",
+          "expectedCommands": [
+            "scontrol update nodename=dgx-01 state=drain reason='toolkit update'"
+          ],
           "hints": [
             "scontrol update state=drain",
             "Add reason for users",
@@ -1528,6 +1638,7 @@
           "id": "step-7",
           "situation": "Nodes draining. The toolkit update is being installed by sysadmin team.",
           "task": "After toolkit update, verify the new version is installed.",
+          "expectedCommands": ["dpkg -l | grep nvidia-container-toolkit"],
           "hints": [
             "Check package version again",
             "Should be 1.14.x or later",
@@ -1542,6 +1653,9 @@
           "id": "step-8",
           "situation": "Toolkit updated to 1.14.3. Test container GPU access again.",
           "task": "Run a Docker test to verify GPUs are now visible in containers.",
+          "expectedCommands": [
+            "docker run --gpus all nvidia/cuda:12.0-base nvidia-smi"
+          ],
           "hints": [
             "docker run --gpus all nvidia-smi",
             "Should show all 8 GPUs",
@@ -1568,6 +1682,7 @@
           "id": "step-9",
           "situation": "Docker test passes. Now verify Enroot (HPC container runtime) also works.",
           "task": "Test that Enroot can import and run a container with GPU access.",
+          "expectedCommands": ["enroot import dockerd://nvidia/cuda:12.0-base"],
           "hints": [
             "enroot import or run",
             "Check GPU visibility",
@@ -1583,6 +1698,7 @@
           "id": "step-10",
           "situation": "Enroot works. Resume nodes and notify users.",
           "task": "Resume nodes in Slurm and verify they return to service.",
+          "expectedCommands": ["scontrol update nodename=dgx-01 state=resume"],
           "hints": [
             "scontrol update state=resume",
             "sinfo to verify",
@@ -1612,11 +1728,13 @@
         "bmc-hardware"
       ],
       "estimatedMinutes": 22,
+      "difficulty": "intermediate",
       "steps": [
         {
           "id": "step-1",
           "situation": "Users complain GPU utilization is stuck at 10% - jobs are waiting for data.",
           "task": "Verify the GPU utilization issue using nvidia-smi.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows utilization",
             "Low GPU util with jobs running",
@@ -1632,6 +1750,7 @@
           "id": "step-2",
           "situation": "Confirmed: GPUs at 8% utilization during active training. I/O wait is the bottleneck.",
           "task": "Check Slurm job status to see how many jobs are affected.",
+          "expectedCommands": ["squeue"],
           "hints": [
             "squeue shows job status",
             "Look for running jobs",
@@ -1658,17 +1777,22 @@
           "id": "step-3",
           "situation": "45 jobs running across 12 nodes, all showing low GPU utilization.",
           "task": "Check system I/O statistics to confirm the storage bottleneck.",
+          "expectedCommands": ["iostat -x 1 3"],
           "hints": [
             "iostat or sar for I/O stats",
             "Look for high wait times",
             "Check read/write throughput"
           ],
-          "validation": { "type": "command", "pattern": "iostat|iowait|stat" }
+          "validation": {
+            "type": "command",
+            "pattern": "iostat|iowait|stat"
+          }
         },
         {
           "id": "step-4",
           "situation": "I/O wait is at 60%. Lustre filesystem is the bottleneck. Need to check OST health.",
           "task": "Check Lustre filesystem status to identify any failed or degraded components.",
+          "expectedCommands": ["lfs df", "lfs check servers"],
           "hints": [
             "lfs check servers",
             "lfs df shows OST status",
@@ -1695,6 +1819,7 @@
           "id": "step-5",
           "situation": "lfs df shows OST0003 is offline. This explains the performance degradation.",
           "task": "Check the storage server logs or BMC for hardware issues.",
+          "expectedCommands": ["ipmitool sel elist"],
           "hints": [
             "ipmitool on storage server",
             "Check sel for events",
@@ -1710,6 +1835,7 @@
           "id": "step-6",
           "situation": "Storage server BMC shows multiple disk failure events on OST0003.",
           "task": "Document the storage server status for the storage team.",
+          "expectedCommands": ["ipmitool sensor list"],
           "hints": [
             "ipmitool sensor list",
             "dmidecode for hardware info",
@@ -1725,6 +1851,7 @@
           "id": "step-7",
           "situation": "Storage team notified. Meanwhile, check if data can be migrated away from failed OST.",
           "task": "Check which directories are most affected by the OST failure.",
+          "expectedCommands": ["lfs getstripe /data/training"],
           "hints": [
             "lfs getstripe shows file layout",
             "Check training data directories",
@@ -1740,6 +1867,7 @@
           "id": "step-8",
           "situation": "Critical training datasets are striped across all OSTs including the failed one.",
           "task": "Check dcgmi to verify GPUs are healthy while waiting for storage fix.",
+          "expectedCommands": ["dcgmi diag -r 1"],
           "hints": [
             "dcgmi diag quick check",
             "Ensure GPUs aren't the issue",
@@ -1766,6 +1894,7 @@
           "id": "step-9",
           "situation": "GPUs are healthy. Storage team has recovered OST0003. Verify performance.",
           "task": "Check Lustre status to confirm all OSTs are back online.",
+          "expectedCommands": ["lfs df"],
           "hints": [
             "lfs df shows all OSTs",
             "All should show active",
@@ -1781,6 +1910,7 @@
           "id": "step-10",
           "situation": "All OSTs online. Verify GPU utilization has recovered.",
           "task": "Check nvidia-smi to confirm GPU utilization has returned to normal.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows utilization",
             "Should be high now",
@@ -1810,11 +1940,13 @@
         "diagnostics"
       ],
       "estimatedMinutes": 25,
+      "difficulty": "advanced",
       "steps": [
         {
           "id": "step-1",
           "situation": "You receive a ticket about NCCL all-reduce hanging on multi-node training jobs.",
           "task": "Check which nodes are running jobs using Slurm commands.",
+          "expectedCommands": ["squeue"],
           "hints": [
             "squeue shows running jobs",
             "Check nodelist for jobs",
@@ -1830,6 +1962,7 @@
           "id": "step-2",
           "situation": "You see 4 multi-node jobs running. The user's job uses dgx-01 through dgx-08.",
           "task": "Check overall GPU health across the cluster using nvidia-smi.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows GPU status",
             "Look for ERR! or N/A",
@@ -1856,6 +1989,7 @@
           "id": "step-3",
           "situation": "nvidia-smi shows all GPUs present, but GPU 3 on dgx-04 shows high memory usage even when idle.",
           "task": "Check GPU 3 on dgx-04 for ECC memory errors.",
+          "expectedCommands": ["nvidia-smi -q -i 3"],
           "hints": [
             "nvidia-smi -q for details",
             "Look for ECC errors section",
@@ -1871,6 +2005,7 @@
           "id": "step-4",
           "situation": "GPU 3 shows 47 ECC single-bit errors. This could cause intermittent issues.",
           "task": "Use dcgmi to get detailed GPU health information.",
+          "expectedCommands": ["dcgmi diag -r 1"],
           "hints": [
             "dcgmi diag for health check",
             "Check specific GPU",
@@ -1897,6 +2032,7 @@
           "id": "step-5",
           "situation": "DCGM shows GPU 3 has elevated error rates. Check if InfiniBand is also affected.",
           "task": "Check InfiniBand port status on the affected node.",
+          "expectedCommands": ["ibstat"],
           "hints": [
             "ibstat shows IB port status",
             "Look for active/inactive",
@@ -1912,6 +2048,7 @@
           "id": "step-6",
           "situation": "IB ports look healthy. The issue seems isolated to GPU 3 memory.",
           "task": "Check NVLink status to see if GPU 3 affects NVLink communication.",
+          "expectedCommands": ["nvidia-smi nvlink --status"],
           "hints": [
             "nvidia-smi nvlink --status",
             "Check GPU 3 links",
@@ -1927,6 +2064,7 @@
           "id": "step-7",
           "situation": "NVLink shows elevated replay counts on links connected to GPU 3.",
           "task": "Check NVLink error counters for details on the communication issues.",
+          "expectedCommands": ["nvidia-smi nvlink -e"],
           "hints": [
             "nvidia-smi nvlink -e",
             "Check replay and CRC errors",
@@ -1953,6 +2091,7 @@
           "id": "step-8",
           "situation": "Confirmed: GPU 3 memory errors are causing NVLink retries. Need to isolate the GPU.",
           "task": "Create a bug report documenting the GPU 3 issues before taking action.",
+          "expectedCommands": ["nvidia-bug-report.sh"],
           "hints": [
             "nvidia-bug-report.sh",
             "Captures full state",
@@ -1968,6 +2107,9 @@
           "id": "step-9",
           "situation": "Bug report saved. Need to drain the node for GPU replacement.",
           "task": "Drain dgx-04 from Slurm to prepare for maintenance.",
+          "expectedCommands": [
+            "scontrol update nodename=dgx-04 state=drain reason='GPU 3 ECC errors'"
+          ],
           "hints": [
             "scontrol update state=drain",
             "Reason: GPU 3 ECC errors",
@@ -1983,6 +2125,7 @@
           "id": "step-10",
           "situation": "Node drained. Run final diagnostics to document GPU 3 failure mode.",
           "task": "Run comprehensive DCGM diagnostics on the affected GPU.",
+          "expectedCommands": ["dcgmi diag -r 3 -i 3"],
           "hints": [
             "dcgmi diag -r 3 -i 3",
             "Level 3 for thorough test",
@@ -2012,11 +2155,13 @@
         "diagnostics"
       ],
       "estimatedMinutes": 23,
+      "difficulty": "intermediate",
       "steps": [
         {
           "id": "step-1",
           "situation": "NCCL all-reduce test shows 120 GB/s instead of expected 240 GB/s across nodes.",
           "task": "Verify GPU health is not the bottleneck using nvidia-smi.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi on affected nodes",
             "Check GPU health",
@@ -2032,6 +2177,7 @@
           "id": "step-2",
           "situation": "GPUs look healthy. Intra-node NVLink bandwidth tests pass. Issue is inter-node.",
           "task": "Check InfiniBand port status on the first node.",
+          "expectedCommands": ["ibstat"],
           "hints": [
             "ibstat shows port status",
             "Check rate and width",
@@ -2058,6 +2204,7 @@
           "id": "step-3",
           "situation": "ibstat shows all ports at 4x HDR (200 Gb/s) on node 1. Check other nodes.",
           "task": "Use iblinkinfo to see the entire fabric topology and link states.",
+          "expectedCommands": ["iblinkinfo"],
           "hints": [
             "iblinkinfo shows all links",
             "Look for reduced width",
@@ -2073,6 +2220,7 @@
           "id": "step-4",
           "situation": "iblinkinfo shows dgx-07 port 2 is running at 1x width instead of 4x!",
           "task": "Check detailed port status on dgx-07 for the degraded port.",
+          "expectedCommands": ["ibstat"],
           "hints": [
             "ibstat on dgx-07",
             "Check port 2 specifically",
@@ -2099,6 +2247,7 @@
           "id": "step-5",
           "situation": "Port 2 on dgx-07 shows physical state 'LinkUp' but width 1x. Cable suspect.",
           "task": "Check InfiniBand error counters for this port.",
+          "expectedCommands": ["perfquery"],
           "hints": [
             "perfquery for port counters",
             "Look for symbol errors",
@@ -2114,6 +2263,7 @@
           "id": "step-6",
           "situation": "perfquery shows elevated symbol error count on this port. Cable issue confirmed.",
           "task": "Run full fabric diagnostic to check for any other issues.",
+          "expectedCommands": ["ibdiagnet"],
           "hints": [
             "ibdiagnet for full fabric test",
             "Check for other degraded links",
@@ -2129,6 +2279,7 @@
           "id": "step-7",
           "situation": "ibdiagnet confirms single cable issue on dgx-07 port 2. No other issues found.",
           "task": "Check which jobs are using dgx-07 before scheduling cable replacement.",
+          "expectedCommands": ["squeue -w dgx-07"],
           "hints": [
             "squeue shows jobs",
             "Filter by node",
@@ -2155,6 +2306,9 @@
           "id": "step-8",
           "situation": "Jobs on dgx-07 completed. Ready to drain for cable replacement.",
           "task": "Drain dgx-07 for cable maintenance.",
+          "expectedCommands": [
+            "scontrol update nodename=dgx-07 state=drain reason='IB cable replacement'"
+          ],
           "hints": [
             "scontrol update state=drain",
             "Reason: IB cable replacement",
@@ -2170,6 +2324,7 @@
           "id": "step-9",
           "situation": "Node drained. Cable replaced. Verify link comes up at full width.",
           "task": "Check ibstat to verify the link is now at full 4x width.",
+          "expectedCommands": ["ibstat"],
           "hints": [
             "ibstat shows link width",
             "Should show 4x now",
@@ -2185,6 +2340,7 @@
           "id": "step-10",
           "situation": "Link now at 4x HDR. Resume node and verify bandwidth.",
           "task": "Resume the node in Slurm after successful cable replacement.",
+          "expectedCommands": ["scontrol update nodename=dgx-07 state=resume"],
           "hints": [
             "scontrol update state=resume",
             "sinfo to verify state",
@@ -2214,11 +2370,13 @@
         "diagnostics"
       ],
       "estimatedMinutes": 24,
+      "difficulty": "advanced",
       "steps": [
         {
           "id": "step-1",
           "situation": "8-node LLM training hangs randomly after 2-6 hours. No errors in application logs.",
           "task": "Check Slurm job status to see the current state of running jobs.",
+          "expectedCommands": ["squeue"],
           "hints": [
             "squeue shows job status",
             "Look for run time",
@@ -2234,6 +2392,7 @@
           "id": "step-2",
           "situation": "Job shows RUNNING for 3 hours but users report it's frozen. Check GPU activity.",
           "task": "Use nvidia-smi to check GPU utilization on the allocated nodes.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows utilization",
             "Low util means waiting",
@@ -2260,6 +2419,7 @@
           "id": "step-3",
           "situation": "All GPUs at 0% utilization. Classic NCCL deadlock symptoms.",
           "task": "Check InfiniBand connectivity between the nodes.",
+          "expectedCommands": ["ibstat"],
           "hints": [
             "ibstat on multiple nodes",
             "Verify ports are active",
@@ -2275,6 +2435,7 @@
           "id": "step-4",
           "situation": "All IB ports show Active. But are they seeing each other correctly?",
           "task": "Use iblinkinfo to verify full mesh connectivity.",
+          "expectedCommands": ["iblinkinfo"],
           "hints": [
             "iblinkinfo shows topology",
             "Verify all nodes connected",
@@ -2301,6 +2462,7 @@
           "id": "step-5",
           "situation": "Topology looks complete. Check for network performance issues.",
           "task": "Check IB error counters across the fabric.",
+          "expectedCommands": ["perfquery"],
           "hints": [
             "perfquery for port errors",
             "Check multiple nodes",
@@ -2316,34 +2478,46 @@
           "id": "step-6",
           "situation": "Error counters clean. Issue might be at a higher level. Check routing tables.",
           "task": "Verify the subnet manager configuration and LID assignments.",
+          "expectedCommands": ["smpquery nodeinfo", "sminfo"],
           "hints": [
             "smpquery or sminfo",
             "Check LID assignments",
             "Verify SM is running"
           ],
-          "validation": { "type": "command", "pattern": "smpquery|sminfo|LID" }
+          "validation": {
+            "type": "command",
+            "pattern": "smpquery|sminfo|LID"
+          }
         },
         {
           "id": "step-7",
           "situation": "SM running but some nodes have unusual LID assignments in a different range.",
           "task": "Check detailed subnet manager logs for routing decisions.",
+          "expectedCommands": ["journalctl -u opensmd --no-pager"],
           "hints": [
             "opensm logs if accessible",
             "Look for routing warnings",
             "Check for subnet issues"
           ],
-          "validation": { "type": "command", "pattern": "opensm|log|routing" }
+          "validation": {
+            "type": "command",
+            "pattern": "opensm|log|routing"
+          }
         },
         {
           "id": "step-8",
           "situation": "Logs show two subnets accidentally merged. Some nodes on different IPoIB subnet.",
           "task": "Document current network configuration for the network team.",
+          "expectedCommands": ["ip addr show ib0"],
           "hints": [
             "ip addr for IPoIB config",
             "Note subnet masks",
             "Document for network team"
           ],
-          "validation": { "type": "command", "pattern": "ip addr|inet|ib0" },
+          "validation": {
+            "type": "command",
+            "pattern": "ip addr|inet|ib0"
+          },
           "quiz": {
             "question": "How can IPoIB subnet misconfiguration cause NCCL hangs?",
             "options": [
@@ -2360,6 +2534,7 @@
           "id": "step-9",
           "situation": "Network team confirms subnet misconfiguration. Fix being deployed.",
           "task": "Run dcgmi diagnostics to verify GPU subsystem while waiting for fix.",
+          "expectedCommands": ["dcgmi diag -r 1"],
           "hints": [
             "dcgmi diag for health check",
             "Ensure no GPU issues",
@@ -2375,6 +2550,7 @@
           "id": "step-10",
           "situation": "GPU health verified. Network fix deployed. Verify connectivity.",
           "task": "Check ibstat to confirm all nodes are on the correct subnet after fix.",
+          "expectedCommands": ["ibstat"],
           "hints": [
             "ibstat shows port info",
             "Verify LID assignments",
@@ -2404,11 +2580,13 @@
         "bmc-hardware"
       ],
       "estimatedMinutes": 26,
+      "difficulty": "advanced",
       "steps": [
         {
           "id": "step-1",
           "situation": "HPL benchmark on 16-node DGX H100 cluster achieves 23.4 PFLOPS instead of expected 39 PFLOPS.",
           "task": "Verify basic GPU configuration and availability using nvidia-smi.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi across all nodes",
             "Verify 128 total GPUs",
@@ -2424,6 +2602,7 @@
           "id": "step-2",
           "situation": "All 128 H100 GPUs detected. Clocks show max frequency. Memory available.",
           "task": "Check GPU topology to verify optimal NVLink connectivity.",
+          "expectedCommands": ["nvidia-smi topo -m"],
           "hints": [
             "nvidia-smi topo -m",
             "All GPUs should use NVLink",
@@ -2450,6 +2629,7 @@
           "id": "step-3",
           "situation": "NVLink topology looks correct. Check InfiniBand for inter-node communication.",
           "task": "Verify InfiniBand is running at full bandwidth between nodes.",
+          "expectedCommands": ["ibstat"],
           "hints": [
             "ibstat for port status",
             "Check 400 Gb/s NDR",
@@ -2465,6 +2645,7 @@
           "id": "step-4",
           "situation": "InfiniBand shows full 400 Gb/s NDR on all ports. Check system configuration.",
           "task": "Check CPU and memory configuration for NUMA optimization.",
+          "expectedCommands": ["numactl --hardware"],
           "hints": [
             "numactl --hardware",
             "Check node distribution",
@@ -2491,6 +2672,7 @@
           "id": "step-5",
           "situation": "NUMA shows 2 nodes with 64 cores each. Need to verify process affinity.",
           "task": "Check current HPL process CPU binding using taskset or similar.",
+          "expectedCommands": ["taskset -p $(pgrep hpl)"],
           "hints": [
             "taskset or numactl shows binding",
             "Check if processes are spread",
@@ -2505,6 +2687,7 @@
           "id": "step-6",
           "situation": "Processes are not properly bound to NUMA nodes! This explains some performance loss.",
           "task": "Check system thermal state during benchmark.",
+          "expectedCommands": ["sensors"],
           "hints": [
             "sensors during load",
             "Check for throttling",
@@ -2520,6 +2703,7 @@
           "id": "step-7",
           "situation": "Thermals show some GPUs at 83C with power throttling. Cooling adjustment needed.",
           "task": "Check GPU power and clock states during the benchmark.",
+          "expectedCommands": ["nvidia-smi -q -d POWER"],
           "hints": [
             "nvidia-smi -q -d POWER",
             "Check power draw",
@@ -2535,6 +2719,7 @@
           "id": "step-8",
           "situation": "Power throttling detected. Some GPUs hitting 700W limit and throttling.",
           "task": "Check cluster-wide job status and resource utilization.",
+          "expectedCommands": ["scontrol show job"],
           "hints": [
             "squeue for job status",
             "scontrol show job for details",
@@ -2561,6 +2746,7 @@
           "id": "step-9",
           "situation": "Issues identified: NUMA binding and thermal throttling. Fixes being applied.",
           "task": "Run DCGM diagnostics to ensure no underlying hardware issues.",
+          "expectedCommands": ["dcgmi diag -r 2"],
           "hints": [
             "dcgmi diag -r 2",
             "Check all GPUs",
@@ -2576,6 +2762,7 @@
           "id": "step-10",
           "situation": "Hardware healthy. After fixes, re-run HPL verification.",
           "task": "Check final nvidia-smi status before optimized benchmark run.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi for final check",
             "Verify all GPUs ready",
@@ -2605,11 +2792,13 @@
         "cluster-tools"
       ],
       "estimatedMinutes": 24,
+      "difficulty": "advanced",
       "steps": [
         {
           "id": "step-1",
           "situation": "Monitoring alerts show frequent XID 79 errors on dgx-05 over the past 24 hours.",
           "task": "Check system logs for XID error patterns and frequency.",
+          "expectedCommands": ["dmesg | grep -i xid"],
           "hints": [
             "dmesg for kernel messages",
             "Look for NVRM XID errors",
@@ -2625,6 +2814,7 @@
           "id": "step-2",
           "situation": "dmesg shows 'XID 79' errors occurring every 2-3 hours, affecting different GPUs.",
           "task": "Check current GPU status using nvidia-smi.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows GPU health",
             "Look for missing or errored GPUs",
@@ -2651,6 +2841,7 @@
           "id": "step-3",
           "situation": "Currently all 8 GPUs are visible but GPU 5 was recently reset. Pattern suggests intermittent failures.",
           "task": "Check BMC System Event Log for correlated hardware events.",
+          "expectedCommands": ["ipmitool sel elist"],
           "hints": [
             "ipmitool sel elist",
             "Look for thermal or power events",
@@ -2666,6 +2857,7 @@
           "id": "step-4",
           "situation": "SEL shows thermal events preceding each XID error by 5-10 minutes.",
           "task": "Check current thermal sensor readings across the system.",
+          "expectedCommands": ["sensors"],
           "hints": [
             "sensors shows temperatures",
             "Check GPU and system temps",
@@ -2692,6 +2884,7 @@
           "id": "step-5",
           "situation": "Ambient temperature in the rack area shows significant variation. HVAC issue suspected.",
           "task": "Check historical temperature data in the BMC.",
+          "expectedCommands": ["ipmitool sensor get 'Inlet Temp'"],
           "hints": [
             "ipmitool sensor get specific sensor",
             "Look for temp trends",
@@ -2707,6 +2900,7 @@
           "id": "step-6",
           "situation": "Inlet temperature varies 15C over the course of each day. HVAC cycling too aggressively.",
           "task": "Document GPU health status before scheduling maintenance.",
+          "expectedCommands": ["nvidia-smi -q"],
           "hints": [
             "nvidia-smi -q for details",
             "Check ECC errors",
@@ -2722,6 +2916,7 @@
           "id": "step-7",
           "situation": "GPU health looks okay but XID errors are accumulating. Create support bundle.",
           "task": "Generate nvidia-bug-report for detailed analysis.",
+          "expectedCommands": ["nvidia-bug-report.sh"],
           "hints": [
             "nvidia-bug-report.sh",
             "Captures full system state",
@@ -2737,6 +2932,7 @@
           "id": "step-8",
           "situation": "Bug report captured. Need to stabilize the system while facilities fixes HVAC.",
           "task": "Run DCGM diagnostics to assess current GPU health.",
+          "expectedCommands": ["dcgmi diag -r 2"],
           "hints": [
             "dcgmi diag -r 2",
             "Check for hardware degradation",
@@ -2763,6 +2959,9 @@
           "id": "step-9",
           "situation": "Diagnostics show borderline results on GPU 5. Recommend proactive monitoring.",
           "task": "Drain the node for inspection and potential PCIe reseat.",
+          "expectedCommands": [
+            "scontrol update nodename=dgx-05 state=drain reason='XID 79 PCIe reseat'"
+          ],
           "hints": [
             "scontrol drain",
             "Schedule maintenance window",
@@ -2778,6 +2977,7 @@
           "id": "step-10",
           "situation": "Node drained. After PCIe reseat and HVAC fix, verify recovery.",
           "task": "Run final nvidia-smi check after maintenance.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi for GPU status",
             "All 8 should be healthy",
@@ -2807,11 +3007,13 @@
         "cluster-tools"
       ],
       "estimatedMinutes": 22,
+      "difficulty": "intermediate",
       "steps": [
         {
           "id": "step-1",
           "situation": "Users report 'CUDA out of memory' when allocating 40GB on GPUs showing 70GB free.",
           "task": "Check nvidia-smi to see current GPU memory state.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi shows memory usage",
             "Check used vs total",
@@ -2827,6 +3029,7 @@
           "id": "step-2",
           "situation": "nvidia-smi shows 10GB used but users can't allocate 40GB contiguous. Fragmentation suspected.",
           "task": "Check what processes are using GPU memory.",
+          "expectedCommands": ["nvidia-smi pmon -s m"],
           "hints": [
             "nvidia-smi pmon for processes",
             "Look for orphan processes",
@@ -2853,6 +3056,7 @@
           "id": "step-3",
           "situation": "Several zombie processes holding small GPU memory allocations found.",
           "task": "Check which Slurm jobs these processes belong to.",
+          "expectedCommands": ["squeue"],
           "hints": [
             "squeue to see jobs",
             "Match PIDs to jobs",
@@ -2868,6 +3072,7 @@
           "id": "step-4",
           "situation": "Orphan processes from completed jobs that didn't clean up properly.",
           "task": "Check if these are containerized jobs with cleanup issues.",
+          "expectedCommands": ["docker ps"],
           "hints": [
             "docker ps for containers",
             "Check Slurm epilog",
@@ -2894,6 +3099,7 @@
           "id": "step-5",
           "situation": "Found 3 orphan containers with GPU processes still running.",
           "task": "Check dcgmi for detailed GPU memory state.",
+          "expectedCommands": ["dcgmi dmon -e 203,204"],
           "hints": [
             "dcgmi dmon for metrics",
             "Check memory allocation",
@@ -2909,6 +3115,7 @@
           "id": "step-6",
           "situation": "DCGM shows fragmented memory allocation pattern. Need to clean up and reset.",
           "task": "Document current state before cleanup.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi for documentation",
             "Note process IDs",
@@ -2924,6 +3131,9 @@
           "id": "step-7",
           "situation": "State documented. Time to clean up orphan processes and containers.",
           "task": "Drain the node to prevent new jobs while cleaning up.",
+          "expectedCommands": [
+            "scontrol update nodename=dgx-01 state=drain reason='GPU memory cleanup'"
+          ],
           "hints": [
             "scontrol drain",
             "Prevents new allocations",
@@ -2939,6 +3149,7 @@
           "id": "step-8",
           "situation": "Node drained. Clean up orphan containers.",
           "task": "Remove stopped and orphan containers.",
+          "expectedCommands": ["docker container prune -f"],
           "hints": [
             "docker container prune",
             "Or docker rm specific containers",
@@ -2965,6 +3176,7 @@
           "id": "step-9",
           "situation": "Containers removed. Verify GPU memory is cleared.",
           "task": "Check nvidia-smi to confirm memory is freed.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi for memory state",
             "Should show minimal usage",
@@ -2980,6 +3192,7 @@
           "id": "step-10",
           "situation": "Memory cleared. Resume node for production use.",
           "task": "Resume the node in Slurm and verify it's ready for jobs.",
+          "expectedCommands": ["scontrol update nodename=dgx-01 state=resume"],
           "hints": [
             "scontrol resume",
             "sinfo to verify",
@@ -3009,11 +3222,13 @@
         "diagnostics"
       ],
       "estimatedMinutes": 25,
+      "difficulty": "advanced",
       "steps": [
         {
           "id": "step-1",
           "situation": "Users report training speed has dropped 30% over the past week with no code changes.",
           "task": "Check current GPU utilization to understand the bottleneck.",
+          "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi for GPU util",
             "Low util suggests waiting",
@@ -3029,6 +3244,7 @@
           "id": "step-2",
           "situation": "GPU utilization oscillates between 95% and 40%. Communication phases are slowing down.",
           "task": "Check InfiniBand port status for any obvious issues.",
+          "expectedCommands": ["ibstat"],
           "hints": [
             "ibstat shows port state",
             "Verify active status",
@@ -3055,6 +3271,7 @@
           "id": "step-3",
           "situation": "All ports show Active. But 'active' doesn't mean error-free.",
           "task": "Check InfiniBand error counters for accumulated errors.",
+          "expectedCommands": ["perfquery"],
           "hints": [
             "perfquery shows counters",
             "Look for symbol errors",
@@ -3070,6 +3287,7 @@
           "id": "step-4",
           "situation": "perfquery shows high SymbolErrorCounter on port 2 of dgx-03. Growing errors.",
           "task": "Check historical error rate using extended counters.",
+          "expectedCommands": ["perfquery -x"],
           "hints": [
             "perfquery -x for extended",
             "Compare multiple reads",
@@ -3096,6 +3314,7 @@
           "id": "step-5",
           "situation": "Error rate is 1000x higher than other ports. Transceiver degradation suspected.",
           "task": "Run comprehensive fabric diagnostics.",
+          "expectedCommands": ["ibdiagnet"],
           "hints": [
             "ibdiagnet for full check",
             "Will flag problem ports",
@@ -3111,6 +3330,7 @@
           "id": "step-6",
           "situation": "ibdiagnet flags port as having excessive errors and recommends replacement.",
           "task": "Check if this port is causing packet retransmissions.",
+          "expectedCommands": ["perfquery"],
           "hints": [
             "perfquery for retry counts",
             "High retries cause latency",
@@ -3126,6 +3346,7 @@
           "id": "step-7",
           "situation": "Retransmit counts confirm the issue. Each retry adds latency to communication.",
           "task": "Document the failing port for RMA.",
+          "expectedCommands": ["ibstat"],
           "hints": [
             "Note port and GUID",
             "Document error counts",
@@ -3141,6 +3362,7 @@
           "id": "step-8",
           "situation": "Transceiver documented. Schedule replacement during maintenance window.",
           "task": "Check which jobs are using the affected node.",
+          "expectedCommands": ["squeue -w dgx-03"],
           "hints": [
             "squeue shows jobs",
             "Filter by node",
@@ -3167,6 +3389,9 @@
           "id": "step-9",
           "situation": "Error rate is high enough to impact all multi-node jobs. Draining recommended.",
           "task": "Drain dgx-03 for transceiver replacement.",
+          "expectedCommands": [
+            "scontrol update nodename=dgx-03 state=drain reason='IB transceiver replacement'"
+          ],
           "hints": [
             "scontrol drain",
             "Reason: IB transceiver replacement",
@@ -3182,6 +3407,7 @@
           "id": "step-10",
           "situation": "Node drained. After transceiver replacement, verify recovery.",
           "task": "After replacement, check that error counters are cleared and stable.",
+          "expectedCommands": ["perfquery"],
           "hints": [
             "perfquery for error check",
             "Should be zero or low",
