@@ -1,8 +1,9 @@
 import { FaultInjection } from "./FaultInjection";
 import { Trophy, GraduationCap, TrendingUp } from "lucide-react";
+import { getAllScenarios } from "../utils/scenarioLoader";
 
 interface LabsAndScenariosViewProps {
-  onStartLab: (domain: string) => void;
+  onStartScenario: (scenarioId: string) => void;
   onBeginExam: () => void;
   onOpenLearningPaths: () => void;
   onOpenStudyDashboard: () => void;
@@ -11,13 +12,22 @@ interface LabsAndScenariosViewProps {
 }
 
 export function LabsAndScenariosView({
-  onStartLab,
+  onStartScenario,
   onBeginExam,
   onOpenLearningPaths,
   onOpenStudyDashboard,
   onOpenExamGauntlet,
   learningProgress,
 }: LabsAndScenariosViewProps) {
+  const scenariosByDomain = getAllScenarios();
+
+  const startDomain = (domain: string) => {
+    const ids = scenariosByDomain[domain];
+    if (ids && ids.length > 0) {
+      onStartScenario(ids[0]);
+    }
+  };
+
   return (
     <div data-testid="labs-list" className="p-6 h-full overflow-auto">
       <div className="max-w-6xl mx-auto">
@@ -61,7 +71,7 @@ export function LabsAndScenariosView({
                 </li>
               </ul>
               <button
-                onClick={() => onStartLab("domain1")}
+                onClick={() => startDomain("domain1")}
                 className="mt-4 w-full bg-nvidia-green text-black py-2 rounded-lg font-medium hover:bg-nvidia-darkgreen transition-colors"
               >
                 Start Labs
@@ -94,7 +104,7 @@ export function LabsAndScenariosView({
                 </li>
               </ul>
               <button
-                onClick={() => onStartLab("domain2")}
+                onClick={() => startDomain("domain2")}
                 className="mt-4 w-full bg-nvidia-green text-black py-2 rounded-lg font-medium hover:bg-nvidia-darkgreen transition-colors"
               >
                 Start Labs
@@ -131,7 +141,7 @@ export function LabsAndScenariosView({
                 </li>
               </ul>
               <button
-                onClick={() => onStartLab("domain3")}
+                onClick={() => startDomain("domain3")}
                 className="mt-4 w-full bg-nvidia-green text-black py-2 rounded-lg font-medium hover:bg-nvidia-darkgreen transition-colors"
               >
                 Start Labs
@@ -168,7 +178,7 @@ export function LabsAndScenariosView({
                 </li>
               </ul>
               <button
-                onClick={() => onStartLab("domain4")}
+                onClick={() => startDomain("domain4")}
                 className="mt-4 w-full bg-nvidia-green text-black py-2 rounded-lg font-medium hover:bg-nvidia-darkgreen transition-colors"
               >
                 Start Labs
@@ -205,7 +215,7 @@ export function LabsAndScenariosView({
                 </li>
               </ul>
               <button
-                onClick={() => onStartLab("domain5")}
+                onClick={() => startDomain("domain5")}
                 className="mt-4 w-full bg-nvidia-green text-black py-2 rounded-lg font-medium hover:bg-nvidia-darkgreen transition-colors"
               >
                 Start Labs

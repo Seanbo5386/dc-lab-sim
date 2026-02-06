@@ -109,23 +109,11 @@ function App() {
     input.click();
   };
 
-  const handleStartLab = async (domain: string) => {
-    // Map domain to first scenario in that domain
-    const domainScenarios: Record<string, string> = {
-      domain1: "domain1-server-post",
-      domain2: "domain2-mig-setup",
-      domain3: "domain3-slurm-config",
-      domain4: "domain4-dcgmi-diag",
-      domain5: "domain5-xid-errors",
-    };
-
-    const scenarioId = domainScenarios[domain];
-    if (scenarioId) {
-      const success = await initializeScenario(scenarioId);
-      if (success) {
-        setCurrentView("simulator"); // Switch to simulator view
-        setShowLabWorkspace(true); // Show lab workspace overlay
-      }
+  const handleStartScenario = async (scenarioId: string) => {
+    const success = await initializeScenario(scenarioId);
+    if (success) {
+      setCurrentView("simulator");
+      setShowLabWorkspace(true);
     }
   };
 
@@ -331,7 +319,7 @@ function App() {
 
         {currentView === "labs" && (
           <LabsAndScenariosView
-            onStartLab={handleStartLab}
+            onStartScenario={handleStartScenario}
             onBeginExam={handleBeginExam}
             onOpenLearningPaths={() => setShowLearningPaths(true)}
             onOpenStudyDashboard={() => setShowStudyDashboard(true)}
