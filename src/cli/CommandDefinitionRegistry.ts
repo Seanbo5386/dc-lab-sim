@@ -3,6 +3,7 @@ import {
   CommandDefinitionLoader,
   getCommandDefinitionLoader,
 } from "./CommandDefinitionLoader";
+import { levenshteinDistance } from "@/utils/stringDistance";
 
 export interface ValidationResult {
   valid: boolean;
@@ -304,7 +305,7 @@ export class CommandDefinitionRegistry {
     const results: Array<{ candidate: string; distance: number }> = [];
 
     for (const candidate of candidates) {
-      const distance = this.levenshteinDistance(
+      const distance = levenshteinDistance(
         input.toLowerCase(),
         candidate.toLowerCase(),
       );
@@ -317,33 +318,6 @@ export class CommandDefinitionRegistry {
       .sort((a, b) => a.distance - b.distance)
       .slice(0, 3)
       .map((r) => r.candidate);
-  }
-
-  private levenshteinDistance(a: string, b: string): number {
-    const matrix: number[][] = [];
-
-    for (let i = 0; i <= b.length; i++) {
-      matrix[i] = [i];
-    }
-    for (let j = 0; j <= a.length; j++) {
-      matrix[0][j] = j;
-    }
-
-    for (let i = 1; i <= b.length; i++) {
-      for (let j = 1; j <= a.length; j++) {
-        if (b.charAt(i - 1) === a.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1,
-          );
-        }
-      }
-    }
-
-    return matrix[b.length][a.length];
   }
 }
 
