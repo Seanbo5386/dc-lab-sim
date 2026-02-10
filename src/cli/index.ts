@@ -39,6 +39,7 @@ export type { CommandExercise } from "./CommandExerciseGenerator";
 export {
   ANSI,
   formatCommandHelp,
+  formatCommandList,
   formatFlagHelp,
   formatErrorMessage,
   formatExitCode,

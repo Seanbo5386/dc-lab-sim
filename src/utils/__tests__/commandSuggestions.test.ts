@@ -3,15 +3,12 @@ import {
   findSimilarCommands,
   getDidYouMeanMessage,
   getContextualSuggestions,
-  formatCommandHelp,
-  formatCommandList,
   getEnhancedErrorFeedback,
   formatOutputDiff,
   getContextualHint,
   generateStepCompletionFeedback,
   validateCommandSyntax,
 } from '../commandSuggestions';
-import { COMMAND_METADATA } from '../commandMetadata';
 
 describe('Command Suggestions', () => {
   describe('findSimilarCommands', () => {
@@ -93,61 +90,6 @@ describe('Command Suggestions', () => {
     });
   });
 
-  describe('formatCommandHelp', () => {
-    it('should format help for valid command', () => {
-      const metadata = COMMAND_METADATA['nvidia-smi'];
-      const help = formatCommandHelp(metadata);
-
-      expect(help).toContain('NVIDIA-SMI');
-      expect(help).toContain('DESCRIPTION');
-      expect(help).toContain('SYNTAX');
-      expect(help).toContain('EXAMPLES');
-    });
-
-    it('should include flags section if present', () => {
-      const metadata = COMMAND_METADATA['nvidia-smi'];
-      const help = formatCommandHelp(metadata);
-
-      expect(help).toContain('COMMON FLAGS');
-    });
-
-    it('should include related commands if present', () => {
-      const metadata = COMMAND_METADATA['nvidia-smi'];
-      const help = formatCommandHelp(metadata);
-
-      expect(help).toContain('RELATED COMMANDS');
-    });
-
-    it('should include common mistakes if present', () => {
-      const metadata = COMMAND_METADATA['nvidia-smi'];
-      const help = formatCommandHelp(metadata);
-
-      expect(help).toContain('COMMON MISTAKES');
-    });
-  });
-
-  describe('formatCommandList', () => {
-    it('should list all commands', () => {
-      const list = formatCommandList();
-
-      expect(list).toContain('COMMAND REFERENCE');
-      expect(list).toContain('nvidia-smi');
-      expect(list).toContain('dcgmi');
-    });
-
-    it('should group by category', () => {
-      const list = formatCommandList();
-
-      // Categories should appear
-      expect(list).toContain('GPU MANAGEMENT');
-    });
-
-    it('should include help instruction', () => {
-      const list = formatCommandList();
-
-      expect(list).toContain('explain');
-    });
-  });
 });
 
 describe('Enhanced Error Feedback', () => {

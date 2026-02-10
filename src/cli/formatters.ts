@@ -131,6 +131,61 @@ export function formatCommandHelp(def: CommandDefinition): string {
   return output;
 }
 
+function formatCategoryName(category: string): string {
+  return category.replace(/_/g, " ").toUpperCase();
+}
+
+/**
+ * Format an overview list of commands from JSON definitions
+ */
+export function formatCommandList(definitions: CommandDefinition[]): string {
+  const categories = new Map<string, CommandDefinition[]>();
+
+  for (const def of definitions) {
+    if (!categories.has(def.category)) {
+      categories.set(def.category, []);
+    }
+    categories.get(def.category)?.push(def);
+  }
+
+  const lines: string[] = [];
+  const headerStyle = `${ANSI.BOLD}${ANSI.GREEN}`;
+  lines.push(
+    `${headerStyle}╔════════════════════════════════════════════════════════════════╗${ANSI.RESET}`,
+  );
+  lines.push(
+    `${headerStyle}║  COMMAND REFERENCE                                             ║${ANSI.RESET}`,
+  );
+  lines.push(
+    `${headerStyle}╚════════════════════════════════════════════════════════════════╝${ANSI.RESET}`,
+  );
+  lines.push("");
+  lines.push(
+    `${ANSI.YELLOW}Type ${ANSI.BOLD_CYAN}explain <command>${ANSI.RESET}${ANSI.YELLOW} for detailed help on any command.${ANSI.RESET}`,
+  );
+  lines.push("");
+
+  const sortedCategories = Array.from(categories.entries()).sort((a, b) =>
+    a[0].localeCompare(b[0]),
+  );
+
+  for (const [category, commands] of sortedCategories) {
+    lines.push(`${ANSI.BOLD}${formatCategoryName(category)}:${ANSI.RESET}`);
+
+    const sortedCommands = [...commands].sort((a, b) =>
+      a.command.localeCompare(b.command),
+    );
+    for (const cmd of sortedCommands) {
+      lines.push(
+        `  ${ANSI.CYAN}${cmd.command.padEnd(20)}${ANSI.RESET} ${cmd.description}`,
+      );
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
 /**
  * Format a single error message with resolution
  */

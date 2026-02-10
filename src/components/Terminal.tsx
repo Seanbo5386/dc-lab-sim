@@ -37,10 +37,7 @@ import { TERMINAL_OPTIONS, WELCOME_MESSAGE } from "@/constants/terminalConfig";
 import { handleKeyboardInput } from "@/utils/terminalKeyboardHandler";
 import { useLabFeedback } from "@/hooks/useLabFeedback";
 import { HintManager } from "@/utils/hintManager";
-import { getCommandMetadata } from "@/utils/commandMetadata";
 import {
-  formatCommandHelp,
-  formatCommandList,
   getDidYouMeanMessage,
 } from "@/utils/commandSuggestions";
 import { applyPipeFilters, hasPipes } from "@/utils/pipeHandler";
@@ -329,18 +326,31 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
           case "help": {
             // Enhanced help - show organized command list
             const args = cmdLine.trim().split(/\s+/).slice(1);
-            if (args.length > 0) {
-              // help <command> - show detailed help for specific command
-              const commandName = args[0];
-              const metadata = getCommandMetadata(commandName);
-              if (metadata) {
-                result.output = formatCommandHelp(metadata);
+            try {
+              const {
+                getCommandDefinitionRegistry,
+                formatCommandHelp,
+                formatCommandList,
+              } = await import("@/cli");
+              const registry = await getCommandDefinitionRegistry();
+
+              if (args.length > 0) {
+                // help <command> - show detailed help for specific command
+                const commandName = args[0];
+                const def = registry.getDefinition(commandName);
+                if (def) {
+                  result.output = formatCommandHelp(def);
+                } else {
+                  result.output = `\x1b[33mNo help available for '\x1b[36m${commandName}\x1b[33m'.\x1b[0m\n\nType \x1b[36mhelp\x1b[0m to see all available commands.`;
+                }
               } else {
-                result.output = `\x1b[33mNo help available for '\x1b[36m${commandName}\x1b[33m'.\x1b[0m\n\nType \x1b[36mhelp\x1b[0m to see all available commands.`;
+                // General help - show organized list
+                const definitions = registry.getAllDefinitions();
+                result.output = formatCommandList(definitions);
               }
-            } else {
-              // General help - show organized list
-              result.output = formatCommandList();
+            } catch (error) {
+              result.output = `Error loading command information: ${error instanceof Error ? error.message : "Unknown error"}`;
+              result.exitCode = 1;
             }
             break;
           }
@@ -354,18 +364,26 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
             }
 
             const commandName = args[0];
-            const metadata = getCommandMetadata(commandName);
+            try {
+              const { getCommandDefinitionRegistry, formatCommandHelp } =
+                await import("@/cli");
+              const registry = await getCommandDefinitionRegistry();
+              const def = registry.getDefinition(commandName);
 
-            if (metadata) {
-              result.output = formatCommandHelp(metadata);
-            } else {
-              result.output = `\x1b[33mNo information available for '\x1b[36m${commandName}\x1b[33m'.\x1b[0m`;
+              if (def) {
+                result.output = formatCommandHelp(def);
+              } else {
+                result.output = `\x1b[33mNo information available for '\x1b[36m${commandName}\x1b[33m'.\x1b[0m`;
 
-              // Try to suggest similar commands
-              const suggestion = getDidYouMeanMessage(commandName);
-              if (suggestion) {
-                result.output += "\n\n" + suggestion;
+                // Try to suggest similar commands
+                const suggestion = getDidYouMeanMessage(commandName);
+                if (suggestion) {
+                  result.output += "\n\n" + suggestion;
+                }
               }
+            } catch (error) {
+              result.output = `Error loading command information: ${error instanceof Error ? error.message : "Unknown error"}`;
+              result.exitCode = 1;
             }
             break;
           }

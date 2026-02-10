@@ -257,6 +257,13 @@ export class CommandDefinitionRegistry {
   }
 
   /**
+   * Get all loaded command definitions
+   */
+  getAllDefinitions(): CommandDefinition[] {
+    return this.loader.getDefinitions();
+  }
+
+  /**
    * Get all command names
    */
   getCommandNames(): string[] {

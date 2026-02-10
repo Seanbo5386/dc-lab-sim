@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   ANSI,
   formatCommandHelp,
+  formatCommandList,
   formatErrorMessage,
   formatExitCode,
   formatFlagHelp,
@@ -32,6 +33,33 @@ describe("formatCommandHelp", () => {
     expect(output).toContain("test-cmd");
     expect(output).toContain("A test command");
     expect(output).toContain("test-cmd [OPTIONS]");
+  });
+});
+
+describe("formatCommandList", () => {
+  it("should format an overview grouped by category", () => {
+    const defs = [
+      {
+        command: "alpha",
+        category: "general" as const,
+        description: "Alpha command",
+        synopsis: "alpha",
+      },
+      {
+        command: "beta",
+        category: "gpu_management" as const,
+        description: "Beta command",
+        synopsis: "beta",
+      },
+    ];
+
+    const output = formatCommandList(defs);
+
+    expect(output).toContain("COMMAND REFERENCE");
+    expect(output).toContain("GENERAL");
+    expect(output).toContain("GPU MANAGEMENT");
+    expect(output).toContain("alpha");
+    expect(output).toContain("beta");
   });
 });
 
