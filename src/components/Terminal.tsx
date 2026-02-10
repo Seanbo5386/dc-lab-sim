@@ -104,6 +104,8 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
   const [, setCurrentCommand] = useState("");
   const [commandHistory, setCommandHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const commandHistoryRef = useRef<string[]>([]);
+  const historyIndexRef = useRef(-1);
   const [isTerminalReady, setIsTerminalReady] = useState(false);
   const [shellState, setShellState] = useState<ShellState>({
     mode: "bash",
@@ -208,6 +210,14 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
   }, [cluster]);
 
   useEffect(() => {
+    commandHistoryRef.current = commandHistory;
+  }, [commandHistory]);
+
+  useEffect(() => {
+    historyIndexRef.current = historyIndex;
+  }, [historyIndex]);
+
+  useEffect(() => {
     if (!terminalRef.current) return;
 
     const term = new XTerm(TERMINAL_OPTIONS);
@@ -283,7 +293,11 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
       }
 
       // Add to history
-      setCommandHistory((prev) => [...prev, cmdLine]);
+      setCommandHistory((prev) => {
+        const nextHistory = [...prev, cmdLine];
+        commandHistoryRef.current = nextHistory;
+        return nextHistory;
+      });
       currentContext.current.history.push(cmdLine);
 
       // Parse command
@@ -1044,15 +1058,20 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
     // Store executeCommand ref for external access (auto-SSH on node selection)
     executeCommandRef.current = executeCommand;
 
+    const handleHistoryChange = (index: number) => {
+      historyIndexRef.current = index;
+      setHistoryIndex(index);
+    };
+
     term.onData((data) => {
       const result = handleKeyboardInput(data, {
         term,
-        commandHistory,
-        historyIndex,
+        commandHistory: commandHistoryRef.current,
+        historyIndex: historyIndexRef.current,
         currentLine,
         currentNode: currentContext.current.currentNode,
         onExecute: executeCommand,
-        onHistoryChange: setHistoryIndex,
+        onHistoryChange: handleHistoryChange,
         onLineChange: setCurrentCommand,
         onPrompt: prompt,
       });
@@ -1060,7 +1079,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
       if (result) {
         currentLine = result.currentLine;
         setCurrentCommand(result.currentLine);
-        setHistoryIndex(result.historyIndex);
+        handleHistoryChange(result.historyIndex);
       }
     });
 
