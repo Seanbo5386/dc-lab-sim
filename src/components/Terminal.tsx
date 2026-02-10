@@ -109,6 +109,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
     mode: "bash",
     prompt: "",
   });
+  const activeScenario = useSimulationStore((state) => state.activeScenario);
   const selectedNode = useSimulationStore((state) => state.selectedNode);
   const cluster = useSimulationStore((state) => state.cluster);
   const initialNode = selectedNode || cluster.nodes[0]?.id || "dgx-00";
@@ -181,21 +182,20 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
 
   // Manage scenario context when scenario changes
   useEffect(() => {
-    const store = useSimulationStore.getState();
-    if (store.activeScenario) {
+    if (activeScenario) {
       // Create or get scenario context
       const context = scenarioContextManager.getOrCreateContext(
-        store.activeScenario.id,
+        activeScenario.id,
         cluster,
       );
-      scenarioContextManager.setActiveContext(store.activeScenario.id);
+      scenarioContextManager.setActiveContext(activeScenario.id);
 
       // Add to command context
       currentContext.current.scenarioContext = context;
       currentContext.current.cluster = context.getCluster();
 
       console.log(
-        `Terminal: Using scenario context for ${store.activeScenario.id}`,
+        `Terminal: Using scenario context for ${activeScenario.id}`,
       );
     } else {
       // Clear scenario context when no active scenario
@@ -205,7 +205,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
 
       console.log("Terminal: Cleared scenario context");
     }
-  }, [cluster]);
+  }, [activeScenario, cluster]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
