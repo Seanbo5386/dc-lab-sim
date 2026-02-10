@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FaultInjection } from "./FaultInjection";
 import {
   Trophy,
@@ -61,37 +61,64 @@ export function LabsAndScenariosView({
   );
   const freeModeUnlocked = completedCount >= 3;
 
-  const scenariosByDomain = useMemo(() => getAllScenarios(), []);
-
-  const domainScenarios = useMemo(() => {
-    const result: Record<
+  const [domainScenarios, setDomainScenarios] = useState<
+    Record<
       string,
       { id: string; title: string; difficulty: string; estimatedTime: number }[]
-    > = {};
-    for (const [domain, ids] of Object.entries(scenariosByDomain)) {
-      result[domain] = ids
-        .map((id) => {
-          const meta = getScenarioMetadata(id);
-          return meta ? { id, ...meta } : null;
-        })
-        .filter(
-          (
-            s,
-          ): s is {
-            id: string;
-            title: string;
-            difficulty: string;
-            estimatedTime: number;
-          } => s !== null,
-        )
-        .sort(
-          (a, b) =>
-            (DIFFICULTY_ORDER[a.difficulty] ?? 99) -
-            (DIFFICULTY_ORDER[b.difficulty] ?? 99),
+    >
+  >({});
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadScenarios = async () => {
+      const scenariosByDomain = await getAllScenarios();
+      const result: Record<
+        string,
+        {
+          id: string;
+          title: string;
+          difficulty: string;
+          estimatedTime: number;
+        }[]
+      > = {};
+
+      for (const [domain, ids] of Object.entries(scenariosByDomain)) {
+        const entries = await Promise.all(
+          ids.map(async (id) => {
+            const meta = await getScenarioMetadata(id);
+            return meta ? { id, ...meta } : null;
+          }),
         );
-    }
-    return result;
-  }, [scenariosByDomain]);
+        result[domain] = entries
+          .filter(
+            (
+              s,
+            ): s is {
+              id: string;
+              title: string;
+              difficulty: string;
+              estimatedTime: number;
+            } => s !== null,
+          )
+          .sort(
+            (a, b) =>
+              (DIFFICULTY_ORDER[a.difficulty] ?? 99) -
+              (DIFFICULTY_ORDER[b.difficulty] ?? 99),
+          );
+      }
+
+      if (isActive) {
+        setDomainScenarios(result);
+      }
+    };
+
+    loadScenarios();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   return (
     <div data-testid="labs-list" className="p-6 h-full overflow-auto">

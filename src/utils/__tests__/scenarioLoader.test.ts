@@ -185,8 +185,8 @@ describe("scenarioLoader", () => {
   // ── getAllScenarios ───────────────────────────────────────────
 
   describe("getAllScenarios", () => {
-    it("returns scenarios grouped by domain", () => {
-      const result = getAllScenarios();
+    it("returns scenarios grouped by domain", async () => {
+      const result = await getAllScenarios();
 
       expect(result).toBeDefined();
       expect(typeof result).toBe("object");
@@ -196,8 +196,8 @@ describe("scenarioLoader", () => {
       }
     });
 
-    it("all 5 domains have scenarios", () => {
-      const result = getAllScenarios();
+    it("all 5 domains have scenarios", async () => {
+      const result = await getAllScenarios();
 
       expect(result["domain1"]).toBeDefined();
       expect(result["domain1"].length).toBeGreaterThan(0);
@@ -215,8 +215,8 @@ describe("scenarioLoader", () => {
       expect(result["domain5"].length).toBeGreaterThan(0);
     });
 
-    it("each domain array contains string IDs", () => {
-      const result = getAllScenarios();
+    it("each domain array contains string IDs", async () => {
+      const result = await getAllScenarios();
 
       for (const ids of Object.values(result)) {
         for (const id of ids) {
@@ -230,8 +230,8 @@ describe("scenarioLoader", () => {
   // ── getScenarioMetadata ───────────────────────────────────────
 
   describe("getScenarioMetadata", () => {
-    it("returns title, difficulty, and estimatedTime for a valid ID", () => {
-      const meta = getScenarioMetadata("domain1-midnight-deployment");
+    it("returns title, difficulty, and estimatedTime for a valid ID", async () => {
+      const meta = await getScenarioMetadata("domain1-midnight-deployment");
 
       expect(meta).not.toBeNull();
       expect(meta!.title).toBe("The Midnight Deployment");
@@ -239,14 +239,14 @@ describe("scenarioLoader", () => {
       expect(meta!.estimatedTime).toBe(25);
     });
 
-    it("returns null for an invalid ID", () => {
-      const meta = getScenarioMetadata("does-not-exist");
+    it("returns null for an invalid ID", async () => {
+      const meta = await getScenarioMetadata("does-not-exist");
 
       expect(meta).toBeNull();
     });
 
-    it("returns metadata without loading full scenario steps", () => {
-      const meta = getScenarioMetadata("domain5-xid-investigation");
+    it("returns metadata without loading full scenario steps", async () => {
+      const meta = await getScenarioMetadata("domain5-xid-investigation");
 
       expect(meta).not.toBeNull();
       expect(meta!.title).toBeDefined();
@@ -259,8 +259,8 @@ describe("scenarioLoader", () => {
   // ── getScenariosByDomain ──────────────────────────────────────
 
   describe("getScenariosByDomain", () => {
-    it("returns scenarios for a valid domain number", () => {
-      const scenarios = getScenariosByDomain(1);
+    it("returns scenarios for a valid domain number", async () => {
+      const scenarios = await getScenariosByDomain(1);
 
       expect(scenarios.length).toBeGreaterThan(0);
       for (const s of scenarios) {
@@ -268,21 +268,21 @@ describe("scenarioLoader", () => {
       }
     });
 
-    it("returns scenarios for each domain", () => {
+    it("returns scenarios for each domain", async () => {
       for (let d = 1; d <= 5; d++) {
-        const scenarios = getScenariosByDomain(d);
+        const scenarios = await getScenariosByDomain(d);
         expect(scenarios.length).toBeGreaterThan(0);
       }
     });
 
-    it("returns empty array for an invalid domain", () => {
-      const scenarios = getScenariosByDomain(99);
+    it("returns empty array for an invalid domain", async () => {
+      const scenarios = await getScenariosByDomain(99);
 
       expect(scenarios).toEqual([]);
     });
 
-    it("returned scenarios have all required Scenario fields", () => {
-      const scenarios = getScenariosByDomain(4);
+    it("returned scenarios have all required Scenario fields", async () => {
+      const scenarios = await getScenariosByDomain(4);
 
       expect(scenarios.length).toBeGreaterThan(0);
       const scenario = scenarios[0];

@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  within,
+  waitFor,
+} from "@testing-library/react";
 
 // ============================================================================
 // Mocks
@@ -88,8 +94,8 @@ const mockMetadata: Record<
 };
 
 vi.mock("@/utils/scenarioLoader", () => ({
-  getAllScenarios: () => mockScenariosByDomain,
-  getScenarioMetadata: (id: string) => mockMetadata[id] || null,
+  getAllScenarios: () => Promise.resolve(mockScenariosByDomain),
+  getScenarioMetadata: (id: string) => Promise.resolve(mockMetadata[id] || null),
 }));
 
 // Mock simulationStore - default: no completed scenarios
@@ -152,10 +158,10 @@ describe("LabsAndScenariosView", () => {
   // 2. Shows scenario cards (titles visible)
   // --------------------------------------------------------------------------
 
-  it("shows scenario titles from loaded data", () => {
+  it("shows scenario titles from loaded data", async () => {
     const props = defaultProps();
     render(<LabsAndScenariosView {...props} />);
-    expect(screen.getByText("The Midnight Deployment")).toBeInTheDocument();
+    await screen.findByText("The Midnight Deployment");
     expect(screen.getByText("The NVLink Mystery")).toBeInTheDocument();
     expect(screen.getByText("The Slurm Setup")).toBeInTheDocument();
   });
@@ -194,10 +200,11 @@ describe("LabsAndScenariosView", () => {
   // 5. Scenario card shows title within its domain card
   // --------------------------------------------------------------------------
 
-  it("displays individual scenario titles within domain cards", () => {
+  it("displays individual scenario titles within domain cards", async () => {
     const props = defaultProps();
     render(<LabsAndScenariosView {...props} />);
-    const domain1Card = screen.getByTestId("domain-1-card");
+    const domain1Card = await screen.findByTestId("domain-1-card");
+    await within(domain1Card).findByText("The Midnight Deployment");
     expect(
       within(domain1Card).getByText("The Midnight Deployment"),
     ).toBeInTheDocument();
@@ -210,10 +217,12 @@ describe("LabsAndScenariosView", () => {
   // 6. Scenario card shows difficulty badge
   // --------------------------------------------------------------------------
 
-  it("displays difficulty badges on scenario cards", () => {
+  it("displays difficulty badges on scenario cards", async () => {
     const props = defaultProps();
     render(<LabsAndScenariosView {...props} />);
-    expect(screen.getAllByText("beginner").length).toBeGreaterThanOrEqual(2);
+    await waitFor(() =>
+      expect(screen.getAllByText("beginner").length).toBeGreaterThanOrEqual(2),
+    );
     expect(screen.getAllByText("intermediate").length).toBeGreaterThanOrEqual(
       2,
     );
@@ -224,10 +233,10 @@ describe("LabsAndScenariosView", () => {
   // 7. Scenario card shows estimated time
   // --------------------------------------------------------------------------
 
-  it("displays estimated time on scenario cards", () => {
+  it("displays estimated time on scenario cards", async () => {
     const props = defaultProps();
     render(<LabsAndScenariosView {...props} />);
-    expect(screen.getByText("28m")).toBeInTheDocument();
+    await screen.findByText("28m");
     expect(screen.getByText("23m")).toBeInTheDocument();
     expect(screen.getByText("24m")).toBeInTheDocument();
   });
@@ -249,12 +258,12 @@ describe("LabsAndScenariosView", () => {
   // 9. Clicking scenario button calls onStartScenario with correct ID
   // --------------------------------------------------------------------------
 
-  it("calls onStartScenario with the correct scenario ID when clicked", () => {
+  it("calls onStartScenario with the correct scenario ID when clicked", async () => {
     const props = defaultProps();
     render(<LabsAndScenariosView {...props} />);
-    const button = screen
-      .getByText("The Midnight Deployment")
-      .closest("button")!;
+    const button = (await screen.findByText("The Midnight Deployment")).closest(
+      "button",
+    )!;
     fireEvent.click(button);
     expect(props.onStartScenario).toHaveBeenCalledWith(
       "domain1-midnight-deployment",
@@ -404,11 +413,11 @@ describe("LabsAndScenariosView", () => {
   // 18. All domains display their scenarios
   // --------------------------------------------------------------------------
 
-  it("shows scenarios for all domains", () => {
+  it("shows scenarios for all domains", async () => {
     const props = defaultProps();
     render(<LabsAndScenariosView {...props} />);
     // Domain 1
-    expect(screen.getByText("The Midnight Deployment")).toBeInTheDocument();
+    await screen.findByText("The Midnight Deployment");
     expect(screen.getByText("The Rack Expansion")).toBeInTheDocument();
     // Domain 2
     expect(screen.getByText("The NVLink Mystery")).toBeInTheDocument();
@@ -476,19 +485,21 @@ describe("LabsAndScenariosView", () => {
   // 22. Clicking different scenario buttons sends correct IDs
   // --------------------------------------------------------------------------
 
-  it("calls onStartScenario with different IDs for different scenarios", () => {
+  it("calls onStartScenario with different IDs for different scenarios", async () => {
     const props = defaultProps();
     render(<LabsAndScenariosView {...props} />);
 
-    const nvlinkButton = screen
-      .getByText("The NVLink Mystery")
-      .closest("button")!;
+    const nvlinkButton = (await screen.findByText("The NVLink Mystery")).closest(
+      "button",
+    )!;
     fireEvent.click(nvlinkButton);
     expect(props.onStartScenario).toHaveBeenCalledWith(
       "domain2-nvlink-mystery",
     );
 
-    const slurmButton = screen.getByText("The Slurm Setup").closest("button")!;
+    const slurmButton = (await screen.findByText("The Slurm Setup")).closest(
+      "button",
+    )!;
     fireEvent.click(slurmButton);
     expect(props.onStartScenario).toHaveBeenCalledWith("domain3-slurm-setup");
   });

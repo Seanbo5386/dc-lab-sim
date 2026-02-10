@@ -95,13 +95,14 @@ vi.mock("../../data/quizQuestions.json", () => ({
 
 // Mock scenario loader for ExamGauntlet
 vi.mock("../../utils/scenarioLoader", () => ({
-  getAllScenarios: () => ({
-    domain1: ["domain1-hw-inventory"],
-    domain2: ["domain2-mig-setup"],
-    domain3: ["domain3-slurm-config"],
-    domain4: ["domain4-dcgmi-diag"],
-    domain5: ["domain5-xid-errors"],
-  }),
+  getAllScenarios: () =>
+    Promise.resolve({
+      domain1: ["domain1-hw-inventory"],
+      domain2: ["domain2-mig-setup"],
+      domain3: ["domain3-slurm-config"],
+      domain4: ["domain4-dcgmi-diag"],
+      domain5: ["domain5-xid-errors"],
+    }),
   getScenarioMetadata: (id: string) => {
     const metadata: Record<
       string,
@@ -133,7 +134,7 @@ vi.mock("../../utils/scenarioLoader", () => ({
         estimatedTime: 65,
       },
     };
-    return metadata[id] || null;
+    return Promise.resolve(metadata[id] || null);
   },
   loadScenarioFromFile: () =>
     Promise.resolve({
