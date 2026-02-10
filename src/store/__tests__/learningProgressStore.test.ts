@@ -1,8 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import {
-  useLearningProgressStore,
-  type GauntletAttempt,
-} from "../learningProgressStore";
+import { useLearningProgressStore } from "../learningProgressStore";
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -33,7 +30,6 @@ describe("Learning Progress Store", () => {
       tierProgress: {},
       explanationGateResults: {},
       reviewSchedule: {},
-      gauntletAttempts: [],
     });
     localStorageMock.clear();
   });
@@ -345,48 +341,6 @@ describe("Learning Progress Store", () => {
     });
   });
 
-  describe("Exam Gauntlet", () => {
-    it("should record a gauntlet attempt", () => {
-      const store = useLearningProgressStore.getState();
-      const attempt: GauntletAttempt = {
-        timestamp: Date.now(),
-        score: 85,
-        totalQuestions: 50,
-        timeSpentSeconds: 3600,
-        domainBreakdown: {
-          domain1: { correct: 10, total: 12 },
-          domain2: { correct: 8, total: 10 },
-        },
-      };
-
-      store.recordGauntletAttempt(attempt);
-
-      const state = useLearningProgressStore.getState();
-      expect(state.gauntletAttempts).toHaveLength(1);
-      expect(state.gauntletAttempts[0].score).toBe(85);
-    });
-
-    it("should keep last 50 gauntlet attempts", () => {
-      const store = useLearningProgressStore.getState();
-
-      // Add 55 attempts
-      for (let i = 0; i < 55; i++) {
-        store.recordGauntletAttempt({
-          timestamp: Date.now() + i,
-          score: 70 + i,
-          totalQuestions: 50,
-          timeSpentSeconds: 3600,
-          domainBreakdown: {},
-        });
-      }
-
-      const state = useLearningProgressStore.getState();
-      expect(state.gauntletAttempts).toHaveLength(50);
-      // Oldest attempts should be removed
-      expect(state.gauntletAttempts[0].score).toBe(75); // First 5 removed (70-74)
-    });
-  });
-
   describe("Reset Progress", () => {
     it("should reset all progress", () => {
       const store = useLearningProgressStore.getState();
@@ -397,13 +351,6 @@ describe("Learning Progress Store", () => {
       store.updateTierProgress("gpu-monitoring", 1, "scenario-1");
       store.recordExplanationGate("gate-1", "scenario-abc", true);
       store.scheduleReview("gpu-monitoring");
-      store.recordGauntletAttempt({
-        timestamp: Date.now(),
-        score: 85,
-        totalQuestions: 50,
-        timeSpentSeconds: 3600,
-        domainBreakdown: {},
-      });
 
       // Reset
       store.resetProgress();
@@ -415,7 +362,6 @@ describe("Learning Progress Store", () => {
       expect(Object.keys(state.tierProgress)).toHaveLength(0);
       expect(Object.keys(state.explanationGateResults)).toHaveLength(0);
       expect(Object.keys(state.reviewSchedule)).toHaveLength(0);
-      expect(state.gauntletAttempts).toHaveLength(0);
     });
   });
 

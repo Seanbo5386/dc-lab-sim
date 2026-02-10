@@ -6,7 +6,6 @@
  * - Tier unlocking and progress
  * - Explanation gate results
  * - Spaced repetition scheduling
- * - Exam gauntlet attempts
  *
  * Uses Zustand for state management with localStorage persistence.
  */
@@ -70,17 +69,6 @@ export interface ReviewScheduleEntry {
 }
 
 /**
- * Record of an exam gauntlet attempt
- */
-export interface GauntletAttempt {
-  timestamp: number;
-  score: number;
-  totalQuestions: number;
-  timeSpentSeconds: number;
-  domainBreakdown: Record<string, { correct: number; total: number }>;
-}
-
-/**
  * Core state shape for learning progress
  */
 export interface LearningProgressData {
@@ -98,8 +86,6 @@ export interface LearningProgressData {
   // Spaced Repetition
   reviewSchedule: Record<string, ReviewScheduleEntry>;
 
-  // Exam Gauntlet
-  gauntletAttempts: GauntletAttempt[];
 }
 
 /**
@@ -131,9 +117,6 @@ export interface LearningProgressState extends LearningProgressData {
   scheduleReview: (familyId: string) => void;
   recordReviewResult: (familyId: string, success: boolean) => void;
   getDueReviews: () => string[];
-
-  // Gauntlet
-  recordGauntletAttempt: (result: GauntletAttempt) => void;
 
   // Utility
   resetProgress: () => void;
@@ -169,7 +152,6 @@ const initialState: LearningProgressData = {
   tierProgress: {},
   explanationGateResults: {},
   reviewSchedule: {},
-  gauntletAttempts: [],
 };
 
 // ============================================================================
@@ -458,16 +440,6 @@ export const useLearningProgressStore = create<LearningProgressState>()(
       },
 
       /**
-       * Records an exam gauntlet attempt
-       * Keeps the last 50 attempts for history tracking
-       */
-      recordGauntletAttempt: (result: GauntletAttempt): void => {
-        set((state) => ({
-          gauntletAttempts: [...state.gauntletAttempts.slice(-49), result], // Keep last 50
-        }));
-      },
-
-      /**
        * Resets all learning progress to initial state
        */
       resetProgress: (): void => {
@@ -484,7 +456,6 @@ export const useLearningProgressStore = create<LearningProgressState>()(
         tierProgress: state.tierProgress,
         explanationGateResults: state.explanationGateResults,
         reviewSchedule: state.reviewSchedule,
-        gauntletAttempts: state.gauntletAttempts,
       }),
     },
   ),

@@ -46,6 +46,14 @@ export interface StudySessionRecord {
   score?: number;
 }
 
+export interface GauntletAttempt {
+  timestamp: number;
+  score: number;
+  totalQuestions: number;
+  timeSpentSeconds: number;
+  domainBreakdown: Record<DomainId, { correct: number; total: number }>;
+}
+
 export interface LearnerProfile {
   // Command proficiency tracking
   commandProficiency: Record<string, CommandProficiency>;
@@ -65,6 +73,7 @@ export interface LearnerProfile {
 
   // Exam history
   examAttempts: ExamBreakdown[];
+  gauntletAttempts: GauntletAttempt[];
 
   // Achievements
   achievements: string[];
@@ -83,6 +92,7 @@ export interface LearningState extends LearnerProfile {
   trackLabCompletion: (domainId: DomainId) => void;
 
   addExamAttempt: (breakdown: ExamBreakdown) => void;
+  recordGauntletAttempt: (result: GauntletAttempt) => void;
 
   getWeakDomains: (threshold?: number) => DomainId[];
   getRecommendedCommands: () => string[];
@@ -144,7 +154,25 @@ const createInitialDomainProgress = (): Record<DomainId, DomainProgress> => ({
   },
 });
 
-const initialState: Omit<LearningState, 'startSession' | 'endSession' | 'trackCommand' | 'trackQuestion' | 'trackLabCompletion' | 'addExamAttempt' | 'getWeakDomains' | 'getRecommendedCommands' | 'getReadinessScore' | 'getMasteryLevel' | 'resetProgress'> = {
+const LEGACY_PROGRESS_KEY = 'ncp-aii-learning-progress-v2';
+
+const loadLegacyGauntletAttempts = (): GauntletAttempt[] => {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(LEGACY_PROGRESS_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as { state?: { gauntletAttempts?: GauntletAttempt[] } };
+    const attempts = parsed?.state?.gauntletAttempts;
+    return Array.isArray(attempts) ? attempts : [];
+  } catch {
+    return [];
+  }
+};
+
+const initialState: Omit<LearningState, 'startSession' | 'endSession' | 'trackCommand' | 'trackQuestion' | 'trackLabCompletion' | 'addExamAttempt' | 'recordGauntletAttempt' | 'getWeakDomains' | 'getRecommendedCommands' | 'getReadinessScore' | 'getMasteryLevel' | 'resetProgress'> = {
   commandProficiency: {},
   domainProgress: createInitialDomainProgress(),
   sessionHistory: [],
@@ -154,6 +182,7 @@ const initialState: Omit<LearningState, 'startSession' | 'endSession' | 'trackCo
   longestStreak: 0,
   lastStudyDate: '',
   examAttempts: [],
+  gauntletAttempts: loadLegacyGauntletAttempts(),
   achievements: [],
   activeSession: null,
 };
@@ -328,6 +357,12 @@ export const useLearningStore = create<LearningState>()(
         }));
       },
 
+      recordGauntletAttempt: (result: GauntletAttempt): void => {
+        set(state => ({
+          gauntletAttempts: [...state.gauntletAttempts.slice(-49), result], // Keep last 50
+        }));
+      },
+
       getWeakDomains: (threshold: number = 70): DomainId[] => {
         const state = get();
         const weakDomains: DomainId[] = [];
@@ -415,6 +450,7 @@ export const useLearningStore = create<LearningState>()(
         set({
           ...initialState,
           domainProgress: createInitialDomainProgress(),
+          gauntletAttempts: [],
         });
       },
     }),
@@ -431,6 +467,7 @@ export const useLearningStore = create<LearningState>()(
         longestStreak: state.longestStreak,
         lastStudyDate: state.lastStudyDate,
         examAttempts: state.examAttempts,
+        gauntletAttempts: state.gauntletAttempts,
         achievements: state.achievements,
       }),
     }

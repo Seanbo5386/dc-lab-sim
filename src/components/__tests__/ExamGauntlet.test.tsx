@@ -103,10 +103,10 @@ vi.mock("../../utils/tierProgressionEngine", async () => {
   };
 });
 
-// Mock the learning progress store
+// Mock the learning store
 const mockRecordGauntletAttempt = vi.fn();
-vi.mock("../../store/learningProgressStore", () => ({
-  useLearningProgressStore: (
+vi.mock("../../store/learningStore", () => ({
+  useLearningStore: (
     selector: (state: { recordGauntletAttempt: () => void }) => unknown,
   ) => {
     const state = {

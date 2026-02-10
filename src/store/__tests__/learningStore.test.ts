@@ -79,6 +79,7 @@ describe('Learning Store', () => {
       longestStreak: 0,
       lastStudyDate: '',
       examAttempts: [],
+      gauntletAttempts: [],
       achievements: [],
       activeSession: null,
     });
@@ -401,6 +402,52 @@ describe('Learning Store', () => {
 
       const state = useLearningStore.getState();
       expect(state.examAttempts.length).toBe(20);
+    });
+  });
+
+  describe('Exam Gauntlet Attempts', () => {
+    it('should record a gauntlet attempt', () => {
+      const store = useLearningStore.getState();
+      store.recordGauntletAttempt({
+        timestamp: Date.now(),
+        score: 8,
+        totalQuestions: 10,
+        timeSpentSeconds: 1800,
+        domainBreakdown: {
+          domain1: { correct: 2, total: 3 },
+          domain2: { correct: 1, total: 1 },
+          domain3: { correct: 2, total: 2 },
+          domain4: { correct: 2, total: 3 },
+          domain5: { correct: 1, total: 1 },
+        },
+      });
+
+      const state = useLearningStore.getState();
+      expect(state.gauntletAttempts.length).toBe(1);
+      expect(state.gauntletAttempts[0].score).toBe(8);
+    });
+
+    it('should keep only last 50 gauntlet attempts', () => {
+      const store = useLearningStore.getState();
+
+      for (let i = 0; i < 55; i++) {
+        store.recordGauntletAttempt({
+          timestamp: Date.now() + i,
+          score: 5 + i,
+          totalQuestions: 10,
+          timeSpentSeconds: 1800,
+          domainBreakdown: {
+            domain1: { correct: 1, total: 2 },
+            domain2: { correct: 1, total: 2 },
+            domain3: { correct: 1, total: 2 },
+            domain4: { correct: 1, total: 2 },
+            domain5: { correct: 1, total: 2 },
+          },
+        });
+      }
+
+      const state = useLearningStore.getState();
+      expect(state.gauntletAttempts.length).toBe(50);
     });
   });
 

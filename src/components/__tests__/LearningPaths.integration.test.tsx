@@ -13,10 +13,22 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { LearningPaths } from "../LearningPaths";
 
 // Mock the learningStore
+const mockRecordGauntletAttempt = vi.fn();
+const mockLearningState = {
+  trackCommand: vi.fn(),
+  recordGauntletAttempt: mockRecordGauntletAttempt,
+  gauntletAttempts: [],
+};
+
 vi.mock("@/store/learningStore", () => ({
-  useLearningStore: () => ({
-    trackCommand: vi.fn(),
-  }),
+  useLearningStore: (
+    selector?: (state: typeof mockLearningState) => unknown,
+  ) => {
+    if (selector && typeof selector === "function") {
+      return selector(mockLearningState);
+    }
+    return mockLearningState;
+  },
 }));
 
 // Mock the quiz questions data
@@ -169,12 +181,9 @@ vi.mock("../../utils/tierProgressionEngine", async () => {
 });
 
 // Mock the learning progress store
-const mockRecordGauntletAttempt = vi.fn();
 const mockLearningProgressState = {
-  recordGauntletAttempt: mockRecordGauntletAttempt,
   familyQuizScores: {},
   reviewSchedule: {},
-  gauntletAttempts: [],
   toolsUsed: {},
   unlockedTiers: {},
   tierProgress: {},

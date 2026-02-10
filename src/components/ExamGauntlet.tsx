@@ -14,10 +14,7 @@ import {
   EXAM_DOMAIN_WEIGHTS,
   type Scenario,
 } from "../utils/tierProgressionEngine";
-import {
-  useLearningProgressStore,
-  type GauntletAttempt,
-} from "../store/learningProgressStore";
+import { useLearningStore, type GauntletAttempt } from "../store/learningStore";
 import {
   getAllScenarios,
   getScenarioMetadata,
@@ -153,7 +150,7 @@ export const ExamGauntlet: React.FC<ExamGauntletProps> = ({
   );
 
   // Store
-  const recordGauntletAttempt = useLearningProgressStore(
+  const recordGauntletAttempt = useLearningStore(
     (state) => state.recordGauntletAttempt,
   );
 
