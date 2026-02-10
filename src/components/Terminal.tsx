@@ -283,6 +283,20 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
 
     let currentLine = "";
 
+    const appendCommandToHistory = (cmdLine: string) => {
+      // Keep both React state and mutable refs in sync so the onData handler
+      // (registered once at terminal startup) always sees latest history.
+      setCommandHistory((prev) => {
+        const nextHistory = [...prev, cmdLine];
+        commandHistoryRef.current = nextHistory;
+        return nextHistory;
+      });
+
+      // Reset history navigation after executing a command.
+      setHistoryIndex(-1);
+      historyIndexRef.current = -1;
+    };
+
     const executeCommand = async (cmdLine: string) => {
       if (!cmdLine.trim()) {
         prompt();
@@ -290,11 +304,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
       }
 
       // Add to history
-      setCommandHistory((prev) => {
-        const nextHistory = [...prev, cmdLine];
-        commandHistoryRef.current = nextHistory;
-        return nextHistory;
-      });
+      appendCommandToHistory(cmdLine);
       currentContext.current.history.push(cmdLine);
 
       // Parse command
