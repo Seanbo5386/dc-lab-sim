@@ -5,7 +5,7 @@
  * Used in TopologyGraph and InfiniBandMap for click-to-inspect functionality.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   X,
   Thermometer,
@@ -156,57 +156,96 @@ const HealthBadge: React.FC<{ status: HealthStatus | "active" | "down" }> = ({
   );
 };
 
-const NVLinkTable: React.FC<{ links: NVLinkConnection[] }> = ({ links }) => (
-  <div className="mt-4">
+const NVLinkTable: React.FC<{
+  links: NVLinkConnection[];
+  collapsible?: boolean;
+}> = ({ links, collapsible = false }) => {
+  const healthyCount = links.filter((l) => l.status === "Active").length;
+  const totalCount = links.length;
+  const allHealthy = healthyCount === totalCount;
+  const [expanded, setExpanded] = useState(!allHealthy);
+
+  const header = collapsible ? (
+    <button
+      onClick={() => setExpanded(!expanded)}
+      className="w-full flex items-center justify-between px-2.5 py-1.5 rounded bg-gray-800 border border-gray-700 hover:border-gray-600 hover:bg-gray-750 transition-colors mb-2"
+    >
+      <span className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-gray-300">
+          NVLink Connections
+        </span>
+        <span
+          className={`text-xs font-medium px-1.5 py-0.5 rounded ${allHealthy ? "text-green-400 bg-green-500/10" : "text-yellow-400 bg-yellow-500/10"}`}
+        >
+          {healthyCount}/{totalCount} Active
+        </span>
+      </span>
+      <span
+        className={`text-gray-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+      >
+        &#9660;
+      </span>
+    </button>
+  ) : (
     <h4 className="text-sm font-semibold text-gray-300 mb-2">
       NVLink Connections
     </h4>
-    <table className="w-full text-xs">
-      <thead>
-        <tr className="text-gray-400 border-b border-gray-700">
-          <th className="py-1 text-left">Link</th>
-          <th className="py-1 text-left">Status</th>
-          <th className="py-1 text-right">Speed</th>
-          <th className="py-1 text-right">TX Err</th>
-          <th className="py-1 text-right">RX Err</th>
-          <th className="py-1 text-right">Replay</th>
-        </tr>
-      </thead>
-      <tbody>
-        {links.map((link) => (
-          <tr key={link.linkId} className="border-b border-gray-800">
-            <td className="py-1">Link {link.linkId}</td>
-            <td className="py-1">
-              <span
-                className={
-                  link.status === "Active" ? "text-green-500" : "text-red-500"
-                }
-              >
-                {link.status}
-              </span>
-            </td>
-            <td className="py-1 text-right">{link.speed} GB/s</td>
-            <td
-              className={`py-1 text-right ${link.txErrors > 0 ? "text-red-500" : ""}`}
-            >
-              {link.txErrors}
-            </td>
-            <td
-              className={`py-1 text-right ${link.rxErrors > 0 ? "text-red-500" : ""}`}
-            >
-              {link.rxErrors}
-            </td>
-            <td
-              className={`py-1 text-right ${link.replayErrors > 0 ? "text-red-500" : ""}`}
-            >
-              {link.replayErrors}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+  );
+
+  return (
+    <div className="mt-4">
+      {header}
+      {(!collapsible || expanded) && (
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-gray-400 border-b border-gray-700">
+              <th className="py-1 text-left">Link</th>
+              <th className="py-1 text-left">Status</th>
+              <th className="py-1 text-right">Speed</th>
+              <th className="py-1 text-right">TX Err</th>
+              <th className="py-1 text-right">RX Err</th>
+              <th className="py-1 text-right">Replay</th>
+            </tr>
+          </thead>
+          <tbody>
+            {links.map((link) => (
+              <tr key={link.linkId} className="border-b border-gray-800">
+                <td className="py-1">Link {link.linkId}</td>
+                <td className="py-1">
+                  <span
+                    className={
+                      link.status === "Active"
+                        ? "text-green-500"
+                        : "text-red-500"
+                    }
+                  >
+                    {link.status}
+                  </span>
+                </td>
+                <td className="py-1 text-right">{link.speed} GB/s</td>
+                <td
+                  className={`py-1 text-right ${link.txErrors > 0 ? "text-red-500" : ""}`}
+                >
+                  {link.txErrors}
+                </td>
+                <td
+                  className={`py-1 text-right ${link.rxErrors > 0 ? "text-red-500" : ""}`}
+                >
+                  {link.rxErrors}
+                </td>
+                <td
+                  className={`py-1 text-right ${link.replayErrors > 0 ? "text-red-500" : ""}`}
+                >
+                  {link.replayErrors}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+};
 
 export const NetworkNodeDetail: React.FC<NetworkNodeDetailProps> = ({
   node,
@@ -274,7 +313,7 @@ export const NetworkNodeDetail: React.FC<NetworkNodeDetailProps> = ({
               </div>
             </div>
 
-            <NVLinkTable links={node.data.nvlinks} />
+            <NVLinkTable links={node.data.nvlinks} collapsible />
           </>
         )}
 
