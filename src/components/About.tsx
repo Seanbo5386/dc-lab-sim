@@ -274,7 +274,14 @@ export function About() {
           <div className="bg-gray-800 rounded-lg p-5 text-sm text-gray-300 leading-relaxed">
             <p>
               This project was built in partnership with{" "}
-              <span className="text-nvidia-green font-medium">Claude Code</span>
+              <a
+                href="https://claude.ai/claude-code"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-nvidia-green font-medium hover:text-green-400 transition-colors underline"
+              >
+                Claude Code
+              </a>
               , powered by{" "}
               <span className="text-nvidia-green font-medium">
                 Anthropic's Claude Opus 4.6
