@@ -45,6 +45,13 @@ vi.mock("lucide-react", () => {
   };
 });
 
+// Mock CommandsReference as a simple stub (it has its own dedicated test file)
+vi.mock("../CommandsReference", () => ({
+  CommandsReference: () => (
+    <div data-testid="commands-reference">CLI Tool Reference</div>
+  ),
+}));
+
 import { Documentation } from "../Documentation";
 
 // ============================================================================
@@ -130,7 +137,7 @@ describe("Documentation", () => {
   });
 
   // --------------------------------------------------------------------------
-  // 5. Tab switching: Commands tab
+  // 5. Tab switching: Commands tab (uses mocked CommandsReference)
   // --------------------------------------------------------------------------
 
   it("switches to Commands tab and shows CLI Tool Reference", () => {
@@ -140,6 +147,12 @@ describe("Documentation", () => {
     expect(
       screen.queryByText("Cluster Topology: DGX SuperPOD"),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders CommandsReference component in Commands tab", () => {
+    render(<Documentation />);
+    fireEvent.click(screen.getByText("Commands").closest("button")!);
+    expect(screen.getByTestId("commands-reference")).toBeInTheDocument();
   });
 
   // --------------------------------------------------------------------------
@@ -193,56 +206,6 @@ describe("Documentation", () => {
     // Verify specific node hostnames are rendered
     expect(screen.getByText("dgx-00")).toBeInTheDocument();
     expect(screen.getByText("dgx-07")).toBeInTheDocument();
-  });
-
-  // --------------------------------------------------------------------------
-  // 10. Commands tab: search filters commands
-  // --------------------------------------------------------------------------
-
-  it("Commands tab search input filters categories by name", () => {
-    render(<Documentation />);
-    fireEvent.click(screen.getByText("Commands").closest("button")!);
-
-    const searchInput = screen.getByPlaceholderText("Search commands...");
-    expect(searchInput).toBeInTheDocument();
-
-    // Type a search query that matches only one category
-    fireEvent.change(searchInput, { target: { value: "GPU Health" } });
-
-    // "Check GPU Health" category should remain
-    expect(screen.getByText("Check GPU Health")).toBeInTheDocument();
-    // "Diagnose Network" should be filtered out
-    expect(screen.queryByText("Diagnose Network")).not.toBeInTheDocument();
-  });
-
-  // --------------------------------------------------------------------------
-  // 11. Commands tab: categories are collapsible
-  // --------------------------------------------------------------------------
-
-  it("Commands tab categories expand to show commands on click", () => {
-    render(<Documentation />);
-    fireEvent.click(screen.getByText("Commands").closest("button")!);
-
-    // Click the "Check GPU Health" category header to expand
-    fireEvent.click(screen.getByText("Check GPU Health").closest("button")!);
-
-    // Once expanded, individual commands should appear
-    expect(screen.getByText("nvidia-smi")).toBeInTheDocument();
-  });
-
-  it("Commands tab categories collapse when clicked again", () => {
-    render(<Documentation />);
-    fireEvent.click(screen.getByText("Commands").closest("button")!);
-
-    const categoryHeader = screen.getByText("Check GPU Health");
-
-    // Expand
-    fireEvent.click(categoryHeader.closest("button")!);
-    expect(screen.getByText("nvidia-smi")).toBeInTheDocument();
-
-    // Collapse
-    fireEvent.click(categoryHeader.closest("button")!);
-    expect(screen.queryByText("nvidia-smi")).not.toBeInTheDocument();
   });
 
   // --------------------------------------------------------------------------

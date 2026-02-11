@@ -261,8 +261,8 @@ const additionalResources = [
     icon: HardDrive,
   },
   {
-    title: "IPMI Specification",
-    url: "https://www.intel.com/content/www/us/en/products/docs/servers/ipmi/ipmi-home.html",
+    title: "IPMI Guide",
+    url: "https://www.intel.com/content/www/us/en/search.html#q=iPMI",
     description: "IPMI protocol reference for BMC management",
     icon: Shield,
   },

@@ -10,7 +10,6 @@ import {
   HardDrive,
   Wifi,
   ChevronRight,
-  ChevronDown,
   Search,
   Zap,
   Link,
@@ -38,11 +37,17 @@ import {
   type XIDSeverity,
 } from "@/data/xidErrors";
 import { ArchitectureComparison } from "./ArchitectureComparison";
-import taskCategoriesData from "@/data/taskCategories.json";
+import { CommandsReference } from "./CommandsReference";
 import { useSimulationStore } from "@/store/simulationStore";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
 
-type DocTab = "architecture" | "commands" | "troubleshooting" | "xid" | "exam";
+type DocTab =
+  | "architecture"
+  | "commands"
+  | "troubleshooting"
+  | "xid"
+  | "exam"
+  | "glossary";
 
 export const Documentation: React.FC = () => {
   const [activeTab, setActiveTab] = useState<DocTab>("architecture");
@@ -98,6 +103,12 @@ export const Documentation: React.FC = () => {
           label="Exam Guide"
           dataTour="doc-exam"
         />
+        <TabButton
+          active={activeTab === "glossary"}
+          onClick={() => setActiveTab("glossary")}
+          icon={<BookOpen className="w-4 h-4" />}
+          label="Glossary"
+        />
       </div>
 
       {/* Content */}
@@ -107,7 +118,7 @@ export const Documentation: React.FC = () => {
           {activeTab === "architecture" && <ArchitectureContent />}
 
           {/* Commands Tab */}
-          {activeTab === "commands" && <CommandsContent />}
+          {activeTab === "commands" && <CommandsReference />}
 
           {/* Troubleshooting Tab */}
           {activeTab === "troubleshooting" && <TroubleshootingContent />}
@@ -117,6 +128,9 @@ export const Documentation: React.FC = () => {
 
           {/* Exam Tab */}
           {activeTab === "exam" && <ExamGuideContent />}
+
+          {/* Glossary Tab */}
+          {activeTab === "glossary" && <GlossaryContent />}
         </div>
       </div>
     </div>
@@ -263,232 +277,6 @@ const ArchitectureContent: React.FC = () => {
       <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
         <ArchitectureComparison />
       </div>
-    </div>
-  );
-};
-
-interface TaskCategory {
-  id: string;
-  title: string;
-  icon: string;
-  decisionGuide: string;
-  commands: {
-    name: string;
-    summary: string;
-    commonUsage: { command: string; description: string }[];
-    options: { flag: string; description: string }[];
-    related: string[];
-  }[];
-}
-
-const taskCategories = (
-  taskCategoriesData as { categories: TaskCategory[] }
-).categories.filter((cat) => cat.id !== "understand-errors"); // XID errors have their own tab
-
-const CommandsContent: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
-    new Set(),
-  );
-  const [expandedCommands, setExpandedCommands] = useState<Set<string>>(
-    new Set(),
-  );
-
-  const filteredCategories = useMemo(() => {
-    if (!searchQuery.trim()) return taskCategories;
-    const query = searchQuery.toLowerCase();
-    return taskCategories.filter(
-      (cat) =>
-        cat.title.toLowerCase().includes(query) ||
-        cat.decisionGuide.toLowerCase().includes(query) ||
-        cat.commands.some(
-          (cmd) =>
-            cmd.name.toLowerCase().includes(query) ||
-            cmd.summary.toLowerCase().includes(query) ||
-            cmd.commonUsage.some((u) =>
-              u.command.toLowerCase().includes(query),
-            ),
-        ),
-    );
-  }, [searchQuery]);
-
-  const toggleCategory = (id: string) => {
-    setExpandedCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleCommand = (name: string) => {
-    setExpandedCommands((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <SectionTitle
-          title="CLI Tool Reference"
-          icon={<Terminal className="w-5 h-5 text-nvidia-green" />}
-        />
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search commands..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:border-nvidia-green w-64"
-          />
-        </div>
-      </div>
-
-      {filteredCategories.map((category) => {
-        const isExpanded = expandedCategories.has(category.id);
-        return (
-          <div
-            key={category.id}
-            className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden"
-          >
-            {/* Category header */}
-            <button
-              onClick={() => toggleCategory(category.id)}
-              className="w-full p-4 text-left hover:bg-gray-700/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{category.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold text-nvidia-green text-base">
-                    {category.title}
-                  </h4>
-                  <p className="text-xs text-gray-400 mt-1 font-mono">
-                    {category.decisionGuide}
-                  </p>
-                </div>
-                <span className="text-gray-400 text-sm mr-2">
-                  {category.commands.length} tools
-                </span>
-                {isExpanded ? (
-                  <ChevronDown className="w-5 h-5 text-nvidia-green shrink-0" />
-                ) : (
-                  <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" />
-                )}
-              </div>
-            </button>
-
-            {/* Expanded command list */}
-            {isExpanded && (
-              <div className="border-t border-gray-700">
-                {category.commands.map((cmd) => {
-                  const cmdExpanded = expandedCommands.has(
-                    `${category.id}-${cmd.name}`,
-                  );
-                  return (
-                    <div
-                      key={cmd.name}
-                      className="border-b border-gray-700/50 last:border-0"
-                    >
-                      <button
-                        onClick={() =>
-                          toggleCommand(`${category.id}-${cmd.name}`)
-                        }
-                        className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-900/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-3">
-                          {cmdExpanded ? (
-                            <ChevronDown className="w-4 h-4 text-nvidia-green" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-gray-500" />
-                          )}
-                          <span className="font-mono text-nvidia-green font-semibold text-sm">
-                            {cmd.name}
-                          </span>
-                        </div>
-                        <span className="text-gray-400 text-sm">
-                          {cmd.summary}
-                        </span>
-                      </button>
-
-                      {cmdExpanded && (
-                        <div className="px-4 pb-4 pt-2 ml-7 space-y-4">
-                          {/* Common Usage */}
-                          <div>
-                            <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                              COMMON USAGE
-                            </h5>
-                            <div className="space-y-2">
-                              {cmd.commonUsage.map((usage, i) => (
-                                <div
-                                  key={i}
-                                  className="flex flex-col sm:flex-row gap-2 sm:gap-4"
-                                >
-                                  <code className="text-nvidia-green bg-black px-3 py-1.5 rounded text-xs font-mono whitespace-nowrap border border-gray-800">
-                                    {usage.command}
-                                  </code>
-                                  <span className="text-gray-400 text-sm flex items-center gap-1">
-                                    <ChevronRight className="w-3 h-3 text-gray-600 hidden sm:block" />
-                                    {usage.description}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Key Options */}
-                          {cmd.options.length > 0 && (
-                            <div>
-                              <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                                KEY OPTIONS
-                              </h5>
-                              <div className="space-y-1">
-                                {cmd.options.map((opt, i) => (
-                                  <div key={i} className="flex gap-4">
-                                    <code className="text-yellow-400 font-mono text-sm w-36 shrink-0">
-                                      {opt.flag}
-                                    </code>
-                                    <span className="text-gray-400 text-sm">
-                                      {opt.description}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Related */}
-                          {cmd.related.length > 0 && (
-                            <div>
-                              <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                                RELATED
-                              </h5>
-                              <div className="flex flex-wrap gap-2">
-                                {cmd.related.map((rel, i) => (
-                                  <span
-                                    key={i}
-                                    className="text-sm bg-gray-700 px-2 py-1 rounded text-gray-300"
-                                  >
-                                    {rel}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 };
@@ -809,8 +597,8 @@ const ExamGuideContent: React.FC = () => (
             icon={<HardDrive className="w-4 h-4" />}
           />
           <ResourceLink
-            title="IPMI Specification"
-            url="https://www.intel.com/content/www/us/en/products/docs/servers/ipmi/ipmi-home.html"
+            title="IPMI Guide"
+            url="https://www.intel.com/content/www/us/en/search.html#q=iPMI"
             description="IPMI protocol reference for BMC management"
             icon={<Shield className="w-4 h-4" />}
           />
@@ -1928,6 +1716,319 @@ const TabButton: React.FC<{
     <span className="hidden sm:inline">{label}</span>
   </button>
 );
+
+// ============================================================================
+// GLOSSARY
+// ============================================================================
+
+const GLOSSARY_SECTIONS = [
+  {
+    title: "GPU & Compute",
+    terms: [
+      {
+        term: "GPU",
+        definition:
+          "Graphics Processing Unit — the parallel processor used for AI/ML training and inference.",
+      },
+      {
+        term: "CUDA",
+        definition:
+          "Compute Unified Device Architecture — NVIDIA's parallel computing platform and programming model.",
+      },
+      {
+        term: "ECC",
+        definition:
+          "Error Correcting Code — memory protection that detects and corrects single-bit errors.",
+      },
+      {
+        term: "MIG",
+        definition:
+          "Multi-Instance GPU — partitions a single GPU into isolated instances for multi-tenant workloads.",
+      },
+      {
+        term: "MPS",
+        definition:
+          "Multi-Process Service — allows multiple CUDA processes to share a single GPU concurrently.",
+      },
+      {
+        term: "NVLink",
+        definition:
+          "High-bandwidth GPU-to-GPU interconnect, enabling fast data transfer between GPUs within a node.",
+      },
+      {
+        term: "NVSwitch",
+        definition:
+          "Chip enabling all-to-all NVLink connectivity between GPUs in a DGX system.",
+      },
+      {
+        term: "NVML",
+        definition:
+          "NVIDIA Management Library — C API for monitoring and managing NVIDIA GPUs (used by nvidia-smi).",
+      },
+      {
+        term: "DCGM",
+        definition:
+          "Data Center GPU Manager — NVIDIA's suite for GPU health monitoring, diagnostics, and policy management.",
+      },
+      {
+        term: "XID",
+        definition:
+          "NVIDIA GPU error code reported in kernel logs, identifying specific hardware or software faults.",
+      },
+      {
+        term: "VBIOS",
+        definition:
+          "Video BIOS — firmware on the GPU that initializes hardware before the OS driver loads.",
+      },
+      {
+        term: "SM",
+        definition:
+          "Streaming Multiprocessor — the core compute unit inside an NVIDIA GPU.",
+      },
+      {
+        term: "TDP",
+        definition:
+          "Thermal Design Power — maximum heat a component is designed to dissipate under load.",
+      },
+    ],
+  },
+  {
+    title: "Networking & InfiniBand",
+    terms: [
+      {
+        term: "IB",
+        definition:
+          "InfiniBand — high-bandwidth, low-latency network fabric used in HPC and AI clusters.",
+      },
+      {
+        term: "HCA",
+        definition:
+          "Host Channel Adapter — the InfiniBand network interface card installed in each node.",
+      },
+      {
+        term: "RDMA",
+        definition:
+          "Remote Direct Memory Access — allows direct memory-to-memory transfers between nodes, bypassing the CPU.",
+      },
+      {
+        term: "GUID",
+        definition:
+          "Globally Unique Identifier — a unique address assigned to each InfiniBand port and node.",
+      },
+      {
+        term: "LID",
+        definition:
+          "Local Identifier — a 16-bit address assigned by the Subnet Manager to each IB port.",
+      },
+      {
+        term: "SM (IB)",
+        definition:
+          "Subnet Manager — manages the InfiniBand fabric, computes routing tables, and assigns LIDs.",
+      },
+      {
+        term: "OFED",
+        definition:
+          "OpenFabrics Enterprise Distribution — the software stack for InfiniBand and RDMA networking.",
+      },
+      {
+        term: "QoS",
+        definition:
+          "Quality of Service — traffic prioritization policies on the InfiniBand fabric.",
+      },
+      {
+        term: "GID",
+        definition:
+          "Global Identifier — a 128-bit IB address used for routing across subnets.",
+      },
+      {
+        term: "NDR",
+        definition:
+          "Next Data Rate — InfiniBand speed tier at 400 Gb/s per port.",
+      },
+      {
+        term: "HDR",
+        definition:
+          "High Data Rate — InfiniBand speed tier at 200 Gb/s per port.",
+      },
+    ],
+  },
+  {
+    title: "Hardware Management",
+    terms: [
+      {
+        term: "BMC",
+        definition:
+          "Baseboard Management Controller — embedded processor for out-of-band server management (power, sensors, console).",
+      },
+      {
+        term: "IPMI",
+        definition:
+          "Intelligent Platform Management Interface — standard protocol for communicating with the BMC.",
+      },
+      {
+        term: "SEL",
+        definition:
+          "System Event Log — BMC log recording hardware events like temperature warnings and power faults.",
+      },
+      {
+        term: "FRU",
+        definition:
+          "Field Replaceable Unit — a hardware component (fan, PSU, DIMM) that can be swapped in the field.",
+      },
+      {
+        term: "SDR",
+        definition:
+          "Sensor Data Records — BMC database describing available sensors and their thresholds.",
+      },
+      {
+        term: "DPU",
+        definition:
+          "Data Processing Unit — a SmartNIC (e.g., BlueField) that offloads networking and storage tasks.",
+      },
+      {
+        term: "NVMe",
+        definition:
+          "Non-Volatile Memory Express — high-speed storage protocol for SSD drives over PCIe.",
+      },
+      {
+        term: "PCIe",
+        definition:
+          "PCI Express — the high-speed serial bus connecting GPUs, NICs, and NVMe drives to the CPU.",
+      },
+    ],
+  },
+  {
+    title: "Cluster & Workload Management",
+    terms: [
+      {
+        term: "Slurm",
+        definition:
+          "Simple Linux Utility for Resource Management — the job scheduler used on most HPC and AI clusters.",
+      },
+      {
+        term: "GRES",
+        definition:
+          "Generic Resource — Slurm's mechanism for tracking GPUs and other special resources.",
+      },
+      {
+        term: "MPI",
+        definition:
+          "Message Passing Interface — standard for distributed parallel computing across cluster nodes.",
+      },
+      {
+        term: "NCCL",
+        definition:
+          "NVIDIA Collective Communications Library — optimized GPU-to-GPU communication primitives for distributed training.",
+      },
+      {
+        term: "UCX",
+        definition:
+          "Unified Communication X — a communication framework used by MPI and NCCL for transport selection.",
+      },
+    ],
+  },
+  {
+    title: "Firmware & Tools",
+    terms: [
+      {
+        term: "MFT",
+        definition:
+          "Mellanox Firmware Tools — utilities for querying, updating, and managing Mellanox/NVIDIA NIC firmware.",
+      },
+      {
+        term: "MST",
+        definition:
+          "Mellanox Software Tools — kernel driver and service required by MFT for device access.",
+      },
+      {
+        term: "PSID",
+        definition:
+          "Parameter Set Identifier — identifies the firmware configuration profile on a Mellanox NIC.",
+      },
+      {
+        term: "BER",
+        definition:
+          "Bit Error Rate — the ratio of errored bits to total transmitted bits on a network link.",
+      },
+      {
+        term: "FEC",
+        definition:
+          "Forward Error Correction — encoding that allows the receiver to detect and correct transmission errors.",
+      },
+    ],
+  },
+] as const;
+
+const GlossaryContent: React.FC = () => {
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredSections = useMemo(() => {
+    if (!searchQuery.trim()) return GLOSSARY_SECTIONS;
+    const query = searchQuery.toLowerCase();
+    return GLOSSARY_SECTIONS.map((section) => ({
+      ...section,
+      terms: section.terms.filter(
+        (t) =>
+          t.term.toLowerCase().includes(query) ||
+          t.definition.toLowerCase().includes(query),
+      ),
+    })).filter((section) => section.terms.length > 0);
+  }, [searchQuery]);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <SectionTitle
+          title="Glossary & Acronyms"
+          icon={<BookOpen className="w-5 h-5 text-nvidia-green" />}
+        />
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+          <input
+            type="text"
+            placeholder="Search terms..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:border-nvidia-green w-64"
+          />
+        </div>
+      </div>
+
+      {filteredSections.map((section) => (
+        <div
+          key={section.title}
+          className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden"
+        >
+          <div className="p-4 border-b border-gray-700">
+            <h4 className="font-bold text-nvidia-green text-base">
+              {section.title}
+            </h4>
+          </div>
+          <div className="divide-y divide-gray-700/50">
+            {section.terms.map((t) => (
+              <div key={t.term} className="flex items-start gap-4 px-4 py-3">
+                <code className="text-nvidia-green font-mono font-semibold text-sm shrink-0 w-24">
+                  {t.term}
+                </code>
+                <span className="text-gray-300 text-sm">{t.definition}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {filteredSections.length === 0 && (
+        <div className="text-center py-10 text-gray-500">
+          No terms match &quot;{searchQuery}&quot;
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================================
+// HELPER COMPONENTS
+// ============================================================================
 
 const SectionTitle: React.FC<{ title: string; icon: React.ReactNode }> = ({
   title,
