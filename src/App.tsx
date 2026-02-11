@@ -14,7 +14,6 @@ import { useSimulationStore } from "./store/simulationStore";
 import { useLearningProgressStore } from "./store/learningProgressStore";
 import { useMetricsSimulation } from "./hooks/useMetricsSimulation";
 import { initializeScenario } from "./utils/scenarioLoader";
-import { safeParseClusterJSON } from "./utils/clusterSchema";
 import {
   Monitor,
   BookOpen,
@@ -22,8 +21,6 @@ import {
   Play,
   Pause,
   RotateCcw,
-  Download,
-  Upload,
   HelpCircle,
 } from "lucide-react";
 import { SpotlightTour } from "./components/SpotlightTour";
@@ -54,8 +51,6 @@ function App() {
     startSimulation,
     stopSimulation,
     resetSimulation,
-    exportCluster,
-    importCluster,
   } = useSimulationStore();
 
   // Activate metrics simulation when running
@@ -81,42 +76,6 @@ function App() {
   const handleTourComplete = useCallback(() => {
     setActiveTour(null);
   }, []);
-
-  const handleExport = () => {
-    const data = exportCluster();
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `cluster-config-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImport = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".json";
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const content = event.target?.result as string;
-          const result = safeParseClusterJSON(content);
-          if (result.valid && result.data) {
-            importCluster(JSON.stringify(result.data));
-          } else {
-            alert(
-              `Failed to import cluster configuration:\n\n${result.errors.join("\n")}`,
-            );
-          }
-        };
-        reader.readAsText(file);
-      }
-    };
-    input.click();
-  };
 
   const handleStartScenario = async (scenarioId: string) => {
     const success = await initializeScenario(scenarioId);
@@ -197,21 +156,6 @@ function App() {
                 title="Reset Simulation"
               >
                 <RotateCcw className="w-4 h-4" />
-              </button>
-              <div className="h-6 w-px bg-gray-700" />
-              <button
-                onClick={handleExport}
-                className="p-2 rounded hover:bg-gray-700 transition-colors text-gray-300"
-                title="Export Cluster Config"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleImport}
-                className="p-2 rounded hover:bg-gray-700 transition-colors text-gray-300"
-                title="Import Cluster Config"
-              >
-                <Upload className="w-4 h-4" />
               </button>
             </div>
 
