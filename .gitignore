@@ -44,5 +44,12 @@ test-results.txt
 # Playwright MCP cache
 .playwright-mcp/
 
+# Claude Code local files
+.claude/*.local.*
+
+# Review screenshots and test output
+review-*.png
+test-output.txt
+
 # Windows artifacts
 nul
