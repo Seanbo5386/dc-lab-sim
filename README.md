@@ -165,7 +165,8 @@ A tiered progression system built on spaced repetition:
 
 - System architecture overview with node layout and hardware specs
 - Architecture comparison across DGX A100, H100, H200, and B200
-- Searchable CLI tool reference with collapsible categories
+- Searchable CLI tool reference with 214 commands across 17 categories
+- Glossary & Acronyms reference with 42 searchable terms
 - Troubleshooting playbooks with 4 diagnostic scenarios
 - XID error reference with severity filtering
 - Exam guide with domain coverage and study tips
@@ -239,7 +240,7 @@ dcgmi diag --mode 1
 ibstat
 
 # Get help on any command
-explain-json nvidia-smi
+help nvidia-smi
 
 # Practice exercises
 practice nvidia-smi
@@ -247,9 +248,8 @@ practice nvidia-smi
 
 ### Learning Commands
 
-- `explain-json <command>` - Detailed command reference from JSON definitions
+- `help <command>` - Detailed command reference with options and usage examples
 - `practice <command>` - Auto-generated practice exercises
-- `explain <command>` - Quick command overview
 - `hint` - Context-aware guidance during scenarios
 
 ## Available Commands
@@ -356,7 +356,7 @@ src/
 │   ├── Dashboard.tsx     # Real-time metrics dashboard
 │   ├── LabWorkspace.tsx  # Scenario execution workspace
 │   ├── LabsAndScenariosView.tsx # Mission browser with domain cards
-│   ├── Documentation.tsx # Tabbed reference (Architecture, Commands, XID, Exam Guide)
+│   ├── Documentation.tsx # Tabbed reference (Architecture, Commands, XID, Exam Guide, Glossary)
 │   ├── About.tsx         # Project info, changelog, and links
 │   ├── FaultInjection.tsx # Fault injection controls
 │   ├── NarrativeIntro.tsx # Mission briefing screen
@@ -387,7 +387,7 @@ src/
 │   ├── quizQuestions.json       # Tool selection quizzes
 │   ├── explanationGates.json    # 56 post-scenario knowledge checks
 │   ├── hardwareSpecs.ts         # DGX A100/H100/H200/B200 spec registry
-│   └── output/                  # 229 JSON command definitions
+│   └── output/                  # 228 JSON command definitions
 ├── store/               # Zustand state management
 │   ├── simulationStore.ts       # Cluster state, GPU metrics, exam state
 │   ├── scenarioContext.ts       # Per-scenario sandbox isolation
@@ -437,7 +437,7 @@ Common GPU XID errors you'll encounter:
 
 ### Unit Tests
 
-The project has **2,905 unit tests** across 127 test files covering simulators, stores, utilities, components, and data validation:
+The project has **2,913 unit tests** across 128 test files covering simulators, stores, utilities, components, and data validation:
 
 ```bash
 npm run test           # Watch mode
@@ -463,12 +463,12 @@ GitHub Actions runs lint, unit tests, and production build on every push.
 - [x] Practice exam with 168 timed questions
 - [x] D3.js topology visualization (NVLink and InfiniBand fabric maps)
 - [x] Tab completion and readline shortcuts
-- [x] Data-driven CLI framework with 229 JSON command definitions
-- [x] `explain-json` and `practice` terminal commands
+- [x] Data-driven CLI framework with 228 JSON command definitions
+- [x] `help` and `practice` terminal commands
 - [x] Fault injection system for troubleshooting practice
 - [x] Study dashboard with progress analytics
 - [x] CI/CD pipeline (lint, test, build)
-- [x] 2,905 unit tests with 0 TypeScript errors
+- [x] 2,913 unit tests with 0 TypeScript errors
 
 ### Future Enhancements
 
