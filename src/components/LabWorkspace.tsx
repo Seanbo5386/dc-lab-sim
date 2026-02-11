@@ -736,19 +736,30 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                     </div>
                   )}
 
-                {/* Inline Quiz (narrative scenarios) — show immediately for concept/observe */}
+                {/* Inline Quiz (narrative scenarios) — show for concept/observe
+                    immediately, or for command steps once validation passes */}
                 {isNarrative &&
                   currentStep.narrativeQuiz &&
-                  (isStepCompleted || isConceptStep || isObserveStep) && (
+                  (isStepCompleted ||
+                    isConceptStep ||
+                    isObserveStep ||
+                    currentValidation?.passed) && (
                     <div className="mb-4">
                       <InlineQuiz
                         quiz={currentStep.narrativeQuiz}
-                        onComplete={(correct) =>
+                        onComplete={(correct) => {
                           setQuizResults((prev) => ({
                             ...prev,
                             [currentStep.id]: correct,
-                          }))
-                        }
+                          }));
+                          // Advance to next step after quiz is answered
+                          if (!isStepCompleted) {
+                            completeScenarioStep(
+                              activeScenario.id,
+                              currentStep.id,
+                            );
+                          }
+                        }}
                       />
                     </div>
                   )}

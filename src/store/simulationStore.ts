@@ -536,10 +536,18 @@ export const useSimulationStore = create<SimulationState>()(
         });
 
         // Auto-advance if validation passed and config allows
+        // Skip auto-advance when the step has an inline quiz — the quiz
+        // must be answered first, then LabWorkspace advances manually.
         if (result.passed && currentState.validationConfig.autoAdvance) {
-          setTimeout(() => {
-            get().completeScenarioStep(scenarioId, stepId);
-          }, currentState.validationConfig.autoAdvanceDelay);
+          const scenario = currentState.activeScenario;
+          const step = scenario?.steps.find((s) => s.id === stepId);
+          const hasQuiz = !!step?.narrativeQuiz;
+
+          if (!hasQuiz) {
+            setTimeout(() => {
+              get().completeScenarioStep(scenarioId, stepId);
+            }, currentState.validationConfig.autoAdvanceDelay);
+          }
         }
 
         // Record failed attempt if validation failed
