@@ -148,7 +148,7 @@ describe("narrativeStepToScenarioStep", () => {
     expect(result.objectives).toEqual(["Read and understand the concept"]);
   });
 
-  it("should produce empty validationRules for observe steps", () => {
+  it("should produce validation rules for observe steps with observeCommand", () => {
     const observeStep: NarrativeStep = {
       ...mockNarrativeStep,
       type: "observe",
@@ -158,9 +158,27 @@ describe("narrativeStepToScenarioStep", () => {
       observeCommand: "nvidia-smi -q",
     };
     const result = narrativeStepToScenarioStep(observeStep);
-    expect(result.validationRules).toEqual([]);
+    expect(result.validationRules).toHaveLength(1);
+    expect(result.validationRules[0].type).toBe("command-executed");
+    expect(result.validationRules[0].expectedCommands).toEqual([
+      "nvidia-smi -q",
+    ]);
+    expect(result.expectedCommands).toContain("nvidia-smi -q");
     expect(result.stepType).toBe("observe");
     expect(result.observeCommand).toBe("nvidia-smi -q");
+  });
+
+  it("should produce empty validationRules for observe steps without observeCommand", () => {
+    const observeStep: NarrativeStep = {
+      ...mockNarrativeStep,
+      type: "observe",
+      expectedCommands: [],
+      hints: [],
+      validation: { type: "none" },
+    };
+    const result = narrativeStepToScenarioStep(observeStep);
+    expect(result.validationRules).toEqual([]);
+    expect(result.stepType).toBe("observe");
   });
 
   it("should handle validation.type === 'none' and return empty rules", () => {

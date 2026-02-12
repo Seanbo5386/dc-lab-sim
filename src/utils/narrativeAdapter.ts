@@ -52,17 +52,28 @@ export function narrativeStepToScenarioStep(
   const isConcept = stepType === "concept";
   const isObserve = stepType === "observe";
 
+  // Observe steps with an observeCommand require the user to type it
+  const observeRequiresCLI = isObserve && !!step.observeCommand;
+  const effectiveExpectedCommands = observeRequiresCLI
+    ? [step.observeCommand!, ...step.expectedCommands]
+    : step.expectedCommands;
+
+  const validationRules = isConcept
+    ? []
+    : observeRequiresCLI
+      ? convertValidation({ type: "command", command: step.observeCommand! }, [
+          step.observeCommand!,
+        ])
+      : convertValidation(step.validation, step.expectedCommands);
+
   return {
     id: step.id,
     stepType: step.type,
     title: step.task,
     description: step.situation,
     objectives: isConcept ? ["Read and understand the concept"] : [step.task],
-    expectedCommands: step.expectedCommands,
-    validationRules:
-      isConcept || isObserve
-        ? []
-        : convertValidation(step.validation, step.expectedCommands),
+    expectedCommands: effectiveExpectedCommands,
+    validationRules,
     hints: step.hints,
     estimatedDuration: avgStepTime,
     conceptContent: step.conceptContent,

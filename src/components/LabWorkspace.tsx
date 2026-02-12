@@ -254,6 +254,10 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
   const isConceptStep = currentStepType === "concept";
   const isObserveStep = currentStepType === "observe";
   const isCommandStep = currentStepType === "command";
+  // Steps that require CLI input: command steps OR observe steps with validation rules
+  const requiresCLIInput =
+    isCommandStep ||
+    (currentStep.validationRules && currentStep.validationRules.length > 0);
   const totalQuizzes = activeScenario.steps.filter(
     (s) => s.narrativeQuiz,
   ).length;
@@ -532,30 +536,34 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                           $ {currentStep.observeCommand}
                         </div>
                         <p className="text-xs text-gray-400">
-                          Review the output above and click Continue when ready.
+                          {requiresCLIInput
+                            ? "Type this command in the terminal to proceed."
+                            : "Review the output above and click Continue when ready."}
                         </p>
                       </div>
                     )}
 
-                    {/* Continue button for concept/observe steps */}
-                    {(isConceptStep || isObserveStep) && !isStepCompleted && (
-                      <button
-                        data-testid="concept-continue-btn"
-                        onClick={() =>
-                          completeScenarioStep(
-                            activeScenario.id,
-                            currentStep.id,
-                          )
-                        }
-                        className="w-full px-4 py-3 rounded font-semibold bg-green-600 hover:bg-green-700 text-white transition-colors flex items-center justify-center gap-2 mb-4"
-                      >
-                        Continue
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    )}
+                    {/* Continue button for concept/observe steps without CLI requirements */}
+                    {(isConceptStep || isObserveStep) &&
+                      !requiresCLIInput &&
+                      !isStepCompleted && (
+                        <button
+                          data-testid="concept-continue-btn"
+                          onClick={() =>
+                            completeScenarioStep(
+                              activeScenario.id,
+                              currentStep.id,
+                            )
+                          }
+                          className="w-full px-4 py-3 rounded font-semibold bg-green-600 hover:bg-green-700 text-white transition-colors flex items-center justify-center gap-2 mb-4"
+                        >
+                          Continue
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      )}
 
-                    {/* YOUR TASK box only for command steps */}
-                    {isCommandStep && (
+                    {/* YOUR TASK box for steps requiring CLI input */}
+                    {requiresCLIInput && (
                       <div className="bg-nvidia-green/10 border-l-4 border-nvidia-green p-4 mb-4 rounded-r-lg">
                         <p className="text-sm text-nvidia-green font-semibold mb-1">
                           YOUR TASK
@@ -572,8 +580,8 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                   </p>
                 )}
 
-                {/* Objectives (command steps only) */}
-                {isCommandStep && (
+                {/* Objectives (steps requiring CLI input) */}
+                {requiresCLIInput && (
                   <div className="bg-gray-800 rounded-lg p-4 mb-4">
                     <h4 className="text-sm font-semibold text-green-400 mb-2">
                       OBJECTIVES
@@ -609,8 +617,8 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                   </div>
                 )}
 
-                {/* Validation Progress Indicator (command steps only) */}
-                {isCommandStep &&
+                {/* Validation Progress Indicator (steps requiring CLI input) */}
+                {requiresCLIInput &&
                   validationConfig.enabled &&
                   currentValidation &&
                   !isStepCompleted && (
@@ -680,8 +688,8 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                     </div>
                   )}
 
-                {/* Expected Commands with Progress Tracking (command steps only) */}
-                {isCommandStep &&
+                {/* Expected Commands with Progress Tracking (steps requiring CLI input) */}
+                {requiresCLIInput &&
                   currentStep.expectedCommands &&
                   currentStep.expectedCommands.length > 0 && (
                     <div className="bg-gray-800 rounded-lg p-4 mb-4">
@@ -764,8 +772,8 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                     </div>
                   )}
 
-                {/* Hints - Enhanced System (command steps only) */}
-                {isCommandStep &&
+                {/* Hints - Enhanced System (steps requiring CLI input) */}
+                {requiresCLIInput &&
                   ((hintEvaluation?.totalCount || 0) > 0 ? (
                     <div className="bg-gray-800 rounded-lg p-4 mb-4">
                       <div className="flex items-center justify-between mb-2">
@@ -996,8 +1004,8 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                 </ul>
               </div>
 
-              {/* Terminal Instructions (command steps only) */}
-              {isCommandStep && (
+              {/* Terminal Instructions (steps requiring CLI input) */}
+              {requiresCLIInput && (
                 <div className="mt-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
                   <div className="flex items-start gap-3">
                     <div className="text-blue-400 text-2xl">→</div>
