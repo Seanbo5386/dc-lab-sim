@@ -62,6 +62,7 @@ describe("IpmitoolSimulator", () => {
             ],
             hcas: [],
             bmc: {
+              powerState: "On",
               sensors: [
                 {
                   name: "CPU Temp",
@@ -164,6 +165,40 @@ describe("IpmitoolSimulator", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain("ipmitool");
+    });
+  });
+
+  describe("Power command", () => {
+    it("ipmitool power status should return chassis power state", () => {
+      const parsed = parse("ipmitool power status");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toBe("Chassis Power is on");
+    });
+
+    it("ipmitool power on should return power control message", () => {
+      const parsed = parse("ipmitool power on");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toBe("Chassis Power Control: On");
+    });
+
+    it("ipmitool power cycle should return power control message", () => {
+      const parsed = parse("ipmitool power cycle");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toBe("Chassis Power Control: Cycle");
+    });
+
+    it("ipmitool power with no args should default to status", () => {
+      const parsed = parse("ipmitool power");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toBe("Chassis Power is on");
     });
   });
 });

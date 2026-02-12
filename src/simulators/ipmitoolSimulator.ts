@@ -188,6 +188,14 @@ export class IpmitoolSimulator extends BaseSimulator {
         "ipmitool raw 0x3c 0x80 0x05", // Get power limit
       ],
     });
+
+    this.registerCommand("power", this.handlePower.bind(this), {
+      name: "power",
+      description: "Shortcut to chassis power commands",
+      usage: "ipmitool power [status|on|off|cycle|reset]",
+      flags: [],
+      examples: ["ipmitool power status", "ipmitool power on"],
+    });
   }
 
   getMetadata(): SimulatorMetadata {
@@ -1029,5 +1037,36 @@ export class IpmitoolSimulator extends BaseSimulator {
     } catch {
       return this.createError("Invalid hex value in raw command");
     }
+  }
+
+  /**
+   * Handle power command - Shortcut to chassis power commands
+   * "ipmitool power status" is equivalent to "ipmitool chassis power status"
+   */
+  private handlePower(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    const node = this.getNode(context);
+    if (!node) {
+      return this.createError("Error: Unable to determine current node");
+    }
+
+    // "ipmitool power status" → treat as "ipmitool chassis power status"
+    const subArg = parsed.subcommands[1] || "status";
+
+    if (subArg === "status") {
+      return this.createSuccess(
+        `Chassis Power is ${node.bmc.powerState === "On" ? "on" : "off"}`,
+      );
+    }
+    if (["on", "off", "cycle", "reset"].includes(subArg)) {
+      return this.createSuccess(
+        `Chassis Power Control: ${subArg.charAt(0).toUpperCase() + subArg.slice(1)}`,
+      );
+    }
+    return this.createError(
+      `Invalid power command: ${subArg}\npower commands: status, on, off, cycle, reset`,
+    );
   }
 }
