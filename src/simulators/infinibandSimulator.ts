@@ -568,4 +568,539 @@ Options:
 
     return this.createSuccess(output);
   }
+
+  /**
+   * ibhosts - List all channel adapter (host) nodes in the fabric
+   */
+  executeIbhosts(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("ibhosts") ||
+        this.createSuccess(`Usage: ibhosts [options]
+Options:
+  -C, --Ca <ca>        CA name to use
+  -P, --Port <port>    port number to use
+  -V, --version        show version
+  -h, --help           show this help`)
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("ibhosts 5.9-0");
+    }
+
+    const nodes = this.resolveAllNodes(context);
+    let output = `# Fabric host list:\n`;
+
+    nodes.forEach((node) => {
+      node.hcas.forEach((hca) => {
+        const guid = hca.ports[0]?.guid || "0x0000000000000000";
+        output += `Ca\t: ${guid} ports ${hca.ports.length} "${node.hostname} ${hca.caType}"\n`;
+      });
+    });
+
+    output += `\n${nodes.length} host(s) discovered\n`;
+
+    return this.createSuccess(output);
+  }
+
+  /**
+   * ibswitches - List all switch nodes discovered in the fabric
+   */
+  executeIbswitches(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("ibswitches") ||
+        this.createSuccess(`Usage: ibswitches [options]
+Options:
+  -C, --Ca <ca>        CA name to use
+  -P, --Port <port>    port number to use
+  -V, --version        show version
+  -h, --help           show this help`)
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("ibswitches 5.9-0");
+    }
+
+    const nodes = this.resolveAllNodes(context);
+    const portRate = nodes[0]?.hcas?.[0]?.ports?.[0]?.rate || 400;
+    const switchModel =
+      portRate >= 800
+        ? "QM9790"
+        : portRate >= 400
+          ? "QM9700"
+          : portRate >= 200
+            ? "QM8790"
+            : "QM8700";
+
+    const numSpineSwitches = 4;
+    const numLeafSwitches = nodes[0]?.hcas?.length || 8;
+
+    let output = "";
+
+    // Spine switches
+    for (let i = 0; i < numSpineSwitches; i++) {
+      const switchGuid = `0x${(0xe41d2d030010 + i).toString(16).padStart(16, "0")}`;
+      output += `Switch\t: ${switchGuid} ports 64 "${switchModel} Mellanox Technologies" enhanced port 0 lid ${10 + i}\n`;
+    }
+
+    // Leaf/rail switches
+    for (let i = 0; i < numLeafSwitches; i++) {
+      const switchGuid = `0x${(0xe41d2d030020 + i).toString(16).padStart(16, "0")}`;
+      output += `Switch\t: ${switchGuid} ports 64 "${switchModel} Mellanox Technologies" enhanced port 0 lid ${20 + i}\n`;
+    }
+
+    return this.createSuccess(output);
+  }
+
+  /**
+   * ibcableerrors - Report cable error counters across the fabric
+   */
+  executeIbcableerrors(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("ibcableerrors") ||
+        this.createSuccess(`Usage: ibcableerrors [options]
+Options:
+  -C, --Ca <ca>        CA name to use
+  -P, --Port <port>    port number to use
+  -c, --clear          clear errors after read
+  -V, --version        show version
+  -h, --help           show this help`)
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("ibcableerrors 5.9-0");
+    }
+
+    const nodes = this.resolveAllNodes(context);
+
+    let output = `Cable Error Report\n`;
+    output += `${"=".repeat(60)}\n\n`;
+
+    let totalErrors = 0;
+    nodes.forEach((node) => {
+      node.hcas.forEach((hca) => {
+        hca.ports.forEach((port) => {
+          const portErrors =
+            port.errors.symbolErrors +
+            port.errors.linkDowned +
+            port.errors.portRcvErrors;
+          totalErrors += portErrors;
+
+          output += `${node.hostname} ${hca.caType} port ${port.portNumber} (lid ${port.lid}):\n`;
+          output += `  SymbolErrors:      ${port.errors.symbolErrors}\n`;
+          output += `  LinkDowned:        ${port.errors.linkDowned}\n`;
+          output += `  PortRcvErrors:     ${port.errors.portRcvErrors}\n`;
+          output += `  PortXmitDiscards:  ${port.errors.portXmitDiscards}\n`;
+
+          if (portErrors > 0) {
+            output += `  \x1b[33m*** cable errors detected ***\x1b[0m\n`;
+          }
+          output += `\n`;
+        });
+      });
+    });
+
+    output += `Summary: ${totalErrors} total cable errors across ${nodes.length} hosts\n`;
+
+    return this.createSuccess(output);
+  }
+
+  /**
+   * ibping - Ping an InfiniBand port by LID or GUID
+   */
+  executeIbping(parsed: ParsedCommand, context: CommandContext): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("ibping") ||
+        this.createSuccess(`Usage: ibping [options] -L <lid> | -G <guid>
+Options:
+  -L, --Lid <lid>      destination LID
+  -G, --Guid <guid>    destination GUID
+  -c, --count <n>      number of pings (default 5)
+  -f, --flood          flood ping
+  -S, --Server         start as server
+  -V, --version        show version
+  -h, --help           show this help`)
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("ibping 5.9-0");
+    }
+
+    if (this.hasAnyFlag(parsed, ["S", "Server"])) {
+      return this.createSuccess("ibping: Listening on port 10000...");
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("Error: No HCA found");
+    }
+
+    // Determine target LID from args or default to neighbor
+    const targetLid = parsed.positionalArgs[0] || "1";
+    const count = 5;
+
+    let output = `Pinging lid ${targetLid}... \n\n`;
+
+    for (let i = 0; i < count; i++) {
+      // Deterministic latency based on sequence number
+      const latency = (0.42 + i * 0.03).toFixed(3);
+      output += `Pong from lid ${targetLid}: time ${latency} ms\n`;
+    }
+
+    const avgLatency = (0.42 + ((count - 1) * 0.03) / 2).toFixed(3);
+    output += `\n--- lid ${targetLid} ibping statistics ---\n`;
+    output += `${count} packets transmitted, ${count} received, 0% packet loss\n`;
+    output += `rtt min/avg/max = 0.420/${avgLatency}/0.540 ms\n`;
+
+    return this.createSuccess(output);
+  }
+
+  /**
+   * ibtracert - Trace the InfiniBand route between two endpoints
+   */
+  executeIbtracert(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("ibtracert") ||
+        this.createSuccess(`Usage: ibtracert [options] <src-lid> <dest-lid>
+Options:
+  -n, --no-resolve     don't resolve names
+  -m, --mlid <mlid>    multicast LID
+  -f, --force          force route
+  -V, --version        show version
+  -h, --help           show this help`)
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("ibtracert 5.9-0");
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("Error: No HCA found");
+    }
+
+    const nodes = this.resolveAllNodes(context);
+    const portRate = nodes[0]?.hcas?.[0]?.ports?.[0]?.rate || 400;
+    const switchModel =
+      portRate >= 800
+        ? "QM9790"
+        : portRate >= 400
+          ? "QM9700"
+          : portRate >= 200
+            ? "QM8790"
+            : "QM8700";
+
+    const srcLid =
+      parsed.positionalArgs[0] || String(node.hcas[0].ports[0].lid);
+    const destLid = parsed.positionalArgs[1] || "1";
+    const srcGuid = node.hcas[0].ports[0].guid;
+
+    let output = `From ${srcGuid} lid ${srcLid} to lid ${destLid}:\n`;
+    output += `\n`;
+    output += `[1] -> ${switchModel}/Rail-0 port 5 lid 20 (hop 1)\n`;
+    output += `[2] -> ${switchModel}/Spine-0 port 1 lid 10 (hop 2)\n`;
+    output += `[3] -> ${switchModel}/Rail-1 port 2 lid 21 (hop 3)\n`;
+    output += `[4] -> destination lid ${destLid} (hop 4)\n`;
+    output += `\n`;
+    output += `Route complete: 4 hops\n`;
+
+    return this.createSuccess(output);
+  }
+
+  /**
+   * ib_write_bw - InfiniBand write bandwidth benchmark
+   */
+  executeIbWriteBw(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("ib_write_bw") ||
+        this.createSuccess(`Usage: ib_write_bw [options] [server]
+Options:
+  -d, --ib-dev <dev>   IB device
+  -s, --size <size>    message size (default 65536)
+  -n, --iters <n>      number of iterations (default 1000)
+  -b, --bidirectional  bidirectional test
+  -D, --duration <s>   run duration in seconds
+  -V, --version        show version
+  -h, --help           show this help`)
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("ib_write_bw 5.9-0");
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("Error: No HCA found");
+    }
+
+    const portRate = node.hcas[0].ports[0].rate;
+    const maxBwGbps = portRate * 0.97; // ~97% of line rate
+    const maxBwMBps = ((maxBwGbps * 1000) / 8).toFixed(2); // Convert Gb/s to MB/s
+
+    let output = `************************************\n`;
+    output += `* InfiniBand Write BW Test\n`;
+    output += `************************************\n\n`;
+    output += ` Dual-port       : OFF\n`;
+    output += ` Number of qps   : 1\n`;
+    output += ` Connection type  : RC\n`;
+    output += ` TX depth         : 128\n`;
+    output += ` CQ Moderation    : 100\n`;
+    output += ` Link type        : ${getIBStandardName(portRate)}\n`;
+    output += ` Max inline data  : 0\n`;
+    output += ` rdma_cm QPs      : OFF\n`;
+    output += ` Data ex. method  : Ethernet\n\n`;
+    output += ` local address: LID ${node.hcas[0].ports[0].lid}\n\n`;
+    output += ` #bytes  #iterations  BW peak[MB/sec]  BW average[MB/sec]  MsgRate[Mpps]\n`;
+    output += ` 65536   1000         ${maxBwMBps}         ${(parseFloat(maxBwMBps) * 0.98).toFixed(2)}            ${(parseFloat(maxBwMBps) / 65.536).toFixed(2)}\n`;
+    output += `\n`;
+    output += ` Write bandwidth: ${maxBwGbps.toFixed(2)} Gb/s (${portRate} Gb/s ${getIBStandardName(portRate)} link)\n`;
+
+    return this.createSuccess(output);
+  }
+
+  /**
+   * ib_read_bw - InfiniBand read bandwidth benchmark
+   */
+  executeIbReadBw(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("ib_read_bw") ||
+        this.createSuccess(`Usage: ib_read_bw [options] [server]
+Options:
+  -d, --ib-dev <dev>   IB device
+  -s, --size <size>    message size (default 65536)
+  -n, --iters <n>      number of iterations (default 1000)
+  -b, --bidirectional  bidirectional test
+  -D, --duration <s>   run duration in seconds
+  -V, --version        show version
+  -h, --help           show this help`)
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("ib_read_bw 5.9-0");
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("Error: No HCA found");
+    }
+
+    const portRate = node.hcas[0].ports[0].rate;
+    const maxBwGbps = portRate * 0.95; // ~95% of line rate for read
+    const maxBwMBps = ((maxBwGbps * 1000) / 8).toFixed(2);
+
+    let output = `************************************\n`;
+    output += `* InfiniBand Read BW Test\n`;
+    output += `************************************\n\n`;
+    output += ` Dual-port       : OFF\n`;
+    output += ` Number of qps   : 1\n`;
+    output += ` Connection type  : RC\n`;
+    output += ` TX depth         : 128\n`;
+    output += ` CQ Moderation    : 100\n`;
+    output += ` Link type        : ${getIBStandardName(portRate)}\n`;
+    output += ` Max inline data  : 0\n`;
+    output += ` rdma_cm QPs      : OFF\n`;
+    output += ` Data ex. method  : Ethernet\n\n`;
+    output += ` local address: LID ${node.hcas[0].ports[0].lid}\n\n`;
+    output += ` #bytes  #iterations  BW peak[MB/sec]  BW average[MB/sec]  MsgRate[Mpps]\n`;
+    output += ` 65536   1000         ${maxBwMBps}         ${(parseFloat(maxBwMBps) * 0.97).toFixed(2)}            ${(parseFloat(maxBwMBps) / 65.536).toFixed(2)}\n`;
+    output += `\n`;
+    output += ` Read bandwidth: ${maxBwGbps.toFixed(2)} Gb/s (${portRate} Gb/s ${getIBStandardName(portRate)} link)\n`;
+
+    return this.createSuccess(output);
+  }
+
+  /**
+   * sminfo - Display Subnet Manager information
+   */
+  executeSminfo(parsed: ParsedCommand, context: CommandContext): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("sminfo") ||
+        this.createSuccess(`Usage: sminfo [options] [<lid> [<port>]]
+Options:
+  -C, --Ca <ca>        CA name to use
+  -P, --Port <port>    port number to use
+  -s, --state          show SM state only
+  -V, --version        show version
+  -h, --help           show this help`)
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("sminfo 5.9-0");
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("Error: No HCA found");
+    }
+
+    const smGuid = "0xe41d2d0300e60001";
+    const activityCount = 1234567 + node.hcas[0].ports[0].lid;
+
+    const output = `sminfo: sm lid 1 sm guid ${smGuid}, activity count ${activityCount} priority 14 state 3 SMINFO_MASTER\n`;
+
+    return this.createSuccess(output);
+  }
+
+  /**
+   * smpquery - Query Subnet Management attributes
+   */
+  executeSmpquery(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("smpquery") ||
+        this.createSuccess(`Usage: smpquery [options] <op> <lid> [port]
+Operations:
+  nodeinfo         Node information
+  nodedesc         Node description
+  portinfo         Port information
+  switchinfo       Switch information
+  pkeytable        P_Key table
+  sl2vl            SL to VL mapping table
+  vlarbitration    VL arbitration table
+Options:
+  -C, --Ca <ca>        CA name to use
+  -P, --Port <port>    port number to use
+  -V, --version        show version
+  -h, --help           show this help`)
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("smpquery 5.9-0");
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("Error: No HCA found");
+    }
+
+    // Determine the subcommand (parser may place it in subcommands or positionalArgs)
+    const subcommand =
+      parsed.subcommands[0] || parsed.positionalArgs[0] || "nodeinfo";
+    const port = node.hcas[0].ports[0];
+
+    if (subcommand === "nodeinfo") {
+      let output = `# Node info: Lid ${port.lid}\n`;
+      output += `NodeInfo:\n`;
+      output += `BaseVersion:................1\n`;
+      output += `ClassVersion:...............1\n`;
+      output += `NodeType:...................Channel Adapter\n`;
+      output += `NumPorts:...................${node.hcas.reduce((sum, h) => sum + h.ports.length, 0)}\n`;
+      output += `SystemImageGUID:............${port.guid}\n`;
+      output += `NodeGUID:...................${port.guid}\n`;
+      output += `PortGUID:...................${port.guid}\n`;
+      output += `PartitionCap:...............128\n`;
+      output += `DeviceID:...................0x101b\n`;
+      output += `Revision:...................0x000000\n`;
+      output += `LocalPortNum:...............${port.portNumber}\n`;
+      output += `VendorID:...................0x02c9\n`;
+
+      return this.createSuccess(output);
+    } else if (subcommand === "nodedesc") {
+      return this.createSuccess(
+        `# Node description: Lid ${port.lid}\nNodeDescription:.......${node.hostname} ${node.hcas[0].caType}\n`,
+      );
+    } else if (subcommand === "portinfo") {
+      let output = `# Port info: Lid ${port.lid} port ${port.portNumber}\n`;
+      output += `PortInfo:\n`;
+      output += `Mkey:.....................0x0000000000000000\n`;
+      output += `GidPrefix:................0xfe80000000000000\n`;
+      output += `Lid:......................${port.lid}\n`;
+      output += `SMLid:....................1\n`;
+      output += `LMC:......................0\n`;
+      output += `LinkWidthEnabled:.........4X\n`;
+      output += `LinkSpeedActive:..........${getIBStandardName(port.rate)}\n`;
+      output += `LinkState:................${port.state}\n`;
+      output += `PhysLinkState:............${port.physicalState}\n`;
+
+      return this.createSuccess(output);
+    }
+
+    return this.createError(`smpquery: unknown operation '${subcommand}'`);
+  }
+
+  /**
+   * ofed_info - Display OFED/MLNX version information
+   */
+  executeOfedInfo(
+    parsed: ParsedCommand,
+    _context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("ofed_info") ||
+        this.createSuccess(`Usage: ofed_info [options]
+Options:
+  -s               print short version string
+  -n               print package name only
+  -V, --version    show version
+  -h, --help       show this help`)
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["s"])) {
+      return this.createSuccess("MLNX_OFED_LINUX-23.10-1.1.9.0:");
+    }
+
+    if (this.hasAnyFlag(parsed, ["n"])) {
+      return this.createSuccess("MLNX_OFED_LINUX");
+    }
+
+    let output = `MLNX_OFED_LINUX-23.10-1.1.9.0 (OFED-23.10-1.1.9):\n\n`;
+    output += `Installed Packages:\n`;
+    output += `-------------------\n`;
+    output += `mlnx-ofed-kernel-5.9-0.5.6.0\n`;
+    output += `kmod-mlnx-ofed-kernel-5.9-0.5.6.0\n`;
+    output += `mlnx-tools-5.2.0-0.58\n`;
+    output += `ofed-scripts-5.9-0.5.6.0\n`;
+    output += `rdma-core-59mlnx43-1\n`;
+    output += `libibverbs-59mlnx43-1\n`;
+    output += `librdmacm-59mlnx43-1\n`;
+    output += `ibverbs-utils-59mlnx43-1\n`;
+    output += `infiniband-diags-59mlnx43-1\n`;
+    output += `mstflint-4.24.0-1\n`;
+    output += `ibutils2-2.1.1-0.58\n`;
+    output += `perftest-23.10.0-0.29\n`;
+    output += `sharp-3.5.1.MLNX20231116.e1c1440-1\n`;
+    output += `ucx-1.16.0-1\n`;
+    output += `hcoll-4.8.3221-1\n`;
+
+    return this.createSuccess(output);
+  }
 }

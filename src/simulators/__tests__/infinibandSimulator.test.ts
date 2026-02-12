@@ -557,4 +557,225 @@ describe("InfiniBandSimulator", () => {
       expect(result.output).toContain("800 Gb/s (XDR)");
     });
   });
+
+  describe("Extended IB Commands", () => {
+    it("ibhosts should list host nodes with host and discover patterns", () => {
+      const parsed = parse("ibhosts");
+      const result = simulator.executeIbhosts(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/host|discover/i);
+      expect(result.output).toContain("dgx-node01");
+      expect(result.output).toContain("Ca");
+    });
+
+    it("ibhosts --version should return version", () => {
+      const parsed = parse("ibhosts --version");
+      const result = simulator.executeIbhosts(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ibhosts");
+    });
+
+    it("ibswitches should list switch nodes with switch and discover patterns", () => {
+      const parsed = parse("ibswitches");
+      const result = simulator.executeIbswitches(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/switch|discover/i);
+      expect(result.output).toContain("Switch");
+    });
+
+    it("ibswitches --version should return version", () => {
+      const parsed = parse("ibswitches --version");
+      const result = simulator.executeIbswitches(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ibswitches");
+    });
+
+    it("ibcableerrors should report cable errors", () => {
+      const parsed = parse("ibcableerrors");
+      const result = simulator.executeIbcableerrors(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/cable|error/i);
+      expect(result.output).toContain("Cable Error Report");
+    });
+
+    it("ibcableerrors --version should return version", () => {
+      const parsed = parse("ibcableerrors --version");
+      const result = simulator.executeIbcableerrors(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ibcableerrors");
+    });
+
+    it("ibping should show ping results with latency", () => {
+      const parsed = parse("ibping");
+      const result = simulator.executeIbping(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/ping|latency/i);
+      expect(result.output).toContain("Pong");
+      expect(result.output).toContain("time");
+    });
+
+    it("ibping --version should return version", () => {
+      const parsed = parse("ibping --version");
+      const result = simulator.executeIbping(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ibping");
+    });
+
+    it("ibping -S should start in server mode", () => {
+      const parsed = parse("ibping -S");
+      const result = simulator.executeIbping(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Listening");
+    });
+
+    it("ibtracert should show route trace with hops", () => {
+      const parsed = parse("ibtracert 123 1");
+      const result = simulator.executeIbtracert(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/trace|route|hop/i);
+      expect(result.output).toContain("hop");
+      expect(result.output).toContain("Route complete");
+    });
+
+    it("ibtracert --version should return version", () => {
+      const parsed = parse("ibtracert --version");
+      const result = simulator.executeIbtracert(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ibtracert");
+    });
+
+    it("ib_write_bw should show write bandwidth results", () => {
+      const parsed = parse("ib_write_bw");
+      const result = simulator.executeIbWriteBw(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/write|bandwidth|bw/i);
+      expect(result.output).toContain("Write");
+      expect(result.output).toContain("BW");
+    });
+
+    it("ib_write_bw --version should return version", () => {
+      const parsed = parse("ib_write_bw --version");
+      const result = simulator.executeIbWriteBw(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ib_write_bw");
+    });
+
+    it("ib_read_bw should show read bandwidth results", () => {
+      const parsed = parse("ib_read_bw");
+      const result = simulator.executeIbReadBw(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/read|bandwidth|bw/i);
+      expect(result.output).toContain("Read");
+      expect(result.output).toContain("BW");
+    });
+
+    it("ib_read_bw --version should return version", () => {
+      const parsed = parse("ib_read_bw --version");
+      const result = simulator.executeIbReadBw(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ib_read_bw");
+    });
+
+    it("sminfo should show Subnet Manager status", () => {
+      const parsed = parse("sminfo");
+      const result = simulator.executeSminfo(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/SM|master|state/i);
+      expect(result.output).toContain("SMINFO_MASTER");
+      expect(result.output).toContain("sm lid");
+    });
+
+    it("sminfo --version should return version", () => {
+      const parsed = parse("sminfo --version");
+      const result = simulator.executeSminfo(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("sminfo");
+    });
+
+    it("smpquery nodeinfo should show NodeInfo", () => {
+      const parsed = parse("smpquery nodeinfo 123");
+      const result = simulator.executeSmpquery(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("NodeInfo");
+      expect(result.output).toContain("Channel Adapter");
+    });
+
+    it("smpquery nodedesc should show node description", () => {
+      const parsed = parse("smpquery nodedesc 123");
+      const result = simulator.executeSmpquery(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("NodeDescription");
+      expect(result.output).toContain("dgx-node01");
+    });
+
+    it("smpquery portinfo should show port information", () => {
+      const parsed = parse("smpquery portinfo 123");
+      const result = simulator.executeSmpquery(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("PortInfo");
+      expect(result.output).toContain("LinkState");
+    });
+
+    it("smpquery unknown should return error", () => {
+      const parsed = parse("smpquery foobar 123");
+      const result = simulator.executeSmpquery(parsed, context);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("unknown operation");
+    });
+
+    it("smpquery --version should return version", () => {
+      const parsed = parse("smpquery --version");
+      const result = simulator.executeSmpquery(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("smpquery");
+    });
+
+    it("ofed_info should show OFED/MLNX version info", () => {
+      const parsed = parse("ofed_info");
+      const result = simulator.executeOfedInfo(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/OFED|version|MLNX/i);
+      expect(result.output).toContain("MLNX_OFED_LINUX");
+      expect(result.output).toContain("Installed Packages");
+    });
+
+    it("ofed_info -s should show short version", () => {
+      const parsed = parse("ofed_info -s");
+      const result = simulator.executeOfedInfo(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("MLNX_OFED_LINUX");
+    });
+
+    it("ofed_info -n should show package name only", () => {
+      const parsed = parse("ofed_info -n");
+      const result = simulator.executeOfedInfo(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toBe("MLNX_OFED_LINUX");
+    });
+  });
 });

@@ -548,6 +548,36 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
     router.register("ibnetdiscover", (cl, ctx) =>
       infinibandSimulator.current.executeIbnetdiscover(parseCommand(cl), ctx),
     );
+    router.register("ibhosts", (cl, ctx) =>
+      infinibandSimulator.current.executeIbhosts(parseCommand(cl), ctx),
+    );
+    router.register("ibswitches", (cl, ctx) =>
+      infinibandSimulator.current.executeIbswitches(parseCommand(cl), ctx),
+    );
+    router.register("ibcableerrors", (cl, ctx) =>
+      infinibandSimulator.current.executeIbcableerrors(parseCommand(cl), ctx),
+    );
+    router.register("ibping", (cl, ctx) =>
+      infinibandSimulator.current.executeIbping(parseCommand(cl), ctx),
+    );
+    router.register("ibtracert", (cl, ctx) =>
+      infinibandSimulator.current.executeIbtracert(parseCommand(cl), ctx),
+    );
+    router.register("ib_write_bw", (cl, ctx) =>
+      infinibandSimulator.current.executeIbWriteBw(parseCommand(cl), ctx),
+    );
+    router.register("ib_read_bw", (cl, ctx) =>
+      infinibandSimulator.current.executeIbReadBw(parseCommand(cl), ctx),
+    );
+    router.register("sminfo", (cl, ctx) =>
+      infinibandSimulator.current.executeSminfo(parseCommand(cl), ctx),
+    );
+    router.register("smpquery", (cl, ctx) =>
+      infinibandSimulator.current.executeSmpquery(parseCommand(cl), ctx),
+    );
+    router.register("ofed_info", (cl, ctx) =>
+      infinibandSimulator.current.executeOfedInfo(parseCommand(cl), ctx),
+    );
 
     // Slurm tools
     router.register("sinfo", (cl, ctx) =>
