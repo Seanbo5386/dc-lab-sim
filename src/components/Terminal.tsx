@@ -302,9 +302,13 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
           `\x1b[36m${shellState.prompt || "[root@dgx-headnode]% "}\x1b[0m`,
         );
       } else {
-        // Normal bash prompt
+        // Normal bash prompt — show ~ for /root, otherwise the full path
         const node = currentContext.current.currentNode;
-        term.write(`\x1b[1;32mroot@${node}\x1b[0m:\x1b[1;34m~\x1b[0m# `);
+        const cwd = currentContext.current.currentPath;
+        const displayPath = cwd === "/root" ? "~" : cwd;
+        term.write(
+          `\x1b[1;32mroot@${node}\x1b[0m:\x1b[1;34m${displayPath}\x1b[0m# `,
+        );
       }
     };
 
@@ -697,6 +701,337 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
       ],
       simHandler(linuxUtilsSimulator.current),
     );
+
+    // ── Shell builtins ────────────────────────────────────
+    // These need direct access to currentContext / commandHistory / router,
+    // so they live here rather than in a simulator.
+
+    // Known directory tree (matches linuxUtilsSimulator ls handler)
+    const KNOWN_DIRS = new Set([
+      "/",
+      "/root",
+      "/root/scripts",
+      "/home",
+      "/home/admin",
+      "/home/admin/scripts",
+      "/etc",
+      "/etc/slurm",
+      "/etc/docker",
+      "/etc/nvidia",
+      "/etc/enroot",
+      "/dev",
+      "/dev/mst",
+      "/usr",
+      "/usr/local",
+      "/usr/local/cuda",
+      "/usr/local/cuda/bin",
+      "/var",
+      "/var/log",
+      "/var/log/slurm",
+      "/tmp",
+      "/opt",
+      "/opt/nemo",
+      "/data",
+      "/data/training",
+      "/data/output",
+      "/scratch",
+      "/proc",
+      "/sys",
+    ]);
+
+    router.register("cd", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      let target = args[0] || "/root"; // bare `cd` goes home
+
+      // Expand ~ and -
+      if (target === "~" || target === "") target = "/root";
+      if (target === "-") {
+        // No OLDPWD tracking, just go home
+        target = "/root";
+      }
+
+      // Resolve relative paths
+      if (!target.startsWith("/")) {
+        const base = currentContext.current.currentPath;
+        target = base === "/" ? `/${target}` : `${base}/${target}`;
+      }
+
+      // Normalize . and ..
+      const parts = target.split("/").filter(Boolean);
+      const resolved: string[] = [];
+      for (const p of parts) {
+        if (p === ".") continue;
+        if (p === "..") {
+          resolved.pop();
+        } else {
+          resolved.push(p);
+        }
+      }
+      const newPath = "/" + resolved.join("/") || "/";
+
+      if (!KNOWN_DIRS.has(newPath)) {
+        return {
+          output: `\x1b[31mbash: cd: ${args[0]}: No such file or directory\x1b[0m`,
+          exitCode: 1,
+        };
+      }
+
+      currentContext.current.currentPath = newPath;
+      return { output: "", exitCode: 0 };
+    });
+
+    router.register("whoami", () => ({
+      output: "root",
+      exitCode: 0,
+    }));
+
+    router.register("id", () => ({
+      output: "uid=0(root) gid=0(root) groups=0(root)",
+      exitCode: 0,
+    }));
+
+    router.register("export", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      if (args.length === 0) {
+        // Show current exports
+        const lines = Object.entries(currentContext.current.environment)
+          .map(([k, v]) => `declare -x ${k}="${v}"`)
+          .join("\n");
+        return { output: lines, exitCode: 0 };
+      }
+      // Parse VAR=VALUE assignments
+      for (const arg of args) {
+        const eqIdx = arg.indexOf("=");
+        if (eqIdx > 0) {
+          const key = arg.slice(0, eqIdx);
+          const value = arg.slice(eqIdx + 1).replace(/^["']|["']$/g, "");
+          currentContext.current.environment[key] = value;
+        }
+      }
+      return { output: "", exitCode: 0 };
+    });
+
+    router.register("unset", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      for (const arg of args) {
+        delete currentContext.current.environment[arg];
+      }
+      return { output: "", exitCode: 0 };
+    });
+
+    router.register("history", () => {
+      const lines = commandHistory.map(
+        (cmd, i) => `  ${String(i + 1).padStart(4)}  ${cmd}`,
+      );
+      return { output: lines.join("\n"), exitCode: 0 };
+    });
+
+    router.register("which", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      if (args.length === 0) {
+        return { output: "", exitCode: 1 };
+      }
+      const lines: string[] = [];
+      for (const cmd of args) {
+        if (router.resolve(cmd)) {
+          // Map commands to realistic paths
+          const binPath =
+            cmd.startsWith("nvidia") || cmd === "dcgmi" || cmd === "nvcc"
+              ? `/usr/local/cuda/bin/${cmd}`
+              : cmd.startsWith("ib") ||
+                  cmd.startsWith("mlx") ||
+                  cmd === "mst" ||
+                  cmd === "perfquery" ||
+                  cmd === "sminfo" ||
+                  cmd === "smpquery" ||
+                  cmd === "ofed_info"
+                ? `/usr/sbin/${cmd}`
+                : cmd.startsWith("s") &&
+                    [
+                      "sinfo",
+                      "squeue",
+                      "scontrol",
+                      "sbatch",
+                      "srun",
+                      "scancel",
+                      "sacct",
+                      "sacctmgr",
+                    ].includes(cmd)
+                  ? `/usr/bin/${cmd}`
+                  : `/usr/bin/${cmd}`;
+          lines.push(binPath);
+        } else {
+          lines.push(
+            `which: no ${cmd} in (${currentContext.current.environment.PATH})`,
+          );
+        }
+      }
+      return {
+        output: lines.join("\n"),
+        exitCode: lines.some((l) => l.includes("which: no")) ? 1 : 0,
+      };
+    });
+
+    router.register("type", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      if (args.length === 0) {
+        return { output: "", exitCode: 1 };
+      }
+      const builtins = new Set([
+        "cd",
+        "export",
+        "unset",
+        "source",
+        "alias",
+        "history",
+        "exit",
+        "logout",
+        "set",
+        "type",
+      ]);
+      const lines: string[] = [];
+      for (const cmd of args) {
+        if (builtins.has(cmd)) {
+          lines.push(`${cmd} is a shell builtin`);
+        } else if (router.resolve(cmd)) {
+          lines.push(`${cmd} is /usr/bin/${cmd}`);
+        } else {
+          lines.push(`bash: type: ${cmd}: not found`);
+        }
+      }
+      return { output: lines.join("\n"), exitCode: 0 };
+    });
+
+    router.register("man", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      if (args.length === 0) {
+        return {
+          output: "What manual page do you want?\nFor example, try 'man man'.",
+          exitCode: 1,
+        };
+      }
+      const cmd = args[args.length - 1]; // support `man -s 1 cmd`
+      const metadata = getCommandMetadata(cmd);
+      if (metadata) {
+        return { output: formatCommandHelp(metadata), exitCode: 0 };
+      }
+      return {
+        output: `No manual entry for ${cmd}\nSee 'help ${cmd}' for simulator help.`,
+        exitCode: 1,
+      };
+    });
+
+    router.register("alias", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      if (args.length === 0) {
+        return {
+          output: "alias ll='ls -alF'\nalias la='ls -A'\nalias l='ls -CF'",
+          exitCode: 0,
+        };
+      }
+      // Accept but silently ignore alias definitions
+      return { output: "", exitCode: 0 };
+    });
+
+    router.register("source", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      if (args.length === 0) {
+        return {
+          output:
+            "bash: source: filename argument required\nsource: usage: source filename [arguments]",
+          exitCode: 2,
+        };
+      }
+      // Simulate sourcing common files
+      return { output: "", exitCode: 0 };
+    });
+
+    // Also register "." as alias for source
+    router.register(".", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      if (args.length === 0) {
+        return {
+          output:
+            "bash: .: filename argument required\n.: usage: . filename [arguments]",
+          exitCode: 2,
+        };
+      }
+      return { output: "", exitCode: 0 };
+    });
+
+    router.register("exit", () => ({
+      output:
+        "\x1b[33mThis is a simulated terminal — there is no session to exit.\x1b[0m",
+      exitCode: 0,
+    }));
+
+    router.register("logout", () => ({
+      output:
+        "\x1b[33mThis is a simulated terminal — there is no session to log out of.\x1b[0m",
+      exitCode: 0,
+    }));
+
+    router.register("set", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      if (args.length === 0) {
+        // Show environment (like bash `set` with no args)
+        const lines = Object.entries(currentContext.current.environment)
+          .map(([k, v]) => `${k}=${v}`)
+          .join("\n");
+        return { output: lines, exitCode: 0 };
+      }
+      return { output: "", exitCode: 0 };
+    });
+
+    router.register("sleep", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      if (args.length === 0) {
+        return {
+          output:
+            "sleep: missing operand\nTry 'sleep --help' for more information.",
+          exitCode: 1,
+        };
+      }
+      // In the simulator, sleep returns immediately
+      return { output: "", exitCode: 0 };
+    });
+
+    router.register("date", () => ({
+      output: new Date().toString(),
+      exitCode: 0,
+    }));
+
+    router.register("touch", (cl) => {
+      const args = cl.trim().split(/\s+/).slice(1);
+      if (args.length === 0) {
+        return {
+          output: "touch: missing file operand",
+          exitCode: 1,
+        };
+      }
+      return { output: "", exitCode: 0 };
+    });
+
+    router.register("mkdir", (cl) => {
+      const args = cl
+        .trim()
+        .split(/\s+/)
+        .filter((a) => !a.startsWith("-"))
+        .slice(1);
+      if (args.length === 0) {
+        return {
+          output: "mkdir: missing operand",
+          exitCode: 1,
+        };
+      }
+      return { output: "", exitCode: 0 };
+    });
+
+    router.register("rm", () => ({ output: "", exitCode: 0 }));
+    router.register("cp", () => ({ output: "", exitCode: 0 }));
+    router.register("mv", () => ({ output: "", exitCode: 0 }));
+    router.register("chmod", () => ({ output: "", exitCode: 0 }));
+    router.register("chown", () => ({ output: "", exitCode: 0 }));
 
     const executeCommand = async (cmdLine: string) => {
       if (!cmdLine.trim()) {
