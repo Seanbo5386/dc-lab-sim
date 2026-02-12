@@ -303,7 +303,7 @@ function App() {
         className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${showLabWorkspace ? "ml-[600px]" : ""}`}
       >
         <div className="flex items-center justify-between text-xs text-gray-400">
-          <div>NVIDIA AI Infrastructure Certification Simulator v0.9.0</div>
+          <div>NVIDIA AI Infrastructure Certification Simulator v0.9.2</div>
           <div className="flex items-center gap-4">
             <span>Status: {isRunning ? "🟢 Running" : "🔴 Paused"}</span>
             <span>•</span>

@@ -49,16 +49,16 @@ describe("About", () => {
     expect(link).toHaveAttribute("target", "_blank");
   });
 
-  it("displays changelog versions v0.9.0 and v0.1.0", () => {
+  it("displays changelog versions v0.9.2 and v0.1.0", () => {
     render(<About />);
-    expect(screen.getByText("v0.9.0")).toBeInTheDocument();
+    expect(screen.getByText("v0.9.2")).toBeInTheDocument();
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
   });
 
-  it("marks v0.9.0 as the current version", () => {
+  it("marks v0.9.2 as the current version", () => {
     render(<About />);
     const current = screen.getByTestId("current-version");
-    expect(current).toHaveTextContent("v0.9.0");
+    expect(current).toHaveTextContent("v0.9.2");
     expect(screen.getByText("current")).toBeInTheDocument();
   });
 });

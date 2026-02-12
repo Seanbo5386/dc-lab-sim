@@ -12,9 +12,19 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v0.9.2",
+    title: "Polish & Educational Enrichment",
+    current: true,
+    highlights: [
+      "Fault Injection educational toasts, info panels, and XID modal",
+      "Virtual file system relative path resolution (cd + cat/ls/head/tail)",
+      "Verbose --help mode with 'more' keyword for full untruncated output",
+      "Legal disclaimer and NVIDIA trademark attribution",
+    ],
+  },
+  {
     version: "v0.9.0",
     title: "Sandbox & Multi-Architecture",
-    current: true,
     highlights: [
       "ScenarioContext isolation for per-scenario sandbox state",
       "DGX A100, H100, H200, and B200 hardware support",
