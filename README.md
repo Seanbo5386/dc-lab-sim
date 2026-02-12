@@ -490,9 +490,19 @@ Contributions are welcome! This simulator is designed to help engineers prepare 
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## License
+## Legal Disclaimer
 
-This project is provided for educational purposes. NVIDIA, DGX, A100, H100, and related trademarks are property of NVIDIA Corporation.
+NVIDIA, the NVIDIA logo, DGX, DGX A100, DGX H100, DGX H200, DGX B200, A100, H100, H200, B200, NVLink, NVSwitch, InfiniBand, Mellanox, ConnectX, BlueField, CUDA, DCGM, NCCL, and NVSM are trademarks and/or registered trademarks of **NVIDIA Corporation** in the United States and other countries.
+
+This project is an **independent, community-built educational tool** and is **not** developed, endorsed, certified, or affiliated with NVIDIA Corporation in any way. The NCP-AII certification exam is administered solely by NVIDIA, and this simulator makes no guarantees about exam content, accuracy, or outcomes.
+
+All simulated command outputs, hardware specifications, and diagnostic data are approximations created for **educational purposes only** and may not reflect the exact behavior of real NVIDIA hardware or software. Users should always refer to official NVIDIA documentation for authoritative technical information.
+
+Exam content, format, and objectives may be updated by NVIDIA at any time. This simulator may not reflect the most current exam material and is intended to **supplement, not replace**, official NVIDIA training materials and documentation.
+
+This software is provided **"as is" without warranty of any kind**, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose, and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages, or other liability arising from the use of this software, including but not limited to exam results or certification outcomes.
+
+All other trademarks referenced herein are the property of their respective owners. Slurm is a trademark of SchedMD LLC. Linux is a registered trademark of Linus Torvalds. Docker is a trademark of Docker, Inc.
 
 ## Acknowledgments
 
