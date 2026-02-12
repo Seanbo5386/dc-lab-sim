@@ -146,8 +146,22 @@ vi.mock("lucide-react", () => {
     Radio: createIcon("Radio"),
     Flame: createIcon("Flame"),
     AlertOctagon: createIcon("AlertOctagon"),
+    Info: createIcon("Info"),
+    ChevronDown: createIcon("ChevronDown"),
+    ChevronUp: createIcon("ChevronUp"),
+    X: createIcon("X"),
   };
 });
+
+vi.mock("@/store/faultToastStore", () => ({
+  useFaultToastStore: Object.assign(vi.fn(), {
+    getState: vi.fn(() => ({
+      toasts: [],
+      addToast: vi.fn(),
+      removeToast: vi.fn(),
+    })),
+  }),
+}));
 
 // ---------------------------------------------------------------------------
 // Import the component under test (after mocks are set up)
@@ -339,14 +353,17 @@ describe("FaultInjection", () => {
       ).toBeInTheDocument();
     });
 
-    it("should render the tip section with suggested commands", () => {
+    it("should render the diagnostic commands section with suggested commands", () => {
       render(<FaultInjection />);
 
-      expect(screen.getByText("Tip:")).toBeInTheDocument();
-      expect(screen.getByText("nvidia-smi")).toBeInTheDocument();
-      expect(screen.getByText("nvidia-smi -q")).toBeInTheDocument();
+      expect(
+        screen.getByText("Diagnostic Commands by Category:"),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/nvidia-smi$/)).toBeInTheDocument();
       expect(screen.getByText("nvsm show health")).toBeInTheDocument();
       expect(screen.getByText("dcgmi diag -r 1")).toBeInTheDocument();
+      expect(screen.getByText("dmesg | grep -i xid")).toBeInTheDocument();
+      expect(screen.getByText("ipmitool sensor list")).toBeInTheDocument();
     });
   });
 

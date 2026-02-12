@@ -9,6 +9,7 @@ import { About } from "./components/About";
 import { StudyDashboard } from "./components/StudyDashboard";
 import { SpacedReviewDrill } from "./components/SpacedReviewDrill";
 import { TierUnlockNotificationContainer } from "./components/TierUnlockNotification";
+import { FaultToastContainer } from "./components/FaultToast";
 import { ExamGauntlet } from "./components/ExamGauntlet";
 import { useSimulationStore } from "./store/simulationStore";
 import { useLearningProgressStore } from "./store/learningProgressStore";
@@ -374,6 +375,9 @@ function App() {
       <TierUnlockNotificationContainer
         onNavigateToTier={handleNavigateToTier}
       />
+
+      {/* Fault Injection Toast Notifications */}
+      <FaultToastContainer />
     </div>
   );
 }

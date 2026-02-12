@@ -3,6 +3,12 @@ import { useSimulationStore } from "@/store/simulationStore";
 import { scenarioContextManager } from "@/store/scenarioContext";
 import type { StateMutator } from "@/simulators/BaseSimulator";
 import { MetricsSimulator } from "@/utils/metricsSimulator";
+import { useFaultToastStore } from "@/store/faultToastStore";
+import {
+  BASIC_FAULT_DESCRIPTIONS,
+  COMPLEX_SCENARIO_DESCRIPTIONS,
+  WORKLOAD_DESCRIPTIONS,
+} from "@/data/faultDescriptions";
 import {
   AlertTriangle,
   Zap,
@@ -14,6 +20,9 @@ import {
   Radio,
   Flame,
   AlertOctagon,
+  Info,
+  ChevronUp,
+  X,
 } from "lucide-react";
 
 const metricsSimulator = new MetricsSimulator();
@@ -81,6 +90,16 @@ export const FaultInjection: React.FC = () => {
     "idle" | "training" | "inference" | "stress"
   >("idle");
 
+  // Collapsible info panel state
+  const [showBasicInfo, setShowBasicInfo] = useState(false);
+  const [showComplexInfo, setShowComplexInfo] = useState(false);
+  const [showWorkloadInfo, setShowWorkloadInfo] = useState(false);
+
+  // Dashboard reminder banner
+  const [showBanner, setShowBanner] = useState(() => {
+    return localStorage.getItem("fi-banner-dismissed") !== "true";
+  });
+
   const handleInjectFault = (
     faultType: "xid" | "ecc" | "thermal" | "nvlink" | "power" | "pcie",
   ) => {
@@ -92,6 +111,23 @@ export const FaultInjection: React.FC = () => {
 
     const faultedGPU = metricsSimulator.injectFault(gpu, faultType);
     getMutator().updateGPU(selectedNode, selectedGPU, faultedGPU);
+
+    // Fire toast notification
+    const desc = BASIC_FAULT_DESCRIPTIONS.find((d) => d.type === faultType);
+    if (desc) {
+      useFaultToastStore.getState().addToast({
+        title: `${desc.title} Injected`,
+        message: desc.whatHappens,
+        suggestedCommand: desc.suggestedCommands[0],
+        severity:
+          faultType === "thermal" ||
+          faultType === "nvlink" ||
+          faultType === "power"
+            ? "warning"
+            : "critical",
+        xidCode: desc.relatedXIDCodes?.[0] || undefined,
+      });
+    }
   };
 
   const handleInjectScenario = (
@@ -168,6 +204,20 @@ export const FaultInjection: React.FC = () => {
         break;
       }
     }
+
+    // Fire toast notification for complex scenarios
+    const desc = COMPLEX_SCENARIO_DESCRIPTIONS.find(
+      (d) => d.type === scenarioType,
+    );
+    if (desc) {
+      useFaultToastStore.getState().addToast({
+        title: `${desc.title} Activated`,
+        message: desc.whatHappens,
+        suggestedCommand: desc.suggestedCommands[0],
+        severity: scenarioType === "thermal-alert" ? "warning" : "critical",
+        xidCode: desc.relatedXIDCodes?.[0] || undefined,
+      });
+    }
   };
 
   const handleSimulateWorkload = () => {
@@ -182,6 +232,19 @@ export const FaultInjection: React.FC = () => {
     updatedGPUs.forEach((gpu) => {
       mutator.updateGPU(selectedNode, gpu.id, gpu);
     });
+
+    // Fire toast notification for workload
+    const desc = WORKLOAD_DESCRIPTIONS.find(
+      (w) => w.pattern === workloadPattern,
+    );
+    if (desc) {
+      useFaultToastStore.getState().addToast({
+        title: `${desc.title} Applied`,
+        message: desc.description,
+        suggestedCommand: "nvidia-smi",
+        severity: "info",
+      });
+    }
   };
 
   const handleClearFaults = () => {
@@ -209,11 +272,49 @@ export const FaultInjection: React.FC = () => {
         utilization: 5,
       });
     });
+
+    useFaultToastStore.getState().addToast({
+      title: "All Faults Cleared",
+      message: "All GPUs on this node reset to healthy state.",
+      suggestedCommand: "nvidia-smi",
+      severity: "info",
+    });
   };
+
+  const selectedWorkloadDesc = WORKLOAD_DESCRIPTIONS.find(
+    (w) => w.pattern === workloadPattern,
+  );
 
   return (
     <div className="space-y-6">
       <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        {/* Dashboard Reminder Banner */}
+        {showBanner && (
+          <div className="flex items-start gap-3 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg mb-4">
+            <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 text-sm text-blue-200">
+              All injected faults and workload changes are reflected in real
+              time on the
+              <span className="font-semibold text-blue-100">
+                {" "}
+                Dashboard
+              </span>{" "}
+              tab. Switch to Dashboard to see GPU health badges, temperature
+              changes, XID error indicators, and more.
+            </div>
+            <button
+              onClick={() => {
+                setShowBanner(false);
+                localStorage.setItem("fi-banner-dismissed", "true");
+              }}
+              className="text-blue-400 hover:text-blue-200 p-1"
+              aria-label="Dismiss banner"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         <h2 className="text-2xl font-bold text-nvidia-green mb-4">
           Fault Injection Training System
         </h2>
@@ -267,9 +368,48 @@ export const FaultInjection: React.FC = () => {
 
         {/* Fault Injection Buttons */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-200">
-            Basic Fault Injection
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-200">
+              Basic Fault Injection
+            </h3>
+            <button
+              onClick={() => setShowBasicInfo(!showBasicInfo)}
+              className="text-gray-400 hover:text-nvidia-green p-1 rounded transition-colors"
+              aria-label="Toggle fault descriptions"
+              aria-expanded={showBasicInfo}
+            >
+              {showBasicInfo ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <Info className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* Collapsible Basic Fault Info Panel */}
+          {showBasicInfo && (
+            <div className="mt-1 p-4 bg-gray-900/50 rounded-lg border border-gray-700 space-y-3">
+              {BASIC_FAULT_DESCRIPTIONS.map((fault) => (
+                <div
+                  key={fault.type}
+                  className="pb-2 border-b border-gray-700/50 last:border-0 last:pb-0"
+                >
+                  <div className="font-medium text-sm text-gray-200">
+                    {fault.title}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {fault.whatHappens}
+                  </p>
+                  <p className="text-xs text-nvidia-green/80 mt-1">
+                    Exam: {fault.whyItMatters}
+                  </p>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Dashboard: {fault.dashboardIndicators.join(" \u00B7 ")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <button
@@ -357,9 +497,49 @@ export const FaultInjection: React.FC = () => {
 
         {/* Complex Training Scenarios */}
         <div className="mt-6 pt-6 border-t border-gray-700 space-y-4">
-          <h3 className="text-lg font-semibold text-gray-200">
-            Complex Training Scenarios
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-200">
+              Complex Training Scenarios
+            </h3>
+            <button
+              onClick={() => setShowComplexInfo(!showComplexInfo)}
+              className="text-gray-400 hover:text-nvidia-green p-1 rounded transition-colors"
+              aria-label="Toggle scenario descriptions"
+              aria-expanded={showComplexInfo}
+            >
+              {showComplexInfo ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <Info className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* Collapsible Complex Scenario Info Panel */}
+          {showComplexInfo && (
+            <div className="p-4 bg-gray-900/50 rounded-lg border border-gray-700 space-y-3">
+              {COMPLEX_SCENARIO_DESCRIPTIONS.map((scenario) => (
+                <div
+                  key={scenario.type}
+                  className="pb-2 border-b border-gray-700/50 last:border-0 last:pb-0"
+                >
+                  <div className="font-medium text-sm text-gray-200">
+                    {scenario.title}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {scenario.whatHappens}
+                  </p>
+                  <p className="text-xs text-nvidia-green/80 mt-1">
+                    Exam: {scenario.whyItMatters}
+                  </p>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Dashboard: {scenario.dashboardIndicators.join(" \u00B7 ")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <p className="text-sm text-gray-400">
             Realistic multi-symptom failure scenarios for advanced
             troubleshooting practice.
@@ -422,9 +602,45 @@ export const FaultInjection: React.FC = () => {
 
         {/* Workload Simulation */}
         <div className="mt-6 pt-6 border-t border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-200 mb-4">
-            Simulate Workloads
-          </h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-200">
+              Simulate Workloads
+            </h3>
+            <button
+              onClick={() => setShowWorkloadInfo(!showWorkloadInfo)}
+              className="text-gray-400 hover:text-nvidia-green p-1 rounded transition-colors"
+              aria-label="Toggle workload descriptions"
+              aria-expanded={showWorkloadInfo}
+            >
+              {showWorkloadInfo ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <Info className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* Collapsible Workload Info Panel */}
+          {showWorkloadInfo && (
+            <div className="mb-4 p-4 bg-gray-900/50 rounded-lg border border-gray-700 space-y-3">
+              {WORKLOAD_DESCRIPTIONS.map((workload) => (
+                <div
+                  key={workload.pattern}
+                  className="pb-2 border-b border-gray-700/50 last:border-0 last:pb-0"
+                >
+                  <div className="font-medium text-sm text-gray-200">
+                    {workload.title}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {workload.description}
+                  </p>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Dashboard: {workload.dashboardChanges.join(" \u00B7 ")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex flex-col sm:flex-row gap-3">
             <select
@@ -454,28 +670,58 @@ export const FaultInjection: React.FC = () => {
             </button>
           </div>
 
+          {/* Selected workload description */}
+          {selectedWorkloadDesc && (
+            <p className="text-xs text-gray-400 mt-2">
+              {selectedWorkloadDesc.description}
+            </p>
+          )}
+
+          {/* Diagnostic Commands by Category */}
           <div className="mt-4 p-4 bg-gray-900 rounded-lg">
             <div className="text-sm text-gray-300">
-              <strong className="text-nvidia-green">Tip:</strong> After
-              injecting faults, use the Terminal to practice troubleshooting
-              with commands like:
+              <strong className="text-nvidia-green">
+                Diagnostic Commands by Category:
+              </strong>
             </div>
-            <div className="mt-2 font-mono text-xs space-y-1 text-gray-400">
+            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 font-mono text-xs text-gray-400">
               <div>
-                • <span className="text-nvidia-green">nvidia-smi</span> - Check
-                GPU status
+                • <span className="text-nvidia-green">nvidia-smi</span> — GPU
+                overview
               </div>
               <div>
-                • <span className="text-nvidia-green">nvidia-smi -q</span> -
-                Detailed GPU info
+                •{" "}
+                <span className="text-nvidia-green">nvidia-smi -q -d ECC</span>{" "}
+                — ECC errors
               </div>
               <div>
-                • <span className="text-nvidia-green">nvsm show health</span> -
-                System health summary
+                •{" "}
+                <span className="text-nvidia-green">
+                  nvidia-smi -q -d TEMPERATURE
+                </span>{" "}
+                — Thermals
               </div>
               <div>
-                • <span className="text-nvidia-green">dcgmi diag -r 1</span> -
-                Run diagnostics
+                •{" "}
+                <span className="text-nvidia-green">nvidia-smi nvlink -s</span>{" "}
+                — NVLink status
+              </div>
+              <div>
+                • <span className="text-nvidia-green">nvsm show health</span> —
+                Health summary
+              </div>
+              <div>
+                • <span className="text-nvidia-green">dcgmi diag -r 1</span> —
+                Quick diagnostics
+              </div>
+              <div>
+                • <span className="text-nvidia-green">dmesg | grep -i xid</span>{" "}
+                — XID errors in logs
+              </div>
+              <div>
+                •{" "}
+                <span className="text-nvidia-green">ipmitool sensor list</span>{" "}
+                — BMC sensors
               </div>
             </div>
           </div>
