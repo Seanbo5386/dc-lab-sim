@@ -752,28 +752,38 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
           return;
         }
 
-        const handler = router.resolve(command);
-        if (handler) {
-          result = await handler(cmdLine, currentContext.current);
+        // Handle environment variable assignments (VAR=VALUE)
+        const envVarPattern = /^[A-Z_][A-Z0-9_]*=\S+$/;
+        if (envVarPattern.test(cmdLine.trim())) {
+          result.output = cmdLine.trim();
+          result.exitCode = 0;
         } else {
-          result.output = `\x1b[31mbash: ${command}: command not found\x1b[0m`;
-          result.exitCode = 127;
-          const suggestion = getDidYouMeanMessage(command);
-          if (suggestion) {
-            result.output += "\n\n" + suggestion;
+          const handler = router.resolve(command);
+          if (handler) {
+            result = await handler(cmdLine, currentContext.current);
           } else {
-            result.output +=
-              "\n\nType \x1b[36mhelp\x1b[0m to see available commands.";
+            result.output = `\x1b[31mbash: ${command}: command not found\x1b[0m`;
+            result.exitCode = 127;
+            const suggestion = getDidYouMeanMessage(command);
+            if (suggestion) {
+              result.output += "\n\n" + suggestion;
+            } else {
+              result.output +=
+                "\n\nType \x1b[36mhelp\x1b[0m to see available commands.";
+            }
           }
-        }
 
-        // Post-handler: check for interactive mode entry (nvsm/cmsh)
-        if (command === "nvsm" || command === "cmsh") {
-          const parsed = parseCommand(cmdLine);
-          if (
-            shouldEnterInteractiveMode(result, parsed.subcommands.length === 0)
-          ) {
-            setShellState({ mode: command, prompt: result.prompt || "" });
+          // Post-handler: check for interactive mode entry (nvsm/cmsh)
+          if (command === "nvsm" || command === "cmsh") {
+            const parsed = parseCommand(cmdLine);
+            if (
+              shouldEnterInteractiveMode(
+                result,
+                parsed.subcommands.length === 0,
+              )
+            ) {
+              setShellState({ mode: command, prompt: result.prompt || "" });
+            }
           }
         }
 
