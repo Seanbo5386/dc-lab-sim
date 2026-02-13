@@ -201,7 +201,7 @@ export function About() {
                 className="flex items-center gap-2 text-nvidia-green hover:text-green-400 transition-colors"
               >
                 <Linkedin className="w-4 h-4" />
-                Sean Woods — Creator & Project Lead
+                Sean Woods — Project Lead
               </a>
               <div className="flex items-start gap-2 text-gray-400">
                 <Bug className="w-4 h-4 mt-0.5 shrink-0" />
@@ -373,16 +373,13 @@ export function About() {
               <span className="text-nvidia-green font-medium">
                 Anthropic's Claude Opus 4.6
               </span>
-              . From architecting the sandbox isolation system to wiring up
-              2,900+ unit tests, from debugging circular dependency chains at
-              midnight to crafting every narrative scenario — Opus was there for
-              every commit.
+              . Architecture design, test scaffolding, scenario authoring, and
+              iterative debugging were all done through AI-assisted pair
+              programming.
             </p>
             <p className="mt-3 text-gray-400">
-              This simulator genuinely would not exist without AI-assisted
-              development. What would have taken a team months was built by one
-              developer and one very determined language model. Here's to the
-              future of human-AI collaboration.
+              Thanks to NVIDIA for the NCP-AII certification program and the
+              public documentation that made this simulator possible.
             </p>
           </div>
         </section>
