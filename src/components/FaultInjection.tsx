@@ -367,6 +367,58 @@ export const FaultInjection: React.FC = () => {
           </div>
         )}
 
+        {/* Quick Reference - collapsible */}
+        <details className="group mb-2">
+          <summary className="flex items-center gap-2 text-sm cursor-pointer hover:text-gray-300 select-none list-none [&::-webkit-details-marker]:hidden">
+            <span className="text-nvidia-green font-medium">
+              Quick Reference
+            </span>
+            <span className="text-xs text-gray-500">— diagnostic commands</span>
+          </summary>
+          <div className="mt-2 p-3 bg-gray-900 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 font-mono text-xs text-gray-400">
+              <div>
+                • <span className="text-nvidia-green">nvidia-smi</span> — GPU
+                overview
+              </div>
+              <div>
+                •{" "}
+                <span className="text-nvidia-green">nvidia-smi -q -d ECC</span>{" "}
+                — ECC errors
+              </div>
+              <div>
+                •{" "}
+                <span className="text-nvidia-green">
+                  nvidia-smi -q -d TEMPERATURE
+                </span>{" "}
+                — Thermals
+              </div>
+              <div>
+                •{" "}
+                <span className="text-nvidia-green">nvidia-smi nvlink -s</span>{" "}
+                — NVLink status
+              </div>
+              <div>
+                • <span className="text-nvidia-green">nvsm show health</span> —
+                Health summary
+              </div>
+              <div>
+                • <span className="text-nvidia-green">dcgmi diag -r 1</span> —
+                Quick diagnostics
+              </div>
+              <div>
+                • <span className="text-nvidia-green">dmesg | grep -i xid</span>{" "}
+                — XID errors in logs
+              </div>
+              <div>
+                •{" "}
+                <span className="text-nvidia-green">ipmitool sensor list</span>{" "}
+                — BMC sensors
+              </div>
+            </div>
+          </div>
+        </details>
+
         {/* Fault Injection Buttons */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -677,55 +729,6 @@ export const FaultInjection: React.FC = () => {
               {selectedWorkloadDesc.description}
             </p>
           )}
-
-          {/* Diagnostic Commands by Category */}
-          <div className="mt-4 p-4 bg-gray-900 rounded-lg">
-            <div className="text-sm text-gray-300">
-              <strong className="text-nvidia-green">
-                Diagnostic Commands by Category:
-              </strong>
-            </div>
-            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 font-mono text-xs text-gray-400">
-              <div>
-                • <span className="text-nvidia-green">nvidia-smi</span> — GPU
-                overview
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">nvidia-smi -q -d ECC</span>{" "}
-                — ECC errors
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">
-                  nvidia-smi -q -d TEMPERATURE
-                </span>{" "}
-                — Thermals
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">nvidia-smi nvlink -s</span>{" "}
-                — NVLink status
-              </div>
-              <div>
-                • <span className="text-nvidia-green">nvsm show health</span> —
-                Health summary
-              </div>
-              <div>
-                • <span className="text-nvidia-green">dcgmi diag -r 1</span> —
-                Quick diagnostics
-              </div>
-              <div>
-                • <span className="text-nvidia-green">dmesg | grep -i xid</span>{" "}
-                — XID errors in logs
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">ipmitool sensor list</span>{" "}
-                — BMC sensors
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

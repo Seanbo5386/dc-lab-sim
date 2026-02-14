@@ -357,9 +357,8 @@ describe("FaultInjection", () => {
     it("should render the diagnostic commands section with suggested commands", () => {
       render(<FaultInjection />);
 
-      expect(
-        screen.getByText("Diagnostic Commands by Category:"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Quick Reference")).toBeInTheDocument();
+      expect(screen.getByText(/diagnostic commands/)).toBeInTheDocument();
       expect(screen.getByText(/nvidia-smi$/)).toBeInTheDocument();
       expect(screen.getByText("nvsm show health")).toBeInTheDocument();
       expect(screen.getByText("dcgmi diag -r 1")).toBeInTheDocument();
