@@ -26,6 +26,7 @@ import { NeMoSimulator } from "@/simulators/nemoSimulator";
 import { LinuxUtilsSimulator } from "@/simulators/linuxUtilsSimulator";
 import { useSimulationStore } from "@/store/simulationStore";
 import { scenarioContextManager } from "@/store/scenarioContext";
+import { logger } from "@/utils/logger";
 import { ScenarioValidator } from "@/utils/scenarioValidator";
 import { parse as parseCommand } from "@/utils/commandParser";
 import {
@@ -196,7 +197,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
       currentContext.current.scenarioContext = context;
       currentContext.current.cluster = context.getCluster();
 
-      console.log(
+      logger.debug(
         `Terminal: Using scenario context for ${store.activeScenario.id}`,
       );
     } else {
@@ -205,7 +206,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
       currentContext.current.scenarioContext = undefined;
       currentContext.current.cluster = cluster;
 
-      console.log("Terminal: Cleared scenario context");
+      logger.debug("Terminal: Cleared scenario context");
     }
   }, [cluster]);
 

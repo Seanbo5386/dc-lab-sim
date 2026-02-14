@@ -4,6 +4,7 @@ import type {
   DomainPerformance,
   DomainId,
 } from "@/types/scenarios";
+import { logger } from "@/utils/logger";
 
 /**
  * Exam modes for different study scenarios
@@ -289,16 +290,10 @@ export function getEstimatedTimePerQuestion(
  */
 export async function loadExamQuestions(): Promise<ExamQuestion[]> {
   try {
-    const response = await fetch("/src/data/examQuestions.json");
-    if (!response.ok) {
-      console.error("Failed to load exam questions:", response.statusText);
-      return [];
-    }
-
-    const data = await response.json();
-    return data.questions || [];
+    const mod = await import("../data/examQuestions.json");
+    return (mod.default.questions || []) as ExamQuestion[];
   } catch (error) {
-    console.error("Error loading exam questions:", error);
+    logger.error("Error loading exam questions:", error);
     return [];
   }
 }
@@ -372,7 +367,7 @@ export function selectExamQuestions(
     const needed = questionsPerDomain[domain];
 
     if (available.length < needed) {
-      console.warn(
+      logger.warn(
         `Not enough questions for ${domain}: have ${available.length}, need ${needed}`,
       );
     }
