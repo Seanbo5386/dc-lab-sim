@@ -51,9 +51,11 @@ const {
   const shared: {
     activeContextReturn: unknown;
     currentCluster: unknown;
+    selectedNode: string | null;
   } = {
     activeContextReturn: undefined,
     currentCluster: null, // will be set after createMockNode is defined
+    selectedNode: "dgx-00",
   };
 
   const mockActiveContext = {
@@ -92,6 +94,7 @@ vi.mock("@/store/simulationStore", () => ({
     vi.fn((selector?: (state: unknown) => unknown) => {
       const state = {
         cluster: shared.currentCluster,
+        selectedNode: shared.selectedNode,
         updateGPU: mockUpdateGPU,
         addXIDError: mockAddXIDError,
         updateNodeHealth: mockUpdateNodeHealth,
@@ -103,6 +106,7 @@ vi.mock("@/store/simulationStore", () => ({
     {
       getState: vi.fn(() => ({
         cluster: shared.currentCluster,
+        selectedNode: shared.selectedNode,
         updateGPU: mockUpdateGPU,
         addXIDError: mockAddXIDError,
         updateNodeHealth: mockUpdateNodeHealth,
@@ -149,7 +153,6 @@ vi.mock("lucide-react", () => {
     Info: createIcon("Info"),
     ChevronDown: createIcon("ChevronDown"),
     ChevronUp: createIcon("ChevronUp"),
-    X: createIcon("X"),
   };
 });
 
@@ -278,6 +281,7 @@ describe("FaultInjection", () => {
     vi.clearAllMocks();
     shared.activeContextReturn = undefined;
     shared.currentCluster = mockCluster;
+    shared.selectedNode = "dgx-00";
     // Re-set mockActiveContext.getCluster default
     mockActiveContext.getCluster.mockReturnValue(mockCluster);
   });
@@ -289,17 +293,14 @@ describe("FaultInjection", () => {
   describe("Rendering", () => {
     it("should render the fault injection panel with heading", () => {
       render(<FaultInjection />);
-      expect(
-        screen.getByText("Fault Injection Training System"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Sandbox")).toBeInTheDocument();
     });
 
-    it("should render the safe-environment description text", () => {
+    it("should render the description text with Dashboard hint", () => {
       render(<FaultInjection />);
       expect(
-        screen.getByText(/Inject faults and simulate workloads/),
+        screen.getByText("Select target on Dashboard"),
       ).toBeInTheDocument();
-      expect(screen.getByText(/safe training environment/)).toBeInTheDocument();
     });
 
     it("should render all basic fault injection buttons", () => {
@@ -356,9 +357,8 @@ describe("FaultInjection", () => {
     it("should render the diagnostic commands section with suggested commands", () => {
       render(<FaultInjection />);
 
-      expect(
-        screen.getByText("Diagnostic Commands by Category:"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Quick Reference")).toBeInTheDocument();
+      expect(screen.getByText(/diagnostic commands/)).toBeInTheDocument();
       expect(screen.getByText(/nvidia-smi$/)).toBeInTheDocument();
       expect(screen.getByText("nvsm show health")).toBeInTheDocument();
       expect(screen.getByText("dcgmi diag -r 1")).toBeInTheDocument();
@@ -372,49 +372,25 @@ describe("FaultInjection", () => {
   // =========================================================================
 
   describe("Node Selection", () => {
-    it("should render Select Node label and dropdown", () => {
+    it("should display the selected node hostname from the store", () => {
       render(<FaultInjection />);
 
-      expect(screen.getByText("Select Node")).toBeInTheDocument();
-      const nodeSelect = screen.getByDisplayValue("dgx-00.local (dgx-00)");
-      expect(nodeSelect).toBeInTheDocument();
+      expect(screen.getByText("Node:")).toBeInTheDocument();
+      expect(screen.getByText("dgx-00.local")).toBeInTheDocument();
     });
 
-    it("should display all cluster nodes as dropdown options", () => {
+    it("should display a different node when store selectedNode changes", () => {
+      shared.selectedNode = "dgx-01";
       render(<FaultInjection />);
 
-      expect(screen.getByText("dgx-00.local (dgx-00)")).toBeInTheDocument();
-      expect(screen.getByText("dgx-01.local (dgx-01)")).toBeInTheDocument();
+      expect(screen.getByText("dgx-01.local")).toBeInTheDocument();
     });
 
-    it("should update selected node when dropdown changes", () => {
+    it("should fall back to first node when store selectedNode is null", () => {
+      shared.selectedNode = null;
       render(<FaultInjection />);
 
-      const nodeSelect = screen.getByDisplayValue("dgx-00.local (dgx-00)");
-      fireEvent.change(nodeSelect, { target: { value: "dgx-01" } });
-
-      expect((nodeSelect as HTMLSelectElement).value).toBe("dgx-01");
-    });
-
-    it("should reset GPU selection to 0 when node changes", () => {
-      render(<FaultInjection />);
-
-      // First select GPU 1
-      const gpuSelect = screen.getByDisplayValue(
-        "GPU 0: NVIDIA A100-SXM4-80GB",
-      );
-      fireEvent.change(gpuSelect, { target: { value: "1" } });
-      expect((gpuSelect as HTMLSelectElement).value).toBe("1");
-
-      // Now change node - GPU should reset to 0
-      const nodeSelect = screen.getByDisplayValue("dgx-00.local (dgx-00)");
-      fireEvent.change(nodeSelect, { target: { value: "dgx-01" } });
-
-      // The GPU select should now show GPU 0
-      const updatedGpuSelect = screen.getByDisplayValue(
-        "GPU 0: NVIDIA A100-SXM4-80GB",
-      );
-      expect(updatedGpuSelect).toBeInTheDocument();
+      expect(screen.getByText("dgx-00.local")).toBeInTheDocument();
     });
   });
 
@@ -423,36 +399,28 @@ describe("FaultInjection", () => {
   // =========================================================================
 
   describe("GPU Selection", () => {
-    it("should render Select GPU label and dropdown", () => {
+    it("should render GPU label and dropdown", () => {
       render(<FaultInjection />);
 
-      expect(screen.getByText("Select GPU")).toBeInTheDocument();
-      expect(
-        screen.getByDisplayValue("GPU 0: NVIDIA A100-SXM4-80GB"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("GPU:")).toBeInTheDocument();
+      expect(screen.getByDisplayValue("GPU 0")).toBeInTheDocument();
     });
 
     it("should list GPUs for the selected node", () => {
       render(<FaultInjection />);
 
       // dgx-00 has 2 GPUs by default
-      const gpuSelect = screen.getByDisplayValue(
-        "GPU 0: NVIDIA A100-SXM4-80GB",
-      );
+      const gpuSelect = screen.getByDisplayValue("GPU 0");
       const options = gpuSelect.querySelectorAll("option");
       expect(options).toHaveLength(2);
     });
 
-    it("should update GPU list when node changes to one with more GPUs", () => {
+    it("should show GPU list for the store-selected node", () => {
+      // dgx-01 has 4 GPUs
+      shared.selectedNode = "dgx-01";
       render(<FaultInjection />);
 
-      // Switch to dgx-01 which has 4 GPUs
-      const nodeSelect = screen.getByDisplayValue("dgx-00.local (dgx-00)");
-      fireEvent.change(nodeSelect, { target: { value: "dgx-01" } });
-
-      // Now query all GPU options from the GPU select
-      const gpuSelects = screen.getAllByRole("combobox");
-      const gpuSelect = gpuSelects[1]; // second combobox is GPU selection
+      const gpuSelect = screen.getByDisplayValue("GPU 0");
       const options = gpuSelect.querySelectorAll("option");
       expect(options).toHaveLength(4);
     });
@@ -460,9 +428,7 @@ describe("FaultInjection", () => {
     it("should update selected GPU when dropdown changes", () => {
       render(<FaultInjection />);
 
-      const gpuSelect = screen.getByDisplayValue(
-        "GPU 0: NVIDIA A100-SXM4-80GB",
-      );
+      const gpuSelect = screen.getByDisplayValue("GPU 0");
       fireEvent.change(gpuSelect, { target: { value: "1" } });
       expect((gpuSelect as HTMLSelectElement).value).toBe("1");
     });
@@ -550,9 +516,7 @@ describe("FaultInjection", () => {
       render(<FaultInjection />);
 
       // Select GPU 1
-      const gpuSelect = screen.getByDisplayValue(
-        "GPU 0: NVIDIA A100-SXM4-80GB",
-      );
+      const gpuSelect = screen.getByDisplayValue("GPU 0");
       fireEvent.change(gpuSelect, { target: { value: "1" } });
 
       fireEvent.click(screen.getByText("XID Error"));
@@ -880,9 +844,7 @@ describe("FaultInjection", () => {
 
       render(<FaultInjection />);
 
-      expect(
-        screen.getByText("scenario-node.local (scenario-node)"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("scenario-node.local")).toBeInTheDocument();
     });
   });
 

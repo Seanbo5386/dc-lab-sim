@@ -9,9 +9,23 @@
  * - Random Challenge
  */
 
-import { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight, Target, Clock, BookOpen, Layers, Shuffle, CheckCircle, RotateCcw, Play, Pause } from 'lucide-react';
-import { useLearningStore } from '@/store/learningStore';
+import { useState, useEffect } from "react";
+import { logger } from "@/utils/logger";
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Target,
+  Clock,
+  BookOpen,
+  Layers,
+  Shuffle,
+  CheckCircle,
+  RotateCcw,
+  Play,
+  Pause,
+} from "lucide-react";
+import { useLearningStore } from "@/store/learningStore";
 import {
   StudyMode,
   STUDY_MODE_CONFIGS,
@@ -23,9 +37,9 @@ import {
   getAllStudyModes,
   Flashcard,
   StudySession,
-} from '@/utils/studyModeEngine';
-import { loadExamQuestions } from '@/utils/examEngine';
-import { DOMAINS, type DomainId, type ExamQuestion } from '@/types/scenarios';
+} from "@/utils/studyModeEngine";
+import { loadExamQuestions } from "@/utils/examEngine";
+import { DOMAINS, type DomainId, type ExamQuestion } from "@/types/scenarios";
 
 interface StudyModesProps {
   onClose: () => void;
@@ -34,15 +48,20 @@ interface StudyModesProps {
 
 // Icon mapping for study modes
 const MODE_ICONS: Record<StudyMode, React.ReactNode> = {
-  'domain-deep-dive': <Target className="w-6 h-6" />,
-  'timed-practice': <Clock className="w-6 h-6" />,
-  'review-mode': <BookOpen className="w-6 h-6" />,
-  'flashcard-mode': <Layers className="w-6 h-6" />,
-  'random-challenge': <Shuffle className="w-6 h-6" />,
+  "domain-deep-dive": <Target className="w-6 h-6" />,
+  "timed-practice": <Clock className="w-6 h-6" />,
+  "review-mode": <BookOpen className="w-6 h-6" />,
+  "flashcard-mode": <Layers className="w-6 h-6" />,
+  "random-challenge": <Shuffle className="w-6 h-6" />,
 };
 
-export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps) {
-  const [view, setView] = useState<'select' | 'domain-select' | 'session' | 'flashcards' | 'results'>('select');
+export function StudyModes({
+  onClose,
+  onStartLab: _onStartLab,
+}: StudyModesProps) {
+  const [view, setView] = useState<
+    "select" | "domain-select" | "session" | "flashcards" | "results"
+  >("select");
   const [selectedMode, setSelectedMode] = useState<StudyMode | null>(null);
   const [, setSelectedDomain] = useState<DomainId | null>(null);
   const [allQuestions, setAllQuestions] = useState<ExamQuestion[]>([]);
@@ -75,7 +94,7 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
     if (!session?.timeLimitSeconds || isPaused || !timeRemaining) return;
 
     const interval = setInterval(() => {
-      setTimeRemaining(prev => {
+      setTimeRemaining((prev) => {
         if (prev === null || prev <= 0) {
           clearInterval(interval);
           handleSessionComplete();
@@ -94,10 +113,10 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
     const config = STUDY_MODE_CONFIGS[mode];
 
     if (config.requiresDomain) {
-      setView('domain-select');
-    } else if (mode === 'flashcard-mode') {
+      setView("domain-select");
+    } else if (mode === "flashcard-mode") {
       startFlashcardSession();
-    } else if (mode === 'review-mode') {
+    } else if (mode === "review-mode") {
       startReviewSession();
     } else {
       startSession(mode);
@@ -107,11 +126,12 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
   const startSession = (mode: StudyMode, domain?: DomainId) => {
     try {
       getWeakDomains(); // Called for side effects
-      const incorrectIds = examAttempts.length > 0
-        ? examAttempts[examAttempts.length - 1].questionResults
-            .filter(r => !r.correct)
-            .map(r => r.questionId)
-        : [];
+      const incorrectIds =
+        examAttempts.length > 0
+          ? examAttempts[examAttempts.length - 1].questionResults
+              .filter((r) => !r.correct)
+              .map((r) => r.questionId)
+          : [];
 
       const newSession = createStudySession(mode, allQuestions, {
         domain,
@@ -121,9 +141,9 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
       setSession(newSession);
       setTimeRemaining(newSession.timeLimitSeconds || null);
       storeStartSession(mode, domain);
-      setView('session');
+      setView("session");
     } catch (error) {
-      console.error('Failed to start session:', error);
+      logger.error("Failed to start session:", error);
       // Could show error message to user
     }
   };
@@ -133,16 +153,16 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
     setFlashcards(cards);
     setCurrentCardIndex(0);
     setIsCardFlipped(false);
-    storeStartSession('flashcard-mode', domain);
-    setView('flashcards');
+    storeStartSession("flashcard-mode", domain);
+    setView("flashcards");
   };
 
   const startReviewSession = () => {
     if (examAttempts.length === 0) {
-      alert('No exam history to review. Take an exam first!');
+      alert("No exam history to review. Take an exam first!");
       return;
     }
-    startSession('review-mode');
+    startSession("review-mode");
   };
 
   const handleSessionComplete = () => {
@@ -153,16 +173,16 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
       session.questionsAnswered,
       session.questionsCorrect,
       session.commandsExecuted,
-      result.accuracy
+      result.accuracy,
     );
 
-    setView('results');
+    setView("results");
   };
 
   const handleAnswerQuestion = (correct: boolean) => {
     if (!session) return;
 
-    setSession(prev => {
+    setSession((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
@@ -177,17 +197,17 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   // Get recommendations
   const recommendations = getRecommendedStudyMode(
     examAttempts,
-    sessionHistory.map(s => s.mode as StudyMode)
+    sessionHistory.map((s) => s.mode as StudyMode),
   );
 
   // Mode Selection View
-  if (view === 'select') {
+  if (view === "select") {
     const readinessScore = getReadinessScore();
     const weakDomains = getWeakDomains();
 
@@ -214,19 +234,27 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
             {/* Stats Summary */}
             <div className="grid grid-cols-4 gap-4 mb-6">
               <div className="bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-green-400">{readinessScore}%</div>
+                <div className="text-2xl font-bold text-green-400">
+                  {readinessScore}%
+                </div>
                 <div className="text-xs text-gray-400">Readiness</div>
               </div>
               <div className="bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-blue-400">{formatStudyDuration(totalStudyTimeSeconds)}</div>
+                <div className="text-2xl font-bold text-blue-400">
+                  {formatStudyDuration(totalStudyTimeSeconds)}
+                </div>
                 <div className="text-xs text-gray-400">Study Time</div>
               </div>
               <div className="bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-yellow-400">{currentStreak}</div>
+                <div className="text-2xl font-bold text-yellow-400">
+                  {currentStreak}
+                </div>
                 <div className="text-xs text-gray-400">Day Streak</div>
               </div>
               <div className="bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-purple-400">{sessionHistory.length}</div>
+                <div className="text-2xl font-bold text-purple-400">
+                  {sessionHistory.length}
+                </div>
                 <div className="text-xs text-gray-400">Sessions</div>
               </div>
             </div>
@@ -234,7 +262,9 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
             {/* Recommendations */}
             {recommendations.length > 0 && (
               <div className="bg-blue-900 bg-opacity-20 border border-blue-500 rounded-lg p-4 mb-6">
-                <h3 className="text-sm font-semibold text-blue-400 mb-2">Recommended for You</h3>
+                <h3 className="text-sm font-semibold text-blue-400 mb-2">
+                  Recommended for You
+                </h3>
                 <div className="space-y-2">
                   {recommendations.map((rec, idx) => (
                     <button
@@ -242,10 +272,16 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
                       onClick={() => handleSelectMode(rec.mode)}
                       className="w-full text-left p-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors flex items-center gap-3"
                     >
-                      <span className="text-green-400">{MODE_ICONS[rec.mode]}</span>
+                      <span className="text-green-400">
+                        {MODE_ICONS[rec.mode]}
+                      </span>
                       <div className="flex-1">
-                        <div className="text-white font-semibold">{STUDY_MODE_CONFIGS[rec.mode].name}</div>
-                        <div className="text-xs text-gray-400">{rec.reason}</div>
+                        <div className="text-white font-semibold">
+                          {STUDY_MODE_CONFIGS[rec.mode].name}
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          {rec.reason}
+                        </div>
                       </div>
                       <ChevronRight className="w-5 h-5 text-gray-500" />
                     </button>
@@ -255,9 +291,11 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
             )}
 
             {/* All Study Modes */}
-            <h3 className="text-sm font-semibold text-gray-400 mb-3">ALL STUDY MODES</h3>
+            <h3 className="text-sm font-semibold text-gray-400 mb-3">
+              ALL STUDY MODES
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {getAllStudyModes().map(mode => (
+              {getAllStudyModes().map((mode) => (
                 <button
                   key={mode.id}
                   onClick={() => handleSelectMode(mode.id)}
@@ -269,10 +307,14 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-white font-semibold">{mode.name}</span>
+                        <span className="text-white font-semibold">
+                          {mode.name}
+                        </span>
                         <span className="text-xl">{mode.icon}</span>
                       </div>
-                      <p className="text-sm text-gray-400 mt-1">{mode.description}</p>
+                      <p className="text-sm text-gray-400 mt-1">
+                        {mode.description}
+                      </p>
                       <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
                         {mode.hasTimeLimit && (
                           <span className="flex items-center gap-1">
@@ -293,14 +335,20 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
             {/* Weak Areas */}
             {weakDomains.length > 0 && (
               <div className="mt-6 bg-yellow-900 bg-opacity-20 border border-yellow-600 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-yellow-400 mb-2">Areas Needing Focus</h3>
+                <h3 className="text-sm font-semibold text-yellow-400 mb-2">
+                  Areas Needing Focus
+                </h3>
                 <div className="flex flex-wrap gap-2">
-                  {weakDomains.map(domain => (
+                  {weakDomains.map((domain) => (
                     <span
                       key={domain}
                       className="px-3 py-1 bg-yellow-900 bg-opacity-50 text-yellow-300 rounded-full text-sm"
                     >
-                      {DOMAINS[domain].title.replace('Domain ', '').split(':')[1]}
+                      {
+                        DOMAINS[domain].title
+                          .replace("Domain ", "")
+                          .split(":")[1]
+                      }
                     </span>
                   ))}
                 </div>
@@ -313,19 +361,21 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
   }
 
   // Domain Selection View
-  if (view === 'domain-select') {
+  if (view === "domain-select") {
     return (
       <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
         <div className="bg-gray-900 rounded-lg shadow-2xl w-full max-w-2xl border border-green-500 overflow-hidden">
           <div className="bg-gray-800 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-green-400">Select Domain</h2>
+              <h2 className="text-xl font-bold text-green-400">
+                Select Domain
+              </h2>
               <p className="text-sm text-gray-400 mt-1">
                 Choose a domain to focus on
               </p>
             </div>
             <button
-              onClick={() => setView('select')}
+              onClick={() => setView("select")}
               className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
             >
               <ChevronLeft className="w-6 h-6 text-gray-400" />
@@ -333,7 +383,7 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
           </div>
 
           <div className="p-6 space-y-3">
-            {(Object.keys(DOMAINS) as DomainId[]).map(domainId => {
+            {(Object.keys(DOMAINS) as DomainId[]).map((domainId) => {
               const domain = DOMAINS[domainId];
               const isWeak = getWeakDomains().includes(domainId);
 
@@ -342,7 +392,7 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
                   key={domainId}
                   onClick={() => {
                     setSelectedDomain(domainId);
-                    if (selectedMode === 'flashcard-mode') {
+                    if (selectedMode === "flashcard-mode") {
                       startFlashcardSession(domainId);
                     } else {
                       startSession(selectedMode!, domainId);
@@ -350,20 +400,28 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
                   }}
                   className={`w-full text-left p-4 rounded-lg border-2 transition-all hover:border-green-500 ${
                     isWeak
-                      ? 'border-yellow-600 bg-yellow-900 bg-opacity-20'
-                      : 'border-gray-700 bg-gray-800'
+                      ? "border-yellow-600 bg-yellow-900 bg-opacity-20"
+                      : "border-gray-700 bg-gray-800"
                   }`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-white font-semibold">{domain.title}</div>
-                      <div className="text-sm text-gray-400 mt-1">{domain.description}</div>
+                      <div className="text-white font-semibold">
+                        {domain.title}
+                      </div>
+                      <div className="text-sm text-gray-400 mt-1">
+                        {domain.description}
+                      </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-green-400">{domain.weight}%</div>
+                      <div className="text-lg font-bold text-green-400">
+                        {domain.weight}%
+                      </div>
                       <div className="text-xs text-gray-500">Exam Weight</div>
                       {isWeak && (
-                        <div className="text-xs text-yellow-400 mt-1">Needs Focus</div>
+                        <div className="text-xs text-yellow-400 mt-1">
+                          Needs Focus
+                        </div>
                       )}
                     </div>
                   </div>
@@ -377,7 +435,7 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
   }
 
   // Flashcard View
-  if (view === 'flashcards' && flashcards.length > 0) {
+  if (view === "flashcards" && flashcards.length > 0) {
     const currentCard = flashcards[currentCardIndex];
     const progress = ((currentCardIndex + 1) / flashcards.length) * 100;
 
@@ -386,7 +444,9 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
         <div className="bg-gray-900 rounded-lg shadow-2xl w-full max-w-2xl border border-green-500 overflow-hidden">
           <div className="bg-gray-800 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-green-400">Flashcard Review</h2>
+              <h2 className="text-xl font-bold text-green-400">
+                Flashcard Review
+              </h2>
               <p className="text-sm text-gray-400 mt-1">
                 Card {currentCardIndex + 1} of {flashcards.length}
               </p>
@@ -415,8 +475,8 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
               onClick={() => setIsCardFlipped(!isCardFlipped)}
               className={`min-h-[300px] p-8 rounded-xl cursor-pointer transition-all duration-300 transform ${
                 isCardFlipped
-                  ? 'bg-green-900 bg-opacity-30 border-2 border-green-500'
-                  : 'bg-gray-800 border-2 border-gray-700 hover:border-green-500'
+                  ? "bg-green-900 bg-opacity-30 border-2 border-green-500"
+                  : "bg-gray-800 border-2 border-gray-700 hover:border-green-500"
               }`}
             >
               <div className="flex items-center gap-2 mb-4">
@@ -426,13 +486,15 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
                 <span className="text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded-full">
                   {currentCard.category}
                 </span>
-                <span className={`text-xs px-2 py-1 rounded-full ${
-                  currentCard.difficulty === 'easy'
-                    ? 'bg-green-900 text-green-300'
-                    : currentCard.difficulty === 'medium'
-                    ? 'bg-yellow-900 text-yellow-300'
-                    : 'bg-red-900 text-red-300'
-                }`}>
+                <span
+                  className={`text-xs px-2 py-1 rounded-full ${
+                    currentCard.difficulty === "easy"
+                      ? "bg-green-900 text-green-300"
+                      : currentCard.difficulty === "medium"
+                        ? "bg-yellow-900 text-yellow-300"
+                        : "bg-red-900 text-red-300"
+                  }`}
+                >
                   {currentCard.difficulty}
                 </span>
               </div>
@@ -450,7 +512,9 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
               </div>
 
               <div className="text-center mt-6 text-sm text-gray-500">
-                {isCardFlipped ? 'Click to see question' : 'Click to reveal answer'}
+                {isCardFlipped
+                  ? "Click to see question"
+                  : "Click to reveal answer"}
               </div>
             </div>
           </div>
@@ -507,22 +571,32 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
   }
 
   // Session View (Questions)
-  if (view === 'session' && session) {
+  if (view === "session" && session) {
     const currentQuestion = session.questions[session.currentQuestionIndex];
-    const progress = ((session.currentQuestionIndex + 1) / session.questionsTotal) * 100;
+    const progress =
+      ((session.currentQuestionIndex + 1) / session.questionsTotal) * 100;
 
-    if (session.isComplete || session.currentQuestionIndex >= session.questions.length) {
+    if (
+      session.isComplete ||
+      session.currentQuestionIndex >= session.questions.length
+    ) {
       // Show completion
       return (
         <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 rounded-lg shadow-2xl w-full max-w-lg border border-green-500 overflow-hidden">
             <div className="p-8 text-center">
               <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-white mb-2">Session Complete!</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                Session Complete!
+              </h2>
               <div className="text-4xl font-bold text-green-400 mb-2">
                 {session.questionsTotal > 0
-                  ? Math.round((session.questionsCorrect / session.questionsAnswered) * 100)
-                  : 0}%
+                  ? Math.round(
+                      (session.questionsCorrect / session.questionsAnswered) *
+                        100,
+                    )
+                  : 0}
+                %
               </div>
               <p className="text-gray-400 mb-6">
                 {session.questionsCorrect} / {session.questionsAnswered} correct
@@ -537,7 +611,7 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
                 </button>
                 <button
                   onClick={() => {
-                    setView('select');
+                    setView("select");
                     setSession(null);
                   }}
                   className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors"
@@ -561,21 +635,32 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
                 {STUDY_MODE_CONFIGS[session.mode].name}
               </h2>
               <p className="text-sm text-gray-400 mt-1">
-                Question {session.currentQuestionIndex + 1} of {session.questionsTotal}
+                Question {session.currentQuestionIndex + 1} of{" "}
+                {session.questionsTotal}
               </p>
             </div>
             <div className="flex items-center gap-4">
               {timeRemaining !== null && (
-                <div className={`flex items-center gap-2 px-4 py-2 rounded ${
-                  timeRemaining < 60 ? 'bg-red-900 text-red-300' : 'bg-gray-700 text-gray-300'
-                }`}>
+                <div
+                  className={`flex items-center gap-2 px-4 py-2 rounded ${
+                    timeRemaining < 60
+                      ? "bg-red-900 text-red-300"
+                      : "bg-gray-700 text-gray-300"
+                  }`}
+                >
                   <Clock className="w-5 h-5" />
-                  <span className="font-mono font-bold">{formatTime(timeRemaining)}</span>
+                  <span className="font-mono font-bold">
+                    {formatTime(timeRemaining)}
+                  </span>
                   <button
                     onClick={() => setIsPaused(!isPaused)}
                     className="ml-2 hover:text-white transition-colors"
                   >
-                    {isPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+                    {isPaused ? (
+                      <Play className="w-4 h-4" />
+                    ) : (
+                      <Pause className="w-4 h-4" />
+                    )}
                   </button>
                 </div>
               )}
@@ -615,7 +700,9 @@ export function StudyModes({ onClose, onStartLab: _onStartLab }: StudyModesProps
                     <button
                       key={idx}
                       onClick={() => {
-                        const isCorrect = Array.isArray(currentQuestion.correctAnswer)
+                        const isCorrect = Array.isArray(
+                          currentQuestion.correctAnswer,
+                        )
                           ? currentQuestion.correctAnswer.includes(idx)
                           : currentQuestion.correctAnswer === idx;
                         handleAnswerQuestion(isCorrect);

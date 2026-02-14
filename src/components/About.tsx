@@ -2,6 +2,7 @@ import {
   Rocket,
   Github,
   Bug,
+  ChevronRight,
   GitPullRequest,
   Tag,
   ExternalLink,
@@ -229,63 +230,6 @@ export function About() {
           </div>
         </section>
 
-        {/* Changelog */}
-        <section>
-          <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-3">
-            <Tag className="w-5 h-5 text-nvidia-green" />
-            Changelog
-          </h3>
-          <div className="space-y-0">
-            {CHANGELOG.map((entry, i) => (
-              <div key={entry.version} className="flex gap-4">
-                {/* Timeline line */}
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`w-3 h-3 rounded-full shrink-0 mt-1.5 ${
-                      entry.current
-                        ? "bg-nvidia-green ring-2 ring-nvidia-green ring-offset-2 ring-offset-gray-900"
-                        : "bg-gray-600"
-                    }`}
-                  />
-                  {i < CHANGELOG.length - 1 && (
-                    <div className="w-px flex-1 bg-gray-700 my-1" />
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="pb-6 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span
-                      className={`font-mono text-sm font-bold ${
-                        entry.current ? "text-nvidia-green" : "text-gray-300"
-                      }`}
-                      data-testid={
-                        entry.current ? "current-version" : undefined
-                      }
-                    >
-                      {entry.version}
-                    </span>
-                    <span className="text-sm text-gray-400">{entry.title}</span>
-                    {entry.current && (
-                      <span className="text-xs bg-nvidia-green text-black px-1.5 py-0.5 rounded font-medium">
-                        current
-                      </span>
-                    )}
-                  </div>
-                  <ul className="text-xs text-gray-400 space-y-0.5">
-                    {entry.highlights.map((h) => (
-                      <li key={h} className="flex items-start gap-1.5">
-                        <span className="text-gray-600 mt-0.5">&#x2022;</span>
-                        {h}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* Legal Disclaimer */}
         <section>
           <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-3">
@@ -382,6 +326,68 @@ export function About() {
               public documentation that made this simulator possible.
             </p>
           </div>
+        </section>
+
+        {/* Changelog */}
+        <section className="pb-4">
+          <details className="group">
+            <summary className="text-lg font-semibold text-white flex items-center gap-2 mb-3 cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+              <Tag className="w-5 h-5 text-nvidia-green" />
+              Changelog
+              <ChevronRight className="w-4 h-4 text-gray-400 transition-transform group-open:rotate-90" />
+            </summary>
+            <div className="space-y-0">
+              {CHANGELOG.map((entry, i) => (
+                <div key={entry.version} className="flex gap-4">
+                  {/* Timeline line */}
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`w-3 h-3 rounded-full shrink-0 mt-1.5 ${
+                        entry.current
+                          ? "bg-nvidia-green ring-2 ring-nvidia-green ring-offset-2 ring-offset-gray-900"
+                          : "bg-gray-600"
+                      }`}
+                    />
+                    {i < CHANGELOG.length - 1 && (
+                      <div className="w-px flex-1 bg-gray-700 my-1" />
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="pb-6 flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span
+                        className={`font-mono text-sm font-bold ${
+                          entry.current ? "text-nvidia-green" : "text-gray-300"
+                        }`}
+                        data-testid={
+                          entry.current ? "current-version" : undefined
+                        }
+                      >
+                        {entry.version}
+                      </span>
+                      <span className="text-sm text-gray-400">
+                        {entry.title}
+                      </span>
+                      {entry.current && (
+                        <span className="text-xs bg-nvidia-green text-black px-1.5 py-0.5 rounded font-medium">
+                          current
+                        </span>
+                      )}
+                    </div>
+                    <ul className="text-xs text-gray-400 space-y-0.5">
+                      {entry.highlights.map((h) => (
+                        <li key={h} className="flex items-start gap-1.5">
+                          <span className="text-gray-600 mt-0.5">&#x2022;</span>
+                          {h}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
         </section>
       </div>
     </div>

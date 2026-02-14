@@ -22,6 +22,7 @@ import {
 } from "@/utils/clusterFactory";
 import type { SystemType } from "@/data/hardwareSpecs";
 import { useLearningProgressStore } from "./learningProgressStore";
+import { logger } from "@/utils/logger";
 // isTierUnlocked will be used in isScenarioAccessible once scenarios have tiers
 // import { isTierUnlocked } from '@/utils/tierProgressionEngine';
 
@@ -459,8 +460,12 @@ export const useSimulationStore = create<SimulationState>()(
       exitScenario: () => {
         set({ activeScenario: null });
         // Clean up sandbox context (dynamic import to avoid circular deps)
-        import("@/store/scenarioContext").then(({ scenarioContextManager }) => {
+        Promise.all([
+          import("@/store/scenarioContext"),
+          import("@/utils/scenarioLoader"),
+        ]).then(([{ scenarioContextManager }, { clearAllFaults }]) => {
           scenarioContextManager.clearAll();
+          clearAllFaults();
         });
       },
 
@@ -684,7 +689,7 @@ export const useSimulationStore = create<SimulationState>()(
           const cluster = JSON.parse(json) as ClusterConfig;
           set({ cluster });
         } catch (error) {
-          console.error("Failed to import cluster:", error);
+          logger.error("Failed to import cluster:", error);
         }
       },
 

@@ -222,7 +222,10 @@ function App() {
             }`}
           >
             <FlaskConical className="w-4 h-4" />
-            <span className="font-medium">Labs & Scenarios</span>
+            <span className="font-medium">
+              <span className="sm:hidden">Labs</span>
+              <span className="hidden sm:inline">Labs & Scenarios</span>
+            </span>
             {/* Review Notification Badge */}
             {dueReviewCount > 0 && (
               <span
@@ -253,7 +256,10 @@ function App() {
             }`}
           >
             <BookOpen className="w-4 h-4" />
-            <span className="font-medium">Documentation</span>
+            <span className="font-medium">
+              <span className="sm:hidden">Docs</span>
+              <span className="hidden sm:inline">Documentation</span>
+            </span>
           </button>
           <button
             role="tab"
@@ -302,12 +308,19 @@ function App() {
       <footer
         className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${showLabWorkspace ? "ml-[600px]" : ""}`}
       >
-        <div className="flex items-center justify-between text-xs text-gray-400">
-          <div>NVIDIA AI Infrastructure Certification Simulator v0.9.2</div>
-          <div className="flex items-center gap-4">
-            <span>Status: {isRunning ? "🟢 Running" : "🔴 Paused"}</span>
-            <span>•</span>
-            <span>NCP-AII Training Environment</span>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400">
+          <div className="whitespace-nowrap">v0.9.2</div>
+          <div className="flex items-center gap-2 sm:gap-4">
+            <span className="flex items-center gap-1">
+              <span className={`w-2 h-2 rounded-full inline-block ${isRunning ? 'bg-green-500' : 'bg-gray-600'}`} />
+              <span className="hidden sm:inline">
+                {isRunning ? "Running" : "Idle"}
+              </span>
+            </span>
+            <span className="hidden sm:inline">•</span>
+            <span className="hidden sm:inline">
+              NCP-AII Training Environment
+            </span>
           </div>
         </div>
         <div className="text-center text-[10px] text-gray-600 mt-1">

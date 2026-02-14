@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { FaultInjection } from "./FaultInjection";
 import { Trophy, TrendingUp, Clock, Crosshair } from "lucide-react";
 import { getAllScenarios, getScenarioMetadata } from "../utils/scenarioLoader";
 
@@ -247,11 +246,6 @@ export function LabsAndScenariosView({
               </button>
             </div>
           </div>
-        </div>
-
-        {/* Fault Injection System */}
-        <div className="mt-8">
-          <FaultInjection />
         </div>
       </div>
     </div>

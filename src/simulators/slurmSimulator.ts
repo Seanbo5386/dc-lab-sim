@@ -5,6 +5,7 @@ import {
   type SimulatorMetadata,
 } from "@/simulators/BaseSimulator";
 import type { DGXNode } from "@/types/hardware";
+import { getHardwareSpecs } from "@/data/hardwareSpecs";
 
 interface SlurmJob {
   jobId: number;
@@ -97,7 +98,7 @@ export class SlurmSimulator extends BaseSimulator {
             comparison = 0;
             break;
           case "c": // cpus
-            comparison = a.cpuCount * 64 - b.cpuCount * 64;
+            comparison = a.cpuCount - b.cpuCount;
             break;
           case "m": // memory
             comparison = a.ramTotal - b.ramTotal;
@@ -262,7 +263,7 @@ export class SlurmSimulator extends BaseSimulator {
               : node.slurmState === "drain"
                 ? "drained"
                 : "down";
-        const cpus = node.cpuCount * 64;
+        const cpus = node.cpuCount;
         const memory = node.ramTotal * 1024;
         const reason = node.slurmReason || "none";
 
@@ -718,27 +719,30 @@ export class SlurmSimulator extends BaseSimulator {
         nodes.forEach((node, idx) => {
           if (idx > 0) output += "\n";
 
+          const specs = getHardwareSpecs(node.systemType);
+          const sockets = specs.system.cpu.sockets;
+          const coresPerSocket = specs.system.cpu.coresPerSocket;
           const allocCpus =
-            node.slurmState === "alloc" ? node.cpuCount * 32 : 0;
+            node.slurmState === "alloc" ? Math.floor(node.cpuCount / 2) : 0;
           const allocMem =
             node.slurmState === "alloc"
               ? Math.round(node.ramTotal * 0.5 * 1024)
               : 0;
 
-          output += `NodeName=${node.id} Arch=x86_64 CoresPerSocket=64\n`;
-          output += `   CPUAlloc=${allocCpus} CPUEfctv=${node.cpuCount * 64} CPUTot=${node.cpuCount * 64} CPULoad=0.50\n`;
+          output += `NodeName=${node.id} Arch=x86_64 CoresPerSocket=${coresPerSocket}\n`;
+          output += `   CPUAlloc=${allocCpus} CPUEfctv=${node.cpuCount} CPUTot=${node.cpuCount} CPULoad=0.50\n`;
           output += `   AvailableFeatures=(null)\n`;
           output += `   ActiveFeatures=(null)\n`;
           output += `   Gres=gpu:h100:${node.gpus.length}\n`;
           output += `   GresUsed=gpu:h100:${node.slurmState === "alloc" ? Math.min(4, node.gpus.length) : 0}(IDX:${node.slurmState === "alloc" ? "0-3" : "N/A"})\n`;
           output += `   NodeAddr=${node.id} NodeHostName=${node.hostname} Version=23.02.6\n`;
           output += `   OS=Linux 5.15.0-91-generic #101-Ubuntu SMP x86_64\n`;
-          output += `   RealMemory=${node.ramTotal * 1024} AllocMem=${allocMem} FreeMem=${(node.ramTotal - node.ramUsed) * 1024} Sockets=${node.cpuCount} Boards=1\n`;
+          output += `   RealMemory=${node.ramTotal * 1024} AllocMem=${allocMem} FreeMem=${(node.ramTotal - node.ramUsed) * 1024} Sockets=${sockets} Boards=1\n`;
           output += `   State=${node.slurmState.toUpperCase()}${node.slurmState === "drain" ? "+DRAIN" : ""} ThreadsPerCore=1 TmpDisk=0 Weight=1 Owner=N/A MCS_label=N/A\n`;
           output += `   Partitions=gpu\n`;
           output += `   BootTime=2024-01-10T08:00:00 SlurmdStartTime=2024-01-10T08:05:00\n`;
           output += `   LastBusyTime=2024-01-11T14:30:00\n`;
-          output += `   CfgTRES=cpu=${node.cpuCount * 64},mem=${node.ramTotal * 1024}M,billing=${node.cpuCount * 64},gres/gpu=${node.gpus.length}\n`;
+          output += `   CfgTRES=cpu=${node.cpuCount},mem=${node.ramTotal * 1024}M,billing=${node.cpuCount},gres/gpu=${node.gpus.length}\n`;
           output += `   AllocTRES=${node.slurmState === "alloc" ? `cpu=${allocCpus},mem=${allocMem}M,gres/gpu=4` : ""}\n`;
           output += `   CurrentWatts=0 AveWatts=0\n`;
           output += `   ExtSensorsJoules=n/s ExtSensorsWatts=0 ExtSensorsTemp=n/s\n`;
@@ -819,7 +823,7 @@ export class SlurmSimulator extends BaseSimulator {
 
       if (what === "partition" || what === "partitions") {
         const nodes = this.getAllNodes(context);
-        const totalCpus = nodes.reduce((sum, n) => sum + n.cpuCount * 64, 0);
+        const totalCpus = nodes.reduce((sum, n) => sum + n.cpuCount, 0);
         const totalMem = nodes.reduce((sum, n) => sum + n.ramTotal * 1024, 0);
         const totalGpus = nodes.reduce((sum, n) => sum + n.gpus.length, 0);
 

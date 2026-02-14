@@ -9,6 +9,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { logger } from "@/utils/logger";
 import {
   selectGauntletScenarios,
   EXAM_DOMAIN_WEIGHTS,
@@ -231,7 +232,7 @@ export const ExamGauntlet: React.FC<ExamGauntletProps> = ({
       setCurrentScenarioIndex(0);
       setGauntletState("active");
     } catch (error) {
-      console.error("Failed to start exam:", error);
+      logger.error("Failed to start exam:", error);
       alert("Failed to start exam. Please try again.");
     }
     setIsLoading(false);

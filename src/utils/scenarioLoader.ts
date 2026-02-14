@@ -6,6 +6,7 @@ import type {
 import type { ScenarioContext } from "@/store/scenarioContext";
 import { useSimulationStore } from "@/store/simulationStore";
 import { narrativeToScenario } from "./narrativeAdapter";
+import { logger } from "@/utils/logger";
 
 // Cache for loaded scenarios
 let scenarioCache: Map<string, Scenario> | null = null;
@@ -48,7 +49,7 @@ export async function loadScenarioFromFile(
     const cache = await ensureCache();
     return cache.get(scenarioId) || null;
   } catch (error) {
-    console.error("Error loading scenario:", error);
+    logger.error("Error loading scenario:", error);
     return null;
   }
 }
@@ -74,9 +75,7 @@ export async function getAllScenarios(): Promise<Record<string, string[]>> {
 /**
  * Gets scenario metadata without loading full content.
  */
-export async function getScenarioMetadata(
-  scenarioId: string,
-): Promise<{
+export async function getScenarioMetadata(scenarioId: string): Promise<{
   title: string;
   difficulty: string;
   estimatedTime: number;
@@ -181,7 +180,7 @@ export function applyScenarioFaults(faults: FaultInjectionConfig[]): void {
         break;
 
       default:
-        console.warn(`Unknown fault type: ${type}`);
+        logger.warn(`Unknown fault type: ${type}`);
     }
   });
 }
@@ -282,7 +281,7 @@ export function applyFaultsToContext(
         break;
 
       default:
-        console.warn(`Unknown fault type: ${type}`);
+        logger.warn(`Unknown fault type: ${type}`);
     }
   });
 }
@@ -359,7 +358,7 @@ export async function initializeScenario(scenarioId: string): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error("Error initializing scenario:", error);
+    logger.error("Error initializing scenario:", error);
     return false;
   }
 }

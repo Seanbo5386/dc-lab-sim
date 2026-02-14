@@ -1735,8 +1735,9 @@ vermagic:       5.15.0-91-generic SMP mod_unload modversions`,
     const currentNode = this.resolveNode(context);
 
     const numGpus = currentNode ? currentNode.gpus.length : 8;
-    const numSockets = currentNode ? currentNode.cpuCount : 2;
-    const cpusPerSocket = 64;
+    const specs = currentNode ? getHardwareSpecs(currentNode.systemType) : null;
+    const numSockets = specs ? specs.system.cpu.sockets : 2;
+    const cpusPerSocket = specs ? specs.system.cpu.coresPerSocket : 64;
     const memPerNode = currentNode
       ? Math.round(currentNode.ramTotal / numSockets)
       : 512;

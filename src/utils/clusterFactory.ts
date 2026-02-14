@@ -322,7 +322,7 @@ function createDGXNode(
     ),
     bmc: createBMC(id),
     cpuModel: `${cpu.model} ${cpu.coresPerSocket}-Core Processor`,
-    cpuCount: cpu.sockets,
+    cpuCount: cpu.sockets * cpu.coresPerSocket,
     ramTotal: specs.system.systemMemoryGB,
     ramUsed: 128,
     osVersion: "Ubuntu 22.04.3 LTS",

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useSimulationStore } from "@/store/simulationStore";
 import { scenarioContextManager } from "@/store/scenarioContext";
 import type { StateMutator } from "@/simulators/BaseSimulator";
@@ -22,7 +22,6 @@ import {
   AlertOctagon,
   Info,
   ChevronUp,
-  X,
 } from "lucide-react";
 
 const metricsSimulator = new MetricsSimulator();
@@ -74,7 +73,8 @@ function getMutator(): StateMutator {
 }
 
 export const FaultInjection: React.FC = () => {
-  const { cluster } = useSimulationStore();
+  const cluster = useSimulationStore((state) => state.cluster);
+  const storeSelectedNode = useSimulationStore((state) => state.selectedNode);
 
   // Read from active context's cluster when available, otherwise global
   const effectiveCluster = useMemo(() => {
@@ -82,10 +82,29 @@ export const FaultInjection: React.FC = () => {
     return activeContext ? activeContext.getCluster() : cluster;
   }, [cluster]);
 
-  const [selectedNode, setSelectedNode] = useState(
-    effectiveCluster.nodes[0]?.id || "",
+  // Use the store's selected node (shared with Dashboard), fall back to first node.
+  // When a scenario context is active, the effective cluster may have different nodes
+  // than the store's selectedNode, so verify the node exists in the effective cluster.
+  const storeNodeExists = effectiveCluster.nodes.some(
+    (n) => n.id === storeSelectedNode,
   );
+  const selectedNode =
+    storeNodeExists && storeSelectedNode
+      ? storeSelectedNode
+      : effectiveCluster.nodes[0]?.id || "";
   const [selectedGPU, setSelectedGPU] = useState(0);
+
+  // Reset GPU selection when node changes
+  useEffect(() => {
+    setSelectedGPU(0);
+  }, [selectedNode]);
+
+  // Derive current GPU health for active-fault indicators
+  const currentGPU = useMemo(() => {
+    const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
+    return node?.gpus[selectedGPU] || null;
+  }, [effectiveCluster, selectedNode, selectedGPU]);
+
   const [workloadPattern, setWorkloadPattern] = useState<
     "idle" | "training" | "inference" | "stress"
   >("idle");
@@ -94,11 +113,6 @@ export const FaultInjection: React.FC = () => {
   const [showBasicInfo, setShowBasicInfo] = useState(false);
   const [showComplexInfo, setShowComplexInfo] = useState(false);
   const [showWorkloadInfo, setShowWorkloadInfo] = useState(false);
-
-  // Dashboard reminder banner
-  const [showBanner, setShowBanner] = useState(() => {
-    return localStorage.getItem("fi-banner-dismissed") !== "true";
-  });
 
   const handleInjectFault = (
     faultType: "xid" | "ecc" | "thermal" | "nvlink" | "power" | "pcie",
@@ -287,84 +301,123 @@ export const FaultInjection: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        {/* Dashboard Reminder Banner */}
-        {showBanner && (
-          <div className="flex items-start gap-3 p-3 bg-blue-900/20 border border-blue-500/30 rounded-lg mb-4">
-            <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 text-sm text-blue-200">
-              All injected faults and workload changes are reflected in real
-              time on the
-              <span className="font-semibold text-blue-100">
-                {" "}
-                Dashboard
-              </span>{" "}
-              tab. Switch to Dashboard to see GPU health badges, temperature
-              changes, XID error indicators, and more.
-            </div>
-            <button
-              onClick={() => {
-                setShowBanner(false);
-                localStorage.setItem("fi-banner-dismissed", "true");
-              }}
-              className="text-blue-400 hover:text-blue-200 p-1"
-              aria-label="Dismiss banner"
+      <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-nvidia-green">Sandbox</h2>
+          <span className="text-xs text-gray-500">
+            Select target on Dashboard
+          </span>
+        </div>
+
+        {/* Target Node + GPU Selection */}
+        <div className="flex items-center gap-4 mb-6 p-3 bg-gray-900/50 rounded-lg border border-gray-700">
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <span className="text-gray-400 shrink-0">Node:</span>
+            <span
+              className="text-nvidia-green font-medium font-mono truncate"
+              title={
+                effectiveCluster.nodes.find((n) => n.id === selectedNode)
+                  ?.hostname || selectedNode
+              }
             >
-              <X className="w-4 h-4" />
-            </button>
+              <span className="sm:hidden">{selectedNode}</span>
+              <span className="hidden sm:inline">
+                {effectiveCluster.nodes.find((n) => n.id === selectedNode)
+                  ?.hostname || selectedNode}
+              </span>
+            </span>
           </div>
-        )}
-
-        <h2 className="text-2xl font-bold text-nvidia-green mb-4">
-          Fault Injection Training System
-        </h2>
-        <p className="text-gray-300 mb-6">
-          Inject faults and simulate workloads to practice troubleshooting
-          scenarios. This is a safe training environment - all faults are
-          simulated.
-        </p>
-
-        {/* Node and GPU Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Select Node
-            </label>
-            <select
-              value={selectedNode}
-              onChange={(e) => {
-                setSelectedNode(e.target.value);
-                setSelectedGPU(0);
-              }}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:border-nvidia-green"
-            >
-              {effectiveCluster.nodes.map((node) => (
-                <option key={node.id} value={node.id}>
-                  {node.hostname} ({node.id})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Select GPU
+          <div className="h-4 w-px bg-gray-700" />
+          <div className="flex items-center gap-2 flex-1">
+            <label className="text-sm text-gray-400 whitespace-nowrap">
+              GPU:
             </label>
             <select
               value={selectedGPU}
               onChange={(e) => setSelectedGPU(Number(e.target.value))}
-              className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2 text-gray-100 focus:outline-none focus:border-nvidia-green"
+              className="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-nvidia-green"
             >
               {effectiveCluster.nodes
                 .find((n) => n.id === selectedNode)
                 ?.gpus.map((gpu) => (
                   <option key={gpu.id} value={gpu.id}>
-                    GPU {gpu.id}: {gpu.name}
+                    GPU {gpu.id}
                   </option>
                 ))}
             </select>
           </div>
         </div>
+
+        {/* GPU Status Indicator */}
+        {currentGPU && currentGPU.healthStatus !== "OK" && (
+          <div
+            className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-xs font-medium ${
+              currentGPU.healthStatus === "Critical"
+                ? "bg-red-500/10 text-red-400 border border-red-500/30"
+                : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/30"
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              GPU {selectedGPU} status: {currentGPU.healthStatus}
+              {currentGPU.xidErrors && currentGPU.xidErrors.length > 0 && (
+                <span> — {currentGPU.xidErrors.length} XID error(s)</span>
+              )}
+            </span>
+          </div>
+        )}
+
+        {/* Quick Reference - collapsible */}
+        <details className="group mb-2">
+          <summary className="flex items-center gap-2 text-sm cursor-pointer hover:text-gray-300 select-none list-none [&::-webkit-details-marker]:hidden">
+            <span className="text-nvidia-green font-medium">
+              Quick Reference
+            </span>
+            <span className="text-xs text-gray-500">— diagnostic commands</span>
+          </summary>
+          <div className="mt-2 p-3 bg-gray-900 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 font-mono text-xs text-gray-400">
+              <div>
+                • <span className="text-nvidia-green">nvidia-smi</span> — GPU
+                overview
+              </div>
+              <div>
+                •{" "}
+                <span className="text-nvidia-green">nvidia-smi -q -d ECC</span>{" "}
+                — ECC errors
+              </div>
+              <div>
+                •{" "}
+                <span className="text-nvidia-green">
+                  nvidia-smi -q -d TEMPERATURE
+                </span>{" "}
+                — Thermals
+              </div>
+              <div>
+                •{" "}
+                <span className="text-nvidia-green">nvidia-smi nvlink -s</span>{" "}
+                — NVLink status
+              </div>
+              <div>
+                • <span className="text-nvidia-green">nvsm show health</span> —
+                Health summary
+              </div>
+              <div>
+                • <span className="text-nvidia-green">dcgmi diag -r 1</span> —
+                Quick diagnostics
+              </div>
+              <div>
+                • <span className="text-nvidia-green">dmesg | grep -i xid</span>{" "}
+                — XID errors in logs
+              </div>
+              <div>
+                •{" "}
+                <span className="text-nvidia-green">ipmitool sensor list</span>{" "}
+                — BMC sensors
+              </div>
+            </div>
+          </div>
+        </details>
 
         {/* Fault Injection Buttons */}
         <div className="space-y-4">
@@ -676,55 +729,6 @@ export const FaultInjection: React.FC = () => {
               {selectedWorkloadDesc.description}
             </p>
           )}
-
-          {/* Diagnostic Commands by Category */}
-          <div className="mt-4 p-4 bg-gray-900 rounded-lg">
-            <div className="text-sm text-gray-300">
-              <strong className="text-nvidia-green">
-                Diagnostic Commands by Category:
-              </strong>
-            </div>
-            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 font-mono text-xs text-gray-400">
-              <div>
-                • <span className="text-nvidia-green">nvidia-smi</span> — GPU
-                overview
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">nvidia-smi -q -d ECC</span>{" "}
-                — ECC errors
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">
-                  nvidia-smi -q -d TEMPERATURE
-                </span>{" "}
-                — Thermals
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">nvidia-smi nvlink -s</span>{" "}
-                — NVLink status
-              </div>
-              <div>
-                • <span className="text-nvidia-green">nvsm show health</span> —
-                Health summary
-              </div>
-              <div>
-                • <span className="text-nvidia-green">dcgmi diag -r 1</span> —
-                Quick diagnostics
-              </div>
-              <div>
-                • <span className="text-nvidia-green">dmesg | grep -i xid</span>{" "}
-                — XID errors in logs
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">ipmitool sensor list</span>{" "}
-                — BMC sensors
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

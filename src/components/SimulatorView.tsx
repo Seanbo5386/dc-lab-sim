@@ -1,11 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Dashboard } from "./Dashboard";
 import { Terminal } from "./Terminal";
+import { FaultInjection } from "./FaultInjection";
+import { useSimulationStore } from "../store/simulationStore";
 import {
   GripVertical,
+  Lock,
+  Maximize2,
   PanelLeftClose,
   PanelRightClose,
-  Maximize2,
+  TerminalSquare,
+  Zap,
 } from "lucide-react";
 
 interface SimulatorViewProps {
@@ -59,6 +64,11 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [rightTab, setRightTab] = useState<"terminal" | "faults">("terminal");
+  const [mobileTab, setMobileTab] = useState<
+    "dashboard" | "terminal" | "faults"
+  >("dashboard");
+  const activeScenario = useSimulationStore((state) => state.activeScenario);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Check for mobile viewport
@@ -175,6 +185,14 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Auto-switch away from faults tab when a scenario becomes active
+  useEffect(() => {
+    if (activeScenario) {
+      setRightTab((prev) => (prev === "faults" ? "terminal" : prev));
+      setMobileTab((prev) => (prev === "faults" ? "terminal" : prev));
+    }
+  }, [activeScenario]);
+
   const toggleLeftPanel = () => {
     setLeftCollapsed(!leftCollapsed);
     if (rightCollapsed) setRightCollapsed(false);
@@ -198,12 +216,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
         {/* Mobile Tab Bar */}
         <div className="flex bg-gray-800 border-b border-gray-700">
           <button
-            onClick={() => {
-              setLeftCollapsed(false);
-              setRightCollapsed(true);
-            }}
+            onClick={() => setMobileTab("dashboard")}
             className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-              !leftCollapsed && rightCollapsed
+              mobileTab === "dashboard"
                 ? "bg-gray-900 text-nvidia-green border-b-2 border-nvidia-green"
                 : "text-gray-400 hover:text-gray-200"
             }`}
@@ -211,35 +226,53 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             Dashboard
           </button>
           <button
-            onClick={() => {
-              setLeftCollapsed(true);
-              setRightCollapsed(false);
-            }}
+            onClick={() => setMobileTab("terminal")}
             className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
-              leftCollapsed && !rightCollapsed
+              mobileTab === "terminal"
                 ? "bg-gray-900 text-nvidia-green border-b-2 border-nvidia-green"
                 : "text-gray-400 hover:text-gray-200"
             }`}
           >
             Terminal
           </button>
+          <div className="relative group flex-1">
+            <button
+              onClick={() => !activeScenario && setMobileTab("faults")}
+              disabled={!!activeScenario}
+              className={`w-full py-3 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                mobileTab === "faults"
+                  ? "bg-gray-900 text-nvidia-green border-b-2 border-nvidia-green"
+                  : activeScenario
+                    ? "text-gray-600 cursor-not-allowed"
+                    : "text-gray-400 hover:text-gray-200"
+              }`}
+            >
+              {activeScenario && <Lock className="w-3.5 h-3.5" />}
+              Sandbox
+            </button>
+            {activeScenario && (
+              <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                Scenario is active
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Mobile Content */}
         <div className="flex-1 overflow-hidden">
-          {!leftCollapsed && rightCollapsed && (
+          {mobileTab === "dashboard" && (
             <div className="h-full overflow-auto p-4 bg-gray-900">
               <Dashboard />
             </div>
           )}
-          {leftCollapsed && !rightCollapsed && (
+          {mobileTab === "terminal" && (
             <div className="h-full bg-gray-900">
               <Terminal className="h-full" />
             </div>
           )}
-          {!leftCollapsed && !rightCollapsed && (
+          {mobileTab === "faults" && (
             <div className="h-full overflow-auto p-4 bg-gray-900">
-              <Dashboard />
+              <FaultInjection />
             </div>
           )}
         </div>
@@ -279,8 +312,20 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
           <div className="w-7 bg-gray-800 border-x border-gray-700 flex items-center justify-center">
             <GripVertical className="w-4 h-4 text-gray-500" />
           </div>
-          <div className="flex-1 overflow-hidden bg-gray-900">
-            <Terminal className="h-full" />
+          <div className="flex-1 overflow-hidden bg-gray-900 flex flex-col">
+            <div className="flex bg-gray-800 border-b border-gray-700 shrink-0">
+              <button className="flex items-center gap-1.5 py-2 px-4 text-sm font-medium bg-gray-900 text-nvidia-green border-b-2 border-nvidia-green">
+                <TerminalSquare className="w-4 h-4" />
+                Terminal
+              </button>
+              <button className="flex items-center gap-1.5 py-2 px-4 text-sm font-medium text-gray-400">
+                <Zap className="w-4 h-4" />
+                Sandbox
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <Terminal className="h-full" />
+            </div>
           </div>
         </div>
       ) : (
@@ -350,7 +395,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             <button
               onClick={toggleRightPanel}
               className="py-2 w-full hover:bg-gray-700 transition-colors flex justify-center"
-              title={rightCollapsed ? "Show Terminal" : "Hide Terminal"}
+              title={rightCollapsed ? "Show Right Panel" : "Hide Right Panel"}
             >
               <PanelRightClose
                 className={`w-4 h-4 text-gray-400 hover:text-nvidia-green transition-transform ${rightCollapsed ? "rotate-180" : ""}`}
@@ -358,19 +403,69 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             </button>
           </div>
 
-          {/* Right Panel - Terminal */}
+          {/* Right Panel - Terminal / Sandbox */}
           <div
             data-tour="terminal-panel"
-            className="absolute top-0 bottom-0 right-0 overflow-hidden bg-gray-900"
+            className="absolute top-0 bottom-0 right-0 overflow-hidden bg-gray-900 flex flex-col"
             style={{
               width: rightWidth,
               transition: isDragging ? "none" : "width 0.15s ease-out",
             }}
           >
             {!rightCollapsed && rightWidth > 0 && (
-              <div className="h-full overflow-hidden">
-                <Terminal className="h-full" />
-              </div>
+              <>
+                {/* Tab Bar */}
+                <div className="flex bg-gray-800 border-b border-gray-700 shrink-0">
+                  <button
+                    onClick={() => setRightTab("terminal")}
+                    className={`flex items-center gap-1.5 py-2 px-4 text-sm font-medium transition-colors ${
+                      rightTab === "terminal"
+                        ? "bg-gray-900 text-nvidia-green border-b-2 border-nvidia-green"
+                        : "text-gray-400 hover:text-gray-200"
+                    }`}
+                  >
+                    <TerminalSquare className="w-4 h-4" />
+                    Terminal
+                  </button>
+                  <div className="relative group">
+                    <button
+                      onClick={() => !activeScenario && setRightTab("faults")}
+                      disabled={!!activeScenario}
+                      className={`flex items-center gap-1.5 py-2 px-4 text-sm font-medium transition-colors ${
+                        rightTab === "faults"
+                          ? "bg-gray-900 text-nvidia-green border-b-2 border-nvidia-green"
+                          : activeScenario
+                            ? "text-gray-600 cursor-not-allowed"
+                            : "text-gray-400 hover:text-gray-200"
+                      }`}
+                    >
+                      {activeScenario ? (
+                        <Lock className="w-3.5 h-3.5" />
+                      ) : (
+                        <Zap className="w-4 h-4" />
+                      )}
+                      Sandbox
+                    </button>
+                    {/* Tooltip when locked */}
+                    {activeScenario && (
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 bg-gray-700 text-gray-300 text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                        Scenario is active
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Tab Content */}
+                <div className="flex-1 overflow-hidden">
+                  {rightTab === "terminal" ? (
+                    <Terminal className="h-full" />
+                  ) : (
+                    <div className="h-full overflow-auto p-4">
+                      <FaultInjection />
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </>
