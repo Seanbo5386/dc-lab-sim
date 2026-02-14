@@ -293,18 +293,13 @@ describe("FaultInjection", () => {
   describe("Rendering", () => {
     it("should render the fault injection panel with heading", () => {
       render(<FaultInjection />);
-      expect(
-        screen.getByText("Fault Injection Training System"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Sandbox")).toBeInTheDocument();
     });
 
     it("should render the description text with Dashboard hint", () => {
       render(<FaultInjection />);
       expect(
-        screen.getByText(/Inject faults and simulate workloads/),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Click a node on the Dashboard/),
+        screen.getByText("Select target on Dashboard"),
       ).toBeInTheDocument();
     });
 
@@ -362,9 +357,8 @@ describe("FaultInjection", () => {
     it("should render the diagnostic commands section with suggested commands", () => {
       render(<FaultInjection />);
 
-      expect(
-        screen.getByText("Diagnostic Commands by Category:"),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Quick Reference")).toBeInTheDocument();
+      expect(screen.getByText(/diagnostic commands/)).toBeInTheDocument();
       expect(screen.getByText(/nvidia-smi$/)).toBeInTheDocument();
       expect(screen.getByText("nvsm show health")).toBeInTheDocument();
       expect(screen.getByText("dcgmi diag -r 1")).toBeInTheDocument();
@@ -409,18 +403,14 @@ describe("FaultInjection", () => {
       render(<FaultInjection />);
 
       expect(screen.getByText("GPU:")).toBeInTheDocument();
-      expect(
-        screen.getByDisplayValue("GPU 0: NVIDIA A100-SXM4-80GB"),
-      ).toBeInTheDocument();
+      expect(screen.getByDisplayValue("GPU 0")).toBeInTheDocument();
     });
 
     it("should list GPUs for the selected node", () => {
       render(<FaultInjection />);
 
       // dgx-00 has 2 GPUs by default
-      const gpuSelect = screen.getByDisplayValue(
-        "GPU 0: NVIDIA A100-SXM4-80GB",
-      );
+      const gpuSelect = screen.getByDisplayValue("GPU 0");
       const options = gpuSelect.querySelectorAll("option");
       expect(options).toHaveLength(2);
     });
@@ -430,9 +420,7 @@ describe("FaultInjection", () => {
       shared.selectedNode = "dgx-01";
       render(<FaultInjection />);
 
-      const gpuSelect = screen.getByDisplayValue(
-        "GPU 0: NVIDIA A100-SXM4-80GB",
-      );
+      const gpuSelect = screen.getByDisplayValue("GPU 0");
       const options = gpuSelect.querySelectorAll("option");
       expect(options).toHaveLength(4);
     });
@@ -440,9 +428,7 @@ describe("FaultInjection", () => {
     it("should update selected GPU when dropdown changes", () => {
       render(<FaultInjection />);
 
-      const gpuSelect = screen.getByDisplayValue(
-        "GPU 0: NVIDIA A100-SXM4-80GB",
-      );
+      const gpuSelect = screen.getByDisplayValue("GPU 0");
       fireEvent.change(gpuSelect, { target: { value: "1" } });
       expect((gpuSelect as HTMLSelectElement).value).toBe("1");
     });
@@ -530,9 +516,7 @@ describe("FaultInjection", () => {
       render(<FaultInjection />);
 
       // Select GPU 1
-      const gpuSelect = screen.getByDisplayValue(
-        "GPU 0: NVIDIA A100-SXM4-80GB",
-      );
+      const gpuSelect = screen.getByDisplayValue("GPU 0");
       fireEvent.change(gpuSelect, { target: { value: "1" } });
 
       fireEvent.click(screen.getByText("XID Error"));

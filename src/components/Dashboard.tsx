@@ -288,7 +288,7 @@ const NodeSelector: React.FC = () => {
       ref={containerRef}
       role="tablist"
       aria-label="Node selection"
-      className="flex gap-2 overflow-x-auto pb-2"
+      className="flex gap-1.5 overflow-x-auto pb-2"
     >
       {effectiveCluster.nodes.map((node, index) => {
         const isSelected = selectedNode === node.id;
@@ -303,7 +303,7 @@ const NodeSelector: React.FC = () => {
             tabIndex={isSelected ? 0 : -1}
             onClick={() => selectNode(node.id)}
             onKeyDown={(e) => handleKeyDown(e, index)}
-            className={`px-4 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors ${
+            className={`px-3 py-1.5 rounded-lg font-medium text-sm whitespace-nowrap transition-colors shrink-0 ${
               isSelected
                 ? "bg-nvidia-green text-black"
                 : "bg-gray-800 text-gray-300 hover:bg-gray-700"
