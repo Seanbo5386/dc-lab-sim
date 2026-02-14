@@ -98,6 +98,13 @@ export const FaultInjection: React.FC = () => {
   useEffect(() => {
     setSelectedGPU(0);
   }, [selectedNode]);
+
+  // Derive current GPU health for active-fault indicators
+  const currentGPU = useMemo(() => {
+    const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
+    return node?.gpus[selectedGPU] || null;
+  }, [effectiveCluster, selectedNode, selectedGPU]);
+
   const [workloadPattern, setWorkloadPattern] = useState<
     "idle" | "training" | "inference" | "stress"
   >("idle");
@@ -340,6 +347,25 @@ export const FaultInjection: React.FC = () => {
             </select>
           </div>
         </div>
+
+        {/* GPU Status Indicator */}
+        {currentGPU && currentGPU.healthStatus !== "OK" && (
+          <div
+            className={`flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-xs font-medium ${
+              currentGPU.healthStatus === "Critical"
+                ? "bg-red-500/10 text-red-400 border border-red-500/30"
+                : "bg-yellow-500/10 text-yellow-400 border border-yellow-500/30"
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            <span>
+              GPU {selectedGPU} status: {currentGPU.healthStatus}
+              {currentGPU.xidErrors && currentGPU.xidErrors.length > 0 && (
+                <span> — {currentGPU.xidErrors.length} XID error(s)</span>
+              )}
+            </span>
+          </div>
+        )}
 
         {/* Fault Injection Buttons */}
         <div className="space-y-4">
