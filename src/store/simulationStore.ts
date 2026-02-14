@@ -460,11 +460,11 @@ export const useSimulationStore = create<SimulationState>()(
       exitScenario: () => {
         set({ activeScenario: null });
         // Clean up sandbox context (dynamic import to avoid circular deps)
-        import("@/store/scenarioContext").then(({ scenarioContextManager }) => {
+        Promise.all([
+          import("@/store/scenarioContext"),
+          import("@/utils/scenarioLoader"),
+        ]).then(([{ scenarioContextManager }, { clearAllFaults }]) => {
           scenarioContextManager.clearAll();
-        });
-        // Reset global cluster to healthy state
-        import("@/utils/scenarioLoader").then(({ clearAllFaults }) => {
           clearAllFaults();
         });
       },
