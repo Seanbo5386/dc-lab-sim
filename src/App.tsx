@@ -112,7 +112,7 @@ function App() {
 
       {/* Header */}
       <header
-        className={`bg-black border-b border-gray-800 px-6 py-4 transition-all duration-300 ${showLabWorkspace ? "ml-[600px]" : ""}`}
+        className={`bg-black border-b border-gray-800 px-6 py-4 transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -189,7 +189,7 @@ function App() {
       <nav
         role="tablist"
         aria-label="Main navigation"
-        className={`bg-gray-800 border-b border-gray-700 px-6 transition-all duration-300 ${showLabWorkspace ? "ml-[600px]" : ""}`}
+        className={`bg-gray-800 border-b border-gray-700 px-6 transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="flex gap-1">
           <button
@@ -284,7 +284,7 @@ function App() {
         id="main-content"
         role="tabpanel"
         aria-labelledby={`tab-${currentView}`}
-        className={`flex-1 h-0 flex flex-col overflow-hidden transition-all duration-300 ${showLabWorkspace ? "ml-[600px]" : ""}`}
+        className={`flex-1 h-0 flex flex-col overflow-hidden transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         {currentView === "simulator" && (
           <SimulatorView className="flex-1 h-full" />
@@ -306,13 +306,15 @@ function App() {
 
       {/* Footer */}
       <footer
-        className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${showLabWorkspace ? "ml-[600px]" : ""}`}
+        className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400">
           <div className="whitespace-nowrap">v0.9.2</div>
           <div className="flex items-center gap-2 sm:gap-4">
             <span className="flex items-center gap-1">
-              <span className={`w-2 h-2 rounded-full inline-block ${isRunning ? 'bg-green-500' : 'bg-gray-600'}`} />
+              <span
+                className={`w-2 h-2 rounded-full inline-block ${isRunning ? "bg-green-500" : "bg-gray-600"}`}
+              />
               <span className="hidden sm:inline">
                 {isRunning ? "Running" : "Idle"}
               </span>
