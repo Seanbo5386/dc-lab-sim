@@ -31,51 +31,51 @@ export const ALL_MISSIONS: Mission[] = [
       {
         id: "step-2",
         type: "concept",
-        expectedCommands: [],
+        expectedCommands: ["pwd"],
         hasQuiz: false,
       },
       {
         id: "step-3",
         type: "observe",
-        expectedCommands: [],
+        expectedCommands: ["ls -la /var/log"],
         hasQuiz: false,
       },
       {
         id: "step-4",
         type: "concept",
-        expectedCommands: [],
+        expectedCommands: ["cd /var/log"],
         hasQuiz: true,
         quizCorrectIndex: 0,
       },
       {
         id: "step-5",
         type: "concept",
-        expectedCommands: [],
+        expectedCommands: ["cat /etc/hostname"],
         hasQuiz: false,
       },
       {
         id: "step-6",
         type: "observe",
-        expectedCommands: [],
+        expectedCommands: ["cat /etc/hosts"],
         hasQuiz: false,
       },
       {
         id: "step-7",
         type: "concept",
-        expectedCommands: [],
+        expectedCommands: ["tail -20 /var/log/syslog"],
         hasQuiz: false,
       },
       {
         id: "step-8",
         type: "observe",
-        expectedCommands: [],
+        expectedCommands: ["tail -20 /var/log/syslog"],
         hasQuiz: true,
         quizCorrectIndex: 2,
       },
       {
         id: "step-9",
         type: "command",
-        expectedCommands: ["cat /etc/hostname"],
+        expectedCommands: ["hostname", "uname -a"],
         hasQuiz: false,
       },
       {
@@ -137,7 +137,7 @@ export const ALL_MISSIONS: Mission[] = [
       {
         id: "step-8",
         type: "observe",
-        expectedCommands: [],
+        expectedCommands: ["ls -l /usr/bin/nvidia-smi"],
         hasQuiz: false,
       },
       {
@@ -389,7 +389,7 @@ export const ALL_MISSIONS: Mission[] = [
       {
         id: "step-2",
         type: "observe",
-        expectedCommands: [],
+        expectedCommands: ["ipmitool power status"],
         hasQuiz: false,
       },
       {

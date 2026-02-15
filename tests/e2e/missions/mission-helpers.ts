@@ -201,12 +201,22 @@ export class MissionRunner {
     switch (step.type) {
       case "concept":
       case "observe":
-        if (hasQuiz) {
+        if (step.expectedCommands.length > 0) {
+          // Concept/observe steps with expectedCommands require terminal input
+          // (the app sets requiresCLIInput=true and hides the Continue button).
+          for (const cmd of step.expectedCommands) {
+            await this.executeCommand(cmd);
+          }
+          // If there's also a quiz, answer it after commands
+          if (hasQuiz) {
+            await this.answerQuiz(step.quizCorrectIndex!);
+          }
+        } else if (hasQuiz) {
           // Quiz is visible immediately for concept/observe steps.
           // Answering it triggers completeScenarioStep(), so skip Continue.
           await this.answerQuiz(step.quizCorrectIndex!);
         } else {
-          // No quiz — click Continue to complete the step.
+          // No quiz, no commands — click Continue to complete the step.
           await this.completeConceptStep();
         }
         break;

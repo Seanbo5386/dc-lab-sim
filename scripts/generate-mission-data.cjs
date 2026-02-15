@@ -45,10 +45,18 @@ function stepType(step) {
 function toMissionStep(step) {
   const type = stepType(step);
   const hasQuiz = !!step.quiz;
+
+  // Mirror narrativeAdapter.ts: observe steps with observeCommand
+  // prepend it to expectedCommands (the user must type it)
+  let expectedCommands = step.expectedCommands || [];
+  if (type === "observe" && step.observeCommand) {
+    expectedCommands = [step.observeCommand, ...expectedCommands];
+  }
+
   const result = {
     id: step.id,
     type,
-    expectedCommands: step.expectedCommands || [],
+    expectedCommands,
     hasQuiz,
   };
   if (hasQuiz) {
