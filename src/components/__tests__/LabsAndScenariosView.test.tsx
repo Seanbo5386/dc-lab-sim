@@ -13,12 +13,6 @@ import {
 
 // Mock lucide-react icons explicitly (Proxy approach can hang vitest)
 vi.mock("lucide-react", () => ({
-  Trophy: (props: Record<string, unknown>) => (
-    <svg data-testid="icon-Trophy" {...props} />
-  ),
-  TrendingUp: (props: Record<string, unknown>) => (
-    <svg data-testid="icon-TrendingUp" {...props} />
-  ),
   Clock: (props: Record<string, unknown>) => (
     <svg data-testid="icon-Clock" {...props} />
   ),
@@ -102,9 +96,6 @@ import { LabsAndScenariosView } from "../LabsAndScenariosView";
 function defaultProps() {
   return {
     onStartScenario: vi.fn(),
-    onBeginExam: vi.fn(),
-    onOpenStudyDashboard: vi.fn(),
-    onOpenExamGauntlet: vi.fn(),
   };
 }
 
@@ -251,47 +242,6 @@ describe("LabsAndScenariosView", () => {
     expect(props.onStartScenario).toHaveBeenCalledWith(
       "domain1-midnight-deployment",
     );
-  });
-
-  // --------------------------------------------------------------------------
-  // 10. Study Dashboard button present and calls onOpenStudyDashboard
-  // --------------------------------------------------------------------------
-
-  it("shows Study Dashboard card and calls handler on button click", () => {
-    const props = defaultProps();
-    render(<LabsAndScenariosView {...props} />);
-    expect(screen.getByText("Study Dashboard")).toBeInTheDocument();
-    const button = screen.getByRole("button", { name: /view progress/i });
-    fireEvent.click(button);
-    expect(props.onOpenStudyDashboard).toHaveBeenCalledTimes(1);
-  });
-
-  // --------------------------------------------------------------------------
-  // 12. Exam Gauntlet button present and calls onOpenExamGauntlet
-  // --------------------------------------------------------------------------
-
-  it("shows Exam Gauntlet card and calls handler on button click", () => {
-    const props = defaultProps();
-    render(<LabsAndScenariosView {...props} />);
-    expect(screen.getByText("Exam Gauntlet")).toBeInTheDocument();
-    const button = screen.getByRole("button", { name: /start gauntlet/i });
-    fireEvent.click(button);
-    expect(props.onOpenExamGauntlet).toHaveBeenCalledTimes(1);
-  });
-
-  // --------------------------------------------------------------------------
-  // 16. Begin Exam button calls onBeginExam
-  // --------------------------------------------------------------------------
-
-  it("shows Begin Practice Exam button and calls onBeginExam when clicked", () => {
-    const props = defaultProps();
-    render(<LabsAndScenariosView {...props} />);
-    const examCard = screen.getByTestId("practice-exam-card");
-    const button = within(examCard).getByRole("button", {
-      name: /begin practice exam/i,
-    });
-    fireEvent.click(button);
-    expect(props.onBeginExam).toHaveBeenCalledTimes(1);
   });
 
   // --------------------------------------------------------------------------

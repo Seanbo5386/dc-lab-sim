@@ -81,12 +81,7 @@
       "domain": "domain1",
       "questionText": "Which command verifies that all installed memory modules are detected after POST?",
       "type": "multiple-choice",
-      "choices": [
-        "lspci",
-        "nvidia-smi",
-        "free -h",
-        "ipmitool sensor list"
-      ],
+      "choices": ["lspci", "nvidia-smi", "free -h", "ipmitool sensor list"],
       "correctAnswer": 2,
       "explanation": "'free -h' shows total available system memory. Compare this against the expected physical installation to verify all memory was detected during POST.",
       "points": 1,
@@ -97,12 +92,7 @@
       "domain": "domain1",
       "questionText": "What is the NVIDIA vendor ID shown in lspci output?",
       "type": "multiple-choice",
-      "choices": [
-        "8086",
-        "1022",
-        "10de",
-        "15b3"
-      ],
+      "choices": ["8086", "1022", "10de", "15b3"],
       "correctAnswer": 2,
       "explanation": "10de is NVIDIA's PCI vendor ID. This can be used with 'lspci -d 10de:' to list all NVIDIA devices. 8086=Intel, 1022=AMD, 15b3=Mellanox.",
       "points": 1,
@@ -161,12 +151,7 @@
       "domain": "domain1",
       "questionText": "Which command shows detailed PCIe link information including current link speed and width?",
       "type": "multiple-choice",
-      "choices": [
-        "lspci -tv",
-        "lspci -vv",
-        "nvidia-smi",
-        "dmidecode"
-      ],
+      "choices": ["lspci -tv", "lspci -vv", "nvidia-smi", "dmidecode"],
       "correctAnswer": 1,
       "explanation": "'lspci -vv' shows verbose PCIe device information including link speed (Gen3/Gen4), link width (x16), and capabilities. The -tv flag shows topology only.",
       "points": 1,
@@ -193,12 +178,7 @@
       "domain": "domain2",
       "questionText": "Which NVIDIA GPUs support MIG mode?",
       "type": "multiple-select",
-      "choices": [
-        "A100",
-        "V100",
-        "H100",
-        "A30"
-      ],
+      "choices": ["A100", "V100", "H100", "A30"],
       "correctAnswer": [0, 2, 3],
       "explanation": "MIG is supported on A100, A30, and H100 GPUs. V100 and earlier generations do not support MIG. MIG requires Ampere architecture or newer.",
       "points": 1,
@@ -225,12 +205,7 @@
       "domain": "domain3",
       "questionText": "Which Slurm command shows detailed information about all nodes including state and GRES?",
       "type": "multiple-choice",
-      "choices": [
-        "squeue",
-        "sinfo -Nel",
-        "sacct",
-        "scontrol show jobs"
-      ],
+      "choices": ["squeue", "sinfo -Nel", "sacct", "scontrol show jobs"],
       "correctAnswer": 1,
       "explanation": "'sinfo -Nel' shows detailed node information including state, partitions, and GRES. squeue shows jobs, sacct shows job history.",
       "points": 1,
@@ -337,12 +312,7 @@
       "domain": "domain4",
       "questionText": "How long does DCGM Level 3 diagnostics typically take per GPU?",
       "type": "multiple-choice",
-      "choices": [
-        "10-30 seconds",
-        "1-2 minutes",
-        "10-15 minutes",
-        "1-2 hours"
-      ],
+      "choices": ["10-30 seconds", "1-2 minutes", "10-15 minutes", "1-2 hours"],
       "correctAnswer": 2,
       "explanation": "Level 3 diagnostics run extended stress tests and take 10-15 minutes per GPU. Use Level 3 for new hardware acceptance or after repairs.",
       "points": 1,
@@ -353,12 +323,7 @@
       "domain": "domain4",
       "questionText": "Which NCCL collective operation is typically used in distributed training to aggregate gradients?",
       "type": "multiple-choice",
-      "choices": [
-        "all-gather",
-        "all-reduce",
-        "broadcast",
-        "reduce-scatter"
-      ],
+      "choices": ["all-gather", "all-reduce", "broadcast", "reduce-scatter"],
       "correctAnswer": 1,
       "explanation": "All-reduce is used to sum gradients across all GPUs and distribute the result back to all GPUs. This is the core operation in data-parallel training.",
       "points": 1,
@@ -385,12 +350,7 @@
       "domain": "domain4",
       "questionText": "For optimal NCCL performance on DGX systems, which interconnect should be used for intra-node communication?",
       "type": "multiple-choice",
-      "choices": [
-        "PCIe",
-        "NVLink",
-        "Ethernet",
-        "InfiniBand"
-      ],
+      "choices": ["PCIe", "NVLink", "Ethernet", "InfiniBand"],
       "correctAnswer": 1,
       "explanation": "NVLink provides the highest bandwidth for GPU-to-GPU communication within a node. NCCL automatically detects and uses NVLink when available.",
       "points": 1,
@@ -433,12 +393,7 @@
       "domain": "domain4",
       "questionText": "What is the expected NVLink bandwidth per direction on an H100 GPU with 18 links?",
       "type": "multiple-choice",
-      "choices": [
-        "300 GB/s",
-        "450 GB/s",
-        "600 GB/s",
-        "900 GB/s"
-      ],
+      "choices": ["300 GB/s", "450 GB/s", "600 GB/s", "900 GB/s"],
       "correctAnswer": 1,
       "explanation": "H100 has 18 NVLink 4.0 links at 25 GB/s each = 450 GB/s per direction, 900 GB/s bidirectional total. A100 has 12 links = 300 GB/s per direction.",
       "points": 1,
@@ -449,12 +404,7 @@
       "domain": "domain4",
       "questionText": "Which DCGM command monitors GPU metrics in real-time?",
       "type": "multiple-choice",
-      "choices": [
-        "dcgmi stats",
-        "dcgmi dmon",
-        "dcgmi watch",
-        "dcgmi monitor"
-      ],
+      "choices": ["dcgmi stats", "dcgmi dmon", "dcgmi watch", "dcgmi monitor"],
       "correctAnswer": 1,
       "explanation": "'dcgmi dmon' provides real-time monitoring of GPU metrics (utilization, temperature, power, etc.) similar to nvidia-smi dmon.",
       "points": 1,
@@ -481,12 +431,7 @@
       "domain": "domain4",
       "questionText": "Which metric indicates GPU compute utilization in nvidia-smi?",
       "type": "multiple-choice",
-      "choices": [
-        "Pwr:Usage/Cap",
-        "Temp",
-        "GPU-Util",
-        "Mem-Util"
-      ],
+      "choices": ["Pwr:Usage/Cap", "Temp", "GPU-Util", "Mem-Util"],
       "correctAnswer": 2,
       "explanation": "GPU-Util shows the percentage of time the GPU was actively processing. Mem-Util shows memory bandwidth utilization (separate metric).",
       "points": 1,
@@ -497,12 +442,7 @@
       "domain": "domain4",
       "questionText": "What is a good NCCL all-reduce bandwidth for 8x H100 GPUs at 128MB message size?",
       "type": "multiple-choice",
-      "choices": [
-        "50-80 GB/s",
-        "100-150 GB/s",
-        "200-300 GB/s",
-        "400-500 GB/s"
-      ],
+      "choices": ["50-80 GB/s", "100-150 GB/s", "200-300 GB/s", "400-500 GB/s"],
       "correctAnswer": 2,
       "explanation": "On DGX H100 with NVSwitch, expect 200-300 GB/s algBW for all-reduce at large message sizes. Lower values indicate topology or configuration issues.",
       "points": 1,
@@ -545,12 +485,7 @@
       "domain": "domain5",
       "questionText": "At what temperature do datacenter GPUs typically begin thermal throttling?",
       "type": "multiple-choice",
-      "choices": [
-        "70°C",
-        "85-90°C",
-        "100°C",
-        "120°C"
-      ],
+      "choices": ["70°C", "85-90°C", "100°C", "120°C"],
       "correctAnswer": 1,
       "explanation": "Datacenter GPUs typically begin thermal throttling around 85-90°C depending on the model. Maximum safe operating temperature is usually 90-95°C.",
       "points": 1,
@@ -657,12 +592,7 @@
       "domain": "domain2",
       "questionText": "What is the maximum number of MIG instances on an A100 80GB GPU?",
       "type": "multiple-choice",
-      "choices": [
-        "4",
-        "7",
-        "8",
-        "16"
-      ],
+      "choices": ["4", "7", "8", "16"],
       "correctAnswer": 1,
       "explanation": "An A100 can be partitioned into up to 7 MIG instances (using 1g.10gb profile). Different profiles are available: 1g, 2g, 3g, 4g, 7g representing GPU slice sizes.",
       "points": 1,
@@ -737,12 +667,7 @@
       "domain": "domain3",
       "questionText": "Which storage protocol is commonly used for high-performance shared storage in HPC clusters?",
       "type": "multiple-choice",
-      "choices": [
-        "NFS",
-        "iSCSI",
-        "Lustre or BeeGFS",
-        "CIFS/SMB"
-      ],
+      "choices": ["NFS", "iSCSI", "Lustre or BeeGFS", "CIFS/SMB"],
       "correctAnswer": 2,
       "explanation": "Lustre and BeeGFS are parallel distributed file systems designed for HPC, providing high throughput and scalability. NFS is simpler but lower performance.",
       "points": 1,
@@ -865,12 +790,7 @@
       "domain": "domain4",
       "questionText": "What is the typical efficiency target for HPL benchmark on a DGX H100 system?",
       "type": "multiple-choice",
-      "choices": [
-        "50-60%",
-        "70-80%",
-        "85-92%",
-        "95-99%"
-      ],
+      "choices": ["50-60%", "70-80%", "85-92%", "95-99%"],
       "correctAnswer": 2,
       "explanation": "Well-tuned DGX H100 systems typically achieve 85-92% HPL efficiency. Values below 80% indicate potential issues with memory configuration, thermal throttling, or NVLink problems.",
       "points": 1,
@@ -945,12 +865,7 @@
       "domain": "domain4",
       "questionText": "Which command validates InfiniBand fabric connectivity and performance?",
       "type": "multiple-choice",
-      "choices": [
-        "ibstat",
-        "ibdiagnet",
-        "ibportstate",
-        "iblinkinfo"
-      ],
+      "choices": ["ibstat", "ibdiagnet", "ibportstate", "iblinkinfo"],
       "correctAnswer": 1,
       "explanation": "'ibdiagnet' performs comprehensive fabric diagnostics including topology discovery, link health, routing verification, and performance counters analysis.",
       "points": 1,
@@ -993,12 +908,7 @@
       "domain": "domain4",
       "questionText": "What is the expected single-GPU memory bandwidth for an H100 SXM GPU?",
       "type": "multiple-choice",
-      "choices": [
-        "1.5 TB/s",
-        "2.0 TB/s",
-        "3.35 TB/s",
-        "4.0 TB/s"
-      ],
+      "choices": ["1.5 TB/s", "2.0 TB/s", "3.35 TB/s", "4.0 TB/s"],
       "correctAnswer": 2,
       "explanation": "H100 SXM with HBM3 achieves approximately 3.35 TB/s memory bandwidth. A100 achieves ~2.0 TB/s. Use bandwidth tests to verify actual vs theoretical performance.",
       "points": 1,
@@ -1153,12 +1063,7 @@
       "domain": "domain4",
       "questionText": "What is the minimum DCGM diagnostic level that includes memory stress testing?",
       "type": "multiple-choice",
-      "choices": [
-        "Level 1",
-        "Level 2",
-        "Level 3",
-        "Level 4"
-      ],
+      "choices": ["Level 1", "Level 2", "Level 3", "Level 4"],
       "correctAnswer": 1,
       "explanation": "Level 2 includes short stress tests including memory testing. Level 1 only checks software deployment and basic properties. Level 3 includes extended stress tests.",
       "points": 1,
@@ -1921,12 +1826,7 @@
       "domain": "domain2",
       "questionText": "Which MIG profile provides the largest memory allocation on an A100 80GB?",
       "type": "multiple-choice",
-      "choices": [
-        "1g.10gb",
-        "3g.40gb",
-        "4g.40gb",
-        "7g.80gb"
-      ],
+      "choices": ["1g.10gb", "3g.40gb", "4g.40gb", "7g.80gb"],
       "correctAnswer": 3,
       "explanation": "7g.80gb uses all 7 GPU slices and provides access to all 80GB memory. This is essentially the full GPU as a single MIG instance.",
       "points": 1,
@@ -1985,12 +1885,7 @@
       "domain": "domain4",
       "questionText": "What is the theoretical peak FP16 Tensor Core performance of an H100 SXM GPU?",
       "type": "multiple-choice",
-      "choices": [
-        "312 TFLOPS",
-        "989 TFLOPS",
-        "1,979 TFLOPS",
-        "3,958 TFLOPS"
-      ],
+      "choices": ["312 TFLOPS", "989 TFLOPS", "1,979 TFLOPS", "3,958 TFLOPS"],
       "correctAnswer": 2,
       "explanation": "H100 SXM achieves 1,979 TFLOPS for FP16 Tensor Core operations (with sparsity: 3,958 TFLOPS). This is the peak theoretical performance for AI training.",
       "points": 1,
@@ -2033,12 +1928,7 @@
       "domain": "domain4",
       "questionText": "What is a healthy temperature range for datacenter GPUs under load?",
       "type": "multiple-choice",
-      "choices": [
-        "30-50°C",
-        "50-70°C",
-        "70-83°C",
-        "85-95°C"
-      ],
+      "choices": ["30-50°C", "50-70°C", "70-83°C", "85-95°C"],
       "correctAnswer": 2,
       "explanation": "Under load, datacenter GPUs typically run 70-83°C. Above 83°C may indicate cooling issues. Throttling begins around 85-90°C depending on model.",
       "points": 1,
@@ -2049,12 +1939,7 @@
       "domain": "domain4",
       "questionText": "Which InfiniBand diagnostic shows the fabric topology?",
       "type": "multiple-choice",
-      "choices": [
-        "ibstat",
-        "ibnetdiscover",
-        "ibportstate",
-        "perfquery"
-      ],
+      "choices": ["ibstat", "ibnetdiscover", "ibportstate", "perfquery"],
       "correctAnswer": 1,
       "explanation": "'ibnetdiscover' maps the InfiniBand fabric topology, showing all switches, HCAs, and their interconnections. Essential for verifying fabric configuration.",
       "points": 1,
@@ -2129,12 +2014,7 @@
       "domain": "domain4",
       "questionText": "What is the expected InfiniBand HDR bandwidth per port?",
       "type": "multiple-choice",
-      "choices": [
-        "100 Gb/s",
-        "200 Gb/s",
-        "400 Gb/s",
-        "800 Gb/s"
-      ],
+      "choices": ["100 Gb/s", "200 Gb/s", "400 Gb/s", "800 Gb/s"],
       "correctAnswer": 1,
       "explanation": "HDR (High Data Rate) InfiniBand provides 200 Gb/s per port (50 Gb/s per lane x 4 lanes). NDR provides 400 Gb/s, and NDR400/XDR provide 800 Gb/s.",
       "points": 1,
@@ -2465,12 +2345,7 @@
       "domain": "domain5",
       "questionText": "Which XID error code indicates NVLink training failure?",
       "type": "multiple-choice",
-      "choices": [
-        "XID 72",
-        "XID 74",
-        "XID 76",
-        "XID 79"
-      ],
+      "choices": ["XID 72", "XID 74", "XID 76", "XID 79"],
       "correctAnswer": 2,
       "explanation": "XID 76 indicates NVLink failed to complete link training. This is a physical connection problem requiring GPU reseat or hardware replacement.",
       "points": 1,
@@ -2529,12 +2404,7 @@
       "domain": "domain4",
       "questionText": "What is the expected all-reduce bandwidth for 8 A100 GPUs over NVLink?",
       "type": "multiple-choice",
-      "choices": [
-        "50-80 GB/s",
-        "100-150 GB/s",
-        "200-250 GB/s",
-        "400-500 GB/s"
-      ],
+      "choices": ["50-80 GB/s", "100-150 GB/s", "200-250 GB/s", "400-500 GB/s"],
       "correctAnswer": 2,
       "explanation": "8 A100 GPUs with NVSwitch achieve approximately 200-250 GB/s all-reduce bandwidth. H100 systems achieve 400-450 GB/s with their faster NVLink 4.0.",
       "points": 1,
@@ -2673,12 +2543,7 @@
       "domain": "domain4",
       "questionText": "Which NCCL collective operation is most commonly used in distributed deep learning training?",
       "type": "multiple-choice",
-      "choices": [
-        "Broadcast",
-        "All-gather",
-        "All-reduce",
-        "Reduce-scatter"
-      ],
+      "choices": ["Broadcast", "All-gather", "All-reduce", "Reduce-scatter"],
       "correctAnswer": 2,
       "explanation": "All-reduce is most common in DL training as it sums gradients across all GPUs and distributes the result back. This is the core operation for synchronous distributed training.",
       "points": 1,
@@ -2699,6 +2564,492 @@
       "explanation": "XID 78 specifically indicates an uncorrectable ECC error on the NVLink data path - data corruption occurred during GPU-to-GPU communication. This requires hardware replacement.",
       "points": 1,
       "difficulty": "advanced"
+    },
+    {
+      "id": "q169",
+      "domain": "domain1",
+      "questionText": "What is the primary purpose of enabling persistence mode with 'nvidia-smi -pm 1'?",
+      "type": "multiple-choice",
+      "choices": [
+        "It saves GPU settings across reboots",
+        "It keeps the NVIDIA driver loaded even when no client applications are running",
+        "It enables persistent logging of GPU errors to syslog",
+        "It locks the GPU clock speed to maximum frequency"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Persistence mode keeps the NVIDIA kernel driver loaded even when no applications are using the GPU. Without it, the driver unloads between uses, causing significant latency on the next GPU operation due to driver re-initialization.",
+      "points": 1,
+      "difficulty": "beginner"
+    },
+    {
+      "id": "q170",
+      "domain": "domain1",
+      "questionText": "Which command sets a GPU to 'EXCLUSIVE_PROCESS' compute mode, allowing only one CUDA context per GPU?",
+      "type": "multiple-choice",
+      "choices": [
+        "nvidia-smi --compute-mode=1",
+        "nvidia-smi -c EXCLUSIVE_PROCESS",
+        "nvidia-smi --set-exclusive",
+        "nvidia-smi -e 1"
+      ],
+      "correctAnswer": 1,
+      "explanation": "'nvidia-smi -c EXCLUSIVE_PROCESS' (or '-c 3') sets the compute mode so only one CUDA context can be created on the GPU at a time. This is commonly used in HPC and multi-user environments to prevent GPU sharing conflicts.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q171",
+      "domain": "domain1",
+      "questionText": "During DGX system BIOS configuration, which setting must be enabled for GPU direct RDMA (GPUDirect) to function?",
+      "type": "multiple-choice",
+      "choices": [
+        "Hyper-Threading",
+        "SR-IOV (Single Root I/O Virtualization)",
+        "Above 4G Decoding and MMIO High Size",
+        "Intel VT-d / AMD IOMMU"
+      ],
+      "correctAnswer": 2,
+      "explanation": "Above 4G Decoding must be enabled along with sufficient MMIO High Size to allow the system to map the large BAR (Base Address Register) spaces of GPUs. Without this, GPUDirect RDMA cannot map GPU memory to PCIe address space.",
+      "points": 1,
+      "difficulty": "advanced"
+    },
+    {
+      "id": "q172",
+      "domain": "domain1",
+      "questionText": "What does 'nvidia-smi topo -m' display?",
+      "type": "multiple-choice",
+      "choices": [
+        "GPU memory topology showing HBM stack layout",
+        "GPU interconnect topology matrix showing NVLink and PCIe connections between GPUs",
+        "Network topology of InfiniBand switches",
+        "CPU-to-GPU NUMA topology only"
+      ],
+      "correctAnswer": 1,
+      "explanation": "'nvidia-smi topo -m' outputs a matrix showing the interconnect type between each pair of GPUs (e.g., NVLink, PIX, PHB, SYS). It also shows CPU affinity for each GPU, which is critical for optimizing multi-GPU workloads.",
+      "points": 1,
+      "difficulty": "beginner"
+    },
+    {
+      "id": "q173",
+      "domain": "domain1",
+      "questionText": "Which command applies a power limit of 300 watts to GPU 0?",
+      "type": "multiple-choice",
+      "choices": [
+        "nvidia-smi -i 0 --power-limit=300",
+        "nvidia-smi -i 0 -pl 300",
+        "nvidia-smi --set-power 0 300W",
+        "nvidia-smi -pm 300 -i 0"
+      ],
+      "correctAnswer": 1,
+      "explanation": "'nvidia-smi -i 0 -pl 300' sets the power limit for GPU 0 to 300 watts. The -pl flag accepts the value in watts. The power limit must be within the min/max range supported by the GPU (visible with nvidia-smi -q -d POWER).",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q174",
+      "domain": "domain1",
+      "questionText": "What is the recommended approach for installing the OS on a new DGX A100 system?",
+      "type": "multiple-choice",
+      "choices": [
+        "Install a standard Ubuntu Server image and add GPU drivers manually",
+        "Use the NVIDIA DGX OS ISO image which includes pre-configured drivers and firmware",
+        "Install CentOS and compile CUDA drivers from source",
+        "Use PXE boot with a generic Linux kernel"
+      ],
+      "correctAnswer": 1,
+      "explanation": "NVIDIA provides a DGX OS ISO (based on Ubuntu) that includes pre-configured NVIDIA drivers, CUDA toolkit, container runtime, and firmware utilities specifically tuned for DGX hardware. This ensures all components are compatible and optimized.",
+      "points": 1,
+      "difficulty": "beginner"
+    },
+    {
+      "id": "q175",
+      "domain": "domain1",
+      "questionText": "During initial bring-up, which command verifies the firmware version of InfiniBand HCAs?",
+      "type": "multiple-choice",
+      "choices": [
+        "ibstat -v",
+        "mlxfwmanager --query",
+        "ibdiagnet --fw-check",
+        "iblinkinfo --firmware"
+      ],
+      "correctAnswer": 1,
+      "explanation": "'mlxfwmanager --query' lists all Mellanox/NVIDIA HCAs in the system along with their current firmware versions and available updates. This is the standard tool for firmware management on ConnectX adapters.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q176",
+      "domain": "domain1",
+      "questionText": "Which command checks PCIe link speed and width for all NVIDIA GPUs in the system?",
+      "type": "multiple-choice",
+      "choices": [
+        "nvidia-smi -q -d PCIE",
+        "lspci -vvv | grep -i nvidia",
+        "nvidia-smi --query-gpu=pcie.link.gen.current,pcie.link.width.current --format=csv",
+        "All of the above can show PCIe link information"
+      ],
+      "correctAnswer": 3,
+      "explanation": "All three commands can provide PCIe link information. 'nvidia-smi -q -d PCIE' shows detailed PCIe info, 'lspci -vvv' shows kernel-level PCI device details, and the query flag provides CSV-formatted output. Using multiple tools helps cross-verify link training.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q177",
+      "domain": "domain1",
+      "questionText": "What type of GPU memory does the DGX A100 use, and how does it differ from system RAM?",
+      "type": "multiple-choice",
+      "choices": [
+        "GDDR6 - faster clock speed than DDR4 system RAM",
+        "HBM2e - stacked memory with much higher bandwidth than DDR4 system RAM",
+        "LPDDR5 - lower power consumption than DDR4 system RAM",
+        "HBM3 - identical architecture to system RAM but on the GPU package"
+      ],
+      "correctAnswer": 1,
+      "explanation": "The A100 GPU uses HBM2e (High Bandwidth Memory 2e) which provides up to 2 TB/s bandwidth per GPU. HBM uses a 3D-stacked architecture on the GPU package, delivering dramatically higher bandwidth than DDR4 system RAM (~200 GB/s).",
+      "points": 1,
+      "difficulty": "beginner"
+    },
+    {
+      "id": "q178",
+      "domain": "domain1",
+      "questionText": "What is the correct command to set the BMC network configuration on a DGX system using ipmitool?",
+      "type": "multiple-choice",
+      "choices": [
+        "ipmitool lan set 1 ipaddr 10.0.0.100",
+        "ipmitool bmc config --ip 10.0.0.100",
+        "ipmitool network set eth0 10.0.0.100",
+        "ipmitool chassis bootdev network"
+      ],
+      "correctAnswer": 0,
+      "explanation": "'ipmitool lan set 1 ipaddr <IP>' configures the BMC's network IP address on LAN channel 1. Additional settings like netmask ('ipmitool lan set 1 netmask') and gateway are also configured via the 'lan set' subcommand.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q179",
+      "domain": "domain1",
+      "questionText": "Which nvidia-smi flag displays the current GPU driver version and CUDA version?",
+      "type": "multiple-choice",
+      "choices": [
+        "nvidia-smi --version",
+        "nvidia-smi (no flags - shown in the header)",
+        "nvidia-smi -q -d VERSION",
+        "nvidia-smi --driver-info"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Running 'nvidia-smi' with no flags displays the main dashboard which includes the NVIDIA driver version and the maximum supported CUDA version in the header row. This is the quickest way to verify driver initialization after bring-up.",
+      "points": 1,
+      "difficulty": "beginner"
+    },
+    {
+      "id": "q180",
+      "domain": "domain1",
+      "questionText": "During GPU firmware update, what is the critical step after flashing new firmware with 'nvidia-smi --gpu-reset'?",
+      "type": "multiple-choice",
+      "choices": [
+        "Restart the NVIDIA driver with 'systemctl restart nvidia-persistenced'",
+        "Cold reboot the entire node to fully activate the new firmware",
+        "Run 'nvidia-smi -pm 1' to re-enable persistence mode",
+        "Execute 'modprobe -r nvidia && modprobe nvidia' to reload the driver"
+      ],
+      "correctAnswer": 1,
+      "explanation": "After a GPU firmware update, a cold reboot (full power cycle) is required to activate the new firmware in the GPU's ROM. A warm reboot or driver reload is insufficient because the firmware is loaded from ROM during the hardware power-on sequence.",
+      "points": 1,
+      "difficulty": "advanced"
+    },
+    {
+      "id": "q181",
+      "domain": "domain1",
+      "questionText": "What does 'nvidia-smi -q -d POWER' report for a healthy DGX A100 GPU?",
+      "type": "multiple-choice",
+      "choices": [
+        "Only the current power draw in watts",
+        "Power draw, power limit, default power limit, min/max power limit, and power state",
+        "Power supply unit voltage and amperage",
+        "Cumulative energy consumption since last boot in kilowatt-hours"
+      ],
+      "correctAnswer": 1,
+      "explanation": "'nvidia-smi -q -d POWER' shows comprehensive power information including current draw, enforced power limit, default limit, minimum and maximum configurable limits, and the current power state (P0-P12). This is essential for validating power capping configurations.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q182",
+      "domain": "domain1",
+      "questionText": "Which ipmitool command reads the system event log (SEL) to check for hardware errors during bring-up?",
+      "type": "multiple-choice",
+      "choices": [
+        "ipmitool sel list",
+        "ipmitool event log",
+        "ipmitool sdr list",
+        "ipmitool chassis status"
+      ],
+      "correctAnswer": 0,
+      "explanation": "'ipmitool sel list' displays the System Event Log which records hardware events such as thermal warnings, power supply failures, and memory errors. Reviewing the SEL during bring-up is critical for identifying pre-existing hardware issues.",
+      "points": 1,
+      "difficulty": "beginner"
+    },
+    {
+      "id": "q183",
+      "domain": "domain1",
+      "questionText": "What NVSwitch topology does 'nvidia-smi topo -m' show for a properly configured DGX A100?",
+      "type": "multiple-choice",
+      "choices": [
+        "All GPUs connected via PCIe switches only (PIX)",
+        "All 8 GPUs connected to all other GPUs via NVLink through 6 NVSwitches",
+        "4 GPUs in one NVLink domain and 4 in another, connected via PCIe",
+        "GPUs connected in a ring topology via NVLink"
+      ],
+      "correctAnswer": 1,
+      "explanation": "A properly configured DGX A100 has 6 NVSwitches providing full all-to-all NVLink connectivity between all 8 A100 GPUs. The topology matrix should show 'NV12' between every GPU pair, indicating 12 NVLink connections per pair through the switches.",
+      "points": 1,
+      "difficulty": "advanced"
+    },
+    {
+      "id": "q184",
+      "domain": "domain1",
+      "questionText": "Which 'sensors' command output is most important to verify during DGX system bring-up?",
+      "type": "multiple-choice",
+      "choices": [
+        "Fan RPM speeds only",
+        "CPU temperature, inlet/exhaust temperatures, and voltage rails",
+        "Hard drive SMART status",
+        "Network interface link speed"
+      ],
+      "correctAnswer": 1,
+      "explanation": "The 'sensors' command (from lm-sensors) shows thermal readings (CPU, inlet, exhaust) and voltage rail status. During bring-up, verifying that temperatures are within range and voltages are stable ensures the cooling system and power delivery are functioning correctly.",
+      "points": 1,
+      "difficulty": "beginner"
+    },
+    {
+      "id": "q185",
+      "domain": "domain1",
+      "questionText": "What does 'nvidia-smi -q -d ECC' show, and why is it checked during server bring-up?",
+      "type": "multiple-choice",
+      "choices": [
+        "ECC memory prices and vendor information",
+        "Volatile and aggregate single-bit and double-bit ECC error counts for GPU memory",
+        "Whether ECC is supported by the system BIOS",
+        "ECC status of system DDR memory modules"
+      ],
+      "correctAnswer": 1,
+      "explanation": "'nvidia-smi -q -d ECC' displays ECC error counts for GPU HBM memory, separated into volatile (since last driver load) and aggregate (lifetime) categories. Checking this during bring-up ensures the GPU memory has no pre-existing uncorrectable errors that would indicate faulty hardware.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q186",
+      "domain": "domain1",
+      "questionText": "During DGX system BIOS configuration, why is NUMA (Non-Uniform Memory Access) balancing important for GPU workloads?",
+      "type": "multiple-choice",
+      "choices": [
+        "It enables GPU memory to be shared across nodes in a cluster",
+        "It ensures GPUs are accessed by the CPU in the same NUMA domain to minimize memory access latency",
+        "It allows more system RAM to be allocated to GPU processes",
+        "It distributes GPU compute tasks evenly across all NUMA domains"
+      ],
+      "correctAnswer": 1,
+      "explanation": "Proper NUMA configuration ensures each GPU is accessed by its local CPU socket, minimizing PCIe traversal and memory access latency. Mismatched NUMA affinity (e.g., CPU socket 0 accessing a GPU on socket 1) can degrade performance by 10-30%.",
+      "points": 1,
+      "difficulty": "advanced"
+    },
+    {
+      "id": "q187",
+      "domain": "domain3",
+      "questionText": "What is the purpose of the NVIDIA GPU device plugin for Kubernetes?",
+      "type": "multiple-choice",
+      "choices": [
+        "It installs NVIDIA drivers on Kubernetes nodes automatically",
+        "It exposes GPU resources to Kubernetes so pods can request 'nvidia.com/gpu' in resource limits",
+        "It provides a web dashboard for monitoring GPU utilization in the cluster",
+        "It manages GPU firmware updates across Kubernetes nodes"
+      ],
+      "correctAnswer": 1,
+      "explanation": "The NVIDIA device plugin for Kubernetes implements the Kubernetes Device Plugin API. It advertises GPU resources (nvidia.com/gpu) to the kubelet, enabling pods to request GPUs via resource limits and ensuring proper GPU allocation and isolation.",
+      "points": 1,
+      "difficulty": "beginner"
+    },
+    {
+      "id": "q188",
+      "domain": "domain3",
+      "questionText": "Which component does the NVIDIA GPU Operator install and manage as part of its stack?",
+      "type": "multiple-choice",
+      "choices": [
+        "Kubernetes API server and etcd",
+        "NVIDIA drivers, container toolkit, device plugin, DCGM exporter, and MIG manager",
+        "Only the NVIDIA container runtime and nothing else",
+        "Prometheus and Grafana monitoring stack"
+      ],
+      "correctAnswer": 1,
+      "explanation": "The GPU Operator automates deployment and lifecycle management of all NVIDIA software components needed for GPU workloads in Kubernetes: drivers, container toolkit, device plugin, DCGM/DCGM-exporter, GPU Feature Discovery, MIG manager, and validator.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q189",
+      "domain": "domain3",
+      "questionText": "What is the role of nvidia-container-toolkit in the container runtime stack?",
+      "type": "multiple-choice",
+      "choices": [
+        "It replaces Docker entirely with a GPU-optimized container engine",
+        "It provides a custom OCI runtime hook that injects GPU libraries and devices into containers",
+        "It converts CUDA applications into container images automatically",
+        "It manages GPU memory allocation within running containers"
+      ],
+      "correctAnswer": 1,
+      "explanation": "nvidia-container-toolkit provides an OCI prestart hook (nvidia-container-runtime-hook) that modifies the container spec to inject NVIDIA driver libraries, CUDA libraries, and GPU device files (/dev/nvidia*) into the container at launch time.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q190",
+      "domain": "domain3",
+      "questionText": "In the NVIDIA DGX Software Stack (formerly BCM), which component handles cluster-wide job scheduling?",
+      "type": "multiple-choice",
+      "choices": [
+        "NVIDIA GPU Operator",
+        "Slurm Workload Manager or Kubernetes with GPU scheduling",
+        "DCGM (Data Center GPU Manager)",
+        "NCCL (NVIDIA Collective Communications Library)"
+      ],
+      "correctAnswer": 1,
+      "explanation": "The DGX Software Stack uses either Slurm (for traditional HPC) or Kubernetes (for cloud-native) as the cluster-wide job scheduler. Slurm manages job queues, resource allocation, and multi-node GPU job scheduling across the DGX cluster.",
+      "points": 1,
+      "difficulty": "beginner"
+    },
+    {
+      "id": "q191",
+      "domain": "domain3",
+      "questionText": "How does the DCGM exporter integrate with Prometheus for GPU monitoring?",
+      "type": "multiple-choice",
+      "choices": [
+        "It writes GPU metrics directly to Prometheus storage files",
+        "It exposes GPU metrics as a Prometheus-compatible HTTP endpoint that Prometheus scrapes",
+        "It sends GPU metrics to Prometheus via gRPC streaming",
+        "It requires a separate Prometheus plugin to query DCGM APIs"
+      ],
+      "correctAnswer": 1,
+      "explanation": "The DCGM exporter runs as a service (typically a DaemonSet in Kubernetes) that collects GPU metrics via DCGM and exposes them on an HTTP endpoint (default port 9400) in Prometheus exposition format. Prometheus then scrapes this endpoint at configured intervals.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q192",
+      "domain": "domain1",
+      "questionText": "Select ALL commands that can display GPU temperature information:",
+      "type": "multiple-select",
+      "choices": [
+        "nvidia-smi -q -d TEMPERATURE",
+        "nvidia-smi --query-gpu=temperature.gpu --format=csv",
+        "dcgmi diag -r 1",
+        "ipmitool sensor list | grep -i gpu"
+      ],
+      "correctAnswer": [0, 1, 3],
+      "explanation": "'nvidia-smi -q -d TEMPERATURE' shows detailed thermal info, '--query-gpu=temperature.gpu' provides CSV output, and 'ipmitool sensor list' exposes BMC thermal sensors including GPU temps. 'dcgmi diag -r 1' runs a diagnostic but does not primarily display temperature readings.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q193",
+      "domain": "domain4",
+      "questionText": "Select ALL dcgmi diag run levels that include NVLink bandwidth and stress testing:",
+      "type": "multiple-select",
+      "choices": [
+        "dcgmi diag -r 1 (Quick - ~30 seconds)",
+        "dcgmi diag -r 2 (Medium - ~2 minutes)",
+        "dcgmi diag -r 3 (Long - ~15 minutes)",
+        "dcgmi diag -r 4 (Extended - ~30 minutes)"
+      ],
+      "correctAnswer": [2, 3],
+      "explanation": "NVLink stress and bandwidth tests are only included in level 3 (Long) and level 4 (Extended) diagnostics. Level 1 runs only basic health checks, and level 2 adds PCIe and short memory tests but does not include full NVLink bandwidth testing.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q194",
+      "domain": "domain5",
+      "questionText": "Select ALL indicators that a GPU is experiencing thermal throttling:",
+      "type": "multiple-select",
+      "choices": [
+        "nvidia-smi shows 'SW Thermal Slowdown: Active'",
+        "GPU clock frequency drops below the default base clock",
+        "nvidia-smi shows power draw at exactly 0W",
+        "GPU performance state changes from P0 to P2 or lower under sustained load"
+      ],
+      "correctAnswer": [0, 1, 3],
+      "explanation": "Thermal throttling manifests as the SW Thermal Slowdown flag becoming Active, GPU clocks reducing below base frequency, and the performance state dropping (P0 is max, P2+ indicates throttling). A power draw of 0W would indicate the GPU is off or unresponsive, not throttling.",
+      "points": 1,
+      "difficulty": "advanced"
+    },
+    {
+      "id": "q195",
+      "domain": "domain3",
+      "questionText": "Select ALL components that are part of the nvidia-container-toolkit ecosystem:",
+      "type": "multiple-select",
+      "choices": [
+        "nvidia-container-runtime (OCI-compliant runtime wrapper)",
+        "nvidia-container-cli (low-level CLI for GPU container config)",
+        "nvidia-gpu-scheduler (Kubernetes scheduler extender)",
+        "libnvidia-container (library for GPU container setup)"
+      ],
+      "correctAnswer": [0, 1, 3],
+      "explanation": "The nvidia-container-toolkit consists of nvidia-container-runtime (wraps runc/crun), nvidia-container-cli (CLI for configuring GPU access), and libnvidia-container (C library that handles the actual device and driver injection). The GPU scheduler extender is not part of the container toolkit.",
+      "points": 1,
+      "difficulty": "advanced"
+    },
+    {
+      "id": "q196",
+      "domain": "domain4",
+      "questionText": "Select ALL valid NCCL environment variables used for performance tuning:",
+      "type": "multiple-select",
+      "choices": [
+        "NCCL_DEBUG=INFO",
+        "NCCL_IB_DISABLE=1",
+        "NCCL_SOCKET_IFNAME=eth0",
+        "NCCL_GPU_COUNT=8"
+      ],
+      "correctAnswer": [0, 1, 2],
+      "explanation": "NCCL_DEBUG controls logging verbosity, NCCL_IB_DISABLE disables InfiniBand transport, and NCCL_SOCKET_IFNAME specifies which network interface to use for socket-based communication. NCCL_GPU_COUNT is not a valid NCCL environment variable; NCCL auto-detects GPU count.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q197",
+      "domain": "domain1",
+      "questionText": "Select ALL ipmitool subcommands that can retrieve hardware inventory information:",
+      "type": "multiple-select",
+      "choices": [
+        "ipmitool fru print",
+        "ipmitool sdr list",
+        "ipmitool mc info",
+        "ipmitool power status"
+      ],
+      "correctAnswer": [0, 1, 2],
+      "explanation": "'fru print' shows Field Replaceable Unit data (serial numbers, part numbers, manufacturer), 'sdr list' shows all Sensor Data Records (hardware sensors), and 'mc info' shows BMC management controller details. 'power status' only shows on/off state, not inventory.",
+      "points": 1,
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "q198",
+      "domain": "domain4",
+      "questionText": "Select ALL valid Slurm node states that indicate a node is unavailable for new jobs:",
+      "type": "multiple-select",
+      "choices": ["down", "drained", "idle", "draining"],
+      "correctAnswer": [0, 1, 3],
+      "explanation": "'down' means the node is unresponsive or marked offline, 'drained' means the admin has removed it from scheduling and all jobs have completed, and 'draining' means no new jobs are accepted but existing jobs continue running. 'idle' means the node is available and ready for work.",
+      "points": 1,
+      "difficulty": "beginner"
+    },
+    {
+      "id": "q199",
+      "domain": "domain2",
+      "questionText": "Select ALL valid InfiniBand port physical states as reported by 'ibstat':",
+      "type": "multiple-select",
+      "choices": ["LinkUp", "Polling", "Disabled", "LinkReady"],
+      "correctAnswer": [0, 1, 2],
+      "explanation": "Valid IB physical port states include LinkUp (fully operational), Polling (attempting to establish link with remote port), and Disabled (administratively shut down). 'LinkReady' is not a valid InfiniBand physical state; the correct progression is Polling -> LinkUp.",
+      "points": 1,
+      "difficulty": "intermediate"
     }
   ]
 }

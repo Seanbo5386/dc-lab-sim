@@ -26,6 +26,7 @@ describe("Learning Progress Store", () => {
     useLearningProgressStore.setState({
       toolsUsed: {},
       familyQuizScores: {},
+      masteryQuizScores: {},
       unlockedTiers: {},
       tierProgress: {},
       explanationGateResults: {},
@@ -113,6 +114,59 @@ describe("Learning Progress Store", () => {
 
       const state = useLearningProgressStore.getState();
       expect(state.familyQuizScores["gpu-monitoring"].score).toBe(90);
+    });
+  });
+
+  describe("Mastery Quiz Tracking", () => {
+    it("should record a passed mastery quiz", () => {
+      const store = useLearningProgressStore.getState();
+      store.completeMasteryQuiz("gpu-monitoring", true, 8, 10);
+
+      const state = useLearningProgressStore.getState();
+      expect(state.masteryQuizScores["gpu-monitoring"]).toEqual({
+        passed: true,
+        bestScore: 8,
+        totalQuestions: 10,
+        attempts: 1,
+      });
+    });
+
+    it("should record a failed mastery quiz", () => {
+      const store = useLearningProgressStore.getState();
+      store.completeMasteryQuiz("gpu-monitoring", false, 5, 10);
+
+      const state = useLearningProgressStore.getState();
+      expect(state.masteryQuizScores["gpu-monitoring"].passed).toBe(false);
+      expect(state.masteryQuizScores["gpu-monitoring"].bestScore).toBe(5);
+    });
+
+    it("should keep passed status once achieved", () => {
+      const store = useLearningProgressStore.getState();
+      store.completeMasteryQuiz("gpu-monitoring", true, 9, 10);
+      store.completeMasteryQuiz("gpu-monitoring", false, 5, 10);
+
+      const state = useLearningProgressStore.getState();
+      expect(state.masteryQuizScores["gpu-monitoring"].passed).toBe(true);
+    });
+
+    it("should keep the best score", () => {
+      const store = useLearningProgressStore.getState();
+      store.completeMasteryQuiz("gpu-monitoring", false, 6, 10);
+      store.completeMasteryQuiz("gpu-monitoring", true, 9, 10);
+      store.completeMasteryQuiz("gpu-monitoring", false, 7, 10);
+
+      const state = useLearningProgressStore.getState();
+      expect(state.masteryQuizScores["gpu-monitoring"].bestScore).toBe(9);
+    });
+
+    it("should increment attempt count on retakes", () => {
+      const store = useLearningProgressStore.getState();
+      store.completeMasteryQuiz("gpu-monitoring", false, 5, 10);
+      store.completeMasteryQuiz("gpu-monitoring", false, 6, 10);
+      store.completeMasteryQuiz("gpu-monitoring", true, 8, 10);
+
+      const state = useLearningProgressStore.getState();
+      expect(state.masteryQuizScores["gpu-monitoring"].attempts).toBe(3);
     });
   });
 
@@ -348,6 +402,7 @@ describe("Learning Progress Store", () => {
       // Add some data
       store.markToolUsed("gpu-monitoring", "nvidia-smi");
       store.completeQuiz("gpu-monitoring", true, 90);
+      store.completeMasteryQuiz("gpu-monitoring", true, 8, 10);
       store.updateTierProgress("gpu-monitoring", 1, "scenario-1");
       store.recordExplanationGate("gate-1", "scenario-abc", true);
       store.scheduleReview("gpu-monitoring");
@@ -358,6 +413,7 @@ describe("Learning Progress Store", () => {
       const state = useLearningProgressStore.getState();
       expect(Object.keys(state.toolsUsed)).toHaveLength(0);
       expect(Object.keys(state.familyQuizScores)).toHaveLength(0);
+      expect(Object.keys(state.masteryQuizScores)).toHaveLength(0);
       expect(Object.keys(state.unlockedTiers)).toHaveLength(0);
       expect(Object.keys(state.tierProgress)).toHaveLength(0);
       expect(Object.keys(state.explanationGateResults)).toHaveLength(0);

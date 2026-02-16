@@ -13,9 +13,20 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v0.10.0",
+    title: "Exams Dashboard",
+    current: true,
+    highlights: [
+      "Comprehensive Exams tab with readiness stats, exam history, and domain performance",
+      "Data-driven exam mode registry: Full Practice, Quick Quiz, Gauntlet, Weak Area, Review Mistakes",
+      "Tool Mastery Quizzes for all 6 command families accessible from Exams tab",
+      "ExamWorkspace supports all 5 exam engine modes with configurable time limits",
+      "Responsive mission sidebar and display adaptivity improvements",
+    ],
+  },
+  {
     version: "v0.9.2",
     title: "Polish & Educational Enrichment",
-    current: true,
     highlights: [
       "Fault Injection educational toasts, info panels, and XID modal",
       "Virtual file system relative path resolution (cd + cat/ls/head/tail)",

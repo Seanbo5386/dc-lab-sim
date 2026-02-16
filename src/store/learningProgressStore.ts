@@ -42,6 +42,16 @@ export interface FamilyQuizResult {
 }
 
 /**
+ * Result from a deep mastery quiz (per-tool knowledge)
+ */
+export interface MasteryQuizResult {
+  passed: boolean;
+  bestScore: number;
+  totalQuestions: number;
+  attempts: number;
+}
+
+/**
  * Progress within each tier of a command family
  */
 export interface TierProgress {
@@ -75,6 +85,7 @@ export interface LearningProgressData {
   // Command Family Progress - which tools user has used per family
   toolsUsed: Record<string, string[]>; // familyId -> tool names (array for persistence)
   familyQuizScores: Record<string, FamilyQuizResult>;
+  masteryQuizScores: Record<string, MasteryQuizResult>;
 
   // Tier Unlocking
   unlockedTiers: Record<string, number>; // familyId -> highest unlocked tier (1, 2, or 3)
@@ -96,6 +107,12 @@ export interface LearningProgressState extends LearningProgressData {
 
   // Quiz tracking
   completeQuiz: (familyId: string, passed: boolean, score: number) => void;
+  completeMasteryQuiz: (
+    familyId: string,
+    passed: boolean,
+    score: number,
+    totalQuestions: number,
+  ) => void;
 
   // Tier progress
   updateTierProgress: (
@@ -147,6 +164,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const initialState: LearningProgressData = {
   toolsUsed: {},
   familyQuizScores: {},
+  masteryQuizScores: {},
   unlockedTiers: {},
   tierProgress: {},
   explanationGateResults: {},
@@ -238,6 +256,34 @@ export const useLearningProgressStore = create<LearningProgressState>()(
               [familyId]: {
                 passed: passed || (existing?.passed ?? false), // Once passed, stays passed
                 score: Math.max(score, existing?.score ?? 0), // Keep best score
+                attempts,
+              },
+            },
+          };
+        });
+      },
+
+      /**
+       * Records the completion of a deep mastery quiz
+       * Tracks pass/fail status, best score, and attempt count
+       */
+      completeMasteryQuiz: (
+        familyId: string,
+        passed: boolean,
+        score: number,
+        totalQuestions: number,
+      ): void => {
+        set((state) => {
+          const existing = state.masteryQuizScores[familyId];
+          const attempts = existing ? existing.attempts + 1 : 1;
+
+          return {
+            masteryQuizScores: {
+              ...state.masteryQuizScores,
+              [familyId]: {
+                passed: passed || (existing?.passed ?? false),
+                bestScore: Math.max(score, existing?.bestScore ?? 0),
+                totalQuestions,
                 attempts,
               },
             },
@@ -451,6 +497,7 @@ export const useLearningProgressStore = create<LearningProgressState>()(
       partialize: (state) => ({
         toolsUsed: state.toolsUsed,
         familyQuizScores: state.familyQuizScores,
+        masteryQuizScores: state.masteryQuizScores,
         unlockedTiers: state.unlockedTiers,
         tierProgress: state.tierProgress,
         explanationGateResults: state.explanationGateResults,

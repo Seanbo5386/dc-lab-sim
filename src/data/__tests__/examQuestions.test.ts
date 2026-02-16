@@ -62,8 +62,18 @@ describe("examQuestions.json", () => {
   });
 
   describe("question count", () => {
-    it("should have at least 150 questions", () => {
-      expect(questions.length).toBeGreaterThanOrEqual(150);
+    it("should have at least 180 questions", () => {
+      expect(questions.length).toBeGreaterThanOrEqual(180);
+    });
+
+    it("should have multiple-select questions", () => {
+      const msCount = questions.filter(
+        (q) => q.type === "multiple-select",
+      ).length;
+      expect(
+        msCount,
+        "Should have at least 5 multiple-select questions",
+      ).toBeGreaterThanOrEqual(5);
     });
   });
 

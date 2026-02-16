@@ -74,6 +74,16 @@ const mockTimerGetTimeElapsed = vi.fn().mockReturnValue(120);
 vi.mock("@/utils/examEngine", () => ({
   loadExamQuestions: vi.fn(),
   selectExamQuestions: vi.fn(),
+  selectQuestionsForMode: vi.fn(),
+  createExamConfig: vi.fn().mockReturnValue({
+    mode: "full-practice",
+    name: "Full Practice Exam",
+    description: "Complete 60-question exam",
+    questionCount: 60,
+    timeLimitMinutes: 90,
+    shuffleQuestions: true,
+    showExplanations: "after-exam",
+  }),
   calculateExamScore: vi.fn().mockReturnValue({
     totalPoints: 4,
     earnedPoints: 2,
@@ -129,6 +139,7 @@ vi.mock("@/utils/examEngine", () => ({
 import {
   loadExamQuestions,
   selectExamQuestions,
+  selectQuestionsForMode,
   ExamTimer,
 } from "@/utils/examEngine";
 
@@ -170,6 +181,7 @@ import { ExamWorkspace } from "../ExamWorkspace";
 async function renderWithQuestions(onCloseFn: () => void) {
   vi.mocked(loadExamQuestions).mockResolvedValue(mockQuestions);
   vi.mocked(selectExamQuestions).mockReturnValue(mockQuestions);
+  vi.mocked(selectQuestionsForMode).mockReturnValue(mockQuestions);
 
   // Pre-populate mockActiveExam so the component sees exam state
   mockActiveExam = {
@@ -209,6 +221,7 @@ describe("ExamWorkspace", () => {
     // Default: loadExamQuestions returns empty so loading state stays
     vi.mocked(loadExamQuestions).mockResolvedValue([]);
     vi.mocked(selectExamQuestions).mockReturnValue([]);
+    vi.mocked(selectQuestionsForMode).mockReturnValue([]);
   });
 
   // --------------------------------------------------------------------------

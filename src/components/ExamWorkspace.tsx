@@ -11,14 +11,17 @@ import {
 import type { ExamQuestion } from "@/types/scenarios";
 import {
   loadExamQuestions,
-  selectExamQuestions,
+  selectQuestionsForMode,
+  createExamConfig,
   calculateExamScore,
   ExamTimer,
   isExamPassed,
+  type ExamMode,
 } from "@/utils/examEngine";
 
 interface ExamWorkspaceProps {
   onClose: () => void;
+  mode?: string;
 }
 
 // Helper function to get command recommendations based on domain
@@ -71,12 +74,19 @@ function getCommandRecommendations(domainName: string): string[] {
   return recommendations[domainName] || [];
 }
 
-export function ExamWorkspace({ onClose }: ExamWorkspaceProps) {
+export function ExamWorkspace({
+  onClose,
+  mode = "full-practice",
+}: ExamWorkspaceProps) {
   const { activeExam, startExam, submitExamAnswer, endExam, exitExam } =
     useSimulationStore();
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [timeRemaining, setTimeRemaining] = useState(90 * 60); // 90 minutes
+  const examConfig = createExamConfig(mode as ExamMode);
+  const timeLimitSeconds = examConfig.timeLimitMinutes * 60;
+  const [timeRemaining, setTimeRemaining] = useState(
+    timeLimitSeconds || 90 * 60,
+  );
   const [showResults, setShowResults] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [examTimer, setExamTimer] = useState<ExamTimer | null>(null);
@@ -85,14 +95,18 @@ export function ExamWorkspace({ onClose }: ExamWorkspaceProps) {
   useEffect(() => {
     const init = async () => {
       const allQuestions = await loadExamQuestions();
-      const selectedQuestions = selectExamQuestions(allQuestions, 35);
+      const selectedQuestions = selectQuestionsForMode(
+        allQuestions,
+        examConfig,
+      );
       setQuestions(selectedQuestions);
 
       // Start exam in store
       startExam("ncp-aii-practice");
 
-      // Start timer
-      const timer = new ExamTimer(90 * 60);
+      // Start timer (0 = no limit, use a large value)
+      const duration = timeLimitSeconds || 999 * 60;
+      const timer = new ExamTimer(duration);
       timer.start(
         (remaining) => setTimeRemaining(remaining),
         () => handleTimeExpired(),

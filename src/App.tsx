@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { SimulatorView } from "./components/SimulatorView";
 import { LabsAndScenariosView } from "./components/LabsAndScenariosView";
+import { ExamsView } from "./components/ExamsView";
 import { LabWorkspace } from "./components/LabWorkspace";
 import { ExamWorkspace } from "./components/ExamWorkspace";
 import { WelcomeScreen } from "./components/WelcomeScreen";
@@ -11,6 +12,8 @@ import { SpacedReviewDrill } from "./components/SpacedReviewDrill";
 import { TierUnlockNotificationContainer } from "./components/TierUnlockNotification";
 import { FaultToastContainer } from "./components/FaultToast";
 import { ExamGauntlet } from "./components/ExamGauntlet";
+import { WhichToolQuiz } from "./components/WhichToolQuiz";
+import { ToolMasteryQuiz } from "./components/ToolMasteryQuiz";
 import { useSimulationStore } from "./store/simulationStore";
 import { useLearningProgressStore } from "./store/learningProgressStore";
 import { useMetricsSimulation } from "./hooks/useMetricsSimulation";
@@ -19,6 +22,7 @@ import {
   Monitor,
   BookOpen,
   FlaskConical,
+  GraduationCap,
   Play,
   Pause,
   RotateCcw,
@@ -28,7 +32,7 @@ import {
 import { SpotlightTour } from "./components/SpotlightTour";
 import { TOUR_STEPS, type TourId } from "./data/tourSteps";
 
-type View = "simulator" | "labs" | "reference" | "about";
+type View = "simulator" | "labs" | "exams" | "reference" | "about";
 
 function App() {
   const [currentView, setCurrentView] = useState<View>("simulator");
@@ -40,6 +44,11 @@ function App() {
   const [showStudyDashboard, setShowStudyDashboard] = useState(false);
   const [showSpacedReviewDrill, setShowSpacedReviewDrill] = useState(false);
   const [showExamGauntlet, setShowExamGauntlet] = useState(false);
+  const [activeToolQuiz, setActiveToolQuiz] = useState<string | null>(null);
+  const [activeMasteryQuiz, setActiveMasteryQuiz] = useState<string | null>(
+    null,
+  );
+  const [examMode, setExamMode] = useState<string | undefined>(undefined);
   const [activeTour, setActiveTour] = useState<TourId | null>(null);
 
   // Get due reviews count from learning progress store
@@ -87,9 +96,45 @@ function App() {
     }
   };
 
-  const handleBeginExam = () => {
-    setCurrentView("simulator"); // Switch to simulator view
-    setShowExamWorkspace(true); // Show exam workspace overlay
+  const handleBeginExam = (mode?: string) => {
+    setExamMode(mode);
+    setCurrentView("simulator");
+    setShowExamWorkspace(true);
+  };
+
+  const handleOpenToolQuiz = (familyId: string) => {
+    setActiveToolQuiz(familyId);
+  };
+
+  const handleCloseToolQuiz = (passed?: boolean, score?: number) => {
+    if (activeToolQuiz && passed !== undefined && score !== undefined) {
+      useLearningProgressStore
+        .getState()
+        .completeQuiz(activeToolQuiz, passed, score);
+    }
+    setActiveToolQuiz(null);
+  };
+
+  const handleOpenMasteryQuiz = (familyId: string) => {
+    setActiveMasteryQuiz(familyId);
+  };
+
+  const handleCloseMasteryQuiz = (
+    passed?: boolean,
+    score?: number,
+    totalQuestions?: number,
+  ) => {
+    if (
+      activeMasteryQuiz &&
+      passed !== undefined &&
+      score !== undefined &&
+      totalQuestions !== undefined
+    ) {
+      useLearningProgressStore
+        .getState()
+        .completeMasteryQuiz(activeMasteryQuiz, passed, score, totalQuestions);
+    }
+    setActiveMasteryQuiz(null);
   };
 
   // Handler for tier unlock notification "Try Now" button
@@ -112,7 +157,7 @@ function App() {
 
       {/* Header */}
       <header
-        className={`bg-black border-b border-gray-800 px-6 py-4 transition-all duration-300 ${showLabWorkspace ? "ml-[600px]" : ""}`}
+        className={`bg-black border-b border-gray-800 px-6 py-4 transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -189,7 +234,7 @@ function App() {
       <nav
         role="tablist"
         aria-label="Main navigation"
-        className={`bg-gray-800 border-b border-gray-700 px-6 transition-all duration-300 ${showLabWorkspace ? "ml-[600px]" : ""}`}
+        className={`bg-gray-800 border-b border-gray-700 px-6 transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="flex gap-1">
           <button
@@ -244,6 +289,22 @@ function App() {
           </button>
           <button
             role="tab"
+            id="tab-exams"
+            aria-selected={currentView === "exams"}
+            aria-controls="panel-exams"
+            data-testid="nav-exams"
+            onClick={() => setCurrentView("exams")}
+            className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+              currentView === "exams"
+                ? "border-nvidia-green text-nvidia-green"
+                : "border-transparent text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            <GraduationCap className="w-4 h-4" />
+            <span className="font-medium">Exams</span>
+          </button>
+          <button
+            role="tab"
             id="tab-reference"
             data-tour="tab-docs"
             aria-selected={currentView === "reference"}
@@ -284,18 +345,22 @@ function App() {
         id="main-content"
         role="tabpanel"
         aria-labelledby={`tab-${currentView}`}
-        className={`flex-1 h-0 flex flex-col overflow-hidden transition-all duration-300 ${showLabWorkspace ? "ml-[600px]" : ""}`}
+        className={`flex-1 h-0 flex flex-col overflow-hidden transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         {currentView === "simulator" && (
           <SimulatorView className="flex-1 h-full" />
         )}
 
         {currentView === "labs" && (
-          <LabsAndScenariosView
-            onStartScenario={handleStartScenario}
+          <LabsAndScenariosView onStartScenario={handleStartScenario} />
+        )}
+
+        {currentView === "exams" && (
+          <ExamsView
             onBeginExam={handleBeginExam}
-            onOpenStudyDashboard={() => setShowStudyDashboard(true)}
             onOpenExamGauntlet={() => setShowExamGauntlet(true)}
+            onOpenToolQuiz={handleOpenToolQuiz}
+            onOpenMasteryQuiz={handleOpenMasteryQuiz}
           />
         )}
 
@@ -306,13 +371,15 @@ function App() {
 
       {/* Footer */}
       <footer
-        className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${showLabWorkspace ? "ml-[600px]" : ""}`}
+        className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400">
-          <div className="whitespace-nowrap">v0.9.2</div>
+          <div className="whitespace-nowrap">v0.10.0</div>
           <div className="flex items-center gap-2 sm:gap-4">
             <span className="flex items-center gap-1">
-              <span className={`w-2 h-2 rounded-full inline-block ${isRunning ? 'bg-green-500' : 'bg-gray-600'}`} />
+              <span
+                className={`w-2 h-2 rounded-full inline-block ${isRunning ? "bg-green-500" : "bg-gray-600"}`}
+              />
               <span className="hidden sm:inline">
                 {isRunning ? "Running" : "Idle"}
               </span>
@@ -337,7 +404,13 @@ function App() {
 
       {/* Exam Workspace Overlay */}
       {showExamWorkspace && (
-        <ExamWorkspace onClose={() => setShowExamWorkspace(false)} />
+        <ExamWorkspace
+          mode={examMode}
+          onClose={() => {
+            setShowExamWorkspace(false);
+            setExamMode(undefined);
+          }}
+        />
       )}
       {/* Spotlight Tour */}
       {activeTour && !showWelcome && (
@@ -387,6 +460,26 @@ function App() {
       {/* Exam Gauntlet Modal */}
       {showExamGauntlet && (
         <ExamGauntlet onExit={() => setShowExamGauntlet(false)} />
+      )}
+
+      {/* Tool Quiz Modal */}
+      {activeToolQuiz && (
+        <WhichToolQuiz
+          familyId={activeToolQuiz}
+          onComplete={(passed, score) => handleCloseToolQuiz(passed, score)}
+          onClose={() => setActiveToolQuiz(null)}
+        />
+      )}
+
+      {/* Deep Mastery Quiz Modal */}
+      {activeMasteryQuiz && (
+        <ToolMasteryQuiz
+          familyId={activeMasteryQuiz}
+          onComplete={(passed, score, totalQuestions) =>
+            handleCloseMasteryQuiz(passed, score, totalQuestions)
+          }
+          onClose={() => setActiveMasteryQuiz(null)}
+        />
       )}
 
       {/* Tier Unlock Notifications */}
