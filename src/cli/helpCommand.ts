@@ -90,9 +90,9 @@ function generateCommandExplanation(
   // Header
   output += `\x1b[1;36m━━━ ${def.command} ━━━\x1b[0m\n\n`;
 
-  // Description — wrap to terminal width
+  // Description — wrap to terminal width (subtract 2 for leading indent)
   output += `\x1b[1mDescription:\x1b[0m\n`;
-  output += `  ${wrapHelpText(def.description, w, 2)}\n\n`;
+  output += `  ${wrapHelpText(def.description, w - 2, 2)}\n\n`;
 
   // Synopsis
   output += `\x1b[1mUsage:\x1b[0m\n`;
@@ -168,11 +168,11 @@ function generateCommandExplanation(
     output += "\n";
   }
 
-  // Related commands
+  // Related commands — wrap to terminal width
   if (def.interoperability?.related_commands) {
-    output += `\x1b[1mRelated Commands:\x1b[0m `;
-    output += def.interoperability.related_commands.join(", ");
-    output += "\n\n";
+    const relLabel = "Related Commands: ";
+    const relText = def.interoperability.related_commands.join(", ");
+    output += `\x1b[1m${relLabel}\x1b[0m${wrapHelpText(relText, w - relLabel.length, relLabel.length)}\n\n`;
   }
 
   // Source documentation
@@ -186,7 +186,7 @@ function generateCommandExplanation(
 
     if (learningMetadata.whenToUse) {
       output += `\x1b[1mWhen to Use:\x1b[0m\n`;
-      output += `  ${wrapHelpText(learningMetadata.whenToUse, w, 2)}\n\n`;
+      output += `  ${wrapHelpText(learningMetadata.whenToUse, w - 2, 2)}\n\n`;
     }
 
     if (
@@ -218,11 +218,11 @@ function generateCommandExplanation(
         domain4: "Domain 4 (Cluster Test/Verification)",
         domain5: "Domain 5 (Troubleshooting/Optimization)",
       };
-      output += `\x1b[1mExam Domains:\x1b[0m `;
-      output += learningMetadata.domains
+      const domLabel = "Exam Domains: ";
+      const domText = learningMetadata.domains
         .map((d) => domainNames[d] || d)
         .join(", ");
-      output += "\n";
+      output += `\x1b[1m${domLabel}\x1b[0m${wrapHelpText(domText, w - domLabel.length, domLabel.length)}\n`;
     }
   }
 

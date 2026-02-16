@@ -29,28 +29,13 @@
 }
 
 .xterm {
-  padding: 10px;
   height: 100% !important;
   width: 100% !important;
-  font-family: 'Courier New', Courier, monospace !important;
-  font-size: 14px !important;
+  padding: 10px;
 }
 
 .xterm-viewport {
   overflow-y: scroll !important;
-}
-
-.xterm-screen {
-  font-family: 'Courier New', Courier, monospace !important;
-}
-
-.xterm-rows {
-  font-family: 'Courier New', Courier, monospace !important;
-  letter-spacing: 0;
-}
-
-.xterm-char {
-  font-family: 'Courier New', Courier, monospace !important;
 }
 
 /* Custom scrollbar for dark theme */

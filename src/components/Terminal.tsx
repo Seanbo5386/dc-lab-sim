@@ -34,7 +34,10 @@ import {
   shouldEnterInteractiveMode,
   type ShellState,
 } from "@/utils/interactiveShellHandler";
-import { TERMINAL_OPTIONS, WELCOME_MESSAGE } from "@/constants/terminalConfig";
+import {
+  TERMINAL_OPTIONS,
+  generateWelcomeMessage,
+} from "@/constants/terminalConfig";
 import { handleKeyboardInput } from "@/utils/terminalKeyboardHandler";
 import { useLabFeedback } from "@/hooks/useLabFeedback";
 import { HintManager } from "@/utils/hintManager";
@@ -230,6 +233,11 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
       if (clientWidth > 0 && clientHeight > 0) {
         try {
           fitAddon.fit();
+
+          // Subtract 1 column as safety margin for subpixel rounding.
+          if (term.cols > 2) {
+            term.resize(term.cols - 1, term.rows);
+          }
         } catch (e) {
           // Ignore fit errors during layout transitions
         }
@@ -270,7 +278,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
         resizeObserver.observe(container);
         xtermRef.current = term;
         setIsTerminalReady(true);
-        term.write(WELCOME_MESSAGE);
+        term.write(generateWelcomeMessage(term.cols));
         prompt();
         term.onData((data) => {
           const result = handleKeyboardInput(data, {
@@ -500,6 +508,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
             hint,
             hintEvaluation.revealedCount + 1,
             hintEvaluation.totalCount,
+            term.cols || 80,
           ),
           exitCode: 0,
         };
