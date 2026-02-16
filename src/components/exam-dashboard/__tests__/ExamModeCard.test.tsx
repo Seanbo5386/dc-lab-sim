@@ -17,7 +17,6 @@ const baseMode: ExamModeEntry = {
   subtitle: "Test Sub",
   description: "A test description",
   icon: BookOpen,
-  accentColor: "green",
   duration: "30 min",
   questionCount: "20 questions",
   launchKey: "exam",

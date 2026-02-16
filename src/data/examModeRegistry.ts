@@ -14,7 +14,6 @@ export interface ExamModeEntry {
   subtitle: string;
   description: string;
   icon: LucideIcon;
-  accentColor: string;
   duration: string;
   questionCount: string;
   badge?: string;
@@ -29,7 +28,7 @@ export const EXAM_MODE_REGISTRY: ExamModeEntry[] = [
     subtitle: "Full Exam Simulation",
     description: EXAM_MODE_CONFIGS["full-practice"].description,
     icon: BookOpen,
-    accentColor: "green",
+
     duration: "90 min",
     questionCount: "60 questions",
     badge: "RECOMMENDED",
@@ -42,7 +41,7 @@ export const EXAM_MODE_REGISTRY: ExamModeEntry[] = [
     subtitle: "Fast Review",
     description: EXAM_MODE_CONFIGS["quick-quiz"].description,
     icon: Zap,
-    accentColor: "cyan",
+
     duration: "15 min",
     questionCount: "15 questions",
     launchKey: "exam",
@@ -55,7 +54,7 @@ export const EXAM_MODE_REGISTRY: ExamModeEntry[] = [
     description:
       "Tackle 10 weighted scenarios in a timed exam format. Simulates the real DCA certification experience with domain-based scoring.",
     icon: Trophy,
-    accentColor: "orange",
+
     duration: "30-90 min",
     questionCount: "10 scenarios",
     launchKey: "gauntlet",
@@ -66,7 +65,7 @@ export const EXAM_MODE_REGISTRY: ExamModeEntry[] = [
     subtitle: "Targeted Practice",
     description: EXAM_MODE_CONFIGS["weak-area-focus"].description,
     icon: Target,
-    accentColor: "purple",
+
     duration: "30 min",
     questionCount: "20 questions",
     launchKey: "exam",
@@ -78,7 +77,7 @@ export const EXAM_MODE_REGISTRY: ExamModeEntry[] = [
     subtitle: "Learn From Errors",
     description: EXAM_MODE_CONFIGS["review-mode"].description,
     icon: RotateCcw,
-    accentColor: "blue",
+
     duration: "No limit",
     questionCount: "Varies",
     launchKey: "exam",

@@ -1,48 +1,6 @@
 import { CheckCircle, HelpCircle, Wrench } from "lucide-react";
 import type { FamilyQuizResult } from "@/store/learningProgressStore";
 
-const FAMILY_ACCENTS: Record<
-  string,
-  { border: string; badge: string; button: string }
-> = {
-  "gpu-monitoring": {
-    border: "border-l-green-500",
-    badge: "bg-green-900/50 text-green-400",
-    button: "bg-green-600 hover:bg-green-700",
-  },
-  "infiniband-tools": {
-    border: "border-l-cyan-500",
-    badge: "bg-cyan-900/50 text-cyan-400",
-    button: "bg-cyan-600 hover:bg-cyan-700",
-  },
-  "bmc-hardware": {
-    border: "border-l-orange-500",
-    badge: "bg-orange-900/50 text-orange-400",
-    button: "bg-orange-600 hover:bg-orange-700",
-  },
-  "cluster-tools": {
-    border: "border-l-purple-500",
-    badge: "bg-purple-900/50 text-purple-400",
-    button: "bg-purple-600 hover:bg-purple-700",
-  },
-  "container-tools": {
-    border: "border-l-blue-500",
-    badge: "bg-blue-900/50 text-blue-400",
-    button: "bg-blue-600 hover:bg-blue-700",
-  },
-  diagnostics: {
-    border: "border-l-rose-500",
-    badge: "bg-rose-900/50 text-rose-400",
-    button: "bg-rose-600 hover:bg-rose-700",
-  },
-};
-
-const DEFAULT_ACCENT = {
-  border: "border-l-gray-500",
-  badge: "bg-gray-900/50 text-gray-400",
-  button: "bg-gray-600 hover:bg-gray-700",
-};
-
 interface ToolQuizCardProps {
   familyId: string;
   familyName: string;
@@ -62,12 +20,10 @@ export function ToolQuizCard({
   quizResult,
   onTakeQuiz,
 }: ToolQuizCardProps) {
-  const accent = FAMILY_ACCENTS[familyId] || DEFAULT_ACCENT;
-
   return (
     <div
       data-testid={`tool-quiz-card-${familyId}`}
-      className={`bg-gray-800 rounded-lg border border-gray-700 border-l-4 ${accent.border} p-5 flex flex-col`}
+      className="bg-gray-800 rounded-lg border border-gray-700 p-5 flex flex-col"
     >
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
@@ -79,9 +35,7 @@ export function ToolQuizCard({
           </div>
         </div>
         {quizResult?.passed && (
-          <span
-            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${accent.badge}`}
-          >
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-900/40 text-green-400">
             PASSED
           </span>
         )}
@@ -120,7 +74,7 @@ export function ToolQuizCard({
       {/* Launch button */}
       <button
         onClick={() => onTakeQuiz(familyId)}
-        className={`w-full py-2 rounded-lg font-semibold text-white text-sm transition-colors ${accent.button}`}
+        className="w-full py-2 rounded-lg font-semibold text-white text-sm transition-colors bg-green-700 hover:bg-green-600"
       >
         {quizResult ? "Retake Quiz" : "Take Quiz"}
       </button>

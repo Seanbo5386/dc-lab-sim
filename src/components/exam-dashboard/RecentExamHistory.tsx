@@ -84,7 +84,7 @@ export function RecentExamHistory({ maxItems = 5 }: RecentExamHistoryProps) {
               {entry.type === "exam" ? (
                 <GraduationCap className="w-4 h-4 text-gray-400 shrink-0" />
               ) : (
-                <Trophy className="w-4 h-4 text-orange-400 shrink-0" />
+                <Trophy className="w-4 h-4 text-yellow-500 shrink-0" />
               )}
 
               {/* Label */}
@@ -93,11 +93,7 @@ export function RecentExamHistory({ maxItems = 5 }: RecentExamHistoryProps) {
               </span>
 
               {/* Score */}
-              <span
-                className={`text-sm font-semibold ${
-                  entry.passed ? "text-green-400" : "text-red-400"
-                }`}
-              >
+              <span className="text-sm font-semibold text-gray-200">
                 {entry.score}%
               </span>
 
@@ -105,8 +101,8 @@ export function RecentExamHistory({ maxItems = 5 }: RecentExamHistoryProps) {
               <span
                 className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                   entry.passed
-                    ? "bg-green-900/50 text-green-400"
-                    : "bg-red-900/50 text-red-400"
+                    ? "bg-green-900/40 text-green-400"
+                    : "bg-gray-700 text-gray-400"
                 }`}
               >
                 {entry.passed ? "PASS" : "FAIL"}

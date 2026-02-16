@@ -72,9 +72,9 @@ describe("ToolQuizCard", () => {
     expect(screen.getByText("Not attempted yet")).toBeInTheDocument();
   });
 
-  it("shows colored left border based on familyId", () => {
+  it("renders card with neutral border styling", () => {
     const { container } = render(<ToolQuizCard {...baseProps} />);
     const card = container.firstChild as HTMLElement;
-    expect(card.className).toContain("border-l-green-500");
+    expect(card.className).toContain("border-gray-700");
   });
 });
