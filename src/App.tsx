@@ -347,7 +347,7 @@ function App() {
         className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400">
-          <div className="whitespace-nowrap">v0.9.2</div>
+          <div className="whitespace-nowrap">v0.10.0</div>
           <div className="flex items-center gap-2 sm:gap-4">
             <span className="flex items-center gap-1">
               <span
