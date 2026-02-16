@@ -906,17 +906,26 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
       const args = cl.trim().split(/\s+/).slice(1);
       if (args.length === 0) {
         return {
-          output: "What manual page do you want?\nFor example, try 'man man'.",
+          output:
+            "What manual page do you want?\nFor example, try 'man nvidia-smi'.",
           exitCode: 1,
         };
       }
       const cmd = args[args.length - 1]; // support `man -s 1 cmd`
+      // man only covers real Linux/HPC commands, not simulator builtins
+      const simulatorBuiltins = new Set(["help", "hint", "practice"]);
+      if (simulatorBuiltins.has(cmd)) {
+        return {
+          output: `No manual entry for ${cmd}\nTip: '${cmd}' is a simulator command. Type 'help ${cmd}' instead.`,
+          exitCode: 1,
+        };
+      }
       const metadata = getCommandMetadata(cmd);
       if (metadata) {
         return { output: formatCommandHelp(metadata), exitCode: 0 };
       }
       return {
-        output: `No manual entry for ${cmd}\nSee 'help ${cmd}' for simulator help.`,
+        output: `No manual entry for ${cmd}\nSee 'help' for available commands.`,
         exitCode: 1,
       };
     });
