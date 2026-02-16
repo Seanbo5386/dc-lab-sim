@@ -64,10 +64,10 @@ function formatPracticeExercises(
   }
 
   let output =
-    "\x1b[1;36m═══════════════════════════════════════════════════════════════\x1b[0m\n";
-  output += "\x1b[1;33m                    COMMAND PRACTICE EXERCISES\x1b[0m\n";
+    "\x1b[1;36m═════════════════════════════════════════════\x1b[0m\n";
+  output += "\x1b[1;33m        COMMAND PRACTICE EXERCISES\x1b[0m\n";
   output +=
-    "\x1b[1;36m═══════════════════════════════════════════════════════════════\x1b[0m\n\n";
+    "\x1b[1;36m═════════════════════════════════════════════\x1b[0m\n\n";
 
   exercises.forEach((exercise, index) => {
     const difficultyColor =
@@ -87,7 +87,7 @@ function formatPracticeExercises(
     });
     output += `\n\x1b[2mExpected: ${exercise.expectedCommand}\x1b[0m\n`;
     output +=
-      "\n\x1b[1;36m───────────────────────────────────────────────────────────────\x1b[0m\n\n";
+      "\n\x1b[1;36m─────────────────────────────────────────────\x1b[0m\n\n";
   });
 
   output +=

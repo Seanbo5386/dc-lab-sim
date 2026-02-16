@@ -38,8 +38,7 @@ export const TERMINAL_OPTIONS = {
   lineHeight: 1.0,
   allowTransparency: false,
   theme: TERMINAL_THEME,
-  cols: 120, // Fixed width - standard terminal size
-  // rows is not set - FitAddon will calculate dynamically
+  // cols and rows are not set - FitAddon will calculate dynamically
   scrollback: 5000,
   convertEol: true,
   cursorStyle: "block",
@@ -91,23 +90,22 @@ const COMMAND_LIST = [
  * Welcome Message
  * Displayed when terminal initializes
  */
-export const WELCOME_MESSAGE = `\x1b[1;32m╔═══════════════════════════════════════════════════════════════════════════╗
-║   NVIDIA AI Infrastructure Certification Simulator                        ║
-║   NCP-AII Training Environment v1.0                                       ║
-╚═══════════════════════════════════════════════════════════════════════════╝\x1b[0m
+export const WELCOME_MESSAGE = `\x1b[1;32m╔════════════════════════════════════════════════╗
+║  NVIDIA AI Infrastructure Certification        ║
+║  Simulator - NCP-AII Training v1.0             ║
+╚════════════════════════════════════════════════╝\x1b[0m
 
-  This terminal simulates a real NVIDIA DGX cluster environment.
-  Practice the commands you'll need for the \x1b[1mNCP-AII certification exam\x1b[0m.
+  Simulated DGX cluster for \x1b[1mNCP-AII\x1b[0m exam prep.
 
-\x1b[1;33mTry these to get started:\x1b[0m
-  \x1b[36mnvidia-smi\x1b[0m           Check GPU status — the most common DGX command
-  \x1b[36mibstat\x1b[0m               View InfiniBand network adapter status
-  \x1b[36msinfo\x1b[0m                See Slurm cluster node and partition info
+\x1b[1;33mGet started:\x1b[0m
+  \x1b[36mnvidia-smi\x1b[0m      Check GPU status
+  \x1b[36mibstat\x1b[0m          InfiniBand adapter status
+  \x1b[36msinfo\x1b[0m           Slurm cluster info
 
 \x1b[1;33mNeed help?\x1b[0m
-  \x1b[36mhelp\x1b[0m                 Browse all 60+ available commands by category
-  \x1b[36mhelp <command>\x1b[0m       Detailed docs, examples, and common errors
-  \x1b[36mhint\x1b[0m                 Get guidance during lab scenarios
+  \x1b[36mhelp\x1b[0m            Browse all 60+ commands
+  \x1b[36mhelp <command>\x1b[0m  Detailed docs & examples
+  \x1b[36mhint\x1b[0m            Guidance during labs
 `;
 
 /**
