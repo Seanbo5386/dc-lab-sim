@@ -264,7 +264,7 @@ export function formatCommandHelp(
   cols = 80,
 ): string {
   const lines: string[] = [];
-  // Usable width minus small margin; minimum 40 to avoid degenerate wrapping
+  // Usable width with safety margin for font/scrollbar discrepancies
   const w = Math.max(40, cols - 2);
   // Box inner width (content area between ║…║)
   const boxInner = w - 4; // "║  " + content + " ║"
@@ -285,9 +285,11 @@ export function formatCommandHelp(
   lines.push(`\x1b[1;36m╚${rule}╝\x1b[0m`);
   lines.push("");
 
-  // Description
+  // Description — all lines indented by 2
   lines.push(`\x1b[1mDESCRIPTION:\x1b[0m`);
-  lines.push(wrapText(metadata.longDescription, w, 2).join("\n"));
+  for (const dl of wrapText(metadata.longDescription, w - 2, 0)) {
+    lines.push(`  ${dl}`);
+  }
   lines.push("");
 
   // Syntax
@@ -320,16 +322,15 @@ export function formatCommandHelp(
     lines.push("");
   }
 
-  // Examples
+  // Examples — descriptions indented by 5 to align under command text
   lines.push(`\x1b[1mEXAMPLES:\x1b[0m`);
   for (let i = 0; i < metadata.examples.length; i++) {
     const example = metadata.examples[i];
     lines.push(
       `  \x1b[1;32m${i + 1}.\x1b[0m \x1b[36m${example.command}\x1b[0m`,
     );
-    const descLines = wrapText(example.description, w - 5, 5);
-    for (const dl of descLines) {
-      lines.push(dl);
+    for (const dl of wrapText(example.description, w - 5, 0)) {
+      lines.push(`     ${dl}`);
     }
     if (i < metadata.examples.length - 1) {
       lines.push("");
@@ -337,9 +338,11 @@ export function formatCommandHelp(
   }
   lines.push("");
 
-  // When to Use
+  // When to Use — all lines indented by 2
   lines.push(`\x1b[1mWHEN TO USE:\x1b[0m`);
-  lines.push(wrapText(metadata.whenToUse, w, 2).join("\n"));
+  for (const wl of wrapText(metadata.whenToUse, w - 2, 0)) {
+    lines.push(`  ${wl}`);
+  }
   lines.push("");
 
   // Related Commands

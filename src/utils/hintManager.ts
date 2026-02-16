@@ -1,4 +1,4 @@
-import type { Hint, ScenarioStep, StepProgress } from '@/types/scenarios';
+import type { Hint, ScenarioStep, StepProgress } from "@/types/scenarios";
 
 /**
  * Result of hint evaluation
@@ -29,20 +29,21 @@ export class HintManager {
    */
   static getAvailableHints(
     step: ScenarioStep,
-    progress: StepProgress
+    progress: StepProgress,
   ): HintEvaluation {
     // Combine legacy and enhanced hints
     const allHints = this.getAllHints(step);
 
     // Filter to only available hints based on triggers and conditions
-    const availableHints = allHints.filter(hint =>
-      this.isHintAvailable(hint, progress, step)
+    const availableHints = allHints.filter((hint) =>
+      this.isHintAvailable(hint, progress, step),
     );
 
     // Find the next hint to reveal (first available that hasn't been revealed)
-    const nextHint = availableHints.find(
-      hint => !progress.revealedHintIds.includes(hint.id)
-    ) || null;
+    const nextHint =
+      availableHints.find(
+        (hint) => !progress.revealedHintIds.includes(hint.id),
+      ) || null;
 
     return {
       availableHints,
@@ -66,7 +67,7 @@ export class HintManager {
           id: `legacy-hint-${index}`,
           level: index + 1,
           message,
-          trigger: { type: 'manual' },
+          trigger: { type: "manual" },
         });
       });
     }
@@ -86,7 +87,7 @@ export class HintManager {
   private static isHintAvailable(
     hint: Hint,
     progress: StepProgress,
-    step: ScenarioStep
+    step: ScenarioStep,
   ): boolean {
     // Check trigger conditions
     if (!this.checkTrigger(hint.trigger, progress)) {
@@ -107,15 +108,15 @@ export class HintManager {
    * Check if trigger conditions are met
    */
   private static checkTrigger(
-    trigger: Hint['trigger'],
-    progress: StepProgress
+    trigger: Hint["trigger"],
+    progress: StepProgress,
   ): boolean {
     switch (trigger.type) {
-      case 'manual':
+      case "manual":
         // Always available for manual request
         return true;
 
-      case 'time-based': {
+      case "time-based": {
         if (!trigger.timeSeconds || !progress.lastCommandTime) {
           return false;
         }
@@ -125,20 +126,20 @@ export class HintManager {
         return timeSinceLastCommand >= trigger.timeSeconds;
       }
 
-      case 'attempt-based':
+      case "attempt-based":
         if (!trigger.attemptCount) {
           return false;
         }
         return progress.failedAttempts >= trigger.attemptCount;
 
-      case 'command-based': {
+      case "command-based": {
         if (!trigger.commandPattern) {
           return false;
         }
 
         // Check if user ran a command matching this pattern
-        const pattern = new RegExp(trigger.commandPattern, 'i');
-        return progress.commandsExecuted.some(cmd => pattern.test(cmd));
+        const pattern = new RegExp(trigger.commandPattern, "i");
+        return progress.commandsExecuted.some((cmd) => pattern.test(cmd));
       }
 
       default:
@@ -150,15 +151,17 @@ export class HintManager {
    * Check additional conditions for hint availability
    */
   private static checkConditions(
-    condition: NonNullable<Hint['condition']>,
+    condition: NonNullable<Hint["condition"]>,
     progress: StepProgress,
-    _step: ScenarioStep
+    _step: ScenarioStep,
   ): boolean {
     // Check if certain commands haven't been executed
     if (condition.commandsNotExecuted) {
-      const hasExecuted = condition.commandsNotExecuted.some(cmd => {
-        const pattern = new RegExp(cmd, 'i');
-        return progress.commandsExecuted.some(executed => pattern.test(executed));
+      const hasExecuted = condition.commandsNotExecuted.some((cmd) => {
+        const pattern = new RegExp(cmd, "i");
+        return progress.commandsExecuted.some((executed) =>
+          pattern.test(executed),
+        );
       });
 
       if (hasExecuted) {
@@ -180,15 +183,25 @@ export class HintManager {
   /**
    * Get a formatted hint message with styling
    */
-  static formatHint(hint: Hint, index: number, total: number): string {
+  static formatHint(
+    hint: Hint,
+    index: number,
+    total: number,
+    cols = 80,
+  ): string {
     const levelEmoji = this.getLevelEmoji(hint.level);
     const levelLabel = this.getLevelLabel(hint.level);
 
-    return `\x1b[1;36m╔═══════════════════════════════════════════════════════════════╗\x1b[0m
-\x1b[1;36m║  ${levelEmoji} HINT ${index}/${total} - ${levelLabel.padEnd(43)}║\x1b[0m
-\x1b[1;36m╠═══════════════════════════════════════════════════════════════╣\x1b[0m
-\x1b[1;36m║\x1b[0m  ${this.wrapText(hint.message, 59).join('\n\x1b[1;36m║\x1b[0m  ')}
-\x1b[1;36m╚═══════════════════════════════════════════════════════════════╝\x1b[0m`;
+    const inner = Math.max(30, Math.min(cols - 2, 63));
+    const headerPrefix = `  ${levelEmoji} HINT ${index}/${total} - `;
+    const labelSpace = inner - headerPrefix.length;
+    const wrapWidth = inner - 4; // "║  " + content + " "
+
+    return `\x1b[1;36m╔${"═".repeat(inner)}╗\x1b[0m
+\x1b[1;36m║${headerPrefix}${levelLabel.padEnd(labelSpace).slice(0, labelSpace)}║\x1b[0m
+\x1b[1;36m╠${"═".repeat(inner)}╣\x1b[0m
+\x1b[1;36m║\x1b[0m  ${this.wrapText(hint.message, wrapWidth).join("\n\x1b[1;36m║\x1b[0m  ")}
+\x1b[1;36m╚${"═".repeat(inner)}╝\x1b[0m`;
   }
 
   /**
@@ -197,13 +210,13 @@ export class HintManager {
   private static getLevelEmoji(level: number): string {
     switch (level) {
       case 1:
-        return '💡';
+        return "💡";
       case 2:
-        return '🔍';
+        return "🔍";
       case 3:
-        return '🎯';
+        return "🎯";
       default:
-        return '💡';
+        return "💡";
     }
   }
 
@@ -213,13 +226,13 @@ export class HintManager {
   private static getLevelLabel(level: number): string {
     switch (level) {
       case 1:
-        return 'Gentle Nudge';
+        return "Gentle Nudge";
       case 2:
-        return 'More Specific';
+        return "More Specific";
       case 3:
-        return 'Very Specific';
+        return "Very Specific";
       default:
-        return 'Helpful Tip';
+        return "Helpful Tip";
     }
   }
 
@@ -227,9 +240,9 @@ export class HintManager {
    * Wrap text to fit within a specific width
    */
   private static wrapText(text: string, width: number): string[] {
-    const words = text.split(' ');
+    const words = text.split(" ");
     const lines: string[] = [];
-    let currentLine = '';
+    let currentLine = "";
 
     for (const word of words) {
       const testLine = currentLine ? `${currentLine} ${word}` : word;
@@ -248,7 +261,7 @@ export class HintManager {
       lines.push(currentLine.padEnd(width));
     }
 
-    return lines.length > 0 ? lines : [''.padEnd(width)];
+    return lines.length > 0 ? lines : ["".padEnd(width)];
   }
 
   /**
@@ -256,7 +269,7 @@ export class HintManager {
    */
   static getHintStatus(evaluation: HintEvaluation): string {
     if (evaluation.totalCount === 0) {
-      return '\x1b[33mNo hints available for this step.\x1b[0m';
+      return "\x1b[33mNo hints available for this step.\x1b[0m";
     }
 
     if (evaluation.revealedCount === evaluation.totalCount) {
@@ -288,7 +301,7 @@ Review previous hints by checking your progress or try a different approach.`;
 
     // Has more hints but not available yet
     const unrevealed = evaluation.totalCount - evaluation.revealedCount;
-    return `\x1b[33m⏳ ${unrevealed} more hint${unrevealed > 1 ? 's' : ''} available, but not yet triggered.\x1b[0m
+    return `\x1b[33m⏳ ${unrevealed} more hint${unrevealed > 1 ? "s" : ""} available, but not yet triggered.\x1b[0m
 
 Hints unlock based on:
   • Time spent on the step

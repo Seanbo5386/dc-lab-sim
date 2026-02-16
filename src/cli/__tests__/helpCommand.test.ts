@@ -123,7 +123,7 @@ describe("helpCommand", () => {
       const output = await generateHelpOutput(
         "nvidia-smi",
         registry,
-        {},
+        { cols: 120 },
         mockLearningMetadata,
       );
 

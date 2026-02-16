@@ -31,7 +31,7 @@ export const TERMINAL_THEME = {
 export const TERMINAL_OPTIONS = {
   cursorBlink: true,
   fontSize: 14,
-  fontFamily: "monospace",
+  fontFamily: "'Courier New', Courier, monospace",
   fontWeight: "normal",
   fontWeightBold: "bold",
   letterSpacing: 0,
@@ -87,26 +87,61 @@ const COMMAND_LIST = [
 ].join("\n");
 
 /**
- * Welcome Message
- * Displayed when terminal initializes
+ * Generate welcome message sized to terminal width.
  */
-export const WELCOME_MESSAGE = `\x1b[1;32m╔════════════════════════════════════════════════╗
-║  NVIDIA AI Infrastructure Certification        ║
-║  Simulator - NCP-AII Training v1.0             ║
-╚════════════════════════════════════════════════╝\x1b[0m
+export function generateWelcomeMessage(cols: number): string {
+  // Usable width (leave 1-col safety margin)
+  const w = Math.max(30, cols - 1);
 
-  Simulated DGX cluster for \x1b[1mNCP-AII\x1b[0m exam prep.
+  // Box: adapt inner width to terminal, min 30
+  const boxInner = Math.min(48, w - 2); // 2 for ║…║
+  const rule = "═".repeat(boxInner);
+  const line1 = "NVIDIA AI Infrastructure Certification";
+  const line2 = "Simulator - NCP-AII Training v1.0";
+
+  const boxLine = (text: string) => {
+    const t = text.length > boxInner - 2 ? text.slice(0, boxInner - 2) : text;
+    return `║  ${t.padEnd(boxInner - 2)}║`;
+  };
+
+  const box = [
+    `\x1b[1;32m╔${rule}╗`,
+    boxLine(line1),
+    boxLine(line2),
+    `╚${rule}╝\x1b[0m`,
+  ].join("\n");
+
+  // Command table: pad command to align descriptions
+  const cmdPad = 16;
+  const cmdRow = (cmd: string, desc: string) => {
+    if (cmdPad + 4 + desc.length + 2 > w) {
+      // Narrow: just show command and description on same line, no padding
+      return `    \x1b[36m${cmd}\x1b[0m  ${desc}`;
+    }
+    return `    \x1b[36m${cmd.padEnd(cmdPad)}\x1b[0m${desc}`;
+  };
+
+  // Description: visible "  Simulated DGX cluster for NCP-AII exam prep." = 48 cols
+  const desc =
+    w >= 48
+      ? `  Simulated DGX cluster for \x1b[1mNCP-AII\x1b[0m exam prep.`
+      : `  Simulated DGX cluster for\n  \x1b[1mNCP-AII\x1b[0m exam prep.`;
+
+  return `${box}
+
+${desc}
 
 \x1b[1;33mGet started:\x1b[0m
-  \x1b[36mnvidia-smi\x1b[0m      Check GPU status
-  \x1b[36mibstat\x1b[0m          InfiniBand adapter status
-  \x1b[36msinfo\x1b[0m           Slurm cluster info
+${cmdRow("nvidia-smi", "Check GPU status")}
+${cmdRow("ibstat", "InfiniBand adapter status")}
+${cmdRow("sinfo", "Slurm cluster info")}
 
 \x1b[1;33mNeed help?\x1b[0m
-  \x1b[36mhelp\x1b[0m            Browse all 60+ commands
-  \x1b[36mhelp <command>\x1b[0m  Detailed docs & examples
-  \x1b[36mhint\x1b[0m            Guidance during labs
+${cmdRow("help", "Browse all 60+ commands")}
+${cmdRow("help <command>", "Detailed docs & examples")}
+${cmdRow("hint", "Guidance during labs")}
 `;
+}
 
 /**
  * Help Text
