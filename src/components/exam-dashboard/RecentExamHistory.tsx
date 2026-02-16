@@ -1,5 +1,12 @@
-import { GraduationCap, Trophy } from "lucide-react";
+import { GraduationCap, Trophy, Zap } from "lucide-react";
 import { useLearningStore } from "@/store/learningStore";
+import { useLearningProgressStore } from "@/store/learningProgressStore";
+import commandFamilies from "@/data/commandFamilies.json";
+
+const FAMILY_NAMES: Record<string, string> = {};
+for (const family of commandFamilies.families) {
+  FAMILY_NAMES[family.id] = family.name;
+}
 
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -8,11 +15,11 @@ function formatDuration(seconds: number): string {
 }
 
 interface HistoryEntry {
-  type: "exam" | "gauntlet";
+  type: "exam" | "gauntlet" | "quiz" | "mastery";
   label: string;
   score: number;
   passed: boolean;
-  duration: number;
+  duration?: number;
   sortKey: number;
 }
 
@@ -23,6 +30,10 @@ interface RecentExamHistoryProps {
 export function RecentExamHistory({ maxItems = 5 }: RecentExamHistoryProps) {
   const examAttempts = useLearningStore((s) => s.examAttempts);
   const gauntletAttempts = useLearningStore((s) => s.gauntletAttempts);
+  const familyQuizScores = useLearningProgressStore((s) => s.familyQuizScores);
+  const masteryQuizScores = useLearningProgressStore(
+    (s) => s.masteryQuizScores,
+  );
 
   // Build unified history list
   const entries: HistoryEntry[] = [];
@@ -55,6 +66,38 @@ export function RecentExamHistory({ maxItems = 5 }: RecentExamHistoryProps) {
     });
   });
 
+  // Tool Selection quizzes
+  for (const [familyId, result] of Object.entries(familyQuizScores)) {
+    if (result.lastAttemptDate) {
+      const name = FAMILY_NAMES[familyId] ?? familyId;
+      entries.push({
+        type: "quiz",
+        label: `${name} — Tool Selection`,
+        score: result.score,
+        passed: result.passed,
+        sortKey: result.lastAttemptDate,
+      });
+    }
+  }
+
+  // Deep Mastery quizzes
+  for (const [familyId, result] of Object.entries(masteryQuizScores)) {
+    if (result.lastAttemptDate) {
+      const name = FAMILY_NAMES[familyId] ?? familyId;
+      const score =
+        result.totalQuestions > 0
+          ? Math.round((result.bestScore / result.totalQuestions) * 100)
+          : 0;
+      entries.push({
+        type: "mastery",
+        label: `${name} — Deep Mastery`,
+        score,
+        passed: result.passed,
+        sortKey: result.lastAttemptDate,
+      });
+    }
+  }
+
   // Sort by sortKey descending (most recent first) and take top N
   const sorted = entries
     .sort((a, b) => b.sortKey - a.sortKey)
@@ -83,8 +126,10 @@ export function RecentExamHistory({ maxItems = 5 }: RecentExamHistoryProps) {
               {/* Type icon */}
               {entry.type === "exam" ? (
                 <GraduationCap className="w-4 h-4 text-gray-400 shrink-0" />
-              ) : (
+              ) : entry.type === "gauntlet" ? (
                 <Trophy className="w-4 h-4 text-yellow-500 shrink-0" />
+              ) : (
+                <Zap className="w-4 h-4 text-cyan-400 shrink-0" />
               )}
 
               {/* Label */}
@@ -108,10 +153,12 @@ export function RecentExamHistory({ maxItems = 5 }: RecentExamHistoryProps) {
                 {entry.passed ? "PASS" : "FAIL"}
               </span>
 
-              {/* Duration */}
-              <span className="text-xs text-gray-500 w-10 text-right">
-                {formatDuration(entry.duration)}
-              </span>
+              {/* Duration (only for exams/gauntlets) */}
+              {entry.duration !== undefined && (
+                <span className="text-xs text-gray-500 w-10 text-right">
+                  {formatDuration(entry.duration)}
+                </span>
+              )}
             </div>
           ))}
         </div>

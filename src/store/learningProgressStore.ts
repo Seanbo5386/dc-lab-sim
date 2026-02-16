@@ -39,6 +39,7 @@ export interface FamilyQuizResult {
   passed: boolean;
   score: number;
   attempts: number;
+  lastAttemptDate?: number;
 }
 
 /**
@@ -49,6 +50,7 @@ export interface MasteryQuizResult {
   bestScore: number;
   totalQuestions: number;
   attempts: number;
+  lastAttemptDate?: number;
 }
 
 /**
@@ -257,6 +259,7 @@ export const useLearningProgressStore = create<LearningProgressState>()(
                 passed: passed || (existing?.passed ?? false), // Once passed, stays passed
                 score: Math.max(score, existing?.score ?? 0), // Keep best score
                 attempts,
+                lastAttemptDate: Date.now(),
               },
             },
           };
@@ -285,6 +288,7 @@ export const useLearningProgressStore = create<LearningProgressState>()(
                 bestScore: Math.max(score, existing?.bestScore ?? 0),
                 totalQuestions,
                 attempts,
+                lastAttemptDate: Date.now(),
               },
             },
           };

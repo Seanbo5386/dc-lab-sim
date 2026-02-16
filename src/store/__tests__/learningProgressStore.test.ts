@@ -71,11 +71,16 @@ describe("Learning Progress Store", () => {
       store.completeQuiz("gpu-monitoring", true, 85);
 
       const state = useLearningProgressStore.getState();
-      expect(state.familyQuizScores["gpu-monitoring"]).toEqual({
-        passed: true,
-        score: 85,
-        attempts: 1,
-      });
+      expect(state.familyQuizScores["gpu-monitoring"]).toEqual(
+        expect.objectContaining({
+          passed: true,
+          score: 85,
+          attempts: 1,
+        }),
+      );
+      expect(
+        state.familyQuizScores["gpu-monitoring"].lastAttemptDate,
+      ).toBeTypeOf("number");
     });
 
     it("should record a failed quiz", () => {
@@ -123,12 +128,17 @@ describe("Learning Progress Store", () => {
       store.completeMasteryQuiz("gpu-monitoring", true, 8, 10);
 
       const state = useLearningProgressStore.getState();
-      expect(state.masteryQuizScores["gpu-monitoring"]).toEqual({
-        passed: true,
-        bestScore: 8,
-        totalQuestions: 10,
-        attempts: 1,
-      });
+      expect(state.masteryQuizScores["gpu-monitoring"]).toEqual(
+        expect.objectContaining({
+          passed: true,
+          bestScore: 8,
+          totalQuestions: 10,
+          attempts: 1,
+        }),
+      );
+      expect(
+        state.masteryQuizScores["gpu-monitoring"].lastAttemptDate,
+      ).toBeTypeOf("number");
     });
 
     it("should record a failed mastery quiz", () => {
