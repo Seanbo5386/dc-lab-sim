@@ -23,8 +23,8 @@ export interface ToolMasteryQuestion {
 }
 
 // ============================================================================
-// GPU MONITORING (tm-gpu-001 through tm-gpu-013)
-// Tools: nvidia-smi (5), dcgmi (4), nvtop (2), nvsm (2)
+// GPU MONITORING (tm-gpu-001 through tm-gpu-025)
+// Tools: nvidia-smi (8), dcgmi (7), nvtop (5), nvsm (5)
 // ============================================================================
 
 const gpuMonitoringQuestions: ToolMasteryQuestion[] = [
@@ -296,11 +296,256 @@ GPU 3       83      0.94    0.86`,
       "nvsm is designed for managing multiple DGX systems in a BasePOD or SuperPOD configuration. It aggregates health data across the entire DGX fleet and provides centralized management. nvidia-smi and dcgmi operate at the single-node level. nvsm also monitors non-GPU subsystems like storage, networking, and chassis components specific to DGX hardware.",
     examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
   },
+  {
+    id: "tm-gpu-014",
+    familyId: "gpu-monitoring",
+    tool: "nvidia-smi",
+    category: "flags-options",
+    difficulty: "intermediate",
+    questionText:
+      "Which nvidia-smi flag allows you to target a specific GPU by its index when querying information?",
+    choices: [
+      "nvidia-smi --gpu 0",
+      "nvidia-smi -i 0",
+      "nvidia-smi --select 0",
+      "nvidia-smi -g 0",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-smi -i (or --id) selects a specific GPU by its index, PCI bus ID, or UUID. For example, nvidia-smi -i 0 targets GPU 0, nvidia-smi -i 00000000:3B:00.0 targets by PCI bus address, and nvidia-smi -i GPU-xxxxxxxx targets by UUID. This flag can be combined with most other nvidia-smi commands and queries.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-gpu-015",
+    familyId: "gpu-monitoring",
+    tool: "nvidia-smi",
+    category: "output-interpretation",
+    difficulty: "advanced",
+    questionText:
+      "What does this nvidia-smi pmon output reveal about the running processes?",
+    codeSnippet: `$ nvidia-smi pmon -i 0 -s um -c 1
+# gpu   pid  type    sm   mem   enc   dec    fb   command
+# Idx     #   C/G     %     %     %     %    MB   name
+    0  12345   C      95    78     0     0  39421  python
+    0  12346   C       0     0     0     0   2048  python
+    0  12347   G       3     5     0     0    512  Xorg`,
+    choices: [
+      "All three processes are competing equally for GPU resources",
+      "PID 12345 is actively computing (95% SM, 78% mem) using 39 GB framebuffer; PID 12346 has allocated 2 GB but is idle (0% utilization); PID 12347 is a graphics process with minimal usage",
+      "The GPU is overloaded and processes should be migrated",
+      "PID 12346 is a zombie process that should be killed",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-smi pmon (process monitor) shows per-process GPU utilization. PID 12345 is a compute (C) process actively using 95% of SM and 78% of memory bandwidth with 39 GB allocated. PID 12346 is also compute but shows 0% utilization despite holding 2 GB of framebuffer memory, suggesting it is between computation phases or idle. PID 12347 is a graphics (G) process (Xorg) with minimal overhead.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-gpu-016",
+    familyId: "gpu-monitoring",
+    tool: "nvidia-smi",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "Which nvidia-smi command checks the NVLink status for a specific GPU?",
+    choices: [
+      "nvidia-smi topo -m",
+      "nvidia-smi nvlink --status -i 0",
+      "nvidia-smi -q -d NVLINK",
+      "nvidia-smi nvlink -l",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-smi nvlink --status -i 0 displays the NVLink link status for GPU 0, showing each NVLink lane, its connected peer GPU, and whether the link is active or inactive. This is distinct from topo -m which shows the topology matrix, and -q -d NVLINK which shows NVLink error counters rather than connection status.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-gpu-017",
+    familyId: "gpu-monitoring",
+    tool: "dcgmi",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText: "What does this dcgmi health output indicate?",
+    codeSnippet: `$ dcgmi health -c -g 1
+Health Monitor Report for group 1
++------------+--------+-------------------------------------------+
+| Entity     | Health | Detail                                    |
++============+========+===========================================+
+| GPU 0      | Green  | Healthy                                   |
+| GPU 1      | Yellow | Thermal violations detected               |
+| GPU 2      | Green  | Healthy                                   |
+| GPU 3      | Red    | PCIe replay count exceeds threshold       |
++============+========+===========================================+
+| Overall    | Red    |                                           |
++------------+--------+-------------------------------------------+`,
+    choices: [
+      "All GPUs are operational and no action is needed",
+      "GPU 1 has minor thermal issues and GPU 3 has a critical PCIe problem; the overall group health is Red because any Red GPU makes the group Red",
+      "The group needs to be reconfigured because the health check is failing",
+      "Only GPU 3 needs attention; GPU 1's Yellow status is informational",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "DCGM health monitoring uses a traffic-light system: Green (healthy), Yellow (warning), Red (critical). GPU 1's Yellow for thermal violations means it is overheating but still functional. GPU 3's Red for PCIe replay count indicates the PCIe link is unstable and retransmitting packets, which degrades performance and may indicate a failing PCIe connection. The overall group health takes the worst status of any member.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-gpu-018",
+    familyId: "gpu-monitoring",
+    tool: "dcgmi",
+    category: "flags-options",
+    difficulty: "advanced",
+    questionText:
+      "Which dcgmi command creates a named GPU group for targeted monitoring or diagnostics?",
+    choices: [
+      "dcgmi group --create --name my_gpus --add 0,1",
+      "dcgmi group -c my_gpus -a 0,1",
+      "dcgmi group --new my_gpus --gpus 0,1",
+      "dcgmi create-group my_gpus 0,1",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "dcgmi group -c (--create) creates a new group with a name, and -a (--add) adds GPU entity IDs to it. Groups allow you to target specific subsets of GPUs for diagnostics (dcgmi diag -g <groupId>), monitoring (dcgmi dmon -g <groupId>), and health checks (dcgmi health -g <groupId>). This is useful when managing systems with 8 GPUs where you want to isolate tests to specific GPUs.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-gpu-019",
+    familyId: "gpu-monitoring",
+    tool: "dcgmi",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "A user reports that dcgmi commands return 'Unable to connect to host engine'. What is the most likely cause?",
+    choices: [
+      "The NVIDIA driver is not installed",
+      "The nv-hostengine daemon (DCGM host engine) is not running and needs to be started with nv-hostengine or systemctl start nvidia-dcgm",
+      "The user does not have GPU access permissions",
+      "DCGM is not compatible with the installed GPU model",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "DCGM operates on a client-server architecture. The nv-hostengine daemon (or nvidia-dcgm systemd service) must be running for dcgmi commands to function. dcgmi is a CLI client that communicates with the host engine over a socket. If the host engine is not running, all dcgmi commands will fail with the connection error. Start it with 'nv-hostengine' (standalone) or 'systemctl start nvidia-dcgm' (systemd).",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-gpu-020",
+    familyId: "gpu-monitoring",
+    tool: "nvtop",
+    category: "flags-options",
+    difficulty: "beginner",
+    questionText:
+      "While running nvtop, which keyboard key sorts the process list by GPU utilization?",
+    choices: [
+      "Press 'u' to sort by utilization",
+      "Press 'g' to sort by GPU percentage",
+      "Press F6 or use the sort menu to select the sort column",
+      "Press 's' to switch sort order",
+    ],
+    correctAnswer: 2,
+    explanation:
+      "nvtop uses function keys and an interactive menu for sorting. F6 opens the sort column selector where you can choose to sort by GPU usage, memory usage, PID, or other fields. The interface is similar to htop, providing an interactive way to analyze which processes consume the most GPU resources.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-gpu-021",
+    familyId: "gpu-monitoring",
+    tool: "nvtop",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText:
+      "In nvtop, you observe GPU 0 showing 100% utilization and 80 GB/80 GB memory with temperature at 83C, while GPU 1-7 show 0% utilization and 0 GB memory. What does this suggest about the workload?",
+    choices: [
+      "A single-GPU training job is running and not using distributed training across all 8 GPUs",
+      "GPUs 1-7 have hardware failures and are unavailable",
+      "The workload is using MIG mode on GPU 0 only",
+      "nvtop is only configured to show GPU 0",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "When only one GPU out of 8 shows utilization in a DGX system, it typically means the workload is not configured for multi-GPU or distributed training. Deep learning frameworks like PyTorch require explicit configuration (DataParallel, DistributedDataParallel, or FSDP) to use multiple GPUs. This is a common oversight that leaves 7 GPUs idle while one is fully loaded.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-gpu-022",
+    familyId: "gpu-monitoring",
+    tool: "nvtop",
+    category: "best-practice",
+    difficulty: "intermediate",
+    questionText:
+      "What is the primary advantage of using nvtop over nvidia-smi -l for real-time GPU monitoring during a training job?",
+    choices: [
+      "nvtop can access more sensor data than nvidia-smi",
+      "nvtop provides a continuously updating dashboard with historical graphs, per-process breakdowns, and interactive sorting without screen flicker",
+      "nvtop works remotely while nvidia-smi does not",
+      "nvtop supports monitoring non-NVIDIA GPUs",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvtop provides a smooth interactive terminal UI similar to htop. It shows historical utilization graphs over time, per-process GPU and memory usage with interactive sorting, and updates in place without redrawing the entire screen. nvidia-smi -l redraws the full output each refresh, which is harder to read and does not show historical trends. nvtop is the preferred tool for live monitoring during training runs.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-gpu-023",
+    familyId: "gpu-monitoring",
+    tool: "nvsm",
+    category: "flags-options",
+    difficulty: "intermediate",
+    questionText:
+      "Which nvsm command displays active hardware alerts and warnings on a DGX system?",
+    choices: [
+      "nvsm show alerts",
+      "nvsm dump alerts",
+      "nvsm list warnings",
+      "nvsm status --alerts",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "nvsm show alerts displays current active alerts and warnings on a DGX system, including hardware failures, thermal events, and component degradation notices. This is a key command for proactive maintenance, allowing administrators to identify and address issues before they cause downtime. nvsm also supports 'show health' for overall health and 'dump' for detailed diagnostic data.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-gpu-024",
+    familyId: "gpu-monitoring",
+    tool: "nvsm",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "nvsm show health reports a 'degraded' status for the NVSwitch subsystem on a DGX H100. What is the recommended next step?",
+    choices: [
+      "Immediately power off the system and replace all NVSwitches",
+      "Run nvidia-smi topo -m to verify the NVLink topology, then check nvsm show alerts for specific NVSwitch error details before planning maintenance",
+      "Ignore it since DGX systems have redundant NVSwitches",
+      "Reboot the system to clear the degraded status",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "A degraded NVSwitch status does not necessarily mean total failure. First, verify which NVLink paths are affected using nvidia-smi topo -m and check nvsm show alerts for the specific error. DGX H100 systems have 4 NVSwitches; a single degraded switch reduces bisection bandwidth but the system may still operate. Gathering diagnostic details before scheduling maintenance avoids unnecessary downtime.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-gpu-025",
+    familyId: "gpu-monitoring",
+    tool: "nvsm",
+    category: "best-practice",
+    difficulty: "advanced",
+    questionText:
+      "In a DGX SuperPOD deployment with 20 DGX nodes, what is the most effective way to use nvsm for fleet monitoring?",
+    choices: [
+      "SSH into each node individually and run nvsm show health",
+      "Use nvsm's centralized fleet management to aggregate health data across all nodes and set up automated alerts for degraded components",
+      "Rely solely on nvidia-smi on each node",
+      "Only check nvsm when a user reports a problem",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvsm is specifically designed for fleet-level management in DGX BasePOD and SuperPOD deployments. It can aggregate health status across all DGX nodes from a central point, providing a single-pane-of-glass view of the entire cluster. Automated alerting ensures degraded components are caught early. This proactive approach prevents cascading failures and reduces unplanned downtime across the fleet.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
 ];
 
 // ============================================================================
-// INFINIBAND TOOLS (tm-ib-001 through tm-ib-013)
-// Tools: ibstat (4), perfquery (3), ibdiagnet (3), iblinkinfo (3)
+// INFINIBAND TOOLS (tm-ib-001 through tm-ib-025)
+// Tools: ibstat (7), perfquery (6), ibdiagnet (6), iblinkinfo (6)
 // ============================================================================
 
 const infinibandQuestions: ToolMasteryQuestion[] = [
@@ -576,11 +821,262 @@ PortRcvConstraintErrors:.........0`,
       "After cable replacement, iblinkinfo verifies the new link speed and width match expectations (e.g., NDR 4X). Then perfquery on both switch ports confirms the error counters are at zero after the cable swap. If SymbolErrorCounter or PortRcvErrors start accumulating on the new cable, it may also be faulty.",
     examRelevance: "NCP-AII Domain 2: Physical Layer Management",
   },
+  {
+    id: "tm-ib-014",
+    familyId: "infiniband-tools",
+    tool: "ibstat",
+    category: "flags-options",
+    difficulty: "beginner",
+    questionText:
+      "How do you use ibstat to display information for a specific HCA by name?",
+    choices: [
+      "ibstat --device mlx5_0",
+      "ibstat mlx5_0",
+      "ibstat -d mlx5_0",
+      "ibstat --hca mlx5_0",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "ibstat accepts a CA (Channel Adapter) name as a positional argument. Running 'ibstat mlx5_0' displays information only for that specific HCA. On a DGX system with multiple HCAs (mlx5_0 through mlx5_7), this filters the output to a single adapter. Without a CA name, ibstat shows all HCAs.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-015",
+    familyId: "infiniband-tools",
+    tool: "ibstat",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText:
+      "What does this ibstat output indicate about the port's link speed?",
+    codeSnippet: `CA 'mlx5_0'
+\tCA type: MT4129
+\tNumber of ports: 1
+\tFirmware version: 22.39.1002
+\tPort 1:
+\t\tState: Active
+\t\tPhysical state: LinkUp
+\t\tRate: 200 Gb/s (HDR)
+\t\tBase lid: 12
+\t\tSM lid: 1`,
+    choices: [
+      "The port is running at the maximum NDR speed for ConnectX-7",
+      "The port is running at HDR (200 Gb/s) despite the MT4129 (ConnectX-7) supporting NDR (400 Gb/s), which means the link has negotiated at a reduced speed",
+      "HDR 200 Gb/s is the maximum speed for this adapter",
+      "The port is inactive and waiting for speed negotiation",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "MT4129 is the ConnectX-7 adapter which supports NDR (400 Gb/s). Showing HDR (200 Gb/s) means the link negotiated at half the maximum speed. This can be caused by a cable rated only for HDR, a remote port that only supports HDR, a partially damaged cable, or a switch port configured for HDR. The cable and remote port should be investigated.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-016",
+    familyId: "infiniband-tools",
+    tool: "ibstat",
+    category: "conceptual",
+    difficulty: "beginner",
+    questionText:
+      "What is the difference between the 'State' and 'Physical state' fields in ibstat output?",
+    choices: [
+      "They show the same information in different formats",
+      "State shows the logical/protocol status (Active, Down, Initializing) while Physical state shows the physical layer link status (LinkUp, Polling, Disabled)",
+      "State is for InfiniBand mode and Physical state is for Ethernet mode",
+      "Physical state is updated in real-time while State is cached",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "These are two separate layers of the InfiniBand port status. Physical state reflects the physical cable/transceiver link (LinkUp means cable connected and signal OK, Polling means trying to establish link). State reflects the logical protocol layer (Active means the subnet manager has configured the port, Initializing means waiting for SM configuration). A port can be Physical state: LinkUp but State: Initializing if the SM has not yet assigned a LID.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-017",
+    familyId: "infiniband-tools",
+    tool: "perfquery",
+    category: "output-interpretation",
+    difficulty: "advanced",
+    questionText:
+      "What does this perfquery extended counters output tell you about the port's traffic?",
+    codeSnippet: `$ perfquery -x 5 1
+# Port extended counters: Lid 5 port 1
+PortSelect:......................1
+PortXmitData:....................982451678234
+PortRcvData:.....................456789012345
+PortXmitPkts:....................1234567890
+PortRcvPkts:.....................987654321
+PortUnicastXmitPkts:.............1234567800
+PortUnicastRcvPkts:..............987654200
+PortMulticastXmitPkts:...........90
+PortMulticastRcvPkts:............121`,
+    choices: [
+      "The port is transmitting more data than receiving, indicating a possible routing loop",
+      "The port shows highly asymmetric traffic (transmitting ~2x more data than receiving), which is normal for a storage server or data source node, with minimal multicast traffic",
+      "The high multicast packet count indicates a broadcast storm",
+      "The counters are about to overflow and need to be reset",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "The extended 64-bit counters show PortXmitData (~982B octets) is roughly double PortRcvData (~457B octets). This asymmetry is common for nodes that serve data (storage servers, data sources). The multicast counts (90/121) are very low relative to unicast, indicating normal point-to-point traffic. These 64-bit counters (-x flag) avoid the wrapping issues of default 32-bit counters on high-speed links.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-018",
+    familyId: "infiniband-tools",
+    tool: "perfquery",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "After clearing port counters, perfquery shows PortRcvErrors climbing rapidly on a specific switch port. All other ports on the same switch are clean. What is the most likely cause?",
+    choices: [
+      "The switch firmware is corrupted and needs to be reflashed",
+      "The cable connected to that specific port is damaged or the transceiver is failing, since the issue is isolated to one port",
+      "The host connected to that port has a driver bug",
+      "The subnet manager is misconfiguring that port's routing",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "When PortRcvErrors accumulate rapidly on a single switch port while all other ports are clean, the problem is almost certainly the physical connection on that specific port. The cable or transceiver attached to that port is the most likely culprit. Swap the cable first, then the transceiver if available. If the errors follow the cable to a different port, the cable is confirmed bad. If errors remain on the same port after cable swap, the switch port itself may be faulty.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-019",
+    familyId: "infiniband-tools",
+    tool: "perfquery",
+    category: "command-syntax",
+    difficulty: "intermediate",
+    questionText:
+      "What do the two positional arguments in 'perfquery 5 1' specify?",
+    choices: [
+      "GPU ID 5 and NVLink lane 1",
+      "LID (Local Identifier) 5 and port number 1 of the target device",
+      "Switch ID 5 and host ID 1",
+      "The first 5 ports starting from port 1",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "perfquery takes a LID (Local Identifier) and port number as positional arguments. 'perfquery 5 1' queries the performance counters for LID 5, port 1. The LID is assigned by the subnet manager and can be found via ibstat (Base lid field) or via the subnet manager's LID table. Without arguments, perfquery queries the local HCA's first port.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-020",
+    familyId: "infiniband-tools",
+    tool: "ibdiagnet",
+    category: "flags-options",
+    difficulty: "intermediate",
+    questionText:
+      "Which ibdiagnet flag collects port counters from all ports in the fabric?",
+    choices: [
+      "ibdiagnet --counters",
+      "ibdiagnet --pc",
+      "ibdiagnet -p",
+      "ibdiagnet --perf-all",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "ibdiagnet --pc (port counters) collects performance and error counters from every port discovered in the fabric. The counter data is saved to the ibdiagnet2.pm file in the output directory (/var/tmp/ibdiagnet2/). This is invaluable for identifying ports with high error rates across the entire fabric in a single sweep.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-021",
+    familyId: "infiniband-tools",
+    tool: "ibdiagnet",
+    category: "output-interpretation",
+    difficulty: "advanced",
+    questionText: "ibdiagnet reports the following warning. What does it mean?",
+    codeSnippet: `-W- Link at the expected speed NDR but width is 2X instead of 4X
+    Source: "dgx-05 HCA-1"/1 (lid 42)
+    Destination: "MF0;QM3400:leaf-sw3"/15 (lid 3)`,
+    choices: [
+      "The link is running at double speed because 2X means two times faster",
+      "The link negotiated at half the expected width (2X instead of 4X), reducing bandwidth from 400 Gb/s to 200 Gb/s, likely due to a damaged cable with broken lanes",
+      "This is an informational message and no action is needed",
+      "The switch port needs to be reconfigured for 4X width",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "NDR at 4X width provides 400 Gb/s. At 2X width, bandwidth drops to 200 Gb/s. Width degradation from 4X to 2X typically means 2 of the 4 lanes in the cable or transceiver are non-functional. This is usually caused by a damaged cable (bent fibers), dirty connectors, or a partially failed transceiver. The cable should be inspected and replaced.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-022",
+    familyId: "infiniband-tools",
+    tool: "ibdiagnet",
+    category: "best-practice",
+    difficulty: "intermediate",
+    questionText:
+      "When should ibdiagnet be run as part of a standard cluster deployment workflow?",
+    choices: [
+      "Only when users report network performance issues",
+      "After all InfiniBand cabling is complete and the subnet manager is running, as a pre-deployment fabric validation step before running workloads",
+      "Only during the initial cable installation, never after",
+      "Monthly during production, while jobs are running",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "ibdiagnet should be run as a standard pre-deployment validation step after the InfiniBand fabric is fully cabled and the subnet manager has configured all ports. It validates the entire fabric topology, checks for cabling errors, mismatched speeds, duplicate GUIDs, and port errors. Running it before deployment catches issues that would cause hard-to-diagnose performance problems later.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-023",
+    familyId: "infiniband-tools",
+    tool: "iblinkinfo",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "Which iblinkinfo flag displays the output in a compact line-by-line format?",
+    choices: [
+      "iblinkinfo --line",
+      "iblinkinfo --compact",
+      "iblinkinfo -1",
+      "iblinkinfo --brief",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "iblinkinfo --line produces a compact one-line-per-link format that is easier to parse and grep through than the default multi-line format. Each line shows the source and destination ports, their LIDs, and the link speed and width. This format is especially useful for scripting and when searching for specific links in a large fabric.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-024",
+    familyId: "infiniband-tools",
+    tool: "iblinkinfo",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "iblinkinfo shows several links between two leaf switches at NDR 4X, but one link between them shows 'Down'. What is the impact and what should you investigate?",
+    choices: [
+      "The entire path between the switches is down and no traffic can flow",
+      "The down link reduces the aggregate bandwidth between those switches; check the cable, reseat connectors, and verify the switch port LEDs before replacing the cable",
+      "The switches will automatically reroute all traffic around the down link with no performance impact",
+      "The subnet manager will crash because of the inconsistent link state",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "InfiniBand fabrics often have multiple links (link aggregation/trunking) between switches for higher aggregate bandwidth. A single down link reduces total inter-switch bandwidth but does not cause complete connectivity loss. The physical layer should be investigated: check cable seating, look for bent fibers, check switch port LEDs, and try swapping the cable. The subnet manager will reroute traffic around the down link, but at reduced bandwidth.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
+  {
+    id: "tm-ib-025",
+    familyId: "infiniband-tools",
+    tool: "iblinkinfo",
+    category: "best-practice",
+    difficulty: "intermediate",
+    questionText:
+      "What is the most efficient way to use iblinkinfo to check if all links in the fabric are running at the expected NDR 4X speed?",
+    choices: [
+      "Manually inspect each line of the full iblinkinfo output",
+      "Run iblinkinfo and grep for lines that do NOT contain 'NDR' or show unexpected speeds to quickly identify degraded links",
+      "Run ibstat on each node individually",
+      "Only check switch-to-switch links since host links are always correct",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "Piping iblinkinfo output through grep to filter for links not at the expected speed is a quick way to identify any links running below NDR 4X. For example, searching for lines containing 'HDR' or 'Down' or missing 'NDR' highlights problem links. In a large fabric with hundreds of links, this approach finds issues in seconds rather than requiring manual inspection of every line.",
+    examRelevance: "NCP-AII Domain 2: Physical Layer Management",
+  },
 ];
 
 // ============================================================================
-// BMC & HARDWARE (tm-bmc-001 through tm-bmc-013)
-// Tools: ipmitool (5), sensors (4), dmidecode (4)
+// BMC & HARDWARE (tm-bmc-001 through tm-bmc-025)
+// Tools: ipmitool (8), sensors (7), dmidecode (7)
 // ============================================================================
 
 const bmcHardwareQuestions: ToolMasteryQuestion[] = [
@@ -855,11 +1351,260 @@ Core 3:       +99.0\u00b0C  (high = +100.0\u00b0C, crit = +110.0\u00b0C)  ALARM`
       "During system bring-up, verifying that the installed hardware matches the Bill of Materials (BOM) is essential. dmidecode -t memory confirms all DIMM slots are populated with the correct capacity and speed. dmidecode -t processor confirms the correct CPU model and count. Missing or incorrect hardware would impact GPU workload performance and should be caught before deployment.",
     examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
   },
+  {
+    id: "tm-bmc-014",
+    familyId: "bmc-hardware",
+    tool: "ipmitool",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "Which ipmitool command displays the BMC firmware version and manufacturer information?",
+    choices: [
+      "ipmitool bmc info",
+      "ipmitool mc info",
+      "ipmitool chassis identify",
+      "ipmitool fru print",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "ipmitool mc info (management controller info) displays the BMC firmware version, manufacturer ID, IPMI specification version, and device ID. This is essential during system bring-up to verify the BMC firmware is at the expected version before deploying workloads.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-bmc-015",
+    familyId: "bmc-hardware",
+    tool: "ipmitool",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText: "What does this ipmitool sensor output indicate?",
+    codeSnippet: `$ ipmitool sensor list | grep -i fan
+Fan1             | 8400.000   | RPM  | ok    | 600.000  | 900.000  | na  | na  | 25000.000 | 25400.000
+Fan2             | 8500.000   | RPM  | ok    | 600.000  | 900.000  | na  | na  | 25000.000 | 25400.000
+Fan3             | 0.000      | RPM  | cr    | 600.000  | 900.000  | na  | na  | 25000.000 | 25400.000
+Fan4             | 8350.000   | RPM  | ok    | 600.000  | 900.000  | na  | na  | 25000.000 | 25400.000`,
+    choices: [
+      "All fans are operating normally within thresholds",
+      "Fan3 is reading 0 RPM with a critical (cr) status, indicating the fan has failed or is disconnected; the lower critical threshold is 600 RPM",
+      "Fan3 is temporarily stopped for noise reduction",
+      "The sensor is miscalibrated and the fan is actually spinning",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "Fan3 shows 0 RPM with status 'cr' (critical). The lower critical threshold is 600 RPM, and 0 RPM means the fan is not spinning at all. This is a hardware failure requiring immediate attention, as inadequate cooling will lead to thermal shutdown. The system should be scheduled for fan replacement before thermal damage occurs to GPUs or CPUs.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-bmc-016",
+    familyId: "bmc-hardware",
+    tool: "ipmitool",
+    category: "flags-options",
+    difficulty: "advanced",
+    questionText:
+      "Which ipmitool command configures the BMC network settings for remote out-of-band management?",
+    choices: [
+      "ipmitool lan set 1 ipaddr 10.0.1.100",
+      "ipmitool network set 10.0.1.100",
+      "ipmitool bmc network --ip 10.0.1.100",
+      "ipmitool config lan ip=10.0.1.100",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "ipmitool lan set <channel> <parameter> <value> configures BMC networking. Channel 1 is typically the dedicated BMC management port. Parameters include ipaddr, netmask, defgw ipaddr (default gateway), and ipsrc (static/dhcp). Example: 'ipmitool lan set 1 ipsrc static' followed by 'ipmitool lan set 1 ipaddr 10.0.1.100'. Verify with 'ipmitool lan print 1'.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-bmc-017",
+    familyId: "bmc-hardware",
+    tool: "sensors",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText:
+      "What does this sensors output indicate about the power supply?",
+    codeSnippet: `power_meter-acpi-0
+Adapter: ACPI interface
+power1:      2847.00 W  (interval = 1.000 s)
+
+nct6775-isa-0a20
+Adapter: ISA adapter
++12V:          +11.78 V  (min = +10.80 V, max = +13.20 V)
++5V:            +4.87 V  (min =  +4.50 V, max =  +5.50 V)
++3.3V:          +3.28 V  (min =  +2.97 V, max =  +3.63 V)`,
+    choices: [
+      "All voltages are critically low and the power supply is failing",
+      "The system is drawing 2847W total power and all voltage rails are within their acceptable min/max thresholds, indicating normal operation",
+      "The +12V rail at 11.78V is dangerously close to the minimum threshold",
+      "The power supply is oversized for this system at 2847W",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "All three voltage rails (+12V at 11.78V, +5V at 4.87V, +3.3V at 3.28V) are within their specified min/max ranges, indicating stable power delivery. The 2847W total power draw is typical for a DGX system under load with 8 GPUs. The +12V rail reading of 11.78V is within the 10.80-13.20V range and is not concerning.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-bmc-018",
+    familyId: "bmc-hardware",
+    tool: "sensors",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "The sensors command shows a CPU VRM temperature reading of 105C with an ALARM flag. What is the likely impact on system performance?",
+    choices: [
+      "No impact; VRM temperatures are not related to CPU performance",
+      "The CPU is likely being thermally throttled because the VRM (Voltage Regulator Module) is overheating, which can cause reduced clock speeds and power delivery instability",
+      "The ALARM is cosmetic and only affects the sensor display",
+      "The GPU will throttle because VRM temperature affects GPU power",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "VRM (Voltage Regulator Module) overheating at 105C is a serious issue. VRMs convert the 12V input to the precise voltages the CPU requires. When VRMs overheat, they reduce power output to protect themselves, which forces the CPU to throttle. This can also cause voltage instability leading to system crashes. Common causes include blocked airflow, failed fans, or excessive sustained CPU load. VRM heatsink and airflow should be inspected.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-bmc-019",
+    familyId: "bmc-hardware",
+    tool: "sensors",
+    category: "best-practice",
+    difficulty: "intermediate",
+    questionText:
+      "What is the recommended approach for monitoring sensor readings over time to detect gradual hardware degradation?",
+    choices: [
+      "Manually run the sensors command once a day and visually check for changes",
+      "Script periodic sensor readings to a log file or monitoring system, and set alerts when values approach warning thresholds or show consistent upward/downward trends",
+      "Only check sensors when a hardware failure occurs",
+      "Replace all hardware annually regardless of sensor readings",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "Proactive monitoring involves scripting periodic 'sensors' output collection (e.g., via cron) and feeding the data to a time-series monitoring system like Prometheus, Grafana, or Nagios. Setting threshold-based alerts catches degradation early. For example, a CPU temperature trending upward over weeks may indicate thermal paste degradation or fan bearing wear before an actual failure occurs.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-bmc-020",
+    familyId: "bmc-hardware",
+    tool: "dmidecode",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText: "What does this dmidecode output reveal about a DIMM slot?",
+    codeSnippet: `Memory Device
+\tTotal Width: Unknown
+\tData Width: Unknown
+\tSize: No Module Installed
+\tForm Factor: Unknown
+\tLocator: DIMM_P1_G2
+\tBank Locator: NODE 1
+\tType: Unknown
+\tSpeed: Unknown`,
+    choices: [
+      "The DIMM is installed but its speed could not be read",
+      "The DIMM slot DIMM_P1_G2 is empty (no module installed), which may indicate a missing DIMM if the BOM specifies full population",
+      "The DIMM has failed and needs replacement",
+      "The DIMM is running in single-channel mode",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "When dmidecode shows 'Size: No Module Installed' with all other fields as Unknown, the physical DIMM slot is empty. During system bring-up, comparing this against the Bill of Materials (BOM) is critical. An empty slot where a DIMM should be installed means reduced memory capacity and potentially suboptimal memory channel configuration, which affects memory bandwidth.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-bmc-021",
+    familyId: "bmc-hardware",
+    tool: "dmidecode",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "Which dmidecode command shows processor (CPU) information including model, speed, and core count?",
+    choices: [
+      "dmidecode -t processor",
+      "dmidecode -t cpu",
+      "dmidecode --cpu-info",
+      "dmidecode -s processor-model",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "dmidecode -t processor (or -t 4, since SMBIOS type 4 is Processor) displays detailed CPU information including the processor family, model name, maximum speed, current speed, core count, thread count, and socket designation. This is essential for verifying the CPU configuration matches the expected hardware specification during server bring-up.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-bmc-022",
+    familyId: "bmc-hardware",
+    tool: "dmidecode",
+    category: "flags-options",
+    difficulty: "advanced",
+    questionText:
+      "Which dmidecode command extracts the system serial number in a format suitable for inventory scripts?",
+    choices: [
+      "dmidecode -t system | grep Serial",
+      "dmidecode -s system-serial-number",
+      "dmidecode --serial",
+      "dmidecode -q -t 1",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "dmidecode -s system-serial-number uses the --string flag to output only the system serial number with no headers or extra text. This clean single-line output is ideal for scripting and inventory automation. The -s flag supports keywords like system-serial-number, system-product-name, system-manufacturer, bios-version, and baseboard-serial-number.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-bmc-023",
+    familyId: "bmc-hardware",
+    tool: "ipmitool",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "The ipmitool sel elist output shows 'SEL is full' and no new events are being recorded. What should you do?",
+    choices: [
+      "Replace the BMC battery to restore SEL storage",
+      "Save the current SEL entries for analysis, then clear the SEL with 'ipmitool sel clear' to allow new events to be logged",
+      "Reboot the system to automatically clear the SEL",
+      "Upgrade the BMC firmware to increase SEL storage capacity",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "The SEL (System Event Log) has a fixed size in the BMC's non-volatile storage. When full, new events are silently dropped, which means critical hardware events go unrecorded. The correct procedure is to first save the current entries (ipmitool sel elist > sel_backup.txt) for analysis, then clear the log (ipmitool sel clear) to make room for new events. Regular SEL harvesting should be automated to prevent this.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-bmc-024",
+    familyId: "bmc-hardware",
+    tool: "dmidecode",
+    category: "conceptual",
+    difficulty: "intermediate",
+    questionText:
+      "What is the source of the data that dmidecode reads, and why does it require root privileges?",
+    choices: [
+      "dmidecode reads from the BIOS chip directly via SPI",
+      "dmidecode reads SMBIOS/DMI tables from system firmware that are mapped into memory by the BIOS/UEFI, requiring root to access /dev/mem or /sys/firmware/dmi",
+      "dmidecode queries the CPU directly for hardware information",
+      "dmidecode reads from the BMC's sensor data repository",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "dmidecode reads SMBIOS (System Management BIOS) tables that the BIOS/UEFI firmware populates during POST and maps into physical memory. On Linux, these are accessed either through /dev/mem (raw memory access) or /sys/firmware/dmi/tables/ (sysfs). Both require root privileges. The data includes hardware inventory information that the firmware collects about installed components.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-bmc-025",
+    familyId: "bmc-hardware",
+    tool: "sensors",
+    category: "best-practice",
+    difficulty: "beginner",
+    questionText:
+      "After running sensors-detect on a new system, what file stores the persistent configuration for which sensor modules to load at boot?",
+    choices: [
+      "/etc/sensors.conf",
+      "/etc/modules-load.d/ or /etc/modprobe.d/ (depending on distribution), with modules detected by sensors-detect",
+      "/var/lib/sensors/config",
+      "/usr/share/sensors/drivers.conf",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "sensors-detect probes for hardware monitoring chips and offers to add the required kernel modules to the system's module auto-loading configuration. On systemd-based systems, this is typically /etc/modules-load.d/lm-sensors.conf. On older systems, modules are added to /etc/modules. The sensors thresholds and label configuration is separate, stored in /etc/sensors3.conf or /etc/sensors.d/.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
 ];
 
 // ============================================================================
-// CLUSTER TOOLS (tm-clus-001 through tm-clus-013)
-// Tools: sinfo (4), squeue (3), scontrol (3), sacct (3)
+// CLUSTER TOOLS (tm-clus-001 through tm-clus-025)
+// Tools: sinfo (7), squeue (6), scontrol (6), sacct (6)
 // ============================================================================
 
 const clusterToolsQuestions: ToolMasteryQuestion[] = [
@@ -1125,11 +1870,258 @@ JobID        JobName    State      ExitCode  MaxRSS     Elapsed    NodeList
       "Option B provides the most useful data for capacity analysis. --allusers shows all users (requires admin), --starttime filters the date range, --format includes AllocTRES (showing allocated GPUs) and ReqTRES (requested GPUs) to identify over-requesting. The -P flag with --delimiter produces parseable output. Comparing ReqTRES vs AllocTRES reveals whether users are requesting more GPUs than they utilize.",
     examRelevance: "NCP-AII Domain 3: Control Plane Installation",
   },
+  {
+    id: "tm-clus-014",
+    familyId: "cluster-tools",
+    tool: "sinfo",
+    category: "flags-options",
+    difficulty: "beginner",
+    questionText:
+      "Which sinfo command shows detailed long-format output including CPU count, memory, GRES (GPUs), and disk info?",
+    choices: [
+      "sinfo --verbose",
+      "sinfo -l",
+      "sinfo --detail",
+      "sinfo -a --long-format",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "sinfo -l (or --long) displays extended information including CPU count, allocated/idle/other/total, S:C:T (sockets:cores:threads), memory in MB, temporary disk space, node weight, available features, and GRES (Generic Resources such as GPUs). This is commonly combined with -N as 'sinfo -N -l' for per-node detailed listings.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-015",
+    familyId: "cluster-tools",
+    tool: "sinfo",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText:
+      "What does this sinfo output tell you about the partition configuration?",
+    codeSnippet: `$ sinfo -a
+PARTITION  AVAIL  TIMELIMIT  NODES  STATE  NODELIST
+gpu*       up     7-00:00:00   8    idle   dgx-[01-08]
+debug      up     1:00:00      2    idle   dgx-[01-02]
+priority   up     3-00:00:00   4    idle   dgx-[05-08]`,
+    choices: [
+      "There are 14 total nodes across three partitions",
+      "The gpu partition is the default (indicated by *), allows 7-day jobs, and contains all 8 nodes; the debug partition limits jobs to 1 hour on 2 nodes; nodes can belong to multiple partitions",
+      "The priority partition has dedicated nodes that cannot be used by other partitions",
+      "Only the gpu partition is active because it has the asterisk",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "The asterisk (*) on 'gpu*' indicates it is the default partition. Nodes can belong to multiple partitions simultaneously (dgx-01 and dgx-02 are in both gpu and debug). TIMELIMIT shows maximum job duration: 7 days for gpu, 1 hour for debug, 3 days for priority. All partitions show AVAIL=up. The 8 unique nodes serve all three partitions with different policies.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-016",
+    familyId: "cluster-tools",
+    tool: "sinfo",
+    category: "best-practice",
+    difficulty: "intermediate",
+    questionText:
+      "Which sinfo command is most useful for quickly generating a custom report of GPU availability across the cluster?",
+    choices: [
+      "sinfo -N -l | grep gpu",
+      'sinfo -N -o "%N %P %T %G" --state=idle,mixed',
+      "sinfo --json",
+      "sinfo -a -t idle",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "The -o (--format) flag with custom format specifiers provides targeted output: %N=NodeName, %P=Partition, %T=State, %G=GRES (GPUs). Filtering with --state=idle,mixed shows only nodes with available resources. This custom format produces clean output for dashboards or scripts that track GPU availability across the cluster.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-017",
+    familyId: "cluster-tools",
+    tool: "squeue",
+    category: "output-interpretation",
+    difficulty: "advanced",
+    questionText: "What does this squeue output indicate about job 2001?",
+    codeSnippet: `$ squeue -j 2001 --format="%.18i %.30j %.8T %.10M %.9P %.6D %R"
+JOBID                          NAME    STATE       TIME PARTITION  NODES NODELIST(REASON)
+2001              multi_node_train  RUNNING   5:42:30       gpu      4 dgx-[01-04]`,
+    choices: [
+      "The job is pending and waiting for 4 nodes",
+      "The job is running across 4 DGX nodes (dgx-01 through dgx-04) and has been executing for 5 hours and 42 minutes",
+      "The job failed after 5 hours and 42 minutes",
+      "The job is using 4 GPUs on a single node",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "State RUNNING means the job is actively executing. NODES=4 with NODELIST=dgx-[01-04] shows it is a multi-node distributed job spanning 4 DGX systems. TIME of 5:42:30 is the elapsed wall-clock time. This is typical for large-scale distributed training jobs in HPC GPU clusters where multiple DGX nodes are used together.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-018",
+    familyId: "cluster-tools",
+    tool: "squeue",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "Which squeue flag shows the estimated start time for pending jobs?",
+    choices: [
+      "squeue --estimate",
+      "squeue --start",
+      "squeue -t PD --eta",
+      "squeue --when",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "squeue --start displays the estimated start time for pending jobs based on the scheduler's backfill calculations. This helps users understand when their queued jobs are expected to begin. The estimate depends on the current running jobs' time limits and resource availability. It is commonly used as 'squeue --start -u $USER' to check your own pending jobs.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-019",
+    familyId: "cluster-tools",
+    tool: "squeue",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "A user's job has been pending for 12 hours with reason (QOSMaxGRESPerUser). What does this mean and how should it be resolved?",
+    choices: [
+      "The user's account has expired and needs to be renewed",
+      "The user has reached their QOS (Quality of Service) limit for maximum GRES (GPUs) per user, and must wait for their other running jobs to finish before more GPUs can be allocated",
+      "The GRES plugin is not configured on the cluster",
+      "The job is requesting more GPUs than exist in the cluster",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "QOSMaxGRESPerUser means the QOS policy limits how many GRES (GPU) resources a single user can have allocated simultaneously. The user has already reached that limit with other running jobs. Solutions: wait for existing jobs to complete, cancel lower-priority jobs, or ask an administrator to adjust the QOS limits if justified. This policy ensures fair GPU sharing among users.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-020",
+    familyId: "cluster-tools",
+    tool: "scontrol",
+    category: "command-syntax",
+    difficulty: "intermediate",
+    questionText:
+      "Which scontrol command places a hold on a pending job to prevent it from starting?",
+    choices: [
+      "scontrol suspend 12345",
+      "scontrol hold 12345",
+      "scontrol update JobId=12345 Priority=0",
+      "Both B and C can prevent a pending job from starting",
+    ],
+    correctAnswer: 3,
+    explanation:
+      "Both 'scontrol hold <jobid>' and 'scontrol update JobId=<jobid> Priority=0' prevent a pending job from being scheduled. The hold command is the standard approach and sets a user hold. Setting Priority=0 also works since jobs with priority 0 are never scheduled. To release a held job, use 'scontrol release <jobid>'. Note: 'suspend' pauses a running job, not a pending one.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-021",
+    familyId: "cluster-tools",
+    tool: "scontrol",
+    category: "output-interpretation",
+    difficulty: "advanced",
+    questionText: "What does this scontrol show node output reveal?",
+    codeSnippet: `$ scontrol show node dgx-03
+NodeName=dgx-03 Arch=x86_64 CoresPerSocket=64
+   CPUAlloc=128 CPUTot=256 CPULoad=64.52
+   Gres=gpu:a100:8
+   GresUsed=gpu:a100:4(IDX:0-3)
+   State=MIXED
+   RealMemory=2048000 AllocMem=1024000
+   Reason=scheduled maintenance [admin@2026-02-15T10:00:00]`,
+    choices: [
+      "The node is fully allocated and cannot accept new jobs",
+      "The node has 4 of 8 GPUs allocated (indices 0-3), 128 of 256 CPUs in use, is in MIXED state, and has a scheduled maintenance reason set by an admin",
+      "The node is down for maintenance and all jobs have been stopped",
+      "The node has a hardware failure on GPUs 4-7",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "The MIXED state means the node is partially allocated. GresUsed shows gpu:a100:4(IDX:0-3) meaning GPUs 0-3 are allocated to jobs while GPUs 4-7 are available. CPUAlloc=128 of CPUTot=256 and AllocMem=1024000 of 2048000 confirm partial allocation. The Reason field shows a scheduled maintenance note, but since the state is MIXED (not DRAIN), the node is still accepting new jobs. The reason may be informational or from a previous drain state.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-022",
+    familyId: "cluster-tools",
+    tool: "scontrol",
+    category: "best-practice",
+    difficulty: "intermediate",
+    questionText:
+      "After changing slurm.conf on the Slurm controller, what scontrol command applies the new configuration without restarting the slurmctld daemon?",
+    choices: [
+      "scontrol reload",
+      "scontrol reconfig",
+      "scontrol update config",
+      "scontrol apply",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "scontrol reconfig tells the Slurm controller (slurmctld) to re-read its configuration file (slurm.conf) and apply changes without requiring a daemon restart. This avoids disrupting running jobs. Not all configuration changes can be applied live; some require a full restart. It also triggers slurmd on all compute nodes to re-read their local configuration.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-023",
+    familyId: "cluster-tools",
+    tool: "sacct",
+    category: "flags-options",
+    difficulty: "beginner",
+    questionText:
+      "Which sacct flag produces parseable output with pipe-delimited fields instead of the default fixed-width format?",
+    choices: [
+      "sacct --csv",
+      'sacct -P --delimiter="|"',
+      "sacct --parsable",
+      "sacct -o tsv",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "sacct -P (or --parsable2) produces output without trailing delimiters, using | as the default delimiter. Adding --delimiter='|' explicitly sets the pipe character (though it is the default). The -P flag is essential for scripting and data analysis because the default fixed-width format is difficult to parse programmatically. You can also use --delimiter=',' for CSV output.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-024",
+    familyId: "cluster-tools",
+    tool: "sacct",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText:
+      "What does the AllocTRES field in this sacct output tell you?",
+    codeSnippet: `$ sacct -j 9999 --format=JobID,AllocTRES%60,Elapsed
+JobID                                                    AllocTRES    Elapsed
+9999             billing=256,cpu=256,gres/gpu=8,mem=2048000M,node=1   4:30:15
+9999.batch       cpu=256,mem=2048000M,node=1                          4:30:15
+9999.0           billing=256,cpu=256,gres/gpu=8,mem=2048000M,node=1   4:30:12`,
+    choices: [
+      "The job requested but did not actually use these resources",
+      "The job was allocated 256 CPUs, 8 GPUs, ~2TB of memory on 1 node, showing the Trackable RESources (TRES) that Slurm accounted for",
+      "The billing field means the user was charged 256 credits",
+      "The AllocTRES only shows limits, not actual allocation",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "AllocTRES (Allocated Trackable RESources) shows the exact resources Slurm allocated to the job. gres/gpu=8 means 8 GPUs, cpu=256 means 256 CPU cores, mem=2048000M means approximately 2TB of memory, node=1 means one node. The billing field is used for fairshare calculations. This data is essential for capacity planning and understanding actual resource consumption.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-clus-025",
+    familyId: "cluster-tools",
+    tool: "sacct",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "sacct shows a job with State=TIMEOUT and Elapsed matching the partition's MaxTime exactly. What happened and how should the user fix this?",
+    choices: [
+      "The Slurm controller crashed and the job was killed",
+      "The job ran until the partition's maximum walltime limit and was terminated by Slurm; the user should estimate runtime more accurately and request more time with --time, or use checkpointing to resume",
+      "The node the job was running on went down",
+      "The user's account ran out of allocation hours",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "State=TIMEOUT means the job exceeded its walltime limit. When Elapsed matches the partition's MaxTime, the job consumed the entire allowed duration. Solutions include: requesting more time with sbatch --time if the partition allows it, moving to a partition with a higher time limit, implementing application-level checkpointing to save progress and resume in a new job, or optimizing the workload to complete faster.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
 ];
 
 // ============================================================================
-// CONTAINER TOOLS (tm-cont-001 through tm-cont-013)
-// Tools: docker (4), enroot (5), pyxis (4)
+// CONTAINER TOOLS (tm-cont-001 through tm-cont-025)
+// Tools: docker (7), enroot (8), pyxis (7)
 // ============================================================================
 
 const containerToolsQuestions: ToolMasteryQuestion[] = [
@@ -1384,11 +2376,261 @@ const containerToolsQuestions: ToolMasteryQuestion[] = [
       "By default, enroot stores imported images and created containers in ~/.local/share/enroot/ on local disk. In a multi-node job, each node needs access to the image. If the user's home directory is on local storage instead of shared NFS/Lustre, the image will only exist on the submission node. Solutions include using shared storage for enroot data, pre-pulling images on all nodes, or configuring Pyxis to import on each node.",
     examRelevance: "NCP-AII Domain 3: Control Plane Installation",
   },
+  {
+    id: "tm-cont-014",
+    familyId: "container-tools",
+    tool: "docker",
+    category: "flags-options",
+    difficulty: "intermediate",
+    questionText:
+      "Which docker run flag limits a container to use only specific GPUs (e.g., GPUs 0 and 2)?",
+    choices: [
+      'docker run --gpus "device=0,2"',
+      "docker run --gpus 2",
+      "docker run --gpu-ids 0,2",
+      "docker run --nvidia device=0,2",
+    ],
+    correctAnswer: 0,
+    explanation:
+      'The --gpus flag accepts device specifications. "--gpus \'device=0,2\'" exposes only GPUs 0 and 2 to the container. This is useful for running multiple containers on a single DGX system, each with a subset of GPUs. You can also use GPU UUIDs instead of indices. Note that "--gpus 2" means "any 2 GPUs" (count), not "GPU index 2".',
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-015",
+    familyId: "container-tools",
+    tool: "docker",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText: "What does this daemon.json configuration enable?",
+    codeSnippet: `$ cat /etc/docker/daemon.json
+{
+    "default-runtime": "nvidia",
+    "runtimes": {
+        "nvidia": {
+            "path": "nvidia-container-runtime",
+            "runtimeArgs": []
+        }
+    }
+}`,
+    choices: [
+      "It installs the NVIDIA driver inside all Docker containers",
+      "It sets the NVIDIA container runtime as the default for all Docker containers, eliminating the need to specify --gpus or --runtime=nvidia on every docker run command",
+      "It restricts Docker to only run NVIDIA-based containers",
+      "It configures Docker to use GPU acceleration for image builds",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "Setting 'default-runtime' to 'nvidia' in daemon.json means every container launched by this Docker daemon will automatically use the NVIDIA container runtime. This eliminates the need to pass --gpus or --runtime=nvidia on every docker run command. The NVIDIA runtime handles injecting GPU device files and driver libraries into containers transparently.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-016",
+    familyId: "container-tools",
+    tool: "docker",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "A Docker GPU container starts successfully but nvidia-smi inside the container shows fewer GPUs than the host. What is the most likely cause?",
+    choices: [
+      "The container's CUDA version is incompatible with some GPUs",
+      "The NVIDIA_VISIBLE_DEVICES environment variable or the --gpus flag is restricting which GPUs are visible to the container",
+      "Some GPUs have failed since the container was built",
+      "The Docker image was built on a system with fewer GPUs",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "The NVIDIA Container Toolkit uses the NVIDIA_VISIBLE_DEVICES environment variable (set automatically by --gpus) to control GPU visibility. If --gpus is set to a specific count or device list, only those GPUs appear inside the container. Check the docker run command for --gpus specifications and the NVIDIA_VISIBLE_DEVICES variable. Use '--gpus all' to expose all GPUs.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-017",
+    familyId: "container-tools",
+    tool: "enroot",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "Which enroot command lists all created container sandboxes on the system?",
+    choices: [
+      "enroot ps",
+      "enroot list",
+      "enroot containers",
+      "enroot show --all",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "enroot list displays all container sandboxes (rootfs directories) that have been created with 'enroot create'. Each entry shows the container name. Containers in this list can be started with 'enroot start <name>' and removed with 'enroot remove <name>'. This is analogous to listing Docker containers, but enroot containers are simply unpacked directories.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-018",
+    familyId: "container-tools",
+    tool: "enroot",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText:
+      "What does this enroot import output tell you about the process?",
+    codeSnippet: `$ enroot import docker://nvcr.io#nvidia/pytorch:24.01-py3
+[INFO] Querying registry for permission grant
+[INFO] Authenticating with user credentials
+[INFO] Fetching image manifest list
+[INFO] Fetching image manifest
+[INFO] Downloading 47 missing layers
+[INFO] Extracting image layers
+[INFO] Converting to squashfs filesystem
+nvidia+pytorch+24.01-py3.sqsh`,
+    choices: [
+      "The import failed because it needed to download 47 layers",
+      "The import successfully authenticated with NGC, downloaded the image layers, and created a squashfs file named nvidia+pytorch+24.01-py3.sqsh",
+      "The image was cached locally and no download occurred",
+      "The container is now running with the PyTorch framework",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "The output shows enroot's import workflow: authenticating with the NGC registry (using credentials from $ENROOT_CONFIG_PATH/.credentials), downloading 47 container layers, extracting them, and converting the result to a compressed squashfs filesystem. The final output line shows the resulting .sqsh file name. This file can now be used with 'enroot create' to make a runnable sandbox.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-019",
+    familyId: "container-tools",
+    tool: "enroot",
+    category: "best-practice",
+    difficulty: "advanced",
+    questionText:
+      "In an HPC cluster with shared NFS storage, where should enroot squashfs images (.sqsh) be stored for multi-node jobs?",
+    choices: [
+      "On each node's local /tmp directory for performance",
+      "In a shared filesystem location accessible from all compute nodes, so all nodes can create containers from the same image without re-importing",
+      "Only on the login/submission node since enroot handles distribution",
+      "In the Docker registry since enroot always re-downloads",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "Storing .sqsh images on shared storage (NFS, Lustre, GPFS) ensures all compute nodes can access the same image file. When a multi-node Slurm job starts, each node needs to 'enroot create' from the .sqsh file. If the file is on local storage, it only exists on the node where 'enroot import' was run. Shared storage eliminates the need to import the image on every node separately.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-020",
+    familyId: "container-tools",
+    tool: "enroot",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "An enroot import from NGC fails with 'HTTP 401 Unauthorized'. What should you check?",
+    choices: [
+      "The NGC container image has been deprecated and is no longer available",
+      "The NGC API key in the enroot credentials file ($ENROOT_CONFIG_PATH/.credentials or ~/.config/enroot/.credentials) is missing, expired, or incorrectly formatted",
+      "The system clock is wrong and the TLS certificate has expired",
+      "enroot does not support authenticated registries",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "NGC requires an API key for pulling container images. enroot reads credentials from a .credentials file (typically at ~/.config/enroot/.credentials). The file format is: 'machine nvcr.io login $oauthtoken password <YOUR_NGC_API_KEY>'. A 401 error means the credentials are missing, the API key has expired, or the file format is incorrect. Generate a new API key at ngc.nvidia.com.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-021",
+    familyId: "container-tools",
+    tool: "pyxis",
+    category: "flags-options",
+    difficulty: "intermediate",
+    questionText:
+      "Which Pyxis flag sets the working directory inside the container when running a Slurm job?",
+    choices: [
+      "srun --container-image=<img> --chdir=/workspace python train.py",
+      "srun --container-image=<img> --container-workdir=/workspace python train.py",
+      "srun --container-image=<img> --workdir=/workspace python train.py",
+      "srun --container-image=<img> --cd=/workspace python train.py",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "Pyxis provides the --container-workdir flag to set the working directory inside the container. Without this, the working directory defaults to the container's configured WORKDIR. This is useful when the container expects files in a specific location or when you want to change to a mounted data directory before running the application.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-022",
+    familyId: "container-tools",
+    tool: "pyxis",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText:
+      "What does the --container-name flag do in this Pyxis command?",
+    codeSnippet: `$ srun --container-image=nvcr.io#nvidia/pytorch:24.01-py3 \\
+       --container-name=pytorch_training \\
+       --container-mounts=/data:/data \\
+       python train.py`,
+    choices: [
+      "It assigns a hostname to the container",
+      "It names the enroot container sandbox, allowing it to be reused across multiple srun invocations without re-importing and re-creating the container",
+      "It sets the Slurm job name",
+      "It creates a DNS entry for the container",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "The --container-name flag gives a persistent name to the enroot sandbox. Without it, Pyxis creates a temporary container that is destroyed after the job. With a name, the container persists and subsequent srun commands using the same --container-name will reuse the existing sandbox, skipping the import and create steps. This dramatically speeds up iterative development workflows.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-023",
+    familyId: "container-tools",
+    tool: "pyxis",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "A Slurm job with --container-image fails with 'pyxis: container start failed'. The same image works fine with 'enroot start' directly. What should you investigate?",
+    choices: [
+      "The image is too large for Pyxis to handle",
+      "Check the Pyxis SPANK plugin configuration in plugstack.conf, verify that enroot is in the PATH for the Slurm daemon, and check slurmd logs for detailed error messages",
+      "Pyxis requires a newer version of Slurm than what is installed",
+      "The container image must be pre-imported before using with Pyxis",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "When enroot works directly but Pyxis fails, the issue is typically in the Slurm-Pyxis integration. Check: 1) plugstack.conf references the correct pyxis.so path, 2) the slurmd service has enroot in its PATH, 3) required directories (like /run/enroot) exist and have correct permissions. The slurmd log (usually /var/log/slurm/slurmd.log) contains the detailed error from the SPANK plugin.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-024",
+    familyId: "container-tools",
+    tool: "pyxis",
+    category: "best-practice",
+    difficulty: "advanced",
+    questionText:
+      "For a multi-node distributed training job using Pyxis, which combination of flags ensures all nodes have the same container environment with access to the shared dataset?",
+    choices: [
+      "--container-image only; Pyxis handles everything else automatically",
+      "--container-image=nvcr.io#nvidia/pytorch:24.01-py3 --container-mounts=/shared/datasets:/data,/shared/checkpoints:/checkpoints --no-container-remap-root",
+      "--container-image=<img> --container-mounts=/data:/data --container-name=training_env to import once and reuse across nodes",
+      "Multi-node jobs cannot use containers",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "For multi-node training: --container-image specifies the NGC image (Pyxis imports it on each node if not cached), --container-mounts makes shared filesystem paths available inside the container for datasets and checkpoint saving, and --no-container-remap-root keeps the user mapping consistent for shared filesystem permissions. Each node independently creates the container from the same image.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
+  {
+    id: "tm-cont-025",
+    familyId: "container-tools",
+    tool: "enroot",
+    category: "conceptual",
+    difficulty: "beginner",
+    questionText:
+      "What file format does enroot use for portable container images, and why was this format chosen over Docker's layered format?",
+    choices: [
+      "TAR archives, for compatibility with standard Unix tools",
+      "Squashfs (.sqsh), a compressed read-only filesystem format that provides fast random access, small image sizes, and avoids the overhead of Docker's overlay filesystem layers",
+      "OCI image format, identical to Docker's format",
+      "ISO disk images, for direct mounting as virtual drives",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "Enroot uses squashfs, a compressed read-only filesystem format native to the Linux kernel. Squashfs provides excellent compression ratios (reducing storage), fast random-access reads (no need to decompress entire layers), and can be loop-mounted directly. Unlike Docker's layered overlay filesystem which introduces I/O overhead, a single squashfs file is simple and performant, ideal for HPC workloads.",
+    examRelevance: "NCP-AII Domain 3: Control Plane Installation",
+  },
 ];
 
 // ============================================================================
-// DIAGNOSTICS (tm-diag-001 through tm-diag-013)
-// Tools: dcgmi diag (5), nvidia-bug-report (4), gpu-burn (4)
+// DIAGNOSTICS (tm-diag-001 through tm-diag-025)
+// Tools: dcgmi diag (8), nvidia-bug-report (7), gpu-burn (7)
 // ============================================================================
 
 const diagnosticsQuestions: ToolMasteryQuestion[] = [
@@ -1663,6 +2905,248 @@ GPU 7: OK - temp: 73C - 18219 Gflop/s`,
     correctAnswer: 1,
     explanation:
       "gpu-burn is a focused CUDA compute stress test that maximizes GPU utilization to test thermal and power stability, verifying computation correctness over time. dcgmi diag -r 3 is a comprehensive diagnostic suite that individually tests deployment health, PCIe bandwidth, memory bandwidth, SM compute, NVLink bandwidth, and power delivery with specific pass/fail thresholds for each. They complement each other: dcgmi diag identifies which subsystem has issues, while gpu-burn validates sustained compute reliability.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-diag-014",
+    familyId: "diagnostics",
+    tool: "dcgmi diag",
+    category: "flags-options",
+    difficulty: "intermediate",
+    questionText:
+      "Which dcgmi diag flag runs diagnostics on a specific DCGM group rather than the default group?",
+    choices: [
+      "dcgmi diag -r 3 --group 2",
+      "dcgmi diag -r 3 -g 2",
+      "dcgmi diag -r 3 --target-group 2",
+      "dcgmi diag -r 3 -G 2",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "dcgmi diag -g (--group) specifies a DCGM group ID to run diagnostics against. First create a group with 'dcgmi group -c mygroup -a 0,1' and note the returned group ID. Then 'dcgmi diag -r 3 -g <groupId>' runs diagnostics on only the GPUs in that group. This is useful for testing a subset of GPUs, for example after replacing a specific GPU.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-diag-015",
+    familyId: "diagnostics",
+    tool: "dcgmi diag",
+    category: "output-interpretation",
+    difficulty: "advanced",
+    questionText: "What does this dcgmi diag level 1 output indicate?",
+    codeSnippet: `$ dcgmi diag -r 1
++---------------------------+--------------------------------+
+| Diagnostic                | Result                         |
++===========================+================================+
+| Deployment                | Fail                           |
+|                           | Error: NVML library not found  |
++---------------------------+--------------------------------+`,
+    choices: [
+      "The GPU hardware has failed and needs replacement",
+      "The NVIDIA driver is not properly installed or the NVML shared library (libnvidia-ml.so) is missing from the library path",
+      "DCGM is not compatible with the installed GPU",
+      "The GPU needs a firmware update before diagnostics can run",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "The Deployment test at level 1 checks basic software prerequisites. 'NVML library not found' means the NVIDIA Management Library (libnvidia-ml.so) is not in the library search path. This typically indicates the NVIDIA driver is not installed, not loaded (check with 'lsmod | grep nvidia'), or the library path is misconfigured. This must be fixed before any GPU operations can work.",
+    examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
+  },
+  {
+    id: "tm-diag-016",
+    familyId: "diagnostics",
+    tool: "dcgmi diag",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "Which dcgmi diag command runs only the quick deployment validation tests?",
+    choices: [
+      "dcgmi diag -r 1",
+      "dcgmi diag --quick",
+      "dcgmi diag -r 0",
+      "dcgmi diag --deploy",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "dcgmi diag -r 1 runs level 1 diagnostics, which are quick deployment validation tests that complete in seconds. These tests verify the NVIDIA driver is loaded, GPUs are accessible, ECC mode is as expected, and basic GPU health indicators are normal. Level 1 is suitable for quick health checks without impacting running workloads.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-diag-017",
+    familyId: "diagnostics",
+    tool: "nvidia-bug-report",
+    category: "output-interpretation",
+    difficulty: "advanced",
+    questionText:
+      "In the nvidia-bug-report output, you find this dmesg entry. What does it mean?",
+    codeSnippet: `[  142.835421] NVRM: Xid (PCI:0000:3b:00): 48, pid=12345, name=python, Ch 00000010
+[  142.835423] NVRM: Xid (PCI:0000:3b:00): 48, pid=12345, name=python, Ch 00000010
+[  142.835425] NVRM: Xid (PCI:0000:3b:00): 48, pid=12345, name=python, Ch 00000010`,
+    choices: [
+      "The GPU has fallen off the PCIe bus",
+      "XID 48 indicates a double-bit ECC error in GPU memory, and the repeated errors from the same process suggest corrupted GPU memory pages that need to be retired",
+      "The Python process is using too much GPU memory",
+      "The GPU temperature is too high and thermal throttling is occurring",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "XID 48 is a double-bit (uncorrectable) ECC error. Unlike single-bit errors that ECC corrects transparently, double-bit errors corrupt data and typically cause the CUDA context to be destroyed. Repeated XID 48 errors on the same GPU indicate degrading memory cells. The affected memory pages should be retired (nvidia-smi --retire-pages), and if errors persist, the GPU should be RMA'd.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-diag-018",
+    familyId: "diagnostics",
+    tool: "nvidia-bug-report",
+    category: "flags-options",
+    difficulty: "intermediate",
+    questionText:
+      "What is the default output filename and format generated by nvidia-bug-report.sh?",
+    choices: [
+      "nvidia-diagnostics.txt in the current directory",
+      "nvidia-bug-report.log.gz - a gzip-compressed log file in the current directory",
+      "/var/log/nvidia-bug-report.json",
+      "nvidia-report.tar.gz containing multiple diagnostic files",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-bug-report.sh generates a file named nvidia-bug-report.log.gz in the current working directory. The .gz extension indicates gzip compression. To read it, use 'zcat nvidia-bug-report.log.gz' or 'gunzip nvidia-bug-report.log.gz' followed by viewing the resulting .log file. The compressed format reduces the file size for easy sharing with NVIDIA support.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-diag-019",
+    familyId: "diagnostics",
+    tool: "nvidia-bug-report",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "nvidia-bug-report.sh generates an incomplete report with warnings about missing information. What is the most likely cause?",
+    choices: [
+      "The disk is full and the report cannot be written",
+      "The script was run without root/sudo privileges, preventing it from accessing kernel logs, device files, and driver internals",
+      "The NVIDIA driver version is too old for the bug report tool",
+      "The system has too many GPUs for the report tool to handle",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-bug-report.sh requires root privileges to collect complete information. Without root: dmesg (kernel ring buffer) may be restricted, /dev/nvidia* device file details may be inaccessible, driver internal state cannot be queried, and some system configuration files cannot be read. Always run as 'sudo nvidia-bug-report.sh' to ensure a complete diagnostic bundle.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-diag-020",
+    familyId: "diagnostics",
+    tool: "gpu-burn",
+    category: "flags-options",
+    difficulty: "beginner",
+    questionText:
+      "Which gpu-burn flag forces the stress test to use double-precision (FP64) floating-point operations?",
+    choices: [
+      "gpu-burn --fp64 120",
+      "gpu-burn -d 120",
+      "gpu-burn --double 120",
+      "gpu-burn -p double 120",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "gpu-burn -d enables double-precision (FP64) mode for the stress test. Without -d, gpu-burn uses single-precision (FP32) by default. Double-precision tests are important because A100 and H100 GPUs have significant FP64 compute capability used in scientific computing workloads. FP64 mode also generates more heat, making it better for thermal stress testing.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-diag-021",
+    familyId: "diagnostics",
+    tool: "gpu-burn",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText: "What does this gpu-burn temperature progression indicate?",
+    codeSnippet: `GPU 0: OK - temp: 45C - 18230 Gflop/s  (10s elapsed)
+GPU 0: OK - temp: 62C - 18215 Gflop/s  (30s elapsed)
+GPU 0: OK - temp: 75C - 18198 Gflop/s  (60s elapsed)
+GPU 0: OK - temp: 78C - 18180 Gflop/s  (120s elapsed)
+GPU 0: OK - temp: 79C - 18175 Gflop/s  (180s elapsed)
+GPU 0: OK - temp: 79C - 18172 Gflop/s  (240s elapsed)`,
+    choices: [
+      "The GPU is overheating and will soon reach critical temperature",
+      "The GPU temperature rose from 45C to 79C and stabilized, showing normal thermal saturation behavior with consistent Gflop/s, indicating healthy cooling",
+      "The decreasing Gflop/s indicates the GPU is throttling",
+      "The test should be stopped because temperature has plateaued",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "This shows a healthy thermal profile. The GPU temperature rises from ambient (45C) during ramp-up, then stabilizes at 79C after about 2 minutes as the cooling system reaches equilibrium. The Gflop/s decrease is minimal (18230 to 18172, less than 0.5%) and consistent with slight thermal management adjustments. A problematic GPU would show continued temperature rise or significant Gflop/s drops.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-diag-022",
+    familyId: "diagnostics",
+    tool: "gpu-burn",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "gpu-burn exits immediately with 'CUDA Error: out of memory' on a GPU that nvidia-smi shows as having 80 GB free. What could cause this?",
+    choices: [
+      "gpu-burn has a memory leak in its initialization code",
+      "Another process has allocated GPU memory without actively using it (showing 0% utilization in nvidia-smi but reserving memory), or ECC page retirements have reduced available memory below what gpu-burn requires",
+      "The GPU's memory clock is running too slowly",
+      "gpu-burn does not support GPUs with more than 40 GB memory",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-smi's 'free' memory may not reflect reservations by idle processes or frameworks like PyTorch that pre-allocate GPU memory. Check nvidia-smi for processes holding memory with 'nvidia-smi pmon'. Also, extensive ECC page retirements (nvidia-smi -q -d RETIRED_PAGES) can reduce usable memory. Kill any idle processes holding GPU memory before running gpu-burn.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-diag-023",
+    familyId: "diagnostics",
+    tool: "dcgmi diag",
+    category: "best-practice",
+    difficulty: "intermediate",
+    questionText:
+      "What is the recommended diagnostic sequence when bringing up a new DGX node before putting it into production?",
+    choices: [
+      "Just run gpu-burn for 5 minutes and deploy if it passes",
+      "Run dcgmi diag -r 1 first to verify basic deployment, then -r 3 for comprehensive hardware validation, followed by gpu-burn for extended thermal stress testing",
+      "Only check nvidia-smi output and deploy if all GPUs are visible",
+      "Run nvidia-bug-report.sh and send it to NVIDIA support for approval",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "A proper bring-up sequence starts with dcgmi diag -r 1 to quickly verify driver installation and basic GPU health (seconds). If that passes, dcgmi diag -r 3 tests all subsystems including PCIe, memory, NVLink, and compute (15+ minutes). Finally, gpu-burn runs an extended stress test (1-4 hours) to verify thermal stability under sustained load. This layered approach catches issues at each level.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-diag-024",
+    familyId: "diagnostics",
+    tool: "nvidia-bug-report",
+    category: "best-practice",
+    difficulty: "intermediate",
+    questionText:
+      "When filing an RMA (Return Merchandise Authorization) request for a failed GPU, which diagnostic artifacts should you include?",
+    choices: [
+      "Only the nvidia-smi output showing the error",
+      "The nvidia-bug-report.log.gz, dcgmi diag -r 3 output, nvidia-smi -q output for the failed GPU, and the GPU serial number from nvidia-smi -q -d SERIAL",
+      "A photo of the GPU and the purchase receipt",
+      "Only the dmesg output showing XID errors",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "A thorough RMA submission includes: nvidia-bug-report.log.gz (comprehensive system state), dcgmi diag -r 3 results (specific test failures), nvidia-smi -q for the failed GPU (ECC errors, retired pages, temperature history), and the GPU serial number. This documentation helps NVIDIA validate the failure and expedite the replacement. Without these artifacts, the RMA process may be delayed.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-diag-025",
+    familyId: "diagnostics",
+    tool: "gpu-burn",
+    category: "command-syntax",
+    difficulty: "intermediate",
+    questionText:
+      "How would you run gpu-burn to stress test only specific GPUs (e.g., GPUs 2 and 5) rather than all GPUs in the system?",
+    choices: [
+      "gpu-burn --gpus 2,5 300",
+      "gpu-burn -i 2,5 300",
+      "Set CUDA_VISIBLE_DEVICES=2,5 before running gpu-burn 300",
+      "gpu-burn 300 --device 2 --device 5",
+    ],
+    correctAnswer: 2,
+    explanation:
+      "gpu-burn does not have a built-in GPU selection flag. To limit which GPUs are tested, use the CUDA_VISIBLE_DEVICES environment variable. Setting 'CUDA_VISIBLE_DEVICES=2,5 gpu-burn 300' makes gpu-burn only see and test GPUs 2 and 5. This environment variable is a standard CUDA mechanism for controlling GPU visibility that works with all CUDA applications.",
     examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
   },
 ];

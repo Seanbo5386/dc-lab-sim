@@ -117,10 +117,13 @@ describe("WhichToolQuiz", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Make shuffleArray a no-op so questions stay in declared order
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
   });
 
   afterEach(() => {
     vi.clearAllTimers();
+    vi.restoreAllMocks();
   });
 
   it("renders quiz for the specified family", () => {
@@ -417,6 +420,11 @@ describe("WhichToolQuiz - Pass/Fail Logic", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("shows pass message when 3/4 correct", async () => {

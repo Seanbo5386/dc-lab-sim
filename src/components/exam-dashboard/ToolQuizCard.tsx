@@ -63,7 +63,7 @@ export function ToolQuizCard({
               <span className="text-xs font-semibold text-gray-300">
                 Tool Selection
               </span>
-              <span className="text-[10px] text-gray-500">4 questions</span>
+              <span className="text-[10px] text-gray-500">10 questions</span>
             </div>
             {quizResult?.passed && (
               <CheckCircle className="w-3.5 h-3.5 text-green-400" />
@@ -72,7 +72,7 @@ export function ToolQuizCard({
           <div className="flex items-center justify-between">
             {quizResult ? (
               <span className="text-xs text-gray-400">
-                Best: {quizResult.score}/4 ({quizResult.attempts} attempt
+                Best: {quizResult.score}/10 ({quizResult.attempts} attempt
                 {quizResult.attempts !== 1 ? "s" : ""})
               </span>
             ) : (
@@ -95,7 +95,7 @@ export function ToolQuizCard({
               <span className="text-xs font-semibold text-gray-300">
                 Deep Mastery
               </span>
-              <span className="text-[10px] text-gray-500">10 questions</span>
+              <span className="text-[10px] text-gray-500">25 questions</span>
             </div>
             {masteryResult?.passed && (
               <CheckCircle className="w-3.5 h-3.5 text-green-400" />

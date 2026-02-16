@@ -503,6 +503,762 @@
         }
       ],
       "difficulty": "advanced"
+    },
+    {
+      "id": "gpu-mon-q5",
+      "familyId": "gpu-monitoring",
+      "scenario": "You need to enable persistence mode on all GPUs before deploying a production inference service to eliminate cold-start latency when the first CUDA call is made.",
+      "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
+      "correctAnswer": "nvidia-smi",
+      "explanation": "nvidia-smi provides the -pm flag to enable or disable persistence mode on individual or all GPUs. This is a direct administrative action that nvidia-smi handles natively.",
+      "whyNotOthers": [
+        {
+          "tool": "nvtop",
+          "reason": "nvtop is a monitoring dashboard and cannot modify GPU settings like persistence mode"
+        },
+        {
+          "tool": "dcgmi",
+          "reason": "dcgmi monitors and collects telemetry but does not control GPU driver-level settings like persistence mode"
+        },
+        {
+          "tool": "nvsm",
+          "reason": "nvsm is for fleet health overview; GPU driver settings are managed through nvidia-smi"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "gpu-mon-q6",
+      "familyId": "gpu-monitoring",
+      "scenario": "You are troubleshooting GPU-to-GPU communication latency in an 8-GPU DGX node and need to view the NVLink and PCIe topology to understand which GPUs are directly connected.",
+      "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
+      "correctAnswer": "nvidia-smi",
+      "explanation": "nvidia-smi topo -m displays the GPU topology matrix showing NVLink connections, PCIe switch relationships, and connection types (NV12, PHB, SYS) between all GPUs. This is essential for understanding intra-node communication paths.",
+      "whyNotOthers": [
+        {
+          "tool": "nvtop",
+          "reason": "nvtop shows per-GPU utilization but does not display the interconnect topology between GPUs"
+        },
+        {
+          "tool": "dcgmi",
+          "reason": "dcgmi can query NVLink metrics but nvidia-smi topo provides a cleaner topology matrix view for understanding physical connections"
+        },
+        {
+          "tool": "nvsm",
+          "reason": "nvsm provides cluster-level health summaries, not detailed intra-node GPU topology information"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "gpu-mon-q7",
+      "familyId": "gpu-monitoring",
+      "scenario": "A data scientist asks you to help identify which of several concurrent Jupyter sessions is consuming the most GPU memory. You want to see per-process GPU usage updating live.",
+      "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
+      "correctAnswer": "nvtop",
+      "explanation": "nvtop displays a continuously updating, htop-like interface showing per-process GPU memory and compute usage. Its interactive process list makes it easy to identify which session is the heaviest consumer.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-smi",
+          "reason": "nvidia-smi shows process info but as a static snapshot; you would need to re-run it repeatedly to track changing usage patterns"
+        },
+        {
+          "tool": "dcgmi",
+          "reason": "dcgmi tracks GPU-level metrics but does not break down usage by individual process in a convenient interactive view"
+        },
+        {
+          "tool": "nvsm",
+          "reason": "nvsm focuses on node-level fleet health, not individual process monitoring on a single server"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "gpu-mon-q8",
+      "familyId": "gpu-monitoring",
+      "scenario": "You want to create a DCGM field group that collects GPU temperature, power draw, and SM clock frequency every 100ms and writes the data to a Prometheus endpoint for alerting.",
+      "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
+      "correctAnswer": "dcgmi",
+      "explanation": "dcgmi supports custom field groups with configurable collection intervals and integrates with Prometheus through the DCGM exporter. It is purpose-built for structured, high-frequency telemetry export to monitoring stacks.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-smi",
+          "reason": "nvidia-smi can query metrics but lacks native support for custom field groups, configurable collection intervals, or Prometheus integration"
+        },
+        {
+          "tool": "nvtop",
+          "reason": "nvtop is an interactive terminal tool with no export or integration capability for external monitoring systems"
+        },
+        {
+          "tool": "nvsm",
+          "reason": "nvsm is a fleet health tool, not a flexible telemetry collection and export system for custom metrics"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "gpu-mon-q9",
+      "familyId": "gpu-monitoring",
+      "scenario": "After a firmware update across your SuperPOD, you need to verify that all 20 DGX nodes report healthy GPU and NVSwitch status without SSHing into each node individually.",
+      "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
+      "correctAnswer": "nvsm",
+      "explanation": "nvsm provides centralized fleet management for DGX SuperPOD and BasePOD deployments. It can query health status across all nodes from a single management interface without requiring individual SSH sessions.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-smi",
+          "reason": "nvidia-smi operates on a single node; checking 20 nodes would require SSHing to each one"
+        },
+        {
+          "tool": "nvtop",
+          "reason": "nvtop is an interactive single-node tool with no multi-node or remote capabilities"
+        },
+        {
+          "tool": "dcgmi",
+          "reason": "dcgmi runs per-node; while DCGM can be deployed as a cluster service, nvsm is the native DGX fleet management tool"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "gpu-mon-q10",
+      "familyId": "gpu-monitoring",
+      "scenario": "You need to configure a DCGM health watch policy that automatically logs an alert whenever a GPU's ECC double-bit error count increases or a GPU falls off the bus.",
+      "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
+      "correctAnswer": "dcgmi",
+      "explanation": "dcgmi supports health watch policies that monitor for specific hardware events like ECC errors and Xid errors. You can configure automated responses when thresholds are crossed, making it ideal for proactive fault detection.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-smi",
+          "reason": "nvidia-smi can query current ECC counts but has no policy engine or automated alerting capability"
+        },
+        {
+          "tool": "nvtop",
+          "reason": "nvtop is an interactive monitoring tool with no support for automated policies or event-driven alerting"
+        },
+        {
+          "tool": "nvsm",
+          "reason": "nvsm provides fleet health summaries but dcgmi offers more granular, configurable health watch policies at the GPU level"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "ib-q5",
+      "familyId": "infiniband-tools",
+      "scenario": "You just replaced an HCA in a compute node and want to confirm the new card's firmware version, GUID, and that the port has come up as Active with the correct link rate.",
+      "choices": ["ibstat", "perfquery", "ibdiagnet", "iblinkinfo"],
+      "correctAnswer": "ibstat",
+      "explanation": "ibstat displays local HCA details including firmware version, port GUID, port state (Active/Down), physical state, and link rate. It is the fastest way to validate a local HCA replacement.",
+      "whyNotOthers": [
+        {
+          "tool": "perfquery",
+          "reason": "perfquery shows performance and error counters, not HCA firmware version or port identity information"
+        },
+        {
+          "tool": "ibdiagnet",
+          "reason": "ibdiagnet runs a full fabric scan which is unnecessary when you only need to check local HCA status"
+        },
+        {
+          "tool": "iblinkinfo",
+          "reason": "iblinkinfo queries the subnet manager for fabric topology; ibstat is faster for verifying local HCA details"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "ib-q6",
+      "familyId": "infiniband-tools",
+      "scenario": "NCCL all-reduce operations are running at half the expected bandwidth. You want to check whether a specific switch port is experiencing symbol errors or link integrity failures.",
+      "choices": ["ibstat", "perfquery", "ibdiagnet", "iblinkinfo"],
+      "correctAnswer": "perfquery",
+      "explanation": "perfquery reads hardware performance counters from a specific port including SymbolErrorCounter, LinkErrorRecoveryCounter, and LinkIntegrityErrors. It allows targeted investigation of a suspect port's error statistics.",
+      "whyNotOthers": [
+        {
+          "tool": "ibstat",
+          "reason": "ibstat shows port state and rate but does not provide error counter data"
+        },
+        {
+          "tool": "ibdiagnet",
+          "reason": "ibdiagnet can detect errors across the fabric but perfquery is faster when you already know which port to investigate"
+        },
+        {
+          "tool": "iblinkinfo",
+          "reason": "iblinkinfo shows link speeds and connections but does not report error counters"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "ib-q7",
+      "familyId": "infiniband-tools",
+      "scenario": "You need to generate an InfiniBand fabric health report that checks routing correctness, identifies any duplicate GUIDs, and validates that all expected nodes are present in the topology.",
+      "choices": ["ibstat", "perfquery", "ibdiagnet", "iblinkinfo"],
+      "correctAnswer": "ibdiagnet",
+      "explanation": "ibdiagnet performs comprehensive fabric diagnostics including routing validation, duplicate GUID detection, and topology discovery. It generates a detailed report of all fabric health issues found.",
+      "whyNotOthers": [
+        {
+          "tool": "ibstat",
+          "reason": "ibstat only inspects local HCA ports and has no knowledge of fabric-wide routing or topology"
+        },
+        {
+          "tool": "perfquery",
+          "reason": "perfquery reads individual port counters but cannot validate routing tables or detect duplicate GUIDs"
+        },
+        {
+          "tool": "iblinkinfo",
+          "reason": "iblinkinfo shows topology connections but does not validate routing or check for duplicate GUIDs"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "ib-q8",
+      "familyId": "infiniband-tools",
+      "scenario": "You want to verify which leaf switch each GPU node is connected to and confirm that all links are negotiated at NDR 400Gb/s rather than falling back to a lower speed.",
+      "choices": ["ibstat", "perfquery", "ibdiagnet", "iblinkinfo"],
+      "correctAnswer": "iblinkinfo",
+      "explanation": "iblinkinfo displays the fabric topology showing which nodes connect to which switch ports and the negotiated link speed of each connection. It quickly reveals any links that have fallen back to a lower rate.",
+      "whyNotOthers": [
+        {
+          "tool": "ibstat",
+          "reason": "ibstat only shows the local node's port rate; you cannot see which switch it connects to or check other nodes' link speeds"
+        },
+        {
+          "tool": "perfquery",
+          "reason": "perfquery reports error counters, not topology connections or negotiated link speeds across the fabric"
+        },
+        {
+          "tool": "ibdiagnet",
+          "reason": "ibdiagnet can show topology but iblinkinfo is more direct for viewing switch connections and per-link speeds"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "ib-q9",
+      "familyId": "infiniband-tools",
+      "scenario": "After clearing error counters yesterday, you want to check if a suspect cable has accumulated any new CRC errors or packet discards in the last 24 hours.",
+      "choices": ["ibstat", "perfquery", "ibdiagnet", "iblinkinfo"],
+      "correctAnswer": "perfquery",
+      "explanation": "perfquery reads the hardware error counters from a specific port. Since the counters were cleared yesterday, any non-zero values represent new errors accumulated in the last 24 hours, making it ideal for targeted cable monitoring.",
+      "whyNotOthers": [
+        {
+          "tool": "ibstat",
+          "reason": "ibstat shows port state and rate but does not display CRC error or packet discard counters"
+        },
+        {
+          "tool": "ibdiagnet",
+          "reason": "ibdiagnet scans the entire fabric which is excessive when monitoring a single known cable"
+        },
+        {
+          "tool": "iblinkinfo",
+          "reason": "iblinkinfo displays link topology and speed, not per-port error counters"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "ib-q10",
+      "familyId": "infiniband-tools",
+      "scenario": "A network admin changed the subnet manager configuration and you need to verify that all paths through the fat-tree topology are balanced and that no credit loops exist in the new routing.",
+      "choices": ["ibstat", "perfquery", "ibdiagnet", "iblinkinfo"],
+      "correctAnswer": "ibdiagnet",
+      "explanation": "ibdiagnet validates fabric routing including credit loop detection and path balancing analysis. It is the only tool among the choices that can verify the correctness of the subnet manager's routing decisions.",
+      "whyNotOthers": [
+        {
+          "tool": "ibstat",
+          "reason": "ibstat shows local port status only and has no ability to analyze fabric-wide routing"
+        },
+        {
+          "tool": "perfquery",
+          "reason": "perfquery reports port counters, not routing correctness or credit loop presence"
+        },
+        {
+          "tool": "iblinkinfo",
+          "reason": "iblinkinfo shows physical connections but does not analyze routing tables or detect credit loops"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "bmc-q5",
+      "familyId": "bmc-hardware",
+      "scenario": "You are building an automated inventory script that needs to read each server's total installed RAM, number of DIMM slots populated, and the speed rating of each memory module.",
+      "choices": ["ipmitool", "sensors", "dmidecode"],
+      "correctAnswer": "dmidecode",
+      "explanation": "dmidecode reads SMBIOS tables that contain detailed memory configuration including DIMM size, speed, manufacturer, and slot location for every installed module. It is the standard tool for hardware inventory scripting.",
+      "whyNotOthers": [
+        {
+          "tool": "ipmitool",
+          "reason": "ipmitool fru shows some asset data but does not provide per-DIMM slot details like speed rating and manufacturer"
+        },
+        {
+          "tool": "sensors",
+          "reason": "sensors reports real-time temperature and voltage readings, not hardware inventory information"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "bmc-q6",
+      "familyId": "bmc-hardware",
+      "scenario": "A remote DGX node has a kernel panic and the OS is completely frozen. You need to capture a screenshot of the console output to see the panic message before rebooting.",
+      "choices": ["ipmitool", "sensors", "dmidecode"],
+      "correctAnswer": "ipmitool",
+      "explanation": "ipmitool provides out-of-band access to the BMC including Serial-over-LAN (SOL) for remote console access. Even with a completely frozen OS, ipmitool can connect to the BMC to view console output and perform power actions.",
+      "whyNotOthers": [
+        {
+          "tool": "sensors",
+          "reason": "sensors requires a running OS and cannot function when the kernel has panicked"
+        },
+        {
+          "tool": "dmidecode",
+          "reason": "dmidecode requires a running OS to read SMBIOS tables and cannot provide remote console access"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "bmc-q7",
+      "familyId": "bmc-hardware",
+      "scenario": "After installing a new cooling solution, you want to continuously monitor CPU package temperatures and chassis fan RPMs to verify the thermal design is working under load.",
+      "choices": ["ipmitool", "sensors", "dmidecode"],
+      "correctAnswer": "sensors",
+      "explanation": "sensors reads directly from hardware monitoring chips and provides clear, categorized output of temperatures, fan speeds, and voltages. It is the most convenient in-band tool for verifying thermal performance on a running system.",
+      "whyNotOthers": [
+        {
+          "tool": "ipmitool",
+          "reason": "ipmitool sensor list can show similar data but sensors provides cleaner, more readable output with labeled thresholds from lm-sensors chip drivers"
+        },
+        {
+          "tool": "dmidecode",
+          "reason": "dmidecode provides static hardware information like model numbers, not real-time thermal readings"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "bmc-q8",
+      "familyId": "bmc-hardware",
+      "scenario": "You need to configure the BMC network settings on a new server so it can be managed remotely, including setting the IP address, netmask, and gateway for the IPMI LAN channel.",
+      "choices": ["ipmitool", "sensors", "dmidecode"],
+      "correctAnswer": "ipmitool",
+      "explanation": "ipmitool lan set provides commands to configure BMC network parameters including IP address, subnet mask, gateway, and authentication settings. It is the standard tool for BMC network configuration.",
+      "whyNotOthers": [
+        {
+          "tool": "sensors",
+          "reason": "sensors monitors hardware sensors and has no capability to configure BMC network settings"
+        },
+        {
+          "tool": "dmidecode",
+          "reason": "dmidecode reads static hardware tables and cannot modify any BMC configuration"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "bmc-q9",
+      "familyId": "bmc-hardware",
+      "scenario": "A compliance audit requires you to document the exact BIOS version, system manufacturer, product name, and chassis serial number for every server in the rack.",
+      "choices": ["ipmitool", "sensors", "dmidecode"],
+      "correctAnswer": "dmidecode",
+      "explanation": "dmidecode reads SMBIOS/DMI tables providing exact BIOS version, vendor, system manufacturer, product name, chassis serial number, and other identification data required for compliance documentation.",
+      "whyNotOthers": [
+        {
+          "tool": "ipmitool",
+          "reason": "ipmitool fru shows some asset data but dmidecode provides more complete SMBIOS information including BIOS version and chassis details"
+        },
+        {
+          "tool": "sensors",
+          "reason": "sensors provides real-time sensor readings, not system identification or BIOS version information"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "bmc-q10",
+      "familyId": "bmc-hardware",
+      "scenario": "You suspect a PSU is degraded because the server occasionally reboots under heavy GPU load. You want to check BMC sensor thresholds and set a watchdog timer to auto-restart on future hangs.",
+      "choices": ["ipmitool", "sensors", "dmidecode"],
+      "correctAnswer": "ipmitool",
+      "explanation": "ipmitool provides access to BMC sensor threshold configuration and watchdog timer management. You can query PSU sensor readings with thresholds, review power events in the SEL, and configure the BMC watchdog for automatic recovery.",
+      "whyNotOthers": [
+        {
+          "tool": "sensors",
+          "reason": "sensors can show current PSU readings but cannot configure watchdog timers or access the BMC event log for power events"
+        },
+        {
+          "tool": "dmidecode",
+          "reason": "dmidecode shows static hardware information and cannot interact with BMC features like watchdog timers or sensor thresholds"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "cluster-q5",
+      "familyId": "cluster-tools",
+      "scenario": "You are a new user on the HPC cluster and want to see what GPU partitions exist, how many GPUs each partition has, and what the maximum wall-time limits are.",
+      "choices": ["sinfo", "squeue", "scontrol", "sacct"],
+      "correctAnswer": "sinfo",
+      "explanation": "sinfo displays all partitions with their node counts, resource limits (including time limits), available features (like GPUs), and current state. It provides the complete overview a new user needs to plan job submissions.",
+      "whyNotOthers": [
+        {
+          "tool": "squeue",
+          "reason": "squeue shows currently queued jobs, not partition definitions or resource limits"
+        },
+        {
+          "tool": "scontrol",
+          "reason": "scontrol show partition provides details but sinfo gives a better tabular overview of all partitions at once"
+        },
+        {
+          "tool": "sacct",
+          "reason": "sacct reports historical job data and does not show partition configuration"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "cluster-q6",
+      "familyId": "cluster-tools",
+      "scenario": "A user submitted a 4-node training job but it has been pending with reason Priority for 6 hours. They want to see all running jobs to understand who is using the resources.",
+      "choices": ["sinfo", "squeue", "scontrol", "sacct"],
+      "correctAnswer": "squeue",
+      "explanation": "squeue shows all running and pending jobs with their user, partition, node allocation, runtime, and priority. It lets you see exactly who is using resources and what other jobs are competing for allocation.",
+      "whyNotOthers": [
+        {
+          "tool": "sinfo",
+          "reason": "sinfo shows how many nodes are allocated but not which users or jobs are using them"
+        },
+        {
+          "tool": "scontrol",
+          "reason": "scontrol show job can show individual job details but squeue provides the full queue picture needed to understand resource contention"
+        },
+        {
+          "tool": "sacct",
+          "reason": "sacct shows completed jobs, not currently running or pending ones that are consuming resources"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "cluster-q7",
+      "familyId": "cluster-tools",
+      "scenario": "Several nodes came back online after maintenance and you need to resume them from the drained state and add a comment explaining that maintenance is complete.",
+      "choices": ["sinfo", "squeue", "scontrol", "sacct"],
+      "correctAnswer": "scontrol",
+      "explanation": "scontrol update nodename=X state=resume reason='Maintenance complete' changes the node state back to available and records the reason. It is the only Slurm command that can modify node administrative state.",
+      "whyNotOthers": [
+        {
+          "tool": "sinfo",
+          "reason": "sinfo is a read-only tool for viewing node state; it cannot change node state or add comments"
+        },
+        {
+          "tool": "squeue",
+          "reason": "squeue manages job queue visibility, not node administrative state"
+        },
+        {
+          "tool": "sacct",
+          "reason": "sacct is a reporting tool for historical job data and cannot modify cluster state"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "cluster-q8",
+      "familyId": "cluster-tools",
+      "scenario": "Management wants a report of GPU-hours consumed by each research group over the last quarter to allocate next year's compute budget.",
+      "choices": ["sinfo", "squeue", "scontrol", "sacct"],
+      "correctAnswer": "sacct",
+      "explanation": "sacct queries the Slurm accounting database and can report resource usage (including GPU-hours via TRES) grouped by account over arbitrary time ranges. It is the only tool that provides historical resource consumption data.",
+      "whyNotOthers": [
+        {
+          "tool": "sinfo",
+          "reason": "sinfo shows current cluster state, not historical usage data"
+        },
+        {
+          "tool": "squeue",
+          "reason": "squeue shows active jobs only, not completed jobs from the past quarter"
+        },
+        {
+          "tool": "scontrol",
+          "reason": "scontrol can show details of active entities but does not provide aggregated historical accounting"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "cluster-q9",
+      "familyId": "cluster-tools",
+      "scenario": "A running job needs its wall-time extended by 2 hours because the training is taking longer than expected, and the cluster admin has approved the extension.",
+      "choices": ["sinfo", "squeue", "scontrol", "sacct"],
+      "correctAnswer": "scontrol",
+      "explanation": "scontrol update jobid=X TimeLimit=NewTime allows administrators to modify a running job's time limit. It is the administrative tool for making changes to active Slurm entities.",
+      "whyNotOthers": [
+        {
+          "tool": "sinfo",
+          "reason": "sinfo displays partition and node information and cannot modify job parameters"
+        },
+        {
+          "tool": "squeue",
+          "reason": "squeue displays job queue information but cannot modify job attributes like time limits"
+        },
+        {
+          "tool": "sacct",
+          "reason": "sacct is a read-only reporting tool for job history and cannot modify active jobs"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "cluster-q10",
+      "familyId": "cluster-tools",
+      "scenario": "You need to investigate why a batch of jobs from last night all exited with non-zero return codes and determine whether they hit memory limits, time limits, or another failure mode.",
+      "choices": ["sinfo", "squeue", "scontrol", "sacct"],
+      "correctAnswer": "sacct",
+      "explanation": "sacct can display exit codes, max memory usage (MaxRSS), elapsed time, and state (TIMEOUT, OUT_OF_MEMORY, FAILED) for completed jobs. It is the only tool that retains detailed resource usage and failure information for past jobs.",
+      "whyNotOthers": [
+        {
+          "tool": "sinfo",
+          "reason": "sinfo shows current node and partition state, not historical job failure data"
+        },
+        {
+          "tool": "squeue",
+          "reason": "squeue only lists active jobs; last night's completed jobs are no longer in the queue"
+        },
+        {
+          "tool": "scontrol",
+          "reason": "scontrol show job data for completed jobs is purged quickly; sacct retains the accounting records long-term"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "container-q5",
+      "familyId": "container-tools",
+      "scenario": "You want to build a custom CUDA container image from a Dockerfile that includes your team's proprietary libraries and push it to your private registry for other developers.",
+      "choices": ["docker", "enroot", "pyxis"],
+      "correctAnswer": "docker",
+      "explanation": "Docker provides the complete container build workflow including Dockerfile support, layer caching, and registry push/pull. It is the standard tool for building custom container images.",
+      "whyNotOthers": [
+        {
+          "tool": "enroot",
+          "reason": "enroot is a container runtime that imports existing images; it does not support building images from Dockerfiles"
+        },
+        {
+          "tool": "pyxis",
+          "reason": "pyxis is a Slurm plugin for running containers, not for building or publishing container images"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "container-q6",
+      "familyId": "container-tools",
+      "scenario": "A researcher needs to run their training script inside an NGC container on a shared HPC login node where they have no root access and Docker is not installed.",
+      "choices": ["docker", "enroot", "pyxis"],
+      "correctAnswer": "enroot",
+      "explanation": "enroot is designed specifically for unprivileged container execution in HPC environments. It can import NGC container images and run them without root access or a Docker daemon.",
+      "whyNotOthers": [
+        {
+          "tool": "docker",
+          "reason": "Docker requires either root access or docker group membership and a running Docker daemon, which are typically unavailable on shared HPC login nodes"
+        },
+        {
+          "tool": "pyxis",
+          "reason": "pyxis requires Slurm job submission; it cannot be used to run containers interactively on a login node"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "container-q7",
+      "familyId": "container-tools",
+      "scenario": "You need to launch a hyperparameter sweep using Slurm job arrays where each array task runs inside the same NGC TensorFlow container with different parameters passed as environment variables.",
+      "choices": ["docker", "enroot", "pyxis"],
+      "correctAnswer": "pyxis",
+      "explanation": "pyxis integrates directly with Slurm, allowing you to specify --container-image in srun/sbatch commands. Combined with job arrays, each task automatically runs inside the container with Slurm-managed environment variables and GPU allocation.",
+      "whyNotOthers": [
+        {
+          "tool": "docker",
+          "reason": "Docker does not integrate with Slurm's job scheduling; managing container lifecycle across array tasks would require manual scripting"
+        },
+        {
+          "tool": "enroot",
+          "reason": "enroot can run the container but lacks native Slurm integration for job arrays; pyxis provides this as a seamless Slurm SPANK plugin"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "container-q8",
+      "familyId": "container-tools",
+      "scenario": "You need to convert a large 15GB NGC PyTorch container image into a squashfs file on the parallel filesystem so it can be efficiently shared across all compute nodes.",
+      "choices": ["docker", "enroot", "pyxis"],
+      "correctAnswer": "enroot",
+      "explanation": "enroot import and enroot create convert Docker/NGC images into squashfs bundles optimized for shared parallel filesystems. The squashfs format provides efficient read-only access across many compute nodes.",
+      "whyNotOthers": [
+        {
+          "tool": "docker",
+          "reason": "Docker stores images in its own layer format and does not natively produce squashfs bundles for parallel filesystem distribution"
+        },
+        {
+          "tool": "pyxis",
+          "reason": "pyxis uses enroot as its backend for image management; the actual import and conversion is performed by enroot"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "container-q9",
+      "familyId": "container-tools",
+      "scenario": "Your organization requires all production training jobs to run in containers for reproducibility, and you want the Slurm batch script to pull the latest container image automatically at job start time.",
+      "choices": ["docker", "enroot", "pyxis"],
+      "correctAnswer": "pyxis",
+      "explanation": "pyxis with the --container-image flag in sbatch scripts can automatically pull and cache container images at job launch. This ensures reproducible containerized execution integrated directly into the Slurm workflow.",
+      "whyNotOthers": [
+        {
+          "tool": "docker",
+          "reason": "Docker is not integrated with Slurm and would require manual wrapper scripts to pull images and manage GPU allocation"
+        },
+        {
+          "tool": "enroot",
+          "reason": "enroot can pull images but doesn't provide automatic Slurm-integrated pull-and-run workflow; pyxis handles this seamlessly"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "container-q10",
+      "familyId": "container-tools",
+      "scenario": "You need to debug a CUDA out-of-memory error interactively inside a container on a compute node. You want to start a shell inside the NGC container with GPU access and inspect memory usage live.",
+      "choices": ["docker", "enroot", "pyxis"],
+      "correctAnswer": "enroot",
+      "explanation": "enroot start --rw provides an interactive shell inside the container with GPU access on the compute node. It runs without root privileges and allows direct interactive debugging, making it ideal for hands-on troubleshooting in HPC environments.",
+      "whyNotOthers": [
+        {
+          "tool": "docker",
+          "reason": "Docker is typically not available on HPC compute nodes and requires elevated privileges that users do not have"
+        },
+        {
+          "tool": "pyxis",
+          "reason": "pyxis is designed for batch job submission through Slurm rather than interactive debugging sessions directly on the node"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "diag-q5",
+      "familyId": "diagnostics",
+      "scenario": "After racking a new DGX H100 node, you need to run a quick Level 1 diagnostic to verify basic GPU health and driver functionality before starting the full burn-in process.",
+      "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
+      "correctAnswer": "dcgmi diag",
+      "explanation": "dcgmi diag -r 1 runs a quick Level 1 diagnostic that validates basic GPU health, driver sanity, and NVML functionality in under a minute. It is the standard first step in new hardware validation.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "nvidia-bug-report collects diagnostic information but does not actively test hardware functionality"
+        },
+        {
+          "tool": "gpu-burn",
+          "reason": "gpu-burn runs a sustained stress test which is premature before basic health is confirmed; dcgmi diag Level 1 should pass first"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "diag-q6",
+      "familyId": "diagnostics",
+      "scenario": "You are experiencing a driver crash that you cannot reproduce on demand. You need to capture the current GPU state, driver version, kernel logs, and Xid error history to file for later analysis.",
+      "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
+      "correctAnswer": "nvidia-bug-report",
+      "explanation": "nvidia-bug-report captures a comprehensive snapshot of the system including GPU state, driver version, kernel logs (dmesg), Xid errors, and hardware configuration into a single compressed file. It is purpose-built for post-incident data collection.",
+      "whyNotOthers": [
+        {
+          "tool": "dcgmi diag",
+          "reason": "dcgmi diag runs active tests but does not capture kernel logs, Xid history, or driver configuration details needed for root cause analysis"
+        },
+        {
+          "tool": "gpu-burn",
+          "reason": "gpu-burn is a stress testing tool and does not collect any diagnostic information or logs"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "diag-q7",
+      "familyId": "diagnostics",
+      "scenario": "You need to validate that a new GPU cluster can sustain maximum power draw across all nodes for 8 hours without thermal throttling or power supply issues.",
+      "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
+      "correctAnswer": "gpu-burn",
+      "explanation": "gpu-burn runs intensive matrix operations that push GPUs to maximum power draw and thermal output for a configurable duration. An 8-hour burn test validates power delivery, cooling capacity, and long-term stability under sustained full load.",
+      "whyNotOthers": [
+        {
+          "tool": "dcgmi diag",
+          "reason": "dcgmi diag Level 3 runs for minutes, not hours; it validates hardware correctness but is not designed for sustained multi-hour stress testing"
+        },
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "nvidia-bug-report collects system information at a point in time and does not generate any GPU workload"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "diag-q8",
+      "familyId": "diagnostics",
+      "scenario": "Before running a large multi-day training job, you want to verify that all NVLink connections between GPUs pass bandwidth and error checks, and that PCIe Gen5 links are running at full width.",
+      "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
+      "correctAnswer": "dcgmi diag",
+      "explanation": "dcgmi diag Level 2 and Level 3 include NVLink bandwidth tests, PCIe bandwidth validation, and interconnect error checks. It is the only diagnostic tool among the choices that specifically tests GPU interconnect health.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "nvidia-bug-report reports NVLink status but does not actively test bandwidth or run error checks on the links"
+        },
+        {
+          "tool": "gpu-burn",
+          "reason": "gpu-burn stresses GPU compute cores but does not specifically test NVLink bandwidth or PCIe link width"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "diag-q9",
+      "familyId": "diagnostics",
+      "scenario": "A customer-facing inference cluster experienced a GPU Xid 79 error (GPU fallen off the bus). NVIDIA support requests that you collect full system diagnostics including the GPU information page, driver state, and system logs.",
+      "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
+      "correctAnswer": "nvidia-bug-report",
+      "explanation": "nvidia-bug-report generates a compressed archive containing GPU info pages, driver state, Xid error logs from dmesg, VBIOS versions, and full system configuration. This is exactly what NVIDIA support needs to investigate GPU-off-bus events.",
+      "whyNotOthers": [
+        {
+          "tool": "dcgmi diag",
+          "reason": "dcgmi diag tests hardware but if the GPU has fallen off the bus, diagnostics may not run; nvidia-bug-report captures the error state regardless"
+        },
+        {
+          "tool": "gpu-burn",
+          "reason": "gpu-burn cannot run on a GPU that has fallen off the bus, and it does not collect diagnostic data for support"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "diag-q10",
+      "familyId": "diagnostics",
+      "scenario": "You need to validate that replacement GPUs can handle sustained double-precision FLOPS at maximum clock rates without producing computation errors, as a pre-production acceptance test.",
+      "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
+      "correctAnswer": "gpu-burn",
+      "explanation": "gpu-burn performs sustained matrix multiplications and compares results to detect computation errors. Running it at maximum clocks for an extended period validates that the replacement GPUs produce correct results under thermal and power stress.",
+      "whyNotOthers": [
+        {
+          "tool": "dcgmi diag",
+          "reason": "dcgmi diag runs targeted diagnostic checks but does not perform extended sustained-load computation correctness testing"
+        },
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "nvidia-bug-report is a data collection tool and does not generate any GPU workload or validate computation accuracy"
+        }
+      ],
+      "difficulty": "advanced"
     }
   ]
 }

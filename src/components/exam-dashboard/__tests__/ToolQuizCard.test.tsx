@@ -44,8 +44,8 @@ describe("ToolQuizCard", () => {
     render(<ToolQuizCard {...baseProps} />);
     expect(screen.getByText("Tool Selection")).toBeInTheDocument();
     expect(screen.getByText("Deep Mastery")).toBeInTheDocument();
-    expect(screen.getByText("4 questions")).toBeInTheDocument();
     expect(screen.getByText("10 questions")).toBeInTheDocument();
+    expect(screen.getByText("25 questions")).toBeInTheDocument();
   });
 
   it("shows PASSED badge only when both quizzes passed", () => {
@@ -95,7 +95,7 @@ describe("ToolQuizCard", () => {
         quizResult={{ passed: true, score: 3, attempts: 2 }}
       />,
     );
-    expect(screen.getByText("Best: 3/4 (2 attempts)")).toBeInTheDocument();
+    expect(screen.getByText("Best: 3/10 (2 attempts)")).toBeInTheDocument();
   });
 
   it("shows mastery score when attempted", () => {

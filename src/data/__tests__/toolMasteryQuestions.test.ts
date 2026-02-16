@@ -38,19 +38,19 @@ const familyToolMap: Record<string, string[]> = {};
 
 describe("toolMasteryQuestions", () => {
   describe("question count", () => {
-    it("should have at least 60 questions total", () => {
-      expect(TOOL_MASTERY_QUESTIONS.length).toBeGreaterThanOrEqual(60);
+    it("should have at least 150 questions total", () => {
+      expect(TOOL_MASTERY_QUESTIONS.length).toBeGreaterThanOrEqual(150);
     });
 
-    it("each family should have at least 10 questions", () => {
+    it("each family should have at least 25 questions", () => {
       VALID_FAMILY_IDS.forEach((familyId) => {
         const count = TOOL_MASTERY_QUESTIONS.filter(
           (q) => q.familyId === familyId,
         ).length;
         expect(
           count,
-          `Family ${familyId} has only ${count} questions (need >= 10)`,
-        ).toBeGreaterThanOrEqual(10);
+          `Family ${familyId} has only ${count} questions (need >= 25)`,
+        ).toBeGreaterThanOrEqual(25);
       });
     });
   });

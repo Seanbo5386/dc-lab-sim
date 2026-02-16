@@ -196,12 +196,10 @@ describe("Documentation", () => {
   // 9. Architecture tab: shows system overview content
   // --------------------------------------------------------------------------
 
-  it("Architecture tab shows node layout and hardware specs", () => {
+  it("Architecture tab shows cluster overview and architecture comparison", () => {
     render(<Documentation />);
-    expect(screen.getByText("Node Layout")).toBeInTheDocument();
-    expect(
-      screen.getByText("Hardware Specifications (Per Node)"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Cluster Overview")).toBeInTheDocument();
+    expect(screen.getByText("DGX Architecture Comparison")).toBeInTheDocument();
     expect(screen.getByText("Network Fabric Architecture")).toBeInTheDocument();
     // Verify specific node hostnames are rendered
     expect(screen.getByText("dgx-00")).toBeInTheDocument();

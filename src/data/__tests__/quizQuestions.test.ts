@@ -46,8 +46,8 @@ describe("quizQuestions.json", () => {
       expect(Array.isArray(questions)).toBe(true);
     });
 
-    it("should have at least 24 questions (4 per family x 6 families)", () => {
-      expect(questions.length).toBeGreaterThanOrEqual(24);
+    it("should have at least 60 questions (10 per family x 6 families)", () => {
+      expect(questions.length).toBeGreaterThanOrEqual(60);
     });
   });
 
@@ -105,7 +105,7 @@ describe("quizQuestions.json", () => {
   });
 
   describe("family coverage", () => {
-    it("each family should have at least 4 quiz questions", () => {
+    it("each family should have at least 10 quiz questions", () => {
       const questionsByFamily: Record<string, number> = {};
       questions.forEach((q) => {
         questionsByFamily[q.familyId] =
@@ -113,7 +113,7 @@ describe("quizQuestions.json", () => {
       });
 
       VALID_FAMILY_IDS.forEach((familyId) => {
-        expect(questionsByFamily[familyId]).toBeGreaterThanOrEqual(4);
+        expect(questionsByFamily[familyId]).toBeGreaterThanOrEqual(10);
       });
     });
   });

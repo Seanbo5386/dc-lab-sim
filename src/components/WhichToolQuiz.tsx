@@ -1,7 +1,7 @@
 /**
  * WhichToolQuiz Component - Pre-scenario quiz for tool selection knowledge
  *
- * Tests "which tool for this scenario?" knowledge. Users must pass 3/4 (75%)
+ * Tests "which tool for this scenario?" knowledge. Users must pass 8/10 (80%)
  * to unlock tiered scenarios for a command family.
  */
 
@@ -30,19 +30,32 @@ interface AnswerResult {
 
 type QuizState = "question" | "feedback" | "results";
 
-const PASSING_SCORE = 3;
-const TOTAL_QUESTIONS = 4;
+const TOTAL_QUESTIONS = 10;
+
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 export const WhichToolQuiz: React.FC<WhichToolQuizProps> = ({
   familyId,
   onComplete,
   onClose,
 }) => {
-  // Get questions for this family
-  const questions = useMemo(() => {
+  // All questions for this family (unshuffled pool)
+  const allFamilyQuestions = useMemo(() => {
     const data = quizQuestionsData as QuizQuestionsData;
     return data.questions.filter((q) => q.familyId === familyId);
   }, [familyId]);
+
+  // Shuffled subset for this quiz session
+  const [questions, setQuestions] = useState<QuizQuestion[]>(() =>
+    shuffleArray(allFamilyQuestions).slice(0, TOTAL_QUESTIONS),
+  );
 
   // Quiz state
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -57,6 +70,9 @@ export const WhichToolQuiz: React.FC<WhichToolQuizProps> = ({
   const score = useMemo(() => {
     return results.filter((r) => r.isCorrect).length;
   }, [results]);
+
+  // Dynamic passing threshold (80% of actual question count)
+  const passingScore = Math.ceil(questions.length * 0.8);
 
   // Handle answer selection
   const handleAnswerSelect = useCallback(
@@ -96,19 +112,20 @@ export const WhichToolQuiz: React.FC<WhichToolQuizProps> = ({
 
   // Handle retry
   const handleRetry = useCallback(() => {
+    setQuestions(shuffleArray(allFamilyQuestions).slice(0, TOTAL_QUESTIONS));
     setCurrentQuestionIndex(0);
     setSelectedAnswer(null);
     setResults([]);
     setQuizState("question");
-  }, []);
+  }, [allFamilyQuestions]);
 
   // Handle close with completion callback
   const handleClose = useCallback(() => {
     if (quizState === "results") {
-      onComplete(score >= PASSING_SCORE, score);
+      onComplete(score >= passingScore, score);
     }
     onClose();
-  }, [quizState, score, onComplete, onClose]);
+  }, [quizState, score, passingScore, onComplete, onClose]);
 
   // Get why not other explanation for a tool
   const getWhyNotOther = (tool: string): WhyNotOther | undefined => {
@@ -125,7 +142,7 @@ export const WhichToolQuiz: React.FC<WhichToolQuizProps> = ({
         <div className="mb-6">
           <div className="flex justify-between items-center mb-2">
             <span className="text-nvidia-green font-bold text-sm">
-              Question {currentQuestionIndex + 1} of {TOTAL_QUESTIONS}
+              Question {currentQuestionIndex + 1} of {questions.length}
             </span>
             <span className="text-gray-500 text-sm">
               {score} correct so far
@@ -135,7 +152,7 @@ export const WhichToolQuiz: React.FC<WhichToolQuizProps> = ({
             <div
               className="h-full bg-nvidia-green transition-all duration-300"
               style={{
-                width: `${((currentQuestionIndex + 1) / TOTAL_QUESTIONS) * 100}%`,
+                width: `${((currentQuestionIndex + 1) / questions.length) * 100}%`,
               }}
             />
           </div>
@@ -279,8 +296,8 @@ export const WhichToolQuiz: React.FC<WhichToolQuizProps> = ({
 
   // Render results view
   const renderResults = () => {
-    const passed = score >= PASSING_SCORE;
-    const percentage = Math.round((score / TOTAL_QUESTIONS) * 100);
+    const passed = score >= passingScore;
+    const percentage = Math.round((score / questions.length) * 100);
 
     // Get missed questions
     const missedQuestions = results
@@ -309,7 +326,7 @@ export const WhichToolQuiz: React.FC<WhichToolQuizProps> = ({
           <p className="text-gray-300 text-lg m-0">
             You scored{" "}
             <span className="font-bold text-white">
-              {score}/{TOTAL_QUESTIONS}
+              {score}/{questions.length}
             </span>{" "}
             ({percentage}%)
           </p>
@@ -319,7 +336,7 @@ export const WhichToolQuiz: React.FC<WhichToolQuizProps> = ({
             </p>
           ) : (
             <p className="text-gray-400 text-sm m-0 mt-2">
-              You need {PASSING_SCORE}/{TOTAL_QUESTIONS} (75%) to unlock
+              You need {passingScore}/{questions.length} (80%) to unlock
               scenarios.
             </p>
           )}

@@ -1,6 +1,6 @@
 {
   "name": "nvidia-ai-infra-simulator",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Interactive NVIDIA AI Infrastructure Certification (NCP-AII) Training Simulator",
   "type": "module",
   "scripts": {

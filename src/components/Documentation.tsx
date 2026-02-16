@@ -38,8 +38,6 @@ import {
 } from "@/data/xidErrors";
 import { ArchitectureComparison } from "./ArchitectureComparison";
 import { CommandsReference } from "./CommandsReference";
-import { useSimulationStore } from "@/store/simulationStore";
-import { getHardwareSpecs } from "@/data/hardwareSpecs";
 
 type DocTab =
   | "architecture"
@@ -141,145 +139,243 @@ export const Documentation: React.FC = () => {
 // TAB CONTENT COMPONENTS
 // ============================================================================
 
-const ArchitectureContent: React.FC = () => {
-  const systemType = useSimulationStore((state) => state.systemType);
-  const specs = getHardwareSpecs(systemType);
-  const displayName = systemType.replace("-", " ");
-  const isAMD = specs.system.cpu.model.includes("AMD");
-  const memType = isAMD ? "DDR4" : "DDR5";
-  const storageNet =
-    specs.network.portRateGbs >= 400
-      ? `2x BlueField-3 DPU ${specs.network.portRateGbs}Gb/s`
-      : `2x BlueField-2 DPU ${specs.network.portRateGbs}Gb/s`;
+const ArchitectureContent: React.FC = () => (
+  <div className="space-y-6">
+    <SectionTitle
+      title="Cluster Topology: DGX SuperPOD"
+      icon={<Network className="w-5 h-5 text-nvidia-green" />}
+    />
 
-  return (
-    <div className="space-y-6">
-      <SectionTitle
-        title="Cluster Topology: DGX SuperPOD"
-        icon={<Network className="w-5 h-5 text-nvidia-green" />}
-      />
+    {/* Cluster Overview */}
+    <div className="bg-gray-800 rounded-lg p-5 border border-gray-700">
+      <h4 className="text-lg font-bold mb-4 text-white flex items-center gap-2">
+        <span className="text-nvidia-green">
+          <Server className="w-4 h-4" />
+        </span>
+        Cluster Overview
+      </h4>
+      <p className="text-gray-300 text-sm mb-4">
+        The simulated SuperPOD consists of{" "}
+        <strong className="text-nvidia-green">8 DGX nodes</strong>{" "}
+        interconnected via a rail-optimized Fat Tree InfiniBand fabric. Each
+        node contains 8 GPUs with NVSwitch-based all-to-all connectivity,
+        multiple HCAs for multi-rail InfiniBand, and local NVMe storage. Use the
+        Architecture Comparison table below to view specific hardware specs for
+        each DGX generation.
+      </p>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card title="Node Layout" icon={<Server className="w-4 h-4" />}>
-          <div className="space-y-4">
-            <p className="text-gray-300 text-sm">
-              The simulated cluster consists of{" "}
-              <strong className="text-nvidia-green">
-                8x NVIDIA {displayName}
-              </strong>{" "}
-              nodes connected via a high-performance FatTree InfiniBand fabric.
+      {/* Key characteristics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        {[
+          { label: "Compute Nodes", value: "8", sub: "DGX systems" },
+          { label: "GPUs per Node", value: "8", sub: "NVSwitch connected" },
+          {
+            label: "Network Planes",
+            value: "3",
+            sub: "Compute · Storage · Mgmt",
+          },
+          {
+            label: "Fabric Topology",
+            value: "Fat Tree",
+            sub: "2-tier rail-optimized",
+          },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className="bg-gray-900 rounded-lg p-3 border border-gray-700 text-center"
+          >
+            <div className="text-xl font-bold text-nvidia-green">
+              {stat.value}
+            </div>
+            <div className="text-xs font-semibold text-gray-300">
+              {stat.label}
+            </div>
+            <div className="text-[10px] text-gray-500 mt-0.5">{stat.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Node table */}
+      <div className="bg-black rounded-lg p-4 font-mono text-sm overflow-x-auto">
+        <div className="grid grid-cols-4 gap-4 text-gray-500 border-b border-gray-800 pb-2 mb-2 min-w-[400px] text-xs font-semibold uppercase tracking-wider">
+          <span>Hostname</span>
+          <span>Mgmt IP</span>
+          <span>BMC IP</span>
+          <span>IB Subnet</span>
+        </div>
+        {[...Array(8)].map((_, i) => (
+          <div
+            key={i}
+            className="grid grid-cols-4 gap-4 min-w-[400px] py-1 hover:bg-gray-900/50 rounded transition-colors"
+          >
+            <span className="text-nvidia-green">
+              dgx-{i.toString().padStart(2, "0")}
+            </span>
+            <span className="text-gray-300">10.0.0.{i + 10}</span>
+            <span className="text-gray-300">192.168.0.{i + 100}</span>
+            <span className="text-gray-300">172.16.{i}.0/24</span>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    {/* Network Fabric Architecture */}
+    <div className="bg-gray-800 rounded-lg p-5 border border-gray-700">
+      <h4 className="text-lg font-bold mb-4 text-white flex items-center gap-2">
+        <span className="text-nvidia-green">
+          <Wifi className="w-4 h-4" />
+        </span>
+        Network Fabric Architecture
+      </h4>
+      <p className="text-gray-300 text-sm mb-5">
+        Three isolated network planes provide dedicated bandwidth for compute,
+        storage, and management traffic. Exact speeds and link counts vary by
+        DGX generation&mdash;see the Architecture Comparison table for
+        specifics.
+      </p>
+
+      <div className="space-y-4">
+        {/* Compute Fabric */}
+        <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-700 bg-gray-900/80">
+            <Network className="w-4 h-4 text-nvidia-green" />
+            <h5 className="font-semibold text-nvidia-green text-sm">
+              Compute Fabric &mdash; InfiniBand
+            </h5>
+          </div>
+          <div className="p-4 space-y-3">
+            <p className="text-xs text-gray-400">
+              Rail-optimized 2-tier Fat Tree with full bisection bandwidth. Each
+              node has multiple HCAs (one per GPU rail) for GPU-Direct RDMA,
+              enabling NCCL all-reduce across nodes without CPU involvement.
             </p>
-            <div className="bg-black rounded-lg p-4 font-mono text-sm overflow-x-auto">
-              <div className="grid grid-cols-3 gap-4 text-gray-500 border-b border-gray-800 pb-2 mb-2 min-w-[300px]">
-                <span>Hostname</span>
-                <span>Mgmt IP</span>
-                <span>BMC IP</span>
-              </div>
-              {[...Array(8)].map((_, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-3 gap-4 min-w-[300px] py-1 hover:bg-gray-900/50 rounded transition-colors"
-                >
-                  <span className="text-nvidia-green">
-                    dgx-{i.toString().padStart(2, "0")}
-                  </span>
-                  <span className="text-gray-300">10.0.0.{i + 10}</span>
-                  <span className="text-gray-300">192.168.0.{i + 100}</span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Topology", value: "Fat Tree (2-tier)" },
+                { label: "Protocol", value: "InfiniBand HDR/NDR" },
+                { label: "Routing", value: "Rail-Optimized" },
+                { label: "Key Features", value: "GPU-Direct RDMA" },
+              ].map((item) => (
+                <div key={item.label} className="text-center">
+                  <div className="text-sm font-mono font-semibold text-gray-200">
+                    {item.value}
+                  </div>
+                  <div className="text-[10px] text-gray-500">{item.label}</div>
+                </div>
+              ))}
+            </div>
+            <div className="bg-black/40 rounded p-3 text-xs text-gray-400">
+              <span className="text-gray-500">Multi-rail design:</span> Each GPU
+              has a dedicated HCA, providing 1:1 GPU-to-network mapping.
+              Adaptive Routing and SHARP in-network reduction minimize
+              congestion and accelerate collective operations.
+            </div>
+          </div>
+        </div>
+
+        {/* Intra-Node Interconnect */}
+        <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-700 bg-gray-900/80">
+            <Link className="w-4 h-4 text-green-400" />
+            <h5 className="font-semibold text-green-400 text-sm">
+              Intra-Node Interconnect &mdash; NVLink + NVSwitch
+            </h5>
+          </div>
+          <div className="p-4 space-y-3">
+            <p className="text-xs text-gray-400">
+              All 8 GPUs within each node communicate through NVSwitch, forming
+              a fully-connected mesh. Every GPU can access any other GPU&apos;s
+              memory at full NVLink speed&mdash;no PCIe bottleneck. NVLink
+              version, link count, and bandwidth scale with each DGX generation.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {[
+                { label: "Topology", value: "Full Mesh" },
+                { label: "Switch Fabric", value: "NVSwitch" },
+                { label: "Benefit", value: "Unified GPU Memory" },
+              ].map((item) => (
+                <div key={item.label} className="text-center">
+                  <div className="text-sm font-mono font-semibold text-gray-200">
+                    {item.value}
+                  </div>
+                  <div className="text-[10px] text-gray-500">{item.label}</div>
                 </div>
               ))}
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card
-          title="Hardware Specifications (Per Node)"
-          icon={<Cpu className="w-4 h-4" />}
-        >
-          <div className="space-y-1">
-            <SpecItem
-              label="GPU"
-              value={`${specs.gpu.count}x ${specs.gpu.model}`}
-            />
-            <SpecItem
-              label="GPU Memory"
-              value={`${specs.gpu.memoryGB} GB ${specs.gpu.memoryType} per GPU`}
-            />
-            <SpecItem
-              label="CPU"
-              value={`${specs.system.cpu.sockets}x ${specs.system.cpu.model} (${specs.system.cpu.coresPerSocket}-Core)`}
-            />
-            <SpecItem
-              label="System Memory"
-              value={`${specs.system.systemMemoryGB} GB ${memType}`}
-            />
-            <SpecItem
-              label="Network (Compute)"
-              value={`${specs.network.hcaCount}x ${specs.network.hcaModel} ${specs.network.protocol} ${specs.network.portRateGbs}Gb/s IB`}
-            />
-            <SpecItem label="Network (Storage)" value={storageNet} />
-            <SpecItem
-              label="NVSwitch"
-              value={`${specs.nvlink.nvSwitchCount}x NVSwitch ${specs.nvlink.totalBandwidthGBs}GB/s Fabric`}
-            />
-            <SpecItem
-              label="Storage"
-              value={`${specs.storage.totalCapacityTB} TB NVMe SSD`}
-            />
-          </div>
-        </Card>
-      </div>
-
-      <Card
-        title="Network Fabric Architecture"
-        icon={<Wifi className="w-4 h-4" />}
-      >
-        <div className="space-y-4">
-          <p className="text-gray-300 text-sm">
-            The simulator emulates a rail-optimized 2-tier Fat Tree topology for
-            AI workloads with full bisection bandwidth.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-              <h5 className="font-semibold text-nvidia-green mb-2 flex items-center gap-2">
-                <Network className="w-4 h-4" />
-                Compute Fabric
-              </h5>
-              <p className="text-xs text-gray-400">
-                Dedicated InfiniBand {specs.network.protocol} (
-                {specs.network.portRateGbs}Gb/s) rails for GPU-Direct RDMA and
-                NCCL collective operations.
-              </p>
-            </div>
-            <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-              <h5 className="font-semibold text-blue-400 mb-2 flex items-center gap-2">
-                <HardDrive className="w-4 h-4" />
+        {/* Storage + Management row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-700 bg-gray-900/80">
+              <HardDrive className="w-4 h-4 text-blue-400" />
+              <h5 className="font-semibold text-blue-400 text-sm">
                 Storage Fabric
               </h5>
-              <p className="text-xs text-gray-400">
-                Separate ethernet-based storage network for parallel file system
-                and checkpoint I/O.
-              </p>
             </div>
-            <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-              <h5 className="font-semibold text-purple-400 mb-2 flex items-center gap-2">
-                <Shield className="w-4 h-4" />
+            <div className="p-4 space-y-2">
+              <p className="text-xs text-gray-400">
+                Dedicated network for parallel file system (Lustre/GPFS) access,
+                checkpoint I/O, and dataset staging. Uses BlueField DPUs for
+                hardware-accelerated storage networking.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "Interface", value: "BlueField DPU" },
+                  { label: "Protocol", value: "Ethernet / RoCE" },
+                ].map((item) => (
+                  <div key={item.label} className="text-center">
+                    <div className="text-sm font-mono font-semibold text-gray-200">
+                      {item.value}
+                    </div>
+                    <div className="text-[10px] text-gray-500">
+                      {item.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-gray-900 rounded-lg border border-gray-700 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-700 bg-gray-900/80">
+              <Shield className="w-4 h-4 text-purple-400" />
+              <h5 className="font-semibold text-purple-400 text-sm">
                 Management Network
               </h5>
+            </div>
+            <div className="p-4 space-y-2">
               <p className="text-xs text-gray-400">
-                1GbE Out-of-Band (OOB) connectivity for BMC/IPMI access and
-                cluster management.
+                Out-of-Band (OOB) network for BMC/IPMI access, cluster
+                orchestration, OS provisioning, and monitoring.
               </p>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "Interface", value: "1 GbE" },
+                  { label: "Access", value: "BMC + SSH" },
+                ].map((item) => (
+                  <div key={item.label} className="text-center">
+                    <div className="text-sm font-mono font-semibold text-gray-200">
+                      {item.value}
+                    </div>
+                    <div className="text-[10px] text-gray-500">
+                      {item.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </Card>
-
-      <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
-        <ArchitectureComparison />
       </div>
     </div>
-  );
-};
+
+    <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
+      <ArchitectureComparison />
+    </div>
+  </div>
+);
 
 const TroubleshootingContent: React.FC = () => (
   <div className="space-y-6">
@@ -1731,14 +1827,49 @@ const GLOSSARY_SECTIONS = [
           "Graphics Processing Unit — the parallel processor used for AI/ML training and inference.",
       },
       {
+        term: "DGX",
+        definition:
+          'NVIDIA\'s integrated GPU server platform (originally "Deep Learning GPU eXperience") designed for AI workloads.',
+      },
+      {
         term: "CUDA",
         definition:
           "Compute Unified Device Architecture — NVIDIA's parallel computing platform and programming model.",
       },
       {
+        term: "cuDNN",
+        definition:
+          "CUDA Deep Neural Network library — GPU-accelerated primitives for deep learning frameworks.",
+      },
+      {
         term: "ECC",
         definition:
           "Error Correcting Code — memory protection that detects and corrects single-bit errors.",
+      },
+      {
+        term: "DBE",
+        definition:
+          "Double Bit Error — an uncorrectable ECC error (XID 48) that typically requires GPU replacement (RMA).",
+      },
+      {
+        term: "HBM",
+        definition:
+          "High Bandwidth Memory — stacked DRAM used as GPU memory (HBM2e on A100, HBM3 on H100, HBM3e on H200/B200).",
+      },
+      {
+        term: "SRAM",
+        definition:
+          "Static Random-Access Memory — fast on-chip GPU cache and register memory; uncorrectable SRAM errors are critical.",
+      },
+      {
+        term: "DRAM",
+        definition:
+          "Dynamic Random-Access Memory — the main GPU memory (HBM); correctable DRAM ECC errors are typically normal.",
+      },
+      {
+        term: "SXM",
+        definition:
+          "Server PCI Express Module — NVIDIA's mezzanine GPU form factor used in DGX systems, enabling higher TDP and NVLink.",
       },
       {
         term: "MIG",
@@ -1766,6 +1897,11 @@ const GLOSSARY_SECTIONS = [
           "NVIDIA Management Library — C API for monitoring and managing NVIDIA GPUs (used by nvidia-smi).",
       },
       {
+        term: "NVSM",
+        definition:
+          "NVIDIA System Management — fleet management tool for monitoring health across multiple DGX nodes.",
+      },
+      {
         term: "DCGM",
         definition:
           "Data Center GPU Manager — NVIDIA's suite for GPU health monitoring, diagnostics, and policy management.",
@@ -1774,6 +1910,11 @@ const GLOSSARY_SECTIONS = [
         term: "XID",
         definition:
           "NVIDIA GPU error code reported in kernel logs, identifying specific hardware or software faults.",
+      },
+      {
+        term: "GSP",
+        definition:
+          "GPU System Processor — on-GPU microcontroller running firmware for management tasks; GSP errors (XID 119/120) are critical.",
       },
       {
         term: "VBIOS",
@@ -1789,6 +1930,21 @@ const GLOSSARY_SECTIONS = [
         term: "TDP",
         definition:
           "Thermal Design Power — maximum heat a component is designed to dissipate under load.",
+      },
+      {
+        term: "FP16 / FP32 / FP64",
+        definition:
+          "Floating-point precision modes (16/32/64-bit) — lower precision enables higher throughput for AI training.",
+      },
+      {
+        term: "TFLOPS",
+        definition:
+          "Tera Floating-Point Operations Per Second — measure of GPU compute throughput.",
+      },
+      {
+        term: "CRC",
+        definition:
+          "Cyclic Redundancy Check — error-detection code on NVLink and IB links; rising CRC counts indicate link degradation.",
       },
     ],
   },
@@ -1809,6 +1965,21 @@ const GLOSSARY_SECTIONS = [
         term: "RDMA",
         definition:
           "Remote Direct Memory Access — allows direct memory-to-memory transfers between nodes, bypassing the CPU.",
+      },
+      {
+        term: "RoCE",
+        definition:
+          "RDMA over Converged Ethernet — protocol enabling RDMA on standard Ethernet networks instead of native InfiniBand.",
+      },
+      {
+        term: "SHARP",
+        definition:
+          "Scalable Hierarchical Aggregation and Reduction Protocol — in-network compute that offloads collectives to IB switches.",
+      },
+      {
+        term: "GDS",
+        definition:
+          "GPU-Direct Storage — enables direct data paths between storage and GPU memory, bypassing the CPU bounce buffer.",
       },
       {
         term: "GUID",
@@ -1850,10 +2021,15 @@ const GLOSSARY_SECTIONS = [
         definition:
           "High Data Rate — InfiniBand speed tier at 200 Gb/s per port.",
       },
+      {
+        term: "NFS",
+        definition:
+          "Network File System — shared storage protocol; often contrasted with parallel filesystems (Lustre/GPFS) in HPC.",
+      },
     ],
   },
   {
-    title: "Hardware Management",
+    title: "Hardware & System Management",
     terms: [
       {
         term: "BMC",
@@ -1864,6 +2040,11 @@ const GLOSSARY_SECTIONS = [
         term: "IPMI",
         definition:
           "Intelligent Platform Management Interface — standard protocol for communicating with the BMC.",
+      },
+      {
+        term: "SOL",
+        definition:
+          "Serial-over-LAN — remote serial console access via IPMI, allowing out-of-band troubleshooting when SSH is unavailable.",
       },
       {
         term: "SEL",
@@ -1881,6 +2062,36 @@ const GLOSSARY_SECTIONS = [
           "Sensor Data Records — BMC database describing available sensors and their thresholds.",
       },
       {
+        term: "RMA",
+        definition:
+          "Return Merchandise Authorization — the process for returning defective hardware to the vendor for replacement.",
+      },
+      {
+        term: "DIMM",
+        definition:
+          "Dual Inline Memory Module — physical system memory module; checked via dmidecode during bring-up.",
+      },
+      {
+        term: "PSU",
+        definition:
+          "Power Supply Unit — node power supply; PSU failures trigger BMC alerts and require FRU replacement.",
+      },
+      {
+        term: "VRM",
+        definition:
+          "Voltage Regulator Module — converts input voltage for CPU/GPU; overheating VRMs cause throttling.",
+      },
+      {
+        term: "SMBIOS",
+        definition:
+          "System Management BIOS — firmware tables describing hardware inventory; read by dmidecode.",
+      },
+      {
+        term: "DMI",
+        definition:
+          "Desktop Management Interface — the specification for system hardware tables that dmidecode reads.",
+      },
+      {
         term: "DPU",
         definition:
           "Data Processing Unit — a SmartNIC (e.g., BlueField) that offloads networking and storage tasks.",
@@ -1895,11 +2106,51 @@ const GLOSSARY_SECTIONS = [
         definition:
           "PCI Express — the high-speed serial bus connecting GPUs, NICs, and NVMe drives to the CPU.",
       },
+      {
+        term: "NUMA",
+        definition:
+          "Non-Uniform Memory Access — memory architecture where access time depends on CPU-memory locality; affects GPU/HCA affinity.",
+      },
+      {
+        term: "UEFI",
+        definition:
+          "Unified Extensible Firmware Interface — modern BIOS replacement managing boot configuration and Secure Boot.",
+      },
+      {
+        term: "POST",
+        definition:
+          "Power-On Self-Test — hardware initialization sequence run by firmware before the OS loads.",
+      },
+      {
+        term: "BOM",
+        definition:
+          "Bill of Materials — list of expected hardware components; verified against dmidecode output during bring-up.",
+      },
+      {
+        term: "OOM",
+        definition:
+          "Out of Memory — condition where a process exhausts available memory, causing the kernel or GPU driver to kill it.",
+      },
+      {
+        term: "BAR",
+        definition:
+          "Base Address Register — PCIe memory region; 'Above 4G Decoding' BIOS setting is required for large GPU BARs.",
+      },
+      {
+        term: "SR-IOV",
+        definition:
+          "Single Root I/O Virtualization — PCIe feature allowing a device to appear as multiple virtual devices for VMs.",
+      },
     ],
   },
   {
     title: "Cluster & Workload Management",
     terms: [
+      {
+        term: "HPC",
+        definition:
+          "High-Performance Computing — the domain of large-scale parallel computing on GPU clusters.",
+      },
       {
         term: "Slurm",
         definition:
@@ -1924,6 +2175,26 @@ const GLOSSARY_SECTIONS = [
         term: "UCX",
         definition:
           "Unified Communication X — a communication framework used by MPI and NCCL for transport selection.",
+      },
+      {
+        term: "BCM",
+        definition:
+          "Base Command Manager — NVIDIA's cluster provisioning and management software for DGX SuperPOD deployments.",
+      },
+      {
+        term: "NGC",
+        definition:
+          "NVIDIA GPU Cloud — container registry hosting optimized AI frameworks, models, and tools.",
+      },
+      {
+        term: "SPANK",
+        definition:
+          "Slurm Plug-in Architecture for Node and job Kontrol — plugin system used by Pyxis for container integration.",
+      },
+      {
+        term: "HPL",
+        definition:
+          "High-Performance Linpack — the standard benchmark for validating cluster compute performance and stability.",
       },
     ],
   },
@@ -1954,6 +2225,11 @@ const GLOSSARY_SECTIONS = [
         term: "FEC",
         definition:
           "Forward Error Correction — encoding that allows the receiver to detect and correct transmission errors.",
+      },
+      {
+        term: "PXE",
+        definition:
+          "Preboot Execution Environment — network boot protocol for OS provisioning over the management network.",
       },
     ],
   },
@@ -2051,16 +2327,6 @@ const Card: React.FC<{
       {title}
     </h4>
     {children}
-  </div>
-);
-
-const SpecItem: React.FC<{ label: string; value: string }> = ({
-  label,
-  value,
-}) => (
-  <div className="flex justify-between border-b border-gray-700/50 py-2 last:border-0 text-sm">
-    <span className="text-gray-400">{label}</span>
-    <span className="font-medium text-gray-200">{value}</span>
   </div>
 );
 

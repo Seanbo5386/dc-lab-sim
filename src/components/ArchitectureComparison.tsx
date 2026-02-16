@@ -27,6 +27,11 @@ const SPEC_ROWS: SpecRow[] = [
     getValue: (t) => HARDWARE_SPECS[t].system.generation,
   },
   {
+    label: "GPU Count",
+    category: "GPU",
+    getValue: (t) => HARDWARE_SPECS[t].gpu.count,
+  },
+  {
     label: "GPU Memory",
     category: "GPU",
     getValue: (t) => HARDWARE_SPECS[t].gpu.memoryGB,
@@ -121,6 +126,11 @@ const SPEC_ROWS: SpecRow[] = [
   },
   // Network
   {
+    label: "HCA Count",
+    category: "Network",
+    getValue: (t) => HARDWARE_SPECS[t].network.hcaCount,
+  },
+  {
     label: "HCA Model",
     category: "Network",
     getValue: (t) => HARDWARE_SPECS[t].network.hcaModel,
@@ -141,7 +151,8 @@ const SPEC_ROWS: SpecRow[] = [
   {
     label: "CPU",
     category: "System",
-    getValue: (t) => HARDWARE_SPECS[t].system.cpu.model,
+    getValue: (t) =>
+      `${HARDWARE_SPECS[t].system.cpu.sockets}x ${HARDWARE_SPECS[t].system.cpu.model} (${HARDWARE_SPECS[t].system.cpu.coresPerSocket}-Core)`,
   },
   {
     label: "System Memory",
@@ -155,6 +166,13 @@ const SPEC_ROWS: SpecRow[] = [
     category: "System",
     getValue: (t) => HARDWARE_SPECS[t].system.totalGpuMemoryGB,
     unit: "GB",
+    higherIsBetter: true,
+  },
+  {
+    label: "Storage",
+    category: "System",
+    getValue: (t) => HARDWARE_SPECS[t].storage.totalCapacityTB,
+    unit: "TB NVMe",
     higherIsBetter: true,
   },
 ];
@@ -172,9 +190,7 @@ function getBestValue(
 
 export const ArchitectureComparison: React.FC = () => {
   const [selectedTypes, setSelectedTypes] = useState<SystemType[]>([
-    "DGX-A100",
-    "DGX-H100",
-    "DGX-B200",
+    ...ALL_SYSTEM_TYPES,
   ]);
 
   const toggleType = (type: SystemType) => {
@@ -183,7 +199,9 @@ export const ArchitectureComparison: React.FC = () => {
         if (prev.length <= 2) return prev; // Minimum 2 selected
         return prev.filter((t) => t !== type);
       }
-      return [...prev, type];
+      // Re-add in canonical order (least → most powerful)
+      const next = [...prev, type];
+      return ALL_SYSTEM_TYPES.filter((t) => next.includes(t));
     });
   };
 

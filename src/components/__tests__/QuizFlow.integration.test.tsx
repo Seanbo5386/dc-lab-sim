@@ -110,10 +110,13 @@ describe("Quiz Flow Integration", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Make shuffleArray a no-op so questions stay in declared order
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
   });
 
   afterEach(() => {
     vi.clearAllTimers();
+    vi.restoreAllMocks();
   });
 
   it("should complete full quiz flow: start -> answer -> result", async () => {
@@ -464,9 +467,9 @@ describe("Quiz Flow Integration", () => {
     await waitFor(() => screen.getByRole("button", { name: /see results/i }));
     fireEvent.click(screen.getByRole("button", { name: /see results/i }));
 
-    // Verify passed (3/4 = 75% is passing)
+    // 3/4 = 75% is below the 80% threshold (need 4/4 with 4 questions)
     await waitFor(() => {
-      expect(screen.getByText("Quiz Passed!")).toBeInTheDocument();
+      expect(screen.getByText("Keep Practicing")).toBeInTheDocument();
       expect(screen.getByText("3/4")).toBeInTheDocument();
     });
 
@@ -516,6 +519,11 @@ describe("Quiz Flow Additional", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(Math, "random").mockReturnValue(0.99);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("should allow user to answer questions without time pressure", async () => {
