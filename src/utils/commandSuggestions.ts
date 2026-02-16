@@ -255,33 +255,39 @@ function calculateRelevance(cmd: CommandMetadata, keywords: string): number {
 }
 
 /**
- * Format command help for terminal output
+ * Format command help for terminal output.
+ * @param metadata  Command metadata to format
+ * @param cols      Terminal column width (default 80)
  */
-export function formatCommandHelp(metadata: CommandMetadata): string {
+export function formatCommandHelp(
+  metadata: CommandMetadata,
+  cols = 80,
+): string {
   const lines: string[] = [];
+  // Usable width minus small margin; minimum 40 to avoid degenerate wrapping
+  const w = Math.max(40, cols - 2);
+  // Box inner width (content area between ║…║)
+  const boxInner = w - 4; // "║  " + content + " ║"
+  const rule = "═".repeat(w - 2);
 
-  // Header
+  // Header box — scales to terminal width
+  lines.push(`\x1b[1;36m╔${rule}╗\x1b[0m`);
   lines.push(
-    `\x1b[1;36m╔════════════════════════════════════════════════════════════════╗\x1b[0m`,
+    `\x1b[1;36m║  ${metadata.name.toUpperCase().padEnd(boxInner)}║\x1b[0m`,
   );
-  lines.push(`\x1b[1;36m║  ${metadata.name.toUpperCase().padEnd(62)}║\x1b[0m`);
+  lines.push(`\x1b[1;36m╠${rule}╣\x1b[0m`);
   lines.push(
-    `\x1b[1;36m╠════════════════════════════════════════════════════════════════╣\x1b[0m`,
-  );
-  lines.push(
-    `\x1b[1;36m║\x1b[0m  \x1b[1mCategory:\x1b[0m ${metadata.category.padEnd(52)}\x1b[1;36m║\x1b[0m`,
+    `\x1b[1;36m║\x1b[0m  \x1b[1mCategory:\x1b[0m ${metadata.category.padEnd(boxInner - 12)}\x1b[1;36m║\x1b[0m`,
   );
   lines.push(
-    `\x1b[1;36m║\x1b[0m  \x1b[1mDifficulty:\x1b[0m ${metadata.difficulty.padEnd(50)}\x1b[1;36m║\x1b[0m`,
+    `\x1b[1;36m║\x1b[0m  \x1b[1mDifficulty:\x1b[0m ${metadata.difficulty.padEnd(boxInner - 14)}\x1b[1;36m║\x1b[0m`,
   );
-  lines.push(
-    `\x1b[1;36m╚════════════════════════════════════════════════════════════════╝\x1b[0m`,
-  );
+  lines.push(`\x1b[1;36m╚${rule}╝\x1b[0m`);
   lines.push("");
 
   // Description
   lines.push(`\x1b[1mDESCRIPTION:\x1b[0m`);
-  lines.push(wrapText(metadata.longDescription, 64).join("\n"));
+  lines.push(wrapText(metadata.longDescription, w, 2).join("\n"));
   lines.push("");
 
   // Syntax
@@ -289,13 +295,24 @@ export function formatCommandHelp(metadata: CommandMetadata): string {
   lines.push(`  \x1b[36m${metadata.syntax}\x1b[0m`);
   lines.push("");
 
-  // Common Flags
+  // Flag column width: adaptive but capped
+  const flagPad = Math.min(25, Math.floor(w * 0.35));
+  const descStart = flagPad + 2; // "  " + flagPad
+
+  // Common Flags — wrap long descriptions with hanging indent
   if (metadata.commonFlags && metadata.commonFlags.length > 0) {
     lines.push(`\x1b[1mCOMMON FLAGS:\x1b[0m`);
     for (const flag of metadata.commonFlags) {
-      lines.push(
-        `  \x1b[33m${flag.flag.padEnd(25)}\x1b[0m ${flag.description}`,
+      const flagStr = `  \x1b[33m${flag.flag.padEnd(flagPad)}\x1b[0m `;
+      const descLines = wrapText(
+        flag.description,
+        w - descStart - 1,
+        descStart + 1,
       );
+      lines.push(flagStr + descLines[0]);
+      for (let i = 1; i < descLines.length; i++) {
+        lines.push(descLines[i]);
+      }
       if (flag.example) {
         lines.push(`    \x1b[90mExample: ${flag.example}\x1b[0m`);
       }
@@ -310,7 +327,10 @@ export function formatCommandHelp(metadata: CommandMetadata): string {
     lines.push(
       `  \x1b[1;32m${i + 1}.\x1b[0m \x1b[36m${example.command}\x1b[0m`,
     );
-    lines.push(`     ${example.description}`);
+    const descLines = wrapText(example.description, w - 5, 5);
+    for (const dl of descLines) {
+      lines.push(dl);
+    }
     if (i < metadata.examples.length - 1) {
       lines.push("");
     }
@@ -319,7 +339,7 @@ export function formatCommandHelp(metadata: CommandMetadata): string {
 
   // When to Use
   lines.push(`\x1b[1mWHEN TO USE:\x1b[0m`);
-  lines.push(wrapText(metadata.whenToUse, 64).join("\n"));
+  lines.push(wrapText(metadata.whenToUse, w, 2).join("\n"));
   lines.push("");
 
   // Related Commands
@@ -331,11 +351,15 @@ export function formatCommandHelp(metadata: CommandMetadata): string {
     lines.push("");
   }
 
-  // Common Mistakes
+  // Common Mistakes — wrap each bullet with hanging indent
   if (metadata.commonMistakes && metadata.commonMistakes.length > 0) {
     lines.push(`\x1b[1m⚠️  COMMON MISTAKES:\x1b[0m`);
     for (const mistake of metadata.commonMistakes) {
-      lines.push(`  • ${mistake}`);
+      const wrapped = wrapText(mistake, w - 4, 4);
+      lines.push(`  • ${wrapped[0]}`);
+      for (let i = 1; i < wrapped.length; i++) {
+        lines.push(wrapped[i]);
+      }
     }
     lines.push("");
   }
@@ -344,22 +368,30 @@ export function formatCommandHelp(metadata: CommandMetadata): string {
 }
 
 /**
- * Wrap text to specified width
+ * Wrap text to specified width with optional hanging indent.
+ * @param text      The text to wrap
+ * @param width     Maximum line width
+ * @param indent    Number of spaces to indent continuation lines (default 0)
  */
-function wrapText(text: string, width: number): string[] {
+function wrapText(text: string, width: number, indent = 0): string[] {
   const words = text.split(" ");
   const lines: string[] = [];
   let currentLine = "";
+  const pad = " ".repeat(indent);
 
   for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    const isFirst = lines.length === 0;
+    const prefix = isFirst ? "" : pad;
+    const testLine = currentLine
+      ? `${currentLine} ${word}`
+      : `${prefix}${word}`;
     if (testLine.length <= width) {
       currentLine = testLine;
     } else {
       if (currentLine) {
         lines.push(currentLine);
       }
-      currentLine = word;
+      currentLine = `${pad}${word}`;
     }
   }
 
@@ -371,9 +403,10 @@ function wrapText(text: string, width: number): string[] {
 }
 
 /**
- * Format a brief command list for help overview
+ * Format a brief command list for help overview.
+ * @param cols  Terminal column width (default 80)
  */
-export function formatCommandList(): string {
+export function formatCommandList(cols = 80): string {
   const categories = new Map<string, CommandMetadata[]>();
 
   // Group commands by category
@@ -384,16 +417,15 @@ export function formatCommandList(): string {
     categories.get(cmd.category)!.push(cmd);
   }
 
+  const w = Math.max(40, cols - 2);
+  const rule = "═".repeat(w - 2);
+  const boxInner = w - 4;
+  const namePad = Math.min(20, Math.floor(w * 0.3));
+
   const lines: string[] = [];
-  lines.push(
-    "\x1b[1;32m╔════════════════════════════════════════════════════════════════╗\x1b[0m",
-  );
-  lines.push(
-    "\x1b[1;32m║  COMMAND REFERENCE                                             ║\x1b[0m",
-  );
-  lines.push(
-    "\x1b[1;32m╚════════════════════════════════════════════════════════════════╝\x1b[0m",
-  );
+  lines.push(`\x1b[1;32m╔${rule}╗\x1b[0m`);
+  lines.push(`\x1b[1;32m║  ${"COMMAND REFERENCE".padEnd(boxInner)}║\x1b[0m`);
+  lines.push(`\x1b[1;32m╚${rule}╝\x1b[0m`);
   lines.push("");
   lines.push(
     "\x1b[33mType \x1b[1;36mhelp <command>\x1b[0m\x1b[33m for detailed help on any command.\x1b[0m",
@@ -404,14 +436,23 @@ export function formatCommandList(): string {
   lines.push("");
 
   // Print each category
+  const descStart = namePad + 2;
   for (const [category, commands] of categories) {
     const categoryName = category.replace(/-/g, " ").toUpperCase();
     lines.push(`\x1b[1m${categoryName}:\x1b[0m`);
 
     for (const cmd of commands) {
-      lines.push(
-        `  \x1b[36m${cmd.name.padEnd(20)}\x1b[0m ${cmd.shortDescription}`,
+      const descLines = wrapText(
+        cmd.shortDescription,
+        w - descStart,
+        descStart,
       );
+      lines.push(
+        `  \x1b[36m${cmd.name.padEnd(namePad)}\x1b[0m ${descLines[0]}`,
+      );
+      for (let i = 1; i < descLines.length; i++) {
+        lines.push(descLines[i]);
+      }
     }
     lines.push("");
   }

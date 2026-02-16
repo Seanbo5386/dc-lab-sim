@@ -1,13 +1,33 @@
-import { CheckCircle, HelpCircle, Zap } from "lucide-react";
+import {
+  Activity,
+  Box,
+  CheckCircle,
+  HelpCircle,
+  Layers,
+  Network,
+  Server,
+  Stethoscope,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import type {
   FamilyQuizResult,
   MasteryQuizResult,
 } from "@/store/learningProgressStore";
 
+const FAMILY_ICONS: Record<string, LucideIcon> = {
+  "gpu-monitoring": Activity,
+  "infiniband-tools": Network,
+  "bmc-hardware": Server,
+  "cluster-tools": Layers,
+  "container-tools": Box,
+  diagnostics: Stethoscope,
+};
+
 interface ToolQuizCardProps {
   familyId: string;
   familyName: string;
-  familyIcon: string;
+  familyIcon?: string;
   tools: string[];
   description: string;
   quizResult?: FamilyQuizResult;
@@ -19,7 +39,6 @@ interface ToolQuizCardProps {
 export function ToolQuizCard({
   familyId,
   familyName,
-  familyIcon,
   tools,
   description,
   quizResult,
@@ -28,6 +47,7 @@ export function ToolQuizCard({
   onTakeMasteryQuiz,
 }: ToolQuizCardProps) {
   const bothPassed = !!(quizResult?.passed && masteryResult?.passed);
+  const FamilyIcon = FAMILY_ICONS[familyId] || Activity;
 
   return (
     <div
@@ -37,7 +57,7 @@ export function ToolQuizCard({
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
-          <span className="text-xl leading-none">{familyIcon}</span>
+          <FamilyIcon className="w-5 h-5 text-green-400" />
           <div>
             <h3 className="text-base font-bold text-white m-0">{familyName}</h3>
             <p className="text-xs text-gray-400 m-0">{tools.length} tools</p>

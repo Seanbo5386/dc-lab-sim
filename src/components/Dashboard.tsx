@@ -574,8 +574,8 @@ export const Dashboard: React.FC = () => {
         <NodeSelector />
       </div>
 
-      {/* View Tabs */}
-      <div className="flex gap-2 border-b border-gray-700">
+      {/* View Tabs — scrollable when narrow */}
+      <div className="flex gap-2 border-b border-gray-700 overflow-x-auto">
         {[
           { id: "overview", label: "Overview", icon: ActivityIcon },
           { id: "metrics", label: "Historical Metrics", icon: TrendingUp },
@@ -585,13 +585,13 @@ export const Dashboard: React.FC = () => {
           <button
             key={id}
             onClick={() => setActiveView(id as DashboardView)}
-            className={`flex items-center gap-2 px-4 py-3 font-medium text-sm transition-colors border-b-2 ${
+            className={`flex items-center gap-2 px-3 py-2 font-medium text-sm transition-colors border-b-2 whitespace-nowrap shrink-0 ${
               activeView === id
                 ? "border-nvidia-green text-nvidia-green"
                 : "border-transparent text-gray-400 hover:text-gray-200"
             }`}
           >
-            <Icon className="w-4 h-4" />
+            <Icon className="w-4 h-4 shrink-0" />
             {label}
           </button>
         ))}
@@ -759,11 +759,13 @@ export const Dashboard: React.FC = () => {
       {activeView === "metrics" && (
         <div className="space-y-6">
           <div className="flex items-center gap-4 mb-4">
-            <label className="text-sm text-gray-400">Select GPU:</label>
+            <label className="text-sm text-gray-400 shrink-0">
+              Select GPU:
+            </label>
             <select
               value={selectedGPU}
               onChange={(e) => setSelectedGPU(e.target.value)}
-              className="bg-gray-700 text-gray-200 px-4 py-2 rounded-lg border border-gray-600"
+              className="bg-gray-700 text-gray-200 px-4 py-2 rounded-lg border border-gray-600 min-w-0 truncate"
             >
               {currentNode.gpus.map((gpu) => (
                 <option key={gpu.id} value={gpu.id}>

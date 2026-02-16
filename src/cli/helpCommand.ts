@@ -6,6 +6,7 @@ export interface HelpOptions {
   includeErrors?: boolean;
   includeExamples?: boolean;
   includePermissions?: boolean;
+  cols?: number;
 }
 
 /**
@@ -42,22 +43,56 @@ export async function generateHelpOutput(
     return generateSubcommandExplanation(def, flagOrSub);
   }
 
-  return generateCommandExplanation(def, options, learningMetadata);
+  return generateCommandExplanation(
+    def,
+    options,
+    learningMetadata,
+    options.cols,
+  );
+}
+
+function wrapHelpText(text: string, width: number, indent: number): string {
+  const pad = " ".repeat(indent);
+  const words = text.split(" ");
+  const lines: string[] = [];
+  let currentLine = "";
+
+  for (const word of words) {
+    const isFirst = lines.length === 0;
+    const prefix = isFirst ? "" : pad;
+    const testLine = currentLine
+      ? `${currentLine} ${word}`
+      : `${prefix}${word}`;
+    if (testLine.length <= width) {
+      currentLine = testLine;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = `${pad}${word}`;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  return (lines.length > 0 ? lines : [""]).join("\n");
 }
 
 function generateCommandExplanation(
   def: CommandDefinition,
   options: HelpOptions,
   learningMetadata?: CommandMetadata | null,
+  cols = 80,
 ): string {
+  const w = Math.max(40, cols - 2);
+  const flagPad = Math.min(25, Math.floor(w * 0.35));
+  const subPad = Math.min(15, Math.floor(w * 0.25));
+  const descStart = flagPad + 2;
+  const subDescStart = subPad + 2;
   let output = "";
 
   // Header
   output += `\x1b[1;36m━━━ ${def.command} ━━━\x1b[0m\n\n`;
 
-  // Description
+  // Description — wrap to terminal width
   output += `\x1b[1mDescription:\x1b[0m\n`;
-  output += `  ${def.description}\n\n`;
+  output += `  ${wrapHelpText(def.description, w, 2)}\n\n`;
 
   // Synopsis
   output += `\x1b[1mUsage:\x1b[0m\n`;
@@ -68,7 +103,7 @@ function generateCommandExplanation(
     output += `\x1b[1mExamples:\x1b[0m\n`;
     for (const pattern of def.common_usage_patterns) {
       output += `\n  \x1b[36m${pattern.command}\x1b[0m\n`;
-      output += `    ${pattern.description}\n`;
+      output += `  ${wrapHelpText(pattern.description, w - 4, 4)}\n`;
       if (pattern.requires_root) {
         output += `    \x1b[33m⚠ Requires root privileges\x1b[0m\n`;
       }
@@ -76,28 +111,38 @@ function generateCommandExplanation(
     output += "\n";
   }
 
-  // Options
+  // Options — wrap long descriptions with hanging indent
   if (def.global_options && def.global_options.length > 0) {
     output += `\x1b[1mOptions:\x1b[0m\n`;
     for (const opt of def.global_options) {
       const shortStr = opt.short ? opt.short.replace(/^-*/, "-") : "";
       const longStr = opt.long ? opt.long.replace(/^-*/, "--") : "";
       const combined = [shortStr, longStr].filter(Boolean).join(", ");
-      output += `  \x1b[36m${combined.padEnd(25)}\x1b[0m ${opt.description}\n`;
+      const wrapped = wrapHelpText(
+        opt.description,
+        w - descStart - 1,
+        descStart + 1,
+      );
+      output += `  \x1b[36m${combined.padEnd(flagPad)}\x1b[0m ${wrapped}\n`;
     }
     output += "\n";
   }
 
-  // Subcommands
+  // Subcommands — wrap long descriptions
   if (def.subcommands && def.subcommands.length > 0) {
     output += `\x1b[1mSubcommands:\x1b[0m\n`;
     for (const sub of def.subcommands) {
-      output += `  \x1b[36m${sub.name.padEnd(15)}\x1b[0m ${sub.description}\n`;
+      const wrapped = wrapHelpText(
+        sub.description,
+        w - subDescStart - 1,
+        subDescStart + 1,
+      );
+      output += `  \x1b[36m${sub.name.padEnd(subPad)}\x1b[0m ${wrapped}\n`;
     }
     output += "\n";
   }
 
-  // Error messages and resolutions
+  // Error messages and resolutions — wrap
   if (
     options.includeErrors !== false &&
     def.error_messages &&
@@ -106,9 +151,9 @@ function generateCommandExplanation(
     output += `\x1b[1mCommon Errors:\x1b[0m\n`;
     for (const err of def.error_messages) {
       output += `  \x1b[31m${err.message}\x1b[0m\n`;
-      output += `    Meaning: ${err.meaning}\n`;
+      output += `    ${wrapHelpText("Meaning: " + err.meaning, w - 4, 4)}\n`;
       if (err.resolution) {
-        output += `    \x1b[32mFix: ${err.resolution}\x1b[0m\n`;
+        output += `    \x1b[32m${wrapHelpText("Fix: " + err.resolution, w - 4, 4)}\x1b[0m\n`;
       }
     }
     output += "\n";
@@ -141,7 +186,7 @@ function generateCommandExplanation(
 
     if (learningMetadata.whenToUse) {
       output += `\x1b[1mWhen to Use:\x1b[0m\n`;
-      output += `  ${learningMetadata.whenToUse}\n\n`;
+      output += `  ${wrapHelpText(learningMetadata.whenToUse, w, 2)}\n\n`;
     }
 
     if (
@@ -150,7 +195,7 @@ function generateCommandExplanation(
     ) {
       output += `\x1b[1mCommon Mistakes:\x1b[0m\n`;
       for (const mistake of learningMetadata.commonMistakes) {
-        output += `  \x1b[31m✗\x1b[0m ${mistake}\n`;
+        output += `  \x1b[31m✗\x1b[0m ${wrapHelpText(mistake, w - 4, 4)}\n`;
       }
       output += "\n";
     }
@@ -271,7 +316,8 @@ function generateSubcommandExplanation(
       const shortStr = opt.short ? opt.short.replace(/^-*/, "-") : "";
       const longStr = opt.long ? opt.long.replace(/^-*/, "--") : "";
       const combined = [shortStr, longStr].filter(Boolean).join(", ");
-      output += `  \x1b[36m${combined.padEnd(20)}\x1b[0m ${opt.description}\n`;
+      const wrapped = wrapHelpText(opt.description, 76, 23);
+      output += `  \x1b[36m${combined.padEnd(20)}\x1b[0m ${wrapped}\n`;
     }
     output += "\n";
   }

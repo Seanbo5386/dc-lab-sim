@@ -329,8 +329,9 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
     // Built-in commands
     router.register("help", async (cl) => {
       const args = cl.trim().split(/\s+/).slice(1);
+      const cols = term.cols || 80;
       if (args.length === 0) {
-        return { output: formatCommandList(), exitCode: 0 };
+        return { output: formatCommandList(cols), exitCode: 0 };
       }
       try {
         const { getCommandDefinitionRegistry, generateHelpOutput } =
@@ -344,6 +345,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
             includeErrors: true,
             includeExamples: true,
             includePermissions: true,
+            cols,
           },
           learningMeta,
         );
@@ -351,7 +353,7 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
       } catch {
         const metadata = getCommandMetadata(args[0]);
         if (metadata) {
-          return { output: formatCommandHelp(metadata), exitCode: 0 };
+          return { output: formatCommandHelp(metadata, cols), exitCode: 0 };
         }
         let output = `\x1b[33mNo help available for '\x1b[36m${args[0]}\x1b[33m'.\x1b[0m`;
         const suggestion = getDidYouMeanMessage(args[0]);
@@ -922,7 +924,10 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
       }
       const metadata = getCommandMetadata(cmd);
       if (metadata) {
-        return { output: formatCommandHelp(metadata), exitCode: 0 };
+        return {
+          output: formatCommandHelp(metadata, term.cols || 80),
+          exitCode: 0,
+        };
       }
       return {
         output: `No manual entry for ${cmd}\nSee 'help' for available commands.`,
