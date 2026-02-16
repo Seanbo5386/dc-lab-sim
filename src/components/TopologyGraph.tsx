@@ -687,17 +687,24 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
         </h3>
       </div>
 
-      <svg ref={svgRef} className="w-full bg-gray-900 rounded-lg" />
-
-      {/* Network Node Detail Panel - positioned relative to main container */}
-      {selectedNode && (
-        <div ref={detailPanelRef}>
-          <NetworkNodeDetail
-            node={selectedNode}
-            onClose={() => setSelectedNode(null)}
+      <div className="relative">
+        <div className="overflow-x-auto">
+          <svg
+            ref={svgRef}
+            className="w-full min-w-[600px] bg-gray-900 rounded-lg"
           />
         </div>
-      )}
+
+        {/* Network Node Detail Panel - outside scroll container to avoid clipping */}
+        {selectedNode && (
+          <div ref={detailPanelRef}>
+            <NetworkNodeDetail
+              node={selectedNode}
+              onClose={() => setSelectedNode(null)}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Animation status indicator */}
       <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">

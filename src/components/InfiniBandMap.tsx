@@ -943,9 +943,14 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
       </div>
 
       <div className="relative">
-        <svg ref={svgRef} className="w-full bg-gray-900 rounded-lg" />
+        <div className="overflow-x-auto">
+          <svg
+            ref={svgRef}
+            className="w-full min-w-[600px] bg-gray-900 rounded-lg"
+          />
+        </div>
 
-        {/* Network Node Detail Panel */}
+        {/* Network Node Detail Panel - outside scroll container to avoid clipping */}
         {selectedNode && (
           <div ref={detailPanelRef}>
             <NetworkNodeDetail

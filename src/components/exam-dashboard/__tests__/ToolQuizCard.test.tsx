@@ -6,8 +6,14 @@ vi.mock("lucide-react", async () => {
   const stub = (props: Record<string, unknown>) => <svg {...props} />;
   return {
     ...actual,
+    Activity: stub,
+    Box: stub,
     CheckCircle: stub,
     HelpCircle: stub,
+    Layers: stub,
+    Network: stub,
+    Server: stub,
+    Stethoscope: stub,
     Zap: stub,
   };
 });

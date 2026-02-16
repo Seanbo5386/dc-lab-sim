@@ -5,7 +5,7 @@
  * Shows historical data over a rolling 5-minute window.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -15,22 +15,33 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-} from 'recharts';
-import { MetricsHistory } from '@/utils/metricsHistory';
-import { useSimulationStore } from '@/store/simulationStore';
-import { Activity, Thermometer, Zap, HardDrive, Play, BarChart3 } from 'lucide-react';
+} from "recharts";
+import { MetricsHistory } from "@/utils/metricsHistory";
+import { useSimulationStore } from "@/store/simulationStore";
+import {
+  Activity,
+  Thermometer,
+  Zap,
+  HardDrive,
+  Play,
+  BarChart3,
+} from "lucide-react";
 
 interface MetricsChartProps {
   nodeId: string;
   gpuId: string;
 }
 
-type MetricType = 'utilization' | 'temperature' | 'power' | 'memory';
+type MetricType = "utilization" | "temperature" | "power" | "memory";
 
-export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => {
-  const isRunning = useSimulationStore(state => state.isRunning);
-  const startSimulation = useSimulationStore(state => state.startSimulation);
-  const [selectedMetric, setSelectedMetric] = useState<MetricType>('utilization');
+export const MetricsChart: React.FC<MetricsChartProps> = ({
+  nodeId,
+  gpuId,
+}) => {
+  const isRunning = useSimulationStore((state) => state.isRunning);
+  const startSimulation = useSimulationStore((state) => state.startSimulation);
+  const [selectedMetric, setSelectedMetric] =
+    useState<MetricType>("utilization");
   const [hasEverCollected, setHasEverCollected] = useState(false);
   interface ChartDataPoint {
     time: string;
@@ -64,10 +75,10 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
       // Format data for Recharts
       const formatted = history.map((snapshot) => {
         const time = new Date(snapshot.timestamp);
-        const timeStr = time.toLocaleTimeString('en-US', {
+        const timeStr = time.toLocaleTimeString("en-US", {
           hour12: false,
-          minute: '2-digit',
-          second: '2-digit',
+          minute: "2-digit",
+          second: "2-digit",
         });
 
         return {
@@ -92,34 +103,34 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
 
   const metricConfigs = {
     utilization: {
-      label: 'GPU Utilization',
-      dataKey: 'utilization',
-      color: '#3B82F6',
-      unit: '%',
+      label: "GPU Utilization",
+      dataKey: "utilization",
+      color: "#3B82F6",
+      unit: "%",
       icon: Activity,
       yDomain: [0, 100],
     },
     temperature: {
-      label: 'Temperature',
-      dataKey: 'temperature',
-      color: '#EF4444',
-      unit: '°C',
+      label: "Temperature",
+      dataKey: "temperature",
+      color: "#EF4444",
+      unit: "°C",
       icon: Thermometer,
       yDomain: [0, 100],
     },
     power: {
-      label: 'Power Draw',
-      dataKey: 'power',
-      color: '#10B981',
-      unit: 'W',
+      label: "Power Draw",
+      dataKey: "power",
+      color: "#10B981",
+      unit: "W",
       icon: Zap,
       yDomain: [0, 500],
     },
     memory: {
-      label: 'Memory Usage',
-      dataKey: 'memory',
-      color: '#8B5CF6',
-      unit: '%',
+      label: "Memory Usage",
+      dataKey: "memory",
+      color: "#8B5CF6",
+      unit: "%",
       icon: HardDrive,
       yDomain: [0, 100],
     },
@@ -129,12 +140,26 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
   const Icon = config.icon;
 
   // Calculate statistics from recent data - use selectedMetric for type-safe access
-  const stats = chartData.length > 0 ? {
-    current: getMetricValue(chartData[chartData.length - 1], selectedMetric),
-    min: Math.min(...chartData.map(d => getMetricValue(d, selectedMetric))),
-    max: Math.max(...chartData.map(d => getMetricValue(d, selectedMetric))),
-    avg: chartData.reduce((sum, d) => sum + getMetricValue(d, selectedMetric), 0) / chartData.length,
-  } : null;
+  const stats =
+    chartData.length > 0
+      ? {
+          current: getMetricValue(
+            chartData[chartData.length - 1],
+            selectedMetric,
+          ),
+          min: Math.min(
+            ...chartData.map((d) => getMetricValue(d, selectedMetric)),
+          ),
+          max: Math.max(
+            ...chartData.map((d) => getMetricValue(d, selectedMetric)),
+          ),
+          avg:
+            chartData.reduce(
+              (sum, d) => sum + getMetricValue(d, selectedMetric),
+              0,
+            ) / chartData.length,
+        }
+      : null;
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
@@ -151,27 +176,30 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
             <div>
               <span className="text-gray-400">Current: </span>
               <span className="text-nvidia-green font-medium">
-                {stats.current.toFixed(1)}{config.unit}
+                {stats.current.toFixed(1)}
+                {config.unit}
               </span>
             </div>
             <div>
               <span className="text-gray-400">Avg: </span>
               <span className="text-gray-300 font-medium">
-                {stats.avg.toFixed(1)}{config.unit}
+                {stats.avg.toFixed(1)}
+                {config.unit}
               </span>
             </div>
             <div>
               <span className="text-gray-400">Min/Max: </span>
               <span className="text-gray-300 font-medium">
-                {stats.min.toFixed(1)}/{stats.max.toFixed(1)}{config.unit}
+                {stats.min.toFixed(1)}/{stats.max.toFixed(1)}
+                {config.unit}
               </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Metric Selector */}
-      <div className="flex gap-2 mb-4">
+      {/* Metric Selector — scrollable when narrow */}
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
         {(Object.keys(metricConfigs) as MetricType[]).map((metric) => {
           const cfg = metricConfigs[metric];
           const MetricIcon = cfg.icon;
@@ -179,13 +207,13 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
             <button
               key={metric}
               onClick={() => setSelectedMetric(metric)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${
                 selectedMetric === metric
-                  ? 'bg-nvidia-green text-black'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                  ? "bg-nvidia-green text-black"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
               }`}
             >
-              <MetricIcon className="w-4 h-4" />
+              <MetricIcon className="w-4 h-4 shrink-0" />
               {cfg.label}
             </button>
           );
@@ -195,39 +223,39 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
       {/* Chart */}
       {chartData.length > 0 ? (
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+          <LineChart
+            data={chartData}
+            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+          >
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
             <XAxis
               dataKey="time"
               stroke="#9CA3AF"
-              tick={{ fill: '#9CA3AF', fontSize: 12 }}
+              tick={{ fill: "#9CA3AF", fontSize: 12 }}
               interval="preserveStartEnd"
             />
             <YAxis
               stroke="#9CA3AF"
-              tick={{ fill: '#9CA3AF', fontSize: 12 }}
+              tick={{ fill: "#9CA3AF", fontSize: 12 }}
               domain={config.yDomain}
               label={{
                 value: config.unit,
                 angle: -90,
-                position: 'insideLeft',
-                style: { fill: '#9CA3AF' },
+                position: "insideLeft",
+                style: { fill: "#9CA3AF" },
               }}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: '#1F2937',
-                border: '1px solid #374151',
-                borderRadius: '0.5rem',
+                backgroundColor: "#1F2937",
+                border: "1px solid #374151",
+                borderRadius: "0.5rem",
               }}
-              labelStyle={{ color: '#E5E7EB' }}
+              labelStyle={{ color: "#E5E7EB" }}
               itemStyle={{ color: config.color }}
               formatter={(value: number) => `${value.toFixed(2)}${config.unit}`}
             />
-            <Legend
-              wrapperStyle={{ color: '#9CA3AF' }}
-              iconType="line"
-            />
+            <Legend wrapperStyle={{ color: "#9CA3AF" }} iconType="line" />
             <Line
               type="monotone"
               dataKey={config.dataKey}
@@ -246,15 +274,21 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
             <div className="text-center">
               <Activity className="w-12 h-12 mx-auto mb-2 opacity-50 animate-pulse" />
               <p>Collecting metrics data...</p>
-              <p className="text-sm mt-1">Data will appear after a few seconds</p>
+              <p className="text-sm mt-1">
+                Data will appear after a few seconds
+              </p>
             </div>
           ) : (
             // Initial state - simulation not started yet
             <div className="text-center">
               <BarChart3 className="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium text-gray-300 mb-2">No Metrics Data Yet</p>
+              <p className="text-lg font-medium text-gray-300 mb-2">
+                No Metrics Data Yet
+              </p>
               <p className="text-sm text-gray-500 mb-6 max-w-md">
-                Start the simulation to begin collecting real-time GPU metrics including utilization, temperature, power draw, and memory usage.
+                Start the simulation to begin collecting real-time GPU metrics
+                including utilization, temperature, power draw, and memory
+                usage.
               </p>
               <button
                 onClick={startSimulation}
@@ -269,7 +303,8 @@ export const MetricsChart: React.FC<MetricsChartProps> = ({ nodeId, gpuId }) => 
       )}
 
       <div className="mt-4 text-xs text-gray-400">
-        Showing last {chartData.length} samples (~{Math.floor(chartData.length / 60)} minutes)
+        Showing last {chartData.length} samples (~
+        {Math.floor(chartData.length / 60)} minutes)
       </div>
     </div>
   );
