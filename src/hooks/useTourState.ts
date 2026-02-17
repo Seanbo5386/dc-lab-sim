@@ -13,6 +13,8 @@ const TOUR_KEYS: Record<TourId, string> = {
   simulator: "ncp-aii-tour-simulator-seen",
   labs: "ncp-aii-tour-labs-seen",
   docs: "ncp-aii-tour-docs-seen",
+  exams: "ncp-aii-tour-exams-seen",
+  about: "ncp-aii-tour-about-seen",
 };
 
 export interface UseTourStateReturn {

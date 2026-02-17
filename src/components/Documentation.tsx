@@ -87,12 +87,14 @@ export const Documentation: React.FC = () => {
           onClick={() => setActiveTab("troubleshooting")}
           icon={<AlertTriangle className="w-4 h-4" />}
           label="Troubleshooting"
+          dataTour="doc-troubleshooting"
         />
         <TabButton
           active={activeTab === "xid"}
           onClick={() => setActiveTab("xid")}
           icon={<Zap className="w-4 h-4" />}
           label="XID Reference"
+          dataTour="doc-xid"
         />
         <TabButton
           active={activeTab === "exam"}
@@ -106,6 +108,7 @@ export const Documentation: React.FC = () => {
           onClick={() => setActiveTab("glossary")}
           icon={<BookOpen className="w-4 h-4" />}
           label="Glossary"
+          dataTour="doc-glossary"
         />
       </div>
 

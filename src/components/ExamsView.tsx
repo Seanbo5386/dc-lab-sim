@@ -48,10 +48,12 @@ export function ExamsView({
     <div data-testid="exams-list" className="p-6 h-full overflow-auto">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Readiness Hero */}
-        <ExamReadinessHero />
+        <div data-tour="exam-readiness">
+          <ExamReadinessHero />
+        </div>
 
         {/* Exam Modes */}
-        <section>
+        <section data-tour="exam-modes">
           <h2 className="text-lg font-bold text-white mb-1">Exam Modes</h2>
           <p className="text-sm text-gray-400 mb-4">
             Choose an exam format that matches your study goals.
@@ -79,7 +81,7 @@ export function ExamsView({
         </section>
 
         {/* Tool Mastery Quizzes */}
-        <section>
+        <section data-tour="tool-mastery">
           <h2 className="text-lg font-bold text-white mb-1">
             Tool Mastery Quizzes
           </h2>
@@ -106,7 +108,10 @@ export function ExamsView({
         </section>
 
         {/* History + Domain Performance */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div
+          data-tour="exam-history"
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+        >
           <RecentExamHistory />
           <DomainPerformanceGrid />
         </div>

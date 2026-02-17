@@ -2,13 +2,16 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-0.9.2-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-0.11.0-blue?style=for-the-badge)
+![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
 ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
 
 **A browser-based training environment for the NCP-AII (NVIDIA-Certified Professional: AI Infrastructure) certification exam**
+
+![Demo](docs/demo-optimized.gif)
 
 [Features](#features) · [Quick Start](#quick-start) · [Commands](#available-commands) · [Scenarios](#narrative-scenarios) · [Architecture](#architecture)
 
@@ -80,7 +83,7 @@ A tiered progression system built on spaced repetition:
 
 - **6 Command Families**: gpu-monitoring, infiniband-tools, bmc-hardware, cluster-tools, container-tools, diagnostics
 - **3-Tier Progression**: Guided (tool specified) → Choice (problem area identified) → Realistic (symptom only, no hints)
-- **WhichToolQuiz**: Scenario-based quizzes testing tool selection intuition
+- **WhichToolQuiz**: 60 scenario-based questions testing tool selection intuition (10 per session, randomized)
 - **SpacedReviewDrill**: SM-2 algorithm schedules retention drills at optimal intervals
 - **ExplanationGates**: 56 post-scenario conceptual checks
 - **ExamGauntlet**: Timed random scenario testing for exam prep
@@ -153,13 +156,14 @@ A tiered progression system built on spaced repetition:
 - `df`, `mount`, `lfs` - Storage and Lustre filesystem tools
 - `sensors`, `dmidecode` - Hardware monitoring
 
-### Practice Exam
+### Exams Dashboard
 
-- 168 questions across all 5 NCP-AII domains
+- **199 exam questions** across all 5 NCP-AII domains
+- **5 exam modes**: Full Practice, Quick Quiz, Gauntlet, Weak Area, Review Mistakes
+- **Tool Selection Quizzes**: 60 "which tool?" questions across 6 command families
+- **Deep Mastery Quizzes**: 150 questions on flags, output interpretation, and troubleshooting
 - Timed exam mode (90 minutes) with question navigation
-- Multiple-choice and multiple-select question types
-- Domain breakdown in results
-- Passing score tracking
+- Readiness score, domain performance grid, and exam history tracking
 
 ### Documentation & Reference
 
@@ -210,8 +214,9 @@ npm run preview
 
 1. **Simulator**: Terminal and dashboard for hands-on command practice
 2. **Labs & Scenarios**: 32 narrative missions with guided exercises across all 5 exam domains
-3. **Documentation**: Reference materials, command guides, troubleshooting playbooks, and XID error lookup
-4. **About**: Project background, changelog, and contribution info
+3. **Exams**: Practice exams, tool selection quizzes, deep mastery quizzes, and readiness tracking
+4. **Documentation**: Reference materials, command guides, troubleshooting playbooks, and XID error lookup
+5. **About**: Project background, changelog, and contribution info
 
 ### Your First Commands
 
@@ -339,7 +344,7 @@ Scenarios for XID error investigation, thermal troubleshooting, network diagnost
 
 - **Frontend**: React 18 with TypeScript
 - **Terminal**: xterm.js with FitAddon and WebLinksAddon
-- **State Management**: Zustand with persistence (5 stores)
+- **State Management**: Zustand with persistence (4 stores + sandbox context)
 - **Styling**: TailwindCSS with custom NVIDIA theme
 - **Icons**: Lucide React
 - **Build Tool**: Vite
@@ -351,7 +356,7 @@ Scenarios for XID error investigation, thermal troubleshooting, network diagnost
 
 ```
 src/
-├── components/          # React components (54 components)
+├── components/          # React components (64 components)
 │   ├── Terminal.tsx      # xterm.js terminal with command routing
 │   ├── Dashboard.tsx     # Real-time metrics dashboard
 │   ├── LabWorkspace.tsx  # Scenario execution workspace
@@ -382,7 +387,7 @@ src/
 │   └── CommandExerciseGenerator.ts
 ├── data/                # Static data
 │   ├── narrativeScenarios.json  # 32 narrative scenarios
-│   ├── examQuestions.json       # 168 practice exam questions
+│   ├── examQuestions.json       # 199 practice exam questions
 │   ├── commandFamilies.json     # 6 command family definitions
 │   ├── quizQuestions.json       # Tool selection quizzes
 │   ├── explanationGates.json    # 56 post-scenario knowledge checks
@@ -395,7 +400,7 @@ src/
 │   ├── learningStore.ts         # Domain progress, study sessions
 │   └── tierNotificationStore.ts # Tier unlock notifications
 ├── types/               # TypeScript type definitions
-├── utils/               # Utilities (36 modules)
+├── utils/               # Utilities (35 modules)
 │   ├── scenarioLoader.ts        # Scenario loading and fault application
 │   ├── narrativeAdapter.ts      # Narrative-to-scenario conversion
 │   ├── tierProgressionEngine.ts # Tier unlock logic
@@ -403,7 +408,7 @@ src/
 │   ├── examEngine.ts            # Exam question selection and scoring
 │   ├── clusterFactory.ts        # DGX cluster generation
 │   └── tabCompletion.ts         # Terminal tab completion
-└── App.tsx              # Main application (4-tab layout)
+└── App.tsx              # Main application (5-tab layout)
 ```
 
 ### Hardware Models
@@ -437,7 +442,7 @@ Common GPU XID errors you'll encounter:
 
 ### Unit Tests
 
-The project has **2,913 unit tests** across 128 test files covering simulators, stores, utilities, components, and data validation:
+The project has **3,212 unit tests** across 144 test files covering simulators, stores, utilities, components, and data validation:
 
 ```bash
 npm run test           # Watch mode
@@ -460,7 +465,7 @@ GitHub Actions runs lint, unit tests, and production build on every push.
 - [x] Multi-architecture support (DGX A100, H100, H200, B200)
 - [x] Spotlight tour for guided onboarding
 - [x] 3-tier learning progression with spaced repetition
-- [x] Practice exam with 168 timed questions
+- [x] Exams dashboard with 199 practice questions, 60 tool selection quizzes, and 150 deep mastery quizzes
 - [x] D3.js topology visualization (NVLink and InfiniBand fabric maps)
 - [x] Tab completion and readline shortcuts
 - [x] Data-driven CLI framework with 228 JSON command definitions
@@ -468,7 +473,7 @@ GitHub Actions runs lint, unit tests, and production build on every push.
 - [x] Fault injection system for troubleshooting practice
 - [x] Study dashboard with progress analytics
 - [x] CI/CD pipeline (lint, test, build)
-- [x] 2,913 unit tests with 0 TypeScript errors
+- [x] 3,212 unit tests with 0 TypeScript errors
 
 ### Future Enhancements
 

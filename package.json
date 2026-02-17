@@ -2,6 +2,13 @@
   "name": "nvidia-ai-infra-simulator",
   "version": "0.11.0",
   "description": "Interactive NVIDIA AI Infrastructure Certification (NCP-AII) Training Simulator",
+  "author": "Sean Boerhout",
+  "license": "MIT",
+  "homepage": "https://github.com/Seanbo5386/NVIDIA-Certification-Simulator",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Seanbo5386/NVIDIA-Certification-Simulator.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",

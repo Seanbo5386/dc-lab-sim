@@ -75,10 +75,12 @@ function App() {
 
   // Start tour for the current tab (called by Tour button)
   const handleStartTour = useCallback(() => {
-    const tourIdMap: Partial<Record<View, TourId>> = {
+    const tourIdMap: Record<View, TourId> = {
       simulator: "simulator",
       labs: "labs",
       reference: "docs",
+      exams: "exams",
+      about: "about",
     };
     const tourId = tourIdMap[currentView];
     if (tourId) setActiveTour(tourId);
@@ -293,6 +295,7 @@ function App() {
               <button
                 role="tab"
                 id="tab-exams"
+                data-tour="tab-exams"
                 aria-selected={currentView === "exams"}
                 aria-controls="panel-exams"
                 data-testid="nav-exams"
@@ -328,6 +331,7 @@ function App() {
               <button
                 role="tab"
                 id="tab-about"
+                data-tour="tab-about"
                 aria-selected={currentView === "about"}
                 aria-controls="panel-about"
                 onClick={() => setCurrentView("about")}

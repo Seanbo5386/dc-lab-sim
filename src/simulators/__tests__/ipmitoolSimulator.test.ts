@@ -142,8 +142,8 @@ describe("IpmitoolSimulator", () => {
 
   describe("CommandDefinitionRegistry Integration", () => {
     it("should have definition registry initialized after construction", async () => {
-      // Wait for async initialization
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Await the registry initialization directly
+      await simulator["initializeDefinitionRegistry"]();
       expect(simulator["definitionRegistry"]).not.toBeNull();
     });
 
@@ -158,7 +158,7 @@ describe("IpmitoolSimulator", () => {
 
   describe("Help from JSON definitions", () => {
     it("ipmitool help should return registry-based help", async () => {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      await simulator["initializeDefinitionRegistry"]();
 
       const parsed = parse("ipmitool help");
       const result = simulator.execute(parsed, context);

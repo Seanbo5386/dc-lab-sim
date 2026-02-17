@@ -53,3 +53,20 @@ test-output.txt
 
 # Windows artifacts
 nul
+
+# Internal development docs (not for public consumption)
+docs/plans/
+docs/analysis/
+
+# Development screenshots (loose files in repo root)
+/*.png
+/*.gif
+/*.jpeg
+
+# Playwright artifacts
+test-results/
+playwright-report/
+
+# Demo recording artifacts
+docs/*.webm
+tmp-video/

@@ -49,10 +49,14 @@ describe("useTourState", () => {
     const { result: sim } = renderHook(() => useTourState("simulator"));
     const { result: labs } = renderHook(() => useTourState("labs"));
     const { result: docs } = renderHook(() => useTourState("docs"));
+    const { result: exams } = renderHook(() => useTourState("exams"));
+    const { result: about } = renderHook(() => useTourState("about"));
 
     expect(sim.current.shouldShow).toBe(false);
     expect(labs.current.shouldShow).toBe(true);
     expect(docs.current.shouldShow).toBe(true);
+    expect(exams.current.shouldShow).toBe(true);
+    expect(about.current.shouldShow).toBe(true);
   });
 
   it("markSeen callback identity is stable across renders", () => {
