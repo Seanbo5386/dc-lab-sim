@@ -68,12 +68,11 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onClose }) => {
             id="welcome-dialog-title"
             className="text-2xl font-bold text-white mb-1 tracking-tight"
           >
-            AI Infrastructure{" "}
-            <span className="text-nvidia-green">Simulator</span>
+            DC Lab <span className="text-nvidia-green">Sim</span>
           </h1>
           <p className="text-gray-400 text-sm max-w-2xl mx-auto mt-1 px-4 font-light">
-            The ultimate environment for mastering NVIDIA Data Center
-            technologies. Train, test, and certify in a risk-free virtual world.
+            Browser-based datacenter lab simulator for NCP-AII certification
+            exam prep. Train, test, and certify in a risk-free virtual world.
           </p>
         </div>
 
