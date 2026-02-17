@@ -67,7 +67,6 @@ docs/analysis/
 test-results/
 playwright-report/
 
-# Demo recordings
-docs/*.gif
+# Demo recording artifacts
 docs/*.webm
-scripts/record-demo.ts
+tmp-video/
