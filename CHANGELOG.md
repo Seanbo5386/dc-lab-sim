@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.0.0] - 2026-02-17
+
+### Official Release
+
+- 20 command simulators with 229 CLI definitions across 17 categories
+- 32 story-driven scenarios with sandbox isolation and auto-fault injection
+- 199 exam questions, 60 tool selection quizzes, and 150 deep mastery quizzes
+- Multi-architecture support: DGX A100, H100, H200, and B200
+- Guided spotlight tours for all 5 tabs
+- InfiniBand fabric topology with interactive hover highlights
+- Alphabetized glossary with 78 searchable terms
+- Accurate README and OpenGraph metadata
+- 3,200+ unit tests with full CI/CD pipeline
+
 ## [0.11.0] - 2026-02-16
 
 ### Added

@@ -1,6 +1,6 @@
 {
   "name": "nvidia-ai-infra-simulator",
-  "version": "0.11.0",
+  "version": "1.0.0",
   "description": "Interactive NVIDIA AI Infrastructure Certification (NCP-AII) Training Simulator",
   "author": "Sean Boerhout",
   "license": "MIT",

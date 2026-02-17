@@ -13,9 +13,20 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v1.0.0",
+    title: "Official Release",
+    current: true,
+    highlights: [
+      "20 command simulators with 229 CLI definitions across 17 categories",
+      "32 story-driven scenarios with sandbox isolation and auto-fault injection",
+      "199 exam questions, 60 tool selection quizzes, and 150 deep mastery quizzes",
+      "Multi-architecture support: DGX A100, H100, H200, and B200",
+      "3,200+ unit tests with full CI/CD pipeline",
+    ],
+  },
+  {
     version: "v0.11.0",
     title: "Pre-Launch Polish",
-    current: true,
     highlights: [
       "OpenGraph meta tags for rich LinkedIn/social media link previews",
       "Horizontal scroll header for narrow viewports",
