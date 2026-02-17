@@ -1825,14 +1825,9 @@ const GLOSSARY_SECTIONS = [
     title: "GPU & Compute",
     terms: [
       {
-        term: "GPU",
+        term: "CRC",
         definition:
-          "Graphics Processing Unit — the parallel processor used for AI/ML training and inference.",
-      },
-      {
-        term: "DGX",
-        definition:
-          'NVIDIA\'s integrated GPU server platform (originally "Deep Learning GPU eXperience") designed for AI workloads.',
+          "Cyclic Redundancy Check — error-detection code on NVLink and IB links; rising CRC counts indicate link degradation.",
       },
       {
         term: "CUDA",
@@ -1845,24 +1840,19 @@ const GLOSSARY_SECTIONS = [
           "CUDA Deep Neural Network library — GPU-accelerated primitives for deep learning frameworks.",
       },
       {
-        term: "ECC",
-        definition:
-          "Error Correcting Code — memory protection that detects and corrects single-bit errors.",
-      },
-      {
         term: "DBE",
         definition:
           "Double Bit Error — an uncorrectable ECC error (XID 48) that typically requires GPU replacement (RMA).",
       },
       {
-        term: "HBM",
+        term: "DCGM",
         definition:
-          "High Bandwidth Memory — stacked DRAM used as GPU memory (HBM2e on A100, HBM3 on H100, HBM3e on H200/B200).",
+          "Data Center GPU Manager — NVIDIA's suite for GPU health monitoring, diagnostics, and policy management.",
       },
       {
-        term: "SRAM",
+        term: "DGX",
         definition:
-          "Static Random-Access Memory — fast on-chip GPU cache and register memory; uncorrectable SRAM errors are critical.",
+          'NVIDIA\'s integrated GPU server platform (originally "Deep Learning GPU eXperience") designed for AI workloads.',
       },
       {
         term: "DRAM",
@@ -1870,9 +1860,29 @@ const GLOSSARY_SECTIONS = [
           "Dynamic Random-Access Memory — the main GPU memory (HBM); correctable DRAM ECC errors are typically normal.",
       },
       {
-        term: "SXM",
+        term: "ECC",
         definition:
-          "Server PCI Express Module — NVIDIA's mezzanine GPU form factor used in DGX systems, enabling higher TDP and NVLink.",
+          "Error Correcting Code — memory protection that detects and corrects single-bit errors.",
+      },
+      {
+        term: "FP16 / FP32 / FP64",
+        definition:
+          "Floating-point precision modes (16/32/64-bit) — lower precision enables higher throughput for AI training.",
+      },
+      {
+        term: "GPU",
+        definition:
+          "Graphics Processing Unit — the parallel processor used for AI/ML training and inference.",
+      },
+      {
+        term: "GSP",
+        definition:
+          "GPU System Processor — on-GPU microcontroller running firmware for management tasks; GSP errors (XID 119/120) are critical.",
+      },
+      {
+        term: "HBM",
+        definition:
+          "High Bandwidth Memory — stacked DRAM used as GPU memory (HBM2e on A100, HBM3 on H100, HBM3e on H200/B200).",
       },
       {
         term: "MIG",
@@ -1890,11 +1900,6 @@ const GLOSSARY_SECTIONS = [
           "High-bandwidth GPU-to-GPU interconnect, enabling fast data transfer between GPUs within a node.",
       },
       {
-        term: "NVSwitch",
-        definition:
-          "Chip enabling all-to-all NVLink connectivity between GPUs in a DGX system.",
-      },
-      {
         term: "NVML",
         definition:
           "NVIDIA Management Library — C API for monitoring and managing NVIDIA GPUs (used by nvidia-smi).",
@@ -1905,24 +1910,9 @@ const GLOSSARY_SECTIONS = [
           "NVIDIA System Management — fleet management tool for monitoring health across multiple DGX nodes.",
       },
       {
-        term: "DCGM",
+        term: "NVSwitch",
         definition:
-          "Data Center GPU Manager — NVIDIA's suite for GPU health monitoring, diagnostics, and policy management.",
-      },
-      {
-        term: "XID",
-        definition:
-          "NVIDIA GPU error code reported in kernel logs, identifying specific hardware or software faults.",
-      },
-      {
-        term: "GSP",
-        definition:
-          "GPU System Processor — on-GPU microcontroller running firmware for management tasks; GSP errors (XID 119/120) are critical.",
-      },
-      {
-        term: "VBIOS",
-        definition:
-          "Video BIOS — firmware on the GPU that initializes hardware before the OS driver loads.",
+          "Chip enabling all-to-all NVLink connectivity between GPUs in a DGX system.",
       },
       {
         term: "SM",
@@ -1930,14 +1920,19 @@ const GLOSSARY_SECTIONS = [
           "Streaming Multiprocessor — the core compute unit inside an NVIDIA GPU.",
       },
       {
+        term: "SRAM",
+        definition:
+          "Static Random-Access Memory — fast on-chip GPU cache and register memory; uncorrectable SRAM errors are critical.",
+      },
+      {
+        term: "SXM",
+        definition:
+          "Server PCI Express Module — NVIDIA's mezzanine GPU form factor used in DGX systems, enabling higher TDP and NVLink.",
+      },
+      {
         term: "TDP",
         definition:
           "Thermal Design Power — maximum heat a component is designed to dissipate under load.",
-      },
-      {
-        term: "FP16 / FP32 / FP64",
-        definition:
-          "Floating-point precision modes (16/32/64-bit) — lower precision enables higher throughput for AI training.",
       },
       {
         term: "TFLOPS",
@@ -1945,9 +1940,14 @@ const GLOSSARY_SECTIONS = [
           "Tera Floating-Point Operations Per Second — measure of GPU compute throughput.",
       },
       {
-        term: "CRC",
+        term: "VBIOS",
         definition:
-          "Cyclic Redundancy Check — error-detection code on NVLink and IB links; rising CRC counts indicate link degradation.",
+          "Video BIOS — firmware on the GPU that initializes hardware before the OS driver loads.",
+      },
+      {
+        term: "XID",
+        definition:
+          "NVIDIA GPU error code reported in kernel logs, identifying specific hardware or software faults.",
       },
     ],
   },
@@ -1955,14 +1955,59 @@ const GLOSSARY_SECTIONS = [
     title: "Networking & InfiniBand",
     terms: [
       {
-        term: "IB",
+        term: "GDS",
         definition:
-          "InfiniBand — high-bandwidth, low-latency network fabric used in HPC and AI clusters.",
+          "GPU-Direct Storage — enables direct data paths between storage and GPU memory, bypassing the CPU bounce buffer.",
+      },
+      {
+        term: "GID",
+        definition:
+          "Global Identifier — a 128-bit IB address used for routing across subnets.",
+      },
+      {
+        term: "GUID",
+        definition:
+          "Globally Unique Identifier — a unique address assigned to each InfiniBand port and node.",
       },
       {
         term: "HCA",
         definition:
           "Host Channel Adapter — the InfiniBand network interface card installed in each node.",
+      },
+      {
+        term: "HDR",
+        definition:
+          "High Data Rate — InfiniBand speed tier at 200 Gb/s per port.",
+      },
+      {
+        term: "IB",
+        definition:
+          "InfiniBand — high-bandwidth, low-latency network fabric used in HPC and AI clusters.",
+      },
+      {
+        term: "LID",
+        definition:
+          "Local Identifier — a 16-bit address assigned by the Subnet Manager to each IB port.",
+      },
+      {
+        term: "NDR",
+        definition:
+          "Next Data Rate — InfiniBand speed tier at 400 Gb/s per port.",
+      },
+      {
+        term: "NFS",
+        definition:
+          "Network File System — shared storage protocol; often contrasted with parallel filesystems (Lustre/GPFS) in HPC.",
+      },
+      {
+        term: "OFED",
+        definition:
+          "OpenFabrics Enterprise Distribution — the software stack for InfiniBand and RDMA networking.",
+      },
+      {
+        term: "QoS",
+        definition:
+          "Quality of Service — traffic prioritization policies on the InfiniBand fabric.",
       },
       {
         term: "RDMA",
@@ -1980,54 +2025,9 @@ const GLOSSARY_SECTIONS = [
           "Scalable Hierarchical Aggregation and Reduction Protocol — in-network compute that offloads collectives to IB switches.",
       },
       {
-        term: "GDS",
-        definition:
-          "GPU-Direct Storage — enables direct data paths between storage and GPU memory, bypassing the CPU bounce buffer.",
-      },
-      {
-        term: "GUID",
-        definition:
-          "Globally Unique Identifier — a unique address assigned to each InfiniBand port and node.",
-      },
-      {
-        term: "LID",
-        definition:
-          "Local Identifier — a 16-bit address assigned by the Subnet Manager to each IB port.",
-      },
-      {
         term: "SM (IB)",
         definition:
           "Subnet Manager — manages the InfiniBand fabric, computes routing tables, and assigns LIDs.",
-      },
-      {
-        term: "OFED",
-        definition:
-          "OpenFabrics Enterprise Distribution — the software stack for InfiniBand and RDMA networking.",
-      },
-      {
-        term: "QoS",
-        definition:
-          "Quality of Service — traffic prioritization policies on the InfiniBand fabric.",
-      },
-      {
-        term: "GID",
-        definition:
-          "Global Identifier — a 128-bit IB address used for routing across subnets.",
-      },
-      {
-        term: "NDR",
-        definition:
-          "Next Data Rate — InfiniBand speed tier at 400 Gb/s per port.",
-      },
-      {
-        term: "HDR",
-        definition:
-          "High Data Rate — InfiniBand speed tier at 200 Gb/s per port.",
-      },
-      {
-        term: "NFS",
-        definition:
-          "Network File System — shared storage protocol; often contrasted with parallel filesystems (Lustre/GPFS) in HPC.",
       },
     ],
   },
@@ -2035,59 +2035,24 @@ const GLOSSARY_SECTIONS = [
     title: "Hardware & System Management",
     terms: [
       {
+        term: "BAR",
+        definition:
+          "Base Address Register — PCIe memory region; 'Above 4G Decoding' BIOS setting is required for large GPU BARs.",
+      },
+      {
         term: "BMC",
         definition:
           "Baseboard Management Controller — embedded processor for out-of-band server management (power, sensors, console).",
       },
       {
-        term: "IPMI",
+        term: "BOM",
         definition:
-          "Intelligent Platform Management Interface — standard protocol for communicating with the BMC.",
-      },
-      {
-        term: "SOL",
-        definition:
-          "Serial-over-LAN — remote serial console access via IPMI, allowing out-of-band troubleshooting when SSH is unavailable.",
-      },
-      {
-        term: "SEL",
-        definition:
-          "System Event Log — BMC log recording hardware events like temperature warnings and power faults.",
-      },
-      {
-        term: "FRU",
-        definition:
-          "Field Replaceable Unit — a hardware component (fan, PSU, DIMM) that can be swapped in the field.",
-      },
-      {
-        term: "SDR",
-        definition:
-          "Sensor Data Records — BMC database describing available sensors and their thresholds.",
-      },
-      {
-        term: "RMA",
-        definition:
-          "Return Merchandise Authorization — the process for returning defective hardware to the vendor for replacement.",
+          "Bill of Materials — list of expected hardware components; verified against dmidecode output during bring-up.",
       },
       {
         term: "DIMM",
         definition:
           "Dual Inline Memory Module — physical system memory module; checked via dmidecode during bring-up.",
-      },
-      {
-        term: "PSU",
-        definition:
-          "Power Supply Unit — node power supply; PSU failures trigger BMC alerts and require FRU replacement.",
-      },
-      {
-        term: "VRM",
-        definition:
-          "Voltage Regulator Module — converts input voltage for CPU/GPU; overheating VRMs cause throttling.",
-      },
-      {
-        term: "SMBIOS",
-        definition:
-          "System Management BIOS — firmware tables describing hardware inventory; read by dmidecode.",
       },
       {
         term: "DMI",
@@ -2100,14 +2065,14 @@ const GLOSSARY_SECTIONS = [
           "Data Processing Unit — a SmartNIC (e.g., BlueField) that offloads networking and storage tasks.",
       },
       {
-        term: "NVMe",
+        term: "FRU",
         definition:
-          "Non-Volatile Memory Express — high-speed storage protocol for SSD drives over PCIe.",
+          "Field Replaceable Unit — a hardware component (fan, PSU, DIMM) that can be swapped in the field.",
       },
       {
-        term: "PCIe",
+        term: "IPMI",
         definition:
-          "PCI Express — the high-speed serial bus connecting GPUs, NICs, and NVMe drives to the CPU.",
+          "Intelligent Platform Management Interface — standard protocol for communicating with the BMC.",
       },
       {
         term: "NUMA",
@@ -2115,19 +2080,9 @@ const GLOSSARY_SECTIONS = [
           "Non-Uniform Memory Access — memory architecture where access time depends on CPU-memory locality; affects GPU/HCA affinity.",
       },
       {
-        term: "UEFI",
+        term: "NVMe",
         definition:
-          "Unified Extensible Firmware Interface — modern BIOS replacement managing boot configuration and Secure Boot.",
-      },
-      {
-        term: "POST",
-        definition:
-          "Power-On Self-Test — hardware initialization sequence run by firmware before the OS loads.",
-      },
-      {
-        term: "BOM",
-        definition:
-          "Bill of Materials — list of expected hardware components; verified against dmidecode output during bring-up.",
+          "Non-Volatile Memory Express — high-speed storage protocol for SSD drives over PCIe.",
       },
       {
         term: "OOM",
@@ -2135,14 +2090,59 @@ const GLOSSARY_SECTIONS = [
           "Out of Memory — condition where a process exhausts available memory, causing the kernel or GPU driver to kill it.",
       },
       {
-        term: "BAR",
+        term: "PCIe",
         definition:
-          "Base Address Register — PCIe memory region; 'Above 4G Decoding' BIOS setting is required for large GPU BARs.",
+          "PCI Express — the high-speed serial bus connecting GPUs, NICs, and NVMe drives to the CPU.",
+      },
+      {
+        term: "POST",
+        definition:
+          "Power-On Self-Test — hardware initialization sequence run by firmware before the OS loads.",
+      },
+      {
+        term: "PSU",
+        definition:
+          "Power Supply Unit — node power supply; PSU failures trigger BMC alerts and require FRU replacement.",
+      },
+      {
+        term: "RMA",
+        definition:
+          "Return Merchandise Authorization — the process for returning defective hardware to the vendor for replacement.",
+      },
+      {
+        term: "SDR",
+        definition:
+          "Sensor Data Records — BMC database describing available sensors and their thresholds.",
+      },
+      {
+        term: "SEL",
+        definition:
+          "System Event Log — BMC log recording hardware events like temperature warnings and power faults.",
+      },
+      {
+        term: "SMBIOS",
+        definition:
+          "System Management BIOS — firmware tables describing hardware inventory; read by dmidecode.",
+      },
+      {
+        term: "SOL",
+        definition:
+          "Serial-over-LAN — remote serial console access via IPMI, allowing out-of-band troubleshooting when SSH is unavailable.",
       },
       {
         term: "SR-IOV",
         definition:
           "Single Root I/O Virtualization — PCIe feature allowing a device to appear as multiple virtual devices for VMs.",
+      },
+      {
+        term: "UEFI",
+        definition:
+          "Unified Extensible Firmware Interface — modern BIOS replacement managing boot configuration and Secure Boot.",
+      },
+      {
+        term: "VRM",
+        definition:
+          "Voltage Regulator Module — converts input voltage for CPU/GPU; overheating VRMs cause throttling.",
       },
     ],
   },
@@ -2150,19 +2150,24 @@ const GLOSSARY_SECTIONS = [
     title: "Cluster & Workload Management",
     terms: [
       {
-        term: "HPC",
+        term: "BCM",
         definition:
-          "High-Performance Computing — the domain of large-scale parallel computing on GPU clusters.",
-      },
-      {
-        term: "Slurm",
-        definition:
-          "Simple Linux Utility for Resource Management — the job scheduler used on most HPC and AI clusters.",
+          "Base Command Manager — NVIDIA's cluster provisioning and management software for DGX SuperPOD deployments.",
       },
       {
         term: "GRES",
         definition:
           "Generic Resource — Slurm's mechanism for tracking GPUs and other special resources.",
+      },
+      {
+        term: "HPC",
+        definition:
+          "High-Performance Computing — the domain of large-scale parallel computing on GPU clusters.",
+      },
+      {
+        term: "HPL",
+        definition:
+          "High-Performance Linpack — the standard benchmark for validating cluster compute performance and stability.",
       },
       {
         term: "MPI",
@@ -2175,19 +2180,14 @@ const GLOSSARY_SECTIONS = [
           "NVIDIA Collective Communications Library — optimized GPU-to-GPU communication primitives for distributed training.",
       },
       {
-        term: "UCX",
-        definition:
-          "Unified Communication X — a communication framework used by MPI and NCCL for transport selection.",
-      },
-      {
-        term: "BCM",
-        definition:
-          "Base Command Manager — NVIDIA's cluster provisioning and management software for DGX SuperPOD deployments.",
-      },
-      {
         term: "NGC",
         definition:
           "NVIDIA GPU Cloud — container registry hosting optimized AI frameworks, models, and tools.",
+      },
+      {
+        term: "Slurm",
+        definition:
+          "Simple Linux Utility for Resource Management — the job scheduler used on most HPC and AI clusters.",
       },
       {
         term: "SPANK",
@@ -2195,15 +2195,25 @@ const GLOSSARY_SECTIONS = [
           "Slurm Plug-in Architecture for Node and job Kontrol — plugin system used by Pyxis for container integration.",
       },
       {
-        term: "HPL",
+        term: "UCX",
         definition:
-          "High-Performance Linpack — the standard benchmark for validating cluster compute performance and stability.",
+          "Unified Communication X — a communication framework used by MPI and NCCL for transport selection.",
       },
     ],
   },
   {
     title: "Firmware & Tools",
     terms: [
+      {
+        term: "BER",
+        definition:
+          "Bit Error Rate — the ratio of errored bits to total transmitted bits on a network link.",
+      },
+      {
+        term: "FEC",
+        definition:
+          "Forward Error Correction — encoding that allows the receiver to detect and correct transmission errors.",
+      },
       {
         term: "MFT",
         definition:
@@ -2218,16 +2228,6 @@ const GLOSSARY_SECTIONS = [
         term: "PSID",
         definition:
           "Parameter Set Identifier — identifies the firmware configuration profile on a Mellanox NIC.",
-      },
-      {
-        term: "BER",
-        definition:
-          "Bit Error Rate — the ratio of errored bits to total transmitted bits on a network link.",
-      },
-      {
-        term: "FEC",
-        definition:
-          "Forward Error Correction — encoding that allows the receiver to detect and correct transmission errors.",
       },
       {
         term: "PXE",
