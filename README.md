@@ -59,7 +59,7 @@ The NVIDIA AI Infrastructure Certification Simulator provides realistic, hands-o
 Each scenario runs in its own isolated sandbox — faults and mutations never leak between scenarios or to the global cluster:
 
 - Per-scenario deep-cloned cluster state (ScenarioContext)
-- All 19 simulators route through sandbox-aware resolve helpers
+- All 20 simulators route through sandbox-aware resolve helpers
 - Clean exit discards the sandbox entirely; global state stays pristine
 
 ### Multi-Architecture Support
@@ -75,7 +75,7 @@ All simulators, visualizations, and metrics dynamically adapt to the selected ar
 
 ### Spotlight Tour
 
-Built-in guided tours for each tab (Simulator, Labs, Documentation) that walk new users through key UI elements with highlighted overlays and step-by-step explanations.
+Built-in guided tours for each tab (Simulator, Labs, Exams, Documentation, About) that walk new users through key UI elements with highlighted overlays and step-by-step explanations.
 
 ### Learning System
 
@@ -160,8 +160,8 @@ A tiered progression system built on spaced repetition:
 
 - **199 exam questions** across all 5 NCP-AII domains
 - **5 exam modes**: Full Practice, Quick Quiz, Gauntlet, Weak Area, Review Mistakes
-- **Tool Selection Quizzes**: 60 "which tool?" questions across 6 command families
-- **Deep Mastery Quizzes**: 150 questions on flags, output interpretation, and troubleshooting
+- **Tool Selection Quizzes**: 60 "which tool?" questions across 6 command families (10 per session)
+- **Deep Mastery Quizzes**: 150 questions on flags, output interpretation, and troubleshooting (25 per session)
 - Timed exam mode (90 minutes) with question navigation
 - Readiness score, domain performance grid, and exam history tracking
 
@@ -169,8 +169,8 @@ A tiered progression system built on spaced repetition:
 
 - System architecture overview with node layout and hardware specs
 - Architecture comparison across DGX A100, H100, H200, and B200
-- Searchable CLI tool reference with 214 commands across 17 categories
-- Glossary & Acronyms reference with 42 searchable terms
+- Searchable CLI tool reference with 229 commands across 17 categories
+- Glossary & Acronyms reference with 78 searchable terms
 - Troubleshooting playbooks with 4 diagnostic scenarios
 - XID error reference with severity filtering
 - Exam guide with domain coverage and study tips
@@ -356,7 +356,7 @@ Scenarios for XID error investigation, thermal troubleshooting, network diagnost
 
 ```
 src/
-├── components/          # React components (64 components)
+├── components/          # React components (116 components)
 │   ├── Terminal.tsx      # xterm.js terminal with command routing
 │   ├── Dashboard.tsx     # Real-time metrics dashboard
 │   ├── LabWorkspace.tsx  # Scenario execution workspace
@@ -371,7 +371,7 @@ src/
 │   ├── ClusterHeatmap.tsx # GPU utilization heatmap
 │   ├── TopologyGraph.tsx  # D3.js NVLink visualization
 │   └── ...
-├── simulators/          # Command simulators (19 simulators + BaseSimulator)
+├── simulators/          # Command simulators (20 simulators + BaseSimulator)
 │   ├── BaseSimulator.ts   # Base class with sandbox-aware resolve helpers
 │   ├── nvidiaSmiSimulator.ts
 │   ├── dcgmiSimulator.ts
@@ -392,7 +392,7 @@ src/
 │   ├── quizQuestions.json       # Tool selection quizzes
 │   ├── explanationGates.json    # 56 post-scenario knowledge checks
 │   ├── hardwareSpecs.ts         # DGX A100/H100/H200/B200 spec registry
-│   └── output/                  # 228 JSON command definitions
+│   └── output/                  # 229 JSON command definitions
 ├── store/               # Zustand state management
 │   ├── simulationStore.ts       # Cluster state, GPU metrics, exam state
 │   ├── scenarioContext.ts       # Per-scenario sandbox isolation
@@ -400,7 +400,7 @@ src/
 │   ├── learningStore.ts         # Domain progress, study sessions
 │   └── tierNotificationStore.ts # Tier unlock notifications
 ├── types/               # TypeScript type definitions
-├── utils/               # Utilities (35 modules)
+├── utils/               # Utilities (61 modules)
 │   ├── scenarioLoader.ts        # Scenario loading and fault application
 │   ├── narrativeAdapter.ts      # Narrative-to-scenario conversion
 │   ├── tierProgressionEngine.ts # Tier unlock logic
@@ -442,7 +442,7 @@ Common GPU XID errors you'll encounter:
 
 ### Unit Tests
 
-The project has **3,212 unit tests** across 144 test files covering simulators, stores, utilities, components, and data validation:
+The project has **3,200+ unit tests** across 144 test files covering simulators, stores, utilities, components, and data validation:
 
 ```bash
 npm run test           # Watch mode
@@ -458,7 +458,7 @@ GitHub Actions runs lint, unit tests, and production build on every push.
 
 ### Completed
 
-- [x] 19 command simulators with realistic output validated against real tools
+- [x] 20 command simulators with realistic output validated against real tools
 - [x] 32 narrative scenarios with story-driven learning across all 5 domains
 - [x] Sandbox isolation (per-scenario deep-cloned state)
 - [x] AutoFaults system for automatic per-step fault injection
@@ -468,12 +468,12 @@ GitHub Actions runs lint, unit tests, and production build on every push.
 - [x] Exams dashboard with 199 practice questions, 60 tool selection quizzes, and 150 deep mastery quizzes
 - [x] D3.js topology visualization (NVLink and InfiniBand fabric maps)
 - [x] Tab completion and readline shortcuts
-- [x] Data-driven CLI framework with 228 JSON command definitions
+- [x] Data-driven CLI framework with 229 JSON command definitions
 - [x] `help` and `practice` terminal commands
 - [x] Fault injection system for troubleshooting practice
 - [x] Study dashboard with progress analytics
 - [x] CI/CD pipeline (lint, test, build)
-- [x] 3,212 unit tests with 0 TypeScript errors
+- [x] 3,200+ unit tests with 0 TypeScript errors
 
 ### Future Enhancements
 
