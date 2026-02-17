@@ -940,8 +940,12 @@ export class SlurmSimulator extends BaseSimulator {
 
   // sbatch - Submit batch job
   executeSbatch(parsed: ParsedCommand, context: CommandContext): CommandResult {
-    // Handle --help
-    if (this.hasAnyFlag(parsed, ["help"])) {
+    // Handle --help or bare "help" argument
+    if (
+      this.hasAnyFlag(parsed, ["help"]) ||
+      parsed.positionalArgs[0] === "help" ||
+      parsed.subcommands[0] === "help"
+    ) {
       return (
         this.getHelpFromRegistry("sbatch", parsed) ||
         this.createError("Help not available")
@@ -1119,8 +1123,12 @@ export class SlurmSimulator extends BaseSimulator {
 
   // srun - Run job interactively
   executeSrun(parsed: ParsedCommand, context: CommandContext): CommandResult {
-    // Handle --help
-    if (this.hasAnyFlag(parsed, ["help"])) {
+    // Handle --help or bare "help" argument
+    if (
+      this.hasAnyFlag(parsed, ["help"]) ||
+      parsed.positionalArgs[0] === "help" ||
+      parsed.subcommands[0] === "help"
+    ) {
       return (
         this.getHelpFromRegistry("srun", parsed) ||
         this.createError("Help not available")
@@ -1175,8 +1183,12 @@ export class SlurmSimulator extends BaseSimulator {
     parsed: ParsedCommand,
     context: CommandContext,
   ): CommandResult {
-    // Handle --help
-    if (this.hasAnyFlag(parsed, ["help"])) {
+    // Handle --help or bare "help" argument
+    if (
+      this.hasAnyFlag(parsed, ["help"]) ||
+      parsed.positionalArgs[0] === "help" ||
+      parsed.subcommands[0] === "help"
+    ) {
       return (
         this.getHelpFromRegistry("scancel", parsed) ||
         this.createError("Help not available")
