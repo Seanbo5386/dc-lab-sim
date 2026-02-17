@@ -56,8 +56,8 @@ describe("WelcomeScreen", () => {
     render(<WelcomeScreen onClose={onClose} />);
     const heading = screen.getByRole("heading", { level: 1 });
     expect(heading).toBeInTheDocument();
-    expect(heading.textContent).toContain("AI Infrastructure");
-    expect(heading.textContent).toContain("Simulator");
+    expect(heading.textContent).toContain("DC Lab");
+    expect(heading.textContent).toContain("Sim");
   });
 
   it("shows the 'Enter Virtual Datacenter' dismiss button", () => {
@@ -88,10 +88,10 @@ describe("WelcomeScreen", () => {
   // Content verification
   // --------------------------------------------------------------------------
 
-  it("shows the description text about NVIDIA Data Center technologies", () => {
+  it("shows the description text about NCP-AII certification", () => {
     render(<WelcomeScreen onClose={onClose} />);
     expect(
-      screen.getByText(/mastering NVIDIA Data Center technologies/i),
+      screen.getByText(/datacenter lab simulator for NCP-AII/i),
     ).toBeInTheDocument();
   });
 
