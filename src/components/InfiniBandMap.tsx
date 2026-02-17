@@ -636,43 +636,98 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
     nodeGroups
       .on("mouseover", function (_event, d) {
         d3.select(this).select("rect,circle,polygon").attr("opacity", 1);
-        if (d.type === "leaf" || d.type === "host") {
-          svg
-            .selectAll("line")
-            .filter(function () {
-              const src = d3.select(this).attr("data-link-source");
-              const tgt = d3.select(this).attr("data-link-target");
-              return src === d.id || tgt === d.id;
-            })
-            .attr("opacity", 0.7)
-            .attr("stroke-width", 3);
+
+        // Determine which link IDs are connected to this node
+        const connectedSet = new Set<string>();
+
+        if (d.type === "host") {
+          // Host → highlight leaf-host links for this host
+          links
+            .filter((l) => l.target.id === d.id)
+            .forEach((l) => connectedSet.add(`${l.source.id}|${l.target.id}`));
+        } else if (d.type === "leaf") {
+          // Leaf → highlight spine-leaf links AND leaf-host links for this leaf
+          links
+            .filter((l) => l.source.id === d.id || l.target.id === d.id)
+            .forEach((l) => connectedSet.add(`${l.source.id}|${l.target.id}`));
+        } else if (d.type === "spine") {
+          // Spine → highlight spine-leaf links for this spine
+          links
+            .filter((l) => l.source.id === d.id)
+            .forEach((l) => connectedSet.add(`${l.source.id}|${l.target.id}`));
         }
+
+        // Brighten connected links, dim the rest
+        svg
+          .select("g.links")
+          .selectAll("line")
+          .each(function () {
+            const line = d3.select(this);
+            const src = line.attr("data-link-source");
+            const tgt = line.attr("data-link-target");
+            if (!src || !tgt) return;
+            const key = `${src}|${tgt}`;
+            if (connectedSet.has(key)) {
+              line
+                .attr("stroke", "#4ade80")
+                .attr("stroke-width", 3.5)
+                .attr("opacity", 0.7);
+            } else {
+              line.attr("opacity", 0.06);
+            }
+          });
       })
-      .on("mouseout", function (_event, d) {
+      .on("mouseout", function () {
         d3.select(this).select("rect,circle,polygon").attr("opacity", 0.9);
-        if (d.type === "leaf" || d.type === "host") {
-          svg
-            .selectAll("line")
-            .filter(function () {
-              const tgt = d3.select(this).attr("data-link-target");
-              return (
-                tgt?.startsWith("dgx-") || tgt?.startsWith("node-") || false
+
+        // Reset all visible links to their default styles
+        svg
+          .select("g.links")
+          .selectAll("line")
+          .each(function () {
+            const line = d3.select(this);
+            const tgt = line.attr("data-link-target");
+            if (!tgt) return;
+            const isHostLink =
+              tgt.startsWith("dgx-") || tgt.startsWith("node-");
+            if (isHostLink) {
+              const hostNode = clusterRef.current.nodes.find(
+                (n) => n.id === tgt,
               );
-            })
-            .attr("opacity", 0.15)
-            .attr("stroke-width", 1.5);
-          svg
-            .selectAll("line")
-            .filter(function () {
-              const tgt = d3.select(this).attr("data-link-target");
-              return tgt?.startsWith("leaf-") || false;
-            })
-            .attr("opacity", 0.7)
-            .attr(
-              "stroke-width",
-              bandwidthToWidth(fabricConfig.spineToLeafBandwidth),
-            );
-        }
+              const baseStatus: "active" | "down" = hostNode?.hcas.some((hca) =>
+                hca.ports.some((p) => p.state === "Active"),
+              )
+                ? "active"
+                : "down";
+              const color = getLinkColor(hostNode, baseStatus);
+              const totalErrors =
+                hostNode?.hcas.reduce(
+                  (sum, hca) =>
+                    sum +
+                    hca.ports.reduce(
+                      (ps, port) =>
+                        ps +
+                        port.errors.symbolErrors +
+                        port.errors.portRcvErrors,
+                      0,
+                    ),
+                  0,
+                ) || 0;
+              line
+                .attr("stroke", color)
+                .attr("stroke-width", 1.5)
+                .attr("opacity", totalErrors > 0 ? 0.6 : 0.15);
+            } else {
+              // Spine-leaf link
+              line
+                .attr("stroke", "#10B981")
+                .attr(
+                  "stroke-width",
+                  bandwidthToWidth(fabricConfig.spineToLeafBandwidth),
+                )
+                .attr("opacity", 0.7);
+            }
+          });
       })
       .on("click", function (event, d) {
         event.stopPropagation();
@@ -795,14 +850,21 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
       .attr("font-weight", "bold")
       .text("Spine Tier");
 
-    svg
+    const leafLabel = svg
       .append("text")
       .attr("x", 10)
       .attr("y", 250)
       .attr("fill", "#9CA3AF")
       .attr("font-size", "14px")
-      .attr("font-weight", "bold")
-      .text("Leaf Tier (Rails)");
+      .attr("font-weight", "bold");
+    leafLabel.append("tspan").text("Leaf Tier");
+    leafLabel
+      .append("tspan")
+      .attr("x", 10)
+      .attr("dy", "1.2em")
+      .attr("font-size", "12px")
+      .attr("font-weight", "normal")
+      .text("(Rails)");
 
     svg
       .append("text")
