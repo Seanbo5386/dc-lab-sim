@@ -6,6 +6,7 @@ import type {
 import type { ScenarioContext } from "@/store/scenarioContext";
 import { useSimulationStore } from "@/store/simulationStore";
 import { narrativeToScenario } from "./narrativeAdapter";
+import { createDGXNode } from "./clusterFactory";
 import { logger } from "@/utils/logger";
 
 // Cache for loaded scenarios
@@ -279,6 +280,20 @@ export function applyFaultsToContext(
           });
         }
         break;
+
+      case "add-node": {
+        // Parse node index from nodeId (e.g., "dgx-08" → 8)
+        const match = nodeId.match(/(\d+)$/);
+        const nodeIndex = match ? parseInt(match[1], 10) : 0;
+        // Use systemType from parameters, or infer from existing nodes
+        const systemType =
+          parameters?.systemType ??
+          context.getCluster().nodes[0]?.systemType ??
+          "DGX-A100";
+        const newNode = createDGXNode(nodeIndex, systemType);
+        context.addNode(newNode);
+        break;
+      }
 
       default:
         logger.warn(`Unknown fault type: ${type}`);

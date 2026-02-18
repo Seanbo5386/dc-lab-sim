@@ -293,7 +293,7 @@ function createBMC(nodeId: number): BMC {
   };
 }
 
-function createDGXNode(
+export function createDGXNode(
   id: number,
   systemType: SystemType = "DGX-A100",
 ): DGXNode {

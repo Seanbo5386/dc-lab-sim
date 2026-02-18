@@ -13,7 +13,8 @@ export type FaultType =
   | "gpu-hang"
   | "memory-full"
   | "driver-error"
-  | "pcie-error";
+  | "pcie-error"
+  | "add-node";
 
 export interface FaultInjectionConfig {
   nodeId: string;

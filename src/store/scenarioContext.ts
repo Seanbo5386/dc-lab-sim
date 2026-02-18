@@ -38,7 +38,8 @@ export type StateChange =
       type: "slurm-state";
       data: { state: "idle" | "alloc" | "drain" | "down"; reason?: string };
     })
-  | (StateChangeBase & { type: "mig-mode"; data: { enabled: boolean } });
+  | (StateChangeBase & { type: "mig-mode"; data: { enabled: boolean } })
+  | (StateChangeBase & { type: "node-add"; data: Node });
 
 export class ScenarioContext {
   private scenarioId: string;
@@ -258,6 +259,32 @@ export class ScenarioContext {
       data: { state, reason },
       command,
       description: `Set ${nodeId} Slurm state to ${state}`,
+    });
+  }
+
+  /**
+   * Add a new node to the isolated cluster state
+   */
+  addNode(node: Node): void {
+    if (this.readonly) {
+      logger.warn("Cannot add node in readonly context");
+      return;
+    }
+
+    // Avoid duplicates
+    if (this.getNode(node.id)) {
+      logger.warn(`Node ${node.id} already exists in scenario context`);
+      return;
+    }
+
+    this.isolatedCluster.nodes.push(node);
+
+    this.mutations.push({
+      type: "node-add",
+      timestamp: Date.now(),
+      nodeId: node.id,
+      data: node,
+      description: `Added node ${node.id} to cluster`,
     });
   }
 

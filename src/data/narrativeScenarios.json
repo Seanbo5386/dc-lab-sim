@@ -1251,7 +1251,13 @@
             "type": "command",
             "command": "scontrol",
             "pattern": "node|update|show"
-          }
+          },
+          "autoFaults": [
+            { "nodeId": "dgx-08", "type": "add-node", "severity": "warning" },
+            { "nodeId": "dgx-09", "type": "add-node", "severity": "warning" },
+            { "nodeId": "dgx-10", "type": "add-node", "severity": "warning" },
+            { "nodeId": "dgx-11", "type": "add-node", "severity": "warning" }
+          ]
         },
         {
           "id": "step-12",
