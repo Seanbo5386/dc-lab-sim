@@ -15,7 +15,10 @@ export function InlineQuiz({ quiz, onComplete }: InlineQuizProps) {
   const handleSelect = (index: number) => {
     if (isAnswered) return;
     setSelectedIndex(index);
-    onComplete(index === quiz.correctIndex);
+    // Delay onComplete so the user can see the feedback before the step advances
+    setTimeout(() => {
+      onComplete(index === quiz.correctIndex);
+    }, 1500);
   };
 
   return (

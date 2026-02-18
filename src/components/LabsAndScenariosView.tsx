@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Clock, Crosshair } from "lucide-react";
+import { CheckCircle2, Clock, Crosshair } from "lucide-react";
 import { getAllScenarios, getScenarioMetadata } from "../utils/scenarioLoader";
+import { useSimulationStore } from "@/store/simulationStore";
 
 interface LabsAndScenariosViewProps {
   onStartScenario: (scenarioId: string) => void;
@@ -33,6 +34,7 @@ const DIFFICULTY_ORDER: Record<string, number> = {
 export function LabsAndScenariosView({
   onStartScenario,
 }: LabsAndScenariosViewProps) {
+  const completedScenarios = useSimulationStore((s) => s.completedScenarios);
   const [domainScenarios, setDomainScenarios] = useState<
     Record<
       string,
@@ -118,6 +120,9 @@ export function LabsAndScenariosView({
             {Object.entries(DOMAIN_INFO).map(
               ([domainKey, info], domainIndex) => {
                 const scenarios = domainScenarios[domainKey] || [];
+                const completedCount = scenarios.filter((s) =>
+                  completedScenarios.includes(s.id),
+                ).length;
                 return (
                   <div
                     key={domainKey}
@@ -128,8 +133,18 @@ export function LabsAndScenariosView({
                     className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden"
                   >
                     <div className="px-6 pt-5 pb-3">
-                      <div className="text-sm text-nvidia-green font-semibold mb-1">
-                        Domain {info.number} &bull; {info.weight}
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-nvidia-green font-semibold mb-1">
+                          Domain {info.number} &bull; {info.weight}
+                        </div>
+                        {scenarios.length > 0 && (
+                          <span
+                            data-testid={`domain-${info.number}-completion`}
+                            className={`text-xs font-medium ${completedCount === scenarios.length && completedCount > 0 ? "text-nvidia-green" : "text-gray-400"}`}
+                          >
+                            {completedCount}/{scenarios.length} completed
+                          </span>
+                        )}
                       </div>
                       <h3 className="text-lg font-bold mb-3">{info.name}</h3>
                     </div>
@@ -144,8 +159,16 @@ export function LabsAndScenariosView({
                           <div className="flex items-start gap-2">
                             <Crosshair className="w-4 h-4 text-nvidia-green mt-0.5 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-gray-200 group-hover:text-white truncate">
-                                {scenario.title}
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-medium text-gray-200 group-hover:text-white truncate">
+                                  {scenario.title}
+                                </span>
+                                {completedScenarios.includes(scenario.id) && (
+                                  <CheckCircle2
+                                    data-testid={`completed-${scenario.id}`}
+                                    className="w-4 h-4 text-nvidia-green flex-shrink-0"
+                                  />
+                                )}
                               </div>
                               <div className="flex items-center gap-2 mt-1">
                                 <span

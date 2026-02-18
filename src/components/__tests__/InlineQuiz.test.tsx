@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { InlineQuiz } from "../InlineQuiz";
 
 const mockQuiz = {
@@ -15,6 +15,14 @@ const mockQuiz = {
 };
 
 describe("InlineQuiz", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("should render the question", () => {
     render(<InlineQuiz quiz={mockQuiz} onComplete={vi.fn()} />);
     expect(screen.getByText(/what does sel stand for/i)).toBeInTheDocument();
@@ -41,17 +49,27 @@ describe("InlineQuiz", () => {
     expect(screen.getByText(/not quite/i)).toBeInTheDocument();
   });
 
-  it("should call onComplete with result", () => {
+  it("should call onComplete with result after delay", () => {
     const onComplete = vi.fn();
     render(<InlineQuiz quiz={mockQuiz} onComplete={onComplete} />);
     fireEvent.click(screen.getByText("System Event Log"));
+    // Not called immediately
+    expect(onComplete).not.toHaveBeenCalled();
+    // Called after the delay
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
     expect(onComplete).toHaveBeenCalledWith(true);
   });
 
-  it("should call onComplete with false on wrong answer", () => {
+  it("should call onComplete with false on wrong answer after delay", () => {
     const onComplete = vi.fn();
     render(<InlineQuiz quiz={mockQuiz} onComplete={onComplete} />);
     fireEvent.click(screen.getByText("Serial Error Log"));
+    expect(onComplete).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
     expect(onComplete).toHaveBeenCalledWith(false);
   });
 

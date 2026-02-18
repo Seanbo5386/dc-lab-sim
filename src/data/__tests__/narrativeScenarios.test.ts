@@ -294,6 +294,7 @@ describe("narrativeScenarios.json", () => {
       "memory-full",
       "driver-error",
       "pcie-error",
+      "add-node",
     ];
 
     const allAutoFaults = scenarios.flatMap((s) =>

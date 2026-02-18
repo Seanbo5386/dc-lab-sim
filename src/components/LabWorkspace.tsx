@@ -732,6 +732,7 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                         </div>
                       )}
                       {!isStepCompleted &&
+                        !currentValidation?.passed &&
                         currentStep.expectedCommands.some((cmd) =>
                           (currentStepProgress?.commandsExecuted || []).some(
                             (exe) => validateCommandExecuted(exe, [cmd]),

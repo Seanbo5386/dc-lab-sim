@@ -13,6 +13,9 @@ import {
 
 // Mock lucide-react icons explicitly (Proxy approach can hang vitest)
 vi.mock("lucide-react", () => ({
+  CheckCircle2: (props: Record<string, unknown>) => (
+    <svg data-testid="icon-CheckCircle2" {...props} />
+  ),
   Clock: (props: Record<string, unknown>) => (
     <svg data-testid="icon-Clock" {...props} />
   ),
@@ -84,6 +87,17 @@ vi.mock("@/utils/scenarioLoader", () => ({
     Promise.resolve(mockMetadata[id] || null),
 }));
 
+// Mock simulationStore for completedScenarios
+let mockCompletedScenarios: string[] = [];
+vi.mock("@/store/simulationStore", () => ({
+  useSimulationStore: vi.fn(
+    (selector?: (s: Record<string, unknown>) => unknown) => {
+      const state = { completedScenarios: mockCompletedScenarios };
+      return selector ? selector(state) : state;
+    },
+  ),
+}));
+
 // ============================================================================
 // Import component under test AFTER mocks are set up
 // ============================================================================
@@ -106,6 +120,7 @@ function defaultProps() {
 describe("LabsAndScenariosView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCompletedScenarios = [];
   });
 
   // --------------------------------------------------------------------------
@@ -303,5 +318,62 @@ describe("LabsAndScenariosView", () => {
     const slurmButton = screen.getByText("The Slurm Setup").closest("button")!;
     fireEvent.click(slurmButton);
     expect(props.onStartScenario).toHaveBeenCalledWith("domain3-slurm-setup");
+  });
+
+  // --------------------------------------------------------------------------
+  // 23. Completed scenarios show a checkmark icon
+  // --------------------------------------------------------------------------
+
+  it("shows a checkmark icon on completed scenarios", async () => {
+    mockCompletedScenarios = [
+      "domain1-midnight-deployment",
+      "domain4-silent-cluster",
+    ];
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("completed-domain1-midnight-deployment"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("completed-domain4-silent-cluster"),
+      ).toBeInTheDocument();
+    });
+
+    // Non-completed scenarios should NOT have a checkmark
+    expect(
+      screen.queryByTestId("completed-domain1-rack-expansion"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("completed-domain2-nvlink-mystery"),
+    ).not.toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------------------------
+  // 24. Domain card shows completion count
+  // --------------------------------------------------------------------------
+
+  it("shows completion count on domain cards", async () => {
+    mockCompletedScenarios = [
+      "domain1-midnight-deployment",
+      "domain4-silent-cluster",
+    ];
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+
+    await waitFor(() => {
+      // Domain 1: 1 of 2 completed
+      const d1 = screen.getByTestId("domain-1-completion");
+      expect(d1).toHaveTextContent("1/2 completed");
+
+      // Domain 4: 1 of 2 completed
+      const d4 = screen.getByTestId("domain-4-completion");
+      expect(d4).toHaveTextContent("1/2 completed");
+
+      // Domain 2: 0 of 1 completed
+      const d2 = screen.getByTestId("domain-2-completion");
+      expect(d2).toHaveTextContent("0/1 completed");
+    });
   });
 });
