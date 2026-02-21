@@ -1,4 +1,4 @@
-import type { CommandDefinition, CommandCategory, UsagePattern } from "./types";
+import type { CommandDefinition, CommandCategory, CommandOption, UsagePattern } from "./types";
 import {
   CommandDefinitionLoader,
   getCommandDefinitionLoader,
@@ -268,6 +268,49 @@ export class CommandDefinitionRegistry {
    */
   has(command: string): boolean {
     return this.loader.has(command);
+  }
+
+  /**
+   * Build a flag schema for the parser.
+   * Maps flag names (without dashes) to whether they take a value.
+   * true = takes a value, false = boolean flag.
+   * Returns undefined if command not found.
+   */
+  getFlagSchema(command: string): Map<string, boolean> | undefined {
+    const def = this.getDefinitionSync(command);
+    if (!def) return undefined;
+
+    const schema = new Map<string, boolean>();
+
+    const processOptions = (options: CommandOption[]) => {
+      for (const opt of options) {
+        const takesValue = !!opt.arguments;
+
+        if (opt.short) {
+          schema.set(opt.short.replace(/^-+/, ''), takesValue);
+        }
+        if (opt.long) {
+          schema.set(opt.long.replace(/^-+/, '').replace(/=$/, ''), takesValue);
+        }
+        if (opt.flag) {
+          schema.set(opt.flag.replace(/^-+/, '').replace(/=$/, ''), takesValue);
+        }
+      }
+    };
+
+    if (def.global_options) {
+      processOptions(def.global_options);
+    }
+
+    if (def.subcommands) {
+      for (const sub of def.subcommands) {
+        if (sub.options) {
+          processOptions(sub.options);
+        }
+      }
+    }
+
+    return schema.size > 0 ? schema : undefined;
   }
 
   // Private helpers
