@@ -155,6 +155,32 @@ export abstract class BaseSimulator {
   }
 
   /**
+   * Safely execute a command handler with try-catch protection.
+   * Returns a standardized error result if the handler throws.
+   */
+  protected safeExecuteHandler(
+    handler: CommandHandler,
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult | Promise<CommandResult> {
+    try {
+      const result = handler(parsed, context);
+      // Handle async handlers
+      if (result instanceof Promise) {
+        return result.catch((error: unknown) => {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          return this.createError(`Internal error: ${message}`);
+        });
+      }
+      return result;
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      return this.createError(`Internal error: ${message}`);
+    }
+  }
+
+  /**
    * Check if a command is registered
    * @param name - Command name
    * @returns true if command exists
@@ -165,9 +191,11 @@ export abstract class BaseSimulator {
 
   /**
    * Handle --version flag (common to all simulators)
+   * Subclasses can override to provide dynamic versions from node config.
+   * @param context - Optional command context for dynamic version lookup
    * @returns Command result with version info
    */
-  protected handleVersion(): CommandResult {
+  protected handleVersion(context?: CommandContext): CommandResult {
     const metadata = this.getMetadata();
     return {
       output: `${metadata.name} version ${metadata.version}`,

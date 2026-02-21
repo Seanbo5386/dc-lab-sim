@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { BaseSimulator } from "../BaseSimulator";
+import { BaseSimulator, type CommandHandler } from "../BaseSimulator";
 import { parse } from "@/utils/commandParser";
 import type {
   ParsedCommand,
@@ -611,6 +611,130 @@ describe("BaseSimulator", () => {
       expect(result).not.toBeNull();
       expect(result?.exitCode).not.toBe(0);
       expect(result?.output).toContain("root");
+    });
+  });
+
+  describe("safeExecuteHandler", () => {
+    // Helper class that exposes the protected method for testing
+    class SafeHandlerTestSimulator extends BaseSimulator {
+      getMetadata(): SimulatorMetadata {
+        return {
+          name: "test-safe",
+          version: "1.0.0",
+          description: "Test safe handler",
+          commands: [],
+        };
+      }
+
+      execute() {
+        return { output: "", exitCode: 0 };
+      }
+
+      public testSafeExecute(
+        handler: CommandHandler,
+        parsed: ParsedCommand,
+        ctx: CommandContext,
+      ): CommandResult | Promise<CommandResult> {
+        return this.safeExecuteHandler(handler, parsed, ctx);
+      }
+    }
+
+    let safeSim: SafeHandlerTestSimulator;
+    let dummyParsed: ParsedCommand;
+
+    beforeEach(() => {
+      safeSim = new SafeHandlerTestSimulator();
+      dummyParsed = {
+        baseCommand: "test",
+        subcommands: [],
+        positionalArgs: [],
+        flags: new Map(),
+        rawArgs: [],
+        raw: "test",
+      };
+    });
+
+    it("should return normal result for non-throwing sync handler", () => {
+      const handler: CommandHandler = () => ({
+        output: "success output",
+        exitCode: 0,
+      });
+
+      const result = safeSim.testSafeExecute(handler, dummyParsed, context);
+      expect(result).toEqual({ output: "success output", exitCode: 0 });
+    });
+
+    it("should return error CommandResult with exitCode 1 when sync handler throws", () => {
+      const handler: CommandHandler = () => {
+        throw new Error("handler exploded");
+      };
+
+      const result = safeSim.testSafeExecute(
+        handler,
+        dummyParsed,
+        context,
+      ) as CommandResult;
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("Internal error");
+      expect(result.output).toContain("handler exploded");
+    });
+
+    it("should return error CommandResult when sync handler throws a non-Error", () => {
+      const handler: CommandHandler = () => {
+        throw "string error"; // eslint-disable-line no-throw-literal
+      };
+
+      const result = safeSim.testSafeExecute(
+        handler,
+        dummyParsed,
+        context,
+      ) as CommandResult;
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("Internal error");
+      expect(result.output).toContain("string error");
+    });
+
+    it("should return normal result for non-rejecting async handler", async () => {
+      const handler: CommandHandler = async () => ({
+        output: "async success",
+        exitCode: 0,
+      });
+
+      const result = await safeSim.testSafeExecute(
+        handler,
+        dummyParsed,
+        context,
+      );
+      expect(result).toEqual({ output: "async success", exitCode: 0 });
+    });
+
+    it("should return error CommandResult when async handler rejects", async () => {
+      const handler: CommandHandler = async () => {
+        throw new Error("async failure");
+      };
+
+      const result = await safeSim.testSafeExecute(
+        handler,
+        dummyParsed,
+        context,
+      );
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("Internal error");
+      expect(result.output).toContain("async failure");
+    });
+
+    it("should include the thrown error message in the output", () => {
+      const specificMessage = "GPU memory allocation failed at offset 0xDEAD";
+      const handler: CommandHandler = () => {
+        throw new Error(specificMessage);
+      };
+
+      const result = safeSim.testSafeExecute(
+        handler,
+        dummyParsed,
+        context,
+      ) as CommandResult;
+      expect(result.output).toContain(specificMessage);
     });
   });
 });

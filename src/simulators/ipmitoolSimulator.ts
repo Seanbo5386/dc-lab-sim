@@ -267,7 +267,7 @@ export class IpmitoolSimulator extends BaseSimulator {
       );
     }
 
-    return handler(parsed, context) as CommandResult;
+    return this.safeExecuteHandler(handler, parsed, context) as CommandResult;
   }
 
   private getNode(context: CommandContext) {

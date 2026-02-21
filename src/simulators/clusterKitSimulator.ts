@@ -76,7 +76,7 @@ export class ClusterKitSimulator extends BaseSimulator {
     }
 
     // Execute handler (handlers in this simulator are synchronous)
-    return handler(parsed, context) as CommandResult;
+    return this.safeExecuteHandler(handler, parsed, context) as CommandResult;
   }
 
   private getTargetNode(

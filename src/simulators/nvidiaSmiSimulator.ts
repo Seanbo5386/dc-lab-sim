@@ -226,7 +226,7 @@ export class NvidiaSmiSimulator extends BaseSimulator {
 
       const handler = this.getCommand(subcommand);
       if (handler) {
-        return handler(parsed, context) as CommandResult;
+        return this.safeExecuteHandler(handler, parsed, context) as CommandResult;
       }
     }
 

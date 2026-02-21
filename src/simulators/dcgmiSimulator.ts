@@ -296,8 +296,7 @@ export class DcgmiSimulator extends BaseSimulator {
     }
 
     // Execute handler (handlers in this simulator are synchronous)
-    const result = handler(parsed, context);
-    return result as CommandResult;
+    return this.safeExecuteHandler(handler, parsed, context) as CommandResult;
   }
 
   /**
