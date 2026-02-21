@@ -379,6 +379,50 @@ describe("NvidiaSmiSimulator", () => {
     });
   });
 
+  describe("Schema-aware parsing", () => {
+    it("should treat -q as a boolean flag and not consume the next token", () => {
+      // Regression: before parseWithSchema(), `nvidia-smi -q` could mis-parse
+      // if a subcommand followed, because -q eagerly consumed the next token.
+      const parsed = parse("nvidia-smi -q");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      // -q should produce query output containing GPU details
+      expect(result.output).toContain("GPU");
+      expect(result.output).toContain("Product Name");
+    });
+
+    it("should treat -L as a boolean flag", () => {
+      const parsed = parse("nvidia-smi -L");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("GPU 0:");
+      expect(result.output).toContain("UUID: GPU-");
+    });
+
+    it("should allow -i to consume the next token as its value", () => {
+      // -i is a value flag, so `nvidia-smi -q -i 0` should parse -i with value "0"
+      const parsed = parse("nvidia-smi -q -i 0");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      // Should show only GPU 0, not GPU 1
+      expect(result.output).toContain("GPU 00000000");
+      expect(result.output).not.toContain("GPU 00000001");
+    });
+
+    it("should correctly parse -q followed by -d as separate flags", () => {
+      // -q is boolean, so -d should not be swallowed as -q's value
+      const parsed = parse("nvidia-smi -q -d MEMORY");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("FB Memory Usage");
+      expect(result.output).toContain("Total");
+    });
+  });
+
   describe("Bug Fixes: Driver Version, Architecture, and Memory", () => {
     it("should show numeric driver version in -q output, not GPU name", () => {
       const parsed = parse("nvidia-smi -q");
