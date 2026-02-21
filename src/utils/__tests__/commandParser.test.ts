@@ -170,4 +170,85 @@ describe('CommandParser', () => {
       expect(result.raw).toBe(cmdLine); // Property is 'raw', not 'rawCommandLine'
     });
   });
+
+  describe('Schema-Aware Parsing', () => {
+    it('should treat known boolean flags as boolean even when followed by non-flag tokens', () => {
+      // Without schema, -q consumes "mig" as its value (current buggy behavior)
+      const noSchema = parse('nvidia-smi -q mig');
+      expect(noSchema.flags.get('q')).toBe('mig'); // confirms the bug exists
+
+      // With schema, -q is boolean so "mig" stays as a subcommand
+      const schema = new Map<string, boolean>([['q', false], ['i', true]]);
+      const withSchema = parse('nvidia-smi -q mig', schema);
+      expect(withSchema.flags.get('q')).toBe(true);
+      expect(withSchema.subcommands).toContain('mig');
+    });
+
+    it('should consume next token for known value flags', () => {
+      const schema = new Map<string, boolean>([['i', true], ['q', false]]);
+      const result = parse('nvidia-smi -i 0 -q', schema);
+      expect(result.flags.get('i')).toBe('0');
+      expect(result.flags.get('q')).toBe(true);
+    });
+
+    it('should fall back to heuristic for flags not in schema', () => {
+      const schema = new Map<string, boolean>([['q', false]]);
+      // -x is not in schema, so heuristic applies: consumes "foo" as value
+      const result = parse('nvidia-smi -x foo', schema);
+      expect(result.flags.get('x')).toBe('foo');
+    });
+
+    it('should handle long boolean flags with schema', () => {
+      const schema = new Map<string, boolean>([['query', false], ['id', true]]);
+      const result = parse('nvidia-smi --query mig', schema);
+      expect(result.flags.get('query')).toBe(true);
+      expect(result.subcommands).toContain('mig');
+    });
+
+    it('should handle long value flags with schema', () => {
+      const schema = new Map<string, boolean>([['id', true]]);
+      const result = parse('nvidia-smi --id 0', schema);
+      expect(result.flags.get('id')).toBe('0');
+    });
+
+    it('should still support --flag=value regardless of schema', () => {
+      const schema = new Map<string, boolean>([['id', true]]);
+      const result = parse('nvidia-smi --id=0', schema);
+      expect(result.flags.get('id')).toBe('0');
+    });
+
+    it('should handle multi-char short flags with schema', () => {
+      const schema = new Map<string, boolean>([['mig', true], ['pm', true]]);
+      const result = parse('nvidia-smi -mig 1 -pm 0', schema);
+      expect(result.flags.get('mig')).toBe('1');
+      expect(result.flags.get('pm')).toBe('0');
+    });
+
+    it('should handle multi-char short boolean flags with schema', () => {
+      const schema = new Map<string, boolean>([['rgc', false]]);
+      const result = parse('nvidia-smi -rgc', schema);
+      expect(result.flags.get('rgc')).toBe(true);
+    });
+
+    it('should work with no schema (backward compatible)', () => {
+      const result = parse('nvidia-smi -q mig');
+      // Without schema, existing heuristic applies: -q consumes "mig"
+      expect(result.flags.get('q')).toBe('mig');
+    });
+
+    it('should not consume another flag as a value for a schema value flag', () => {
+      const schema = new Map<string, boolean>([['i', true], ['q', false]]);
+      const result = parse('nvidia-smi -i -q', schema);
+      // -i is a value flag but next token is -q (a flag), so -i should be boolean
+      expect(result.flags.get('i')).toBe(true);
+      expect(result.flags.get('q')).toBe(true);
+    });
+
+    it('should respect -- sentinel with schema', () => {
+      const schema = new Map<string, boolean>([['q', false]]);
+      const result = parse('nvidia-smi -- -q mig', schema);
+      // After --, everything is positional
+      expect(result.flags.has('q')).toBe(false);
+    });
+  });
 });

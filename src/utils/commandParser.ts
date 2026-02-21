@@ -136,7 +136,8 @@ function isShortFlag(token: string): boolean {
 function parseLongFlag(
   token: string,
   nextToken: string | undefined,
-  stopFlagParsing: boolean
+  stopFlagParsing: boolean,
+  flagSchema?: Map<string, boolean>
 ): [string, string | boolean, boolean] {
   // Remove leading --
   const flagPart = token.slice(2);
@@ -149,7 +150,22 @@ function parseLongFlag(
     return [name, value, false];
   }
 
-  // Check if next token is a value (not a flag)
+  // Schema-aware: if flag is in schema, use schema to decide
+  if (flagSchema && flagSchema.has(flagPart)) {
+    if (flagSchema.get(flagPart) === false) {
+      // Boolean flag: never consume next token
+      return [flagPart, true, false];
+    }
+    if (flagSchema.get(flagPart) === true) {
+      // Value flag: consume next token if available and it's not another flag
+      if (nextToken !== undefined && !isFlag(nextToken)) {
+        return [flagPart, nextToken, true];
+      }
+      return [flagPart, true, false];
+    }
+  }
+
+  // Heuristic fallback: check if next token is a value (not a flag)
   if (!stopFlagParsing && nextToken !== undefined && !isFlag(nextToken)) {
     return [flagPart, nextToken, true];
   }
@@ -165,7 +181,8 @@ function parseLongFlag(
 function parseShortFlags(
   token: string,
   nextToken: string | undefined,
-  stopFlagParsing: boolean
+  stopFlagParsing: boolean,
+  flagSchema?: Map<string, boolean>
 ): Array<[string, string | boolean, boolean]> {
   // Remove leading -
   const flagChars = token.slice(1);
@@ -180,7 +197,25 @@ function parseShortFlags(
   // If more than 1 character but looks like a word (e.g., -mig, -lgip, -cgi)
   // treat as a single flag, not combined short flags
   if (flagChars.length > 1) {
-    // Check if next token could be a value
+    // Schema-aware: if flag is in schema, use schema to decide
+    if (flagSchema && flagSchema.has(flagChars)) {
+      if (flagSchema.get(flagChars) === false) {
+        // Boolean flag: never consume next token
+        results.push([flagChars, true, false]);
+        return results;
+      }
+      if (flagSchema.get(flagChars) === true) {
+        // Value flag: consume next token if available and it's not another flag
+        if (nextToken !== undefined && !isFlag(nextToken)) {
+          results.push([flagChars, nextToken, true]);
+        } else {
+          results.push([flagChars, true, false]);
+        }
+        return results;
+      }
+    }
+
+    // Heuristic fallback: check if next token could be a value
     if (!stopFlagParsing && nextToken !== undefined && !isFlag(nextToken)) {
       results.push([flagChars, nextToken, true]);
     } else {
@@ -189,7 +224,26 @@ function parseShortFlags(
     return results;
   }
 
-  // Single character flag with potential value
+  // Single character flag
+  // Schema-aware: if flag is in schema, use schema to decide
+  if (flagSchema && flagSchema.has(flagChars)) {
+    if (flagSchema.get(flagChars) === false) {
+      // Boolean flag: never consume next token
+      results.push([flagChars, true, false]);
+      return results;
+    }
+    if (flagSchema.get(flagChars) === true) {
+      // Value flag: consume next token if available and it's not another flag
+      if (nextToken !== undefined && !isFlag(nextToken)) {
+        results.push([flagChars, nextToken, true]);
+      } else {
+        results.push([flagChars, true, false]);
+      }
+      return results;
+    }
+  }
+
+  // Heuristic fallback: single character flag with potential value
   if (flagChars.length === 1 && !stopFlagParsing && nextToken !== undefined && !isFlag(nextToken)) {
     results.push([flagChars, nextToken, true]);
     return results;
@@ -203,9 +257,12 @@ function parseShortFlags(
 /**
  * Main parser function - converts command line string to ParsedCommand
  * @param cmdLine - Raw command line string
+ * @param flagSchema - Optional map of flag names to whether they consume a value (true) or are boolean (false).
+ *                     When provided, schema entries take priority over heuristic detection.
+ *                     Flags not in the schema fall back to heuristic behavior.
  * @returns Parsed command object
  */
-export function parse(cmdLine: string): ParsedCommand {
+export function parse(cmdLine: string, flagSchema?: Map<string, boolean>): ParsedCommand {
   const trimmed = cmdLine.trim();
 
   if (!trimmed) {
@@ -263,12 +320,16 @@ export function parse(cmdLine: string): ParsedCommand {
       continue;
     }
 
-    // We've seen a flag, so no more subcommands
-    parsingSubcommands = false;
+    // Without a schema, seeing a flag ends subcommand parsing.
+    // With a schema, flags and subcommands can be interleaved because
+    // the schema precisely controls which flags consume the next token.
+    if (!flagSchema) {
+      parsingSubcommands = false;
+    }
 
     // Parse long flag
     if (isLongFlag(token)) {
-      const [name, value, consumedNext] = parseLongFlag(token, nextToken, stopFlagParsing);
+      const [name, value, consumedNext] = parseLongFlag(token, nextToken, stopFlagParsing, flagSchema);
       flags.set(name, value);
       if (consumedNext) {
         i++; // Skip next token as it was consumed
@@ -276,7 +337,7 @@ export function parse(cmdLine: string): ParsedCommand {
     }
     // Parse short flag(s)
     else if (isShortFlag(token)) {
-      const parsedFlags = parseShortFlags(token, nextToken, stopFlagParsing);
+      const parsedFlags = parseShortFlags(token, nextToken, stopFlagParsing, flagSchema);
       for (const [name, value, consumedNext] of parsedFlags) {
         flags.set(name, value);
         if (consumedNext) {
