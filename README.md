@@ -518,36 +518,29 @@ GitHub Actions runs lint, unit tests, and production build on every push.
 
 ## Roadmap
 
-### Completed
+### Completed (v1.1.0)
 
-- [x] 20 command simulators with realistic output validated against real tools
+- [x] 20 command simulators with 229 CLI definitions across 17 categories
 - [x] 32 narrative scenarios with story-driven learning across all 5 domains
-- [x] Sandbox isolation (per-scenario deep-cloned state)
-- [x] AutoFaults system for automatic per-step fault injection
+- [x] 199 exam questions, 60 tool selection quizzes, and 150 deep mastery quizzes
 - [x] Multi-architecture support (DGX A100, H100, H200, B200)
-- [x] Spotlight tour for guided onboarding
-- [x] 3-tier learning progression with spaced repetition
-- [x] Exams dashboard with 199 practice questions, 60 tool selection quizzes, and 150 deep mastery quizzes
-- [x] D3.js topology visualization (NVLink and InfiniBand fabric maps)
-- [x] Tab completion and readline shortcuts
-- [x] Data-driven CLI framework with 229 JSON command definitions
-- [x] `help` and `practice` terminal commands
-- [x] Fault injection system for troubleshooting practice
-- [x] Study dashboard with progress analytics
-- [x] CI/CD pipeline (lint, test, build)
 - [x] User authentication and cloud sync (AWS Amplify Gen 2)
+- [x] Sandbox isolation with automatic per-step fault injection
+- [x] 3-tier learning progression with spaced repetition (SM-2)
+- [x] D3.js topology visualization (NVLink and InfiniBand fabric maps)
+- [x] Spotlight tour, data-driven CLI framework, tab completion
+- [x] CI/CD pipeline with 3,200+ unit tests, 0 TypeScript errors
 - [x] Security hardening (secret scanning, error sanitization, rate limiting)
-- [x] 3,200+ unit tests with 0 TypeScript errors
 
-### Future Enhancements
+### Up Next
 
-- E2E test coverage with Playwright
-- Command history search (Ctrl+R)
-- WebSocket support for multi-user scenarios
-- Achievement/badge system for completed missions
-- Custom scenario creation
-- API for integration with LMS platforms
-- Instructor dashboard
+- [ ] Production auth deployment (cloud sync for all visitors)
+- [ ] Bundle splitting to reduce initial load time
+- [ ] DGX GB200 architecture support
+- [ ] E2E smoke tests with Playwright
+- [ ] PWA / offline support for study on the go
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full roadmap with priorities and details.
 
 ## Contributing
 
