@@ -75,3 +75,5 @@ tmp-video/
 .amplify/
 amplifyconfiguration*
 amplify_outputs*
+aws-exports.js
+aws-exports.ts
