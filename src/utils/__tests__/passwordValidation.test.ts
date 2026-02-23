@@ -26,6 +26,12 @@ describe("validatePassword", () => {
     expect(result.errors).toContain("One number");
   });
 
+  it("requires at least one special character", () => {
+    const result = validatePassword("Abcdefg1");
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toContain("One special character");
+  });
+
   it("accepts a valid password", () => {
     const result = validatePassword("Abcdefg1!");
     expect(result.isValid).toBe(true);

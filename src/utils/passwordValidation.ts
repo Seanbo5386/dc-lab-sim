@@ -8,6 +8,10 @@ const rules: { test: (pw: string) => boolean; message: string }[] = [
   { test: (pw) => /[A-Z]/.test(pw), message: "One uppercase letter" },
   { test: (pw) => /[a-z]/.test(pw), message: "One lowercase letter" },
   { test: (pw) => /[0-9]/.test(pw), message: "One number" },
+  {
+    test: (pw) => /[^A-Za-z0-9]/.test(pw),
+    message: "One special character",
+  },
 ];
 
 export function validatePassword(password: string): PasswordValidationResult {

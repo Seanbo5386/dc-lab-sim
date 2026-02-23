@@ -166,13 +166,13 @@ describe("UserMenu", () => {
       target: { value: "new@example.com" },
     });
     fireEvent.change(screen.getByPlaceholderText("Password (8+ characters)"), {
-      target: { value: "Password123" },
+      target: { value: "Password123!" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
     await waitFor(() => {
       expect(mockSignUp).toHaveBeenCalledWith({
         username: "new@example.com",
-        password: "Password123",
+        password: "Password123!",
       });
     });
   });
@@ -186,7 +186,7 @@ describe("UserMenu", () => {
       target: { value: "new@example.com" },
     });
     fireEvent.change(screen.getByPlaceholderText("Password (8+ characters)"), {
-      target: { value: "Password123" },
+      target: { value: "Password123!" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
     await waitFor(() => {
@@ -209,7 +209,7 @@ describe("UserMenu", () => {
       target: { value: "new@example.com" },
     });
     fireEvent.change(screen.getByPlaceholderText("Password (8+ characters)"), {
-      target: { value: "Password123" },
+      target: { value: "Password123!" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Sign up" }));
     await waitFor(() => {
@@ -228,7 +228,7 @@ describe("UserMenu", () => {
       });
       expect(mockSignIn).toHaveBeenCalledWith({
         username: "new@example.com",
-        password: "Password123",
+        password: "Password123!",
       });
     });
   });
