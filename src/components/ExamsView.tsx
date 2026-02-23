@@ -12,6 +12,7 @@ interface CommandFamily {
   id: string;
   name: string;
   icon: string;
+  description: string;
   quickRule: string;
   tools: { name: string }[];
 }
@@ -97,7 +98,7 @@ export function ExamsView({
                 familyName={family.name}
                 familyIcon={family.icon}
                 tools={family.tools.map((t) => t.name)}
-                description={family.quickRule}
+                description={family.description}
                 quizResult={familyQuizScores[family.id]}
                 masteryResult={masteryQuizScores[family.id]}
                 onTakeQuiz={onOpenToolQuiz}

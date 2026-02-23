@@ -135,7 +135,7 @@ export function LabsAndScenariosView({
                     <div className="px-6 pt-5 pb-3">
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-nvidia-green font-semibold mb-1">
-                          Domain {info.number} &bull; {info.weight}
+                          Domain {info.number}
                         </div>
                         {scenarios.length > 0 && (
                           <span
