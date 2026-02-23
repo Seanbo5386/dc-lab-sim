@@ -100,12 +100,17 @@ export function useCloudSync() {
         cloud,
       );
 
-      // Apply merged state to stores
-      const simStore = useSimulationStore.getState();
+      // Apply merged state to all stores
       const mergedSim = merged.simulationData as Record<string, unknown>;
       if (mergedSim.cluster) {
-        simStore.importCluster(JSON.stringify(mergedSim.cluster));
+        useSimulationStore
+          .getState()
+          .importCluster(JSON.stringify(mergedSim.cluster));
       }
+      useLearningProgressStore.setState(
+        merged.learningProgress as Record<string, unknown>,
+      );
+      useLearningStore.setState(merged.learningData as Record<string, unknown>);
 
       // Push merged state back to cloud
       await saveCloudProgress(

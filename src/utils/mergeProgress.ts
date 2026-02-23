@@ -134,6 +134,9 @@ export function mergeSimulationData(local: any, cloud: any): any {
     (localEntry: any, _cloudEntry: any) => localEntry, // local wins per scenario
   );
 
+  // Cluster: local wins if present (current in-memory state takes priority)
+  result.cluster = local.cluster ?? cloud.cluster ?? null;
+
   // Scalar preferences: local wins if present
   result.systemType = local.systemType ?? cloud.systemType ?? "DGX-A100";
   result.simulationSpeed =
