@@ -1,14 +1,14 @@
 // src/utils/cloudSync.ts
 import { generateClient } from "aws-amplify/data";
 import { fetchAuthSession, getCurrentUser } from "aws-amplify/auth";
-import type { Schema } from "../../amplify/data/resource";
 import {
   mergeSimulationData,
   mergeLearningProgress,
   mergeLearningData,
 } from "./mergeProgress";
 
-const client = generateClient<Schema>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const client = generateClient<any>();
 
 export interface CloudProgressData {
   simulationData: unknown;
@@ -39,22 +39,24 @@ export async function fetchCloudProgress(): Promise<CloudProgressData | null> {
     const userId = session.tokens?.idToken?.payload?.sub;
     if (!userId) return null;
 
-    const { data } = await client.models.UserProgress.get({
+    const result = await client.models.UserProgress.get({
       id: userId as string,
     });
-    if (!data) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const record = (result as any)?.data;
+    if (!record) return null;
 
     return {
-      simulationData: data.simulationData
-        ? JSON.parse(data.simulationData as string)
+      simulationData: record.simulationData
+        ? JSON.parse(record.simulationData as string)
         : null,
-      learningProgress: data.learningProgress
-        ? JSON.parse(data.learningProgress as string)
+      learningProgress: record.learningProgress
+        ? JSON.parse(record.learningProgress as string)
         : null,
-      learningData: data.learningData
-        ? JSON.parse(data.learningData as string)
+      learningData: record.learningData
+        ? JSON.parse(record.learningData as string)
         : null,
-      lastSyncedAt: data.lastSyncedAt || "",
+      lastSyncedAt: record.lastSyncedAt || "",
     };
   } catch (err) {
     console.error("[CloudSync] Failed to fetch progress:", err);
@@ -85,9 +87,11 @@ export async function saveCloudProgress(
     };
 
     // Try update first, create if it doesn't exist
-    const { data: existing } = await client.models.UserProgress.get({
+    const existResult = await client.models.UserProgress.get({
       id: userId as string,
     });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing = (existResult as any)?.data;
     if (existing) {
       await client.models.UserProgress.update(payload);
     } else {
