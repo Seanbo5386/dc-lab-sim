@@ -312,4 +312,35 @@ describe("UserMenu", () => {
     fireEvent.click(screen.getByTestId("icon-LogIn"));
     expect(screen.getByPlaceholderText("Password")).toHaveValue("");
   });
+
+  it("disables submit button after rate limit error", async () => {
+    mockSignIn.mockRejectedValue(
+      Object.assign(new Error("Rate exceeded"), {
+        name: "LimitExceededException",
+      }),
+    );
+    render(<UserMenu isLoggedIn={false} syncStatus="idle" />);
+    fireEvent.click(screen.getByText("Sign in"));
+    fireEvent.change(screen.getByPlaceholderText("Email"), {
+      target: { value: "test@example.com" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Password"), {
+      target: { value: "password123" },
+    });
+    const submitBtn = screen
+      .getAllByRole("button", { name: "Sign in" })
+      .find((btn) => btn.getAttribute("type") === "submit")!;
+    fireEvent.click(submitBtn);
+    await waitFor(() => {
+      expect(
+        screen.getByText("Too many attempts. Please try again later."),
+      ).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      const btn = screen
+        .getAllByRole("button")
+        .find((b) => b.getAttribute("type") === "submit");
+      expect(btn).toBeDisabled();
+    });
+  });
 });

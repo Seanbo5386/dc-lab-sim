@@ -39,6 +39,7 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
+  const [cooldown, setCooldown] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
@@ -107,6 +108,13 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
       }
     } catch (err: unknown) {
       setError(sanitizeAuthError(err));
+      if (
+        err instanceof Error &&
+        (err as Error & { name?: string }).name === "LimitExceededException"
+      ) {
+        setCooldown(true);
+        setTimeout(() => setCooldown(false), 30000);
+      }
     } finally {
       setLoading(false);
     }
@@ -126,6 +134,13 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
       setAuthView("confirm");
     } catch (err: unknown) {
       setError(sanitizeAuthError(err));
+      if (
+        err instanceof Error &&
+        (err as Error & { name?: string }).name === "LimitExceededException"
+      ) {
+        setCooldown(true);
+        setTimeout(() => setCooldown(false), 30000);
+      }
     } finally {
       setLoading(false);
     }
@@ -150,6 +165,13 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
       }
     } catch (err: unknown) {
       setError(sanitizeAuthError(err));
+      if (
+        err instanceof Error &&
+        (err as Error & { name?: string }).name === "LimitExceededException"
+      ) {
+        setCooldown(true);
+        setTimeout(() => setCooldown(false), 30000);
+      }
     } finally {
       setLoading(false);
     }
@@ -230,7 +252,7 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
               {error && <p className="text-xs text-red-400">{error}</p>}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || cooldown}
                 className="w-full py-2 bg-nvidia-green text-black text-sm font-semibold rounded hover:bg-green-500 transition-colors disabled:opacity-50"
               >
                 {loading ? "Signing in..." : "Sign in"}
@@ -292,7 +314,7 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
               {error && <p className="text-xs text-red-400">{error}</p>}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || cooldown}
                 className="w-full py-2 bg-nvidia-green text-black text-sm font-semibold rounded hover:bg-green-500 transition-colors disabled:opacity-50"
               >
                 {loading ? "Creating account..." : "Sign up"}
@@ -333,7 +355,7 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
               {error && <p className="text-xs text-red-400">{error}</p>}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || cooldown}
                 className="w-full py-2 bg-nvidia-green text-black text-sm font-semibold rounded hover:bg-green-500 transition-colors disabled:opacity-50"
               >
                 {loading ? "Verifying..." : "Verify & sign in"}
