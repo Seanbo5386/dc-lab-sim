@@ -70,3 +70,10 @@ playwright-report/
 # Demo recording artifacts
 docs/*.webm
 tmp-video/
+
+# Amplify Gen 2
+.amplify/
+amplifyconfiguration*
+amplify_outputs*
+aws-exports.js
+aws-exports.ts

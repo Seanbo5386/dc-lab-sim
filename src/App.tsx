@@ -31,6 +31,10 @@ import {
 } from "lucide-react";
 import { SpotlightTour } from "./components/SpotlightTour";
 import { TOUR_STEPS, type TourId } from "./data/tourSteps";
+import { useCloudSync } from "./hooks/useCloudSync";
+import { UserMenu } from "./components/UserMenu";
+import { getCurrentUser } from "aws-amplify/auth";
+import { Hub } from "aws-amplify/utils";
 
 type View = "simulator" | "labs" | "exams" | "reference" | "about";
 
@@ -50,6 +54,22 @@ function App() {
   );
   const [examMode, setExamMode] = useState<string | undefined>(undefined);
   const [activeTour, setActiveTour] = useState<TourId | null>(null);
+
+  const { syncStatus, isLoggedIn } = useCloudSync();
+  const [userEmail, setUserEmail] = useState<string>();
+
+  useEffect(() => {
+    const fetchEmail = async () => {
+      try {
+        const user = await getCurrentUser();
+        setUserEmail(user.signInDetails?.loginId);
+      } catch {
+        setUserEmail(undefined);
+      }
+    };
+    fetchEmail();
+    return Hub.listen("auth", () => fetchEmail());
+  }, []);
 
   // Get due reviews count from learning progress store
   const dueReviews = useLearningProgressStore((state) => state.getDueReviews());
@@ -220,6 +240,12 @@ function App() {
                   <HelpCircle className="w-4 h-4" />
                   <span>Tour</span>
                 </button>
+
+                <UserMenu
+                  isLoggedIn={isLoggedIn}
+                  syncStatus={syncStatus}
+                  userEmail={userEmail}
+                />
 
                 <div className="text-right">
                   <div className="text-sm font-medium text-nvidia-green">
