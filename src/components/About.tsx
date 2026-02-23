@@ -13,9 +13,20 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v1.1.0",
+    title: "Authentication & Cloud Sync",
+    current: true,
+    highlights: [
+      "User authentication with AWS Cognito (sign up, sign in, email verification)",
+      "Cloud sync: progress, quiz scores, and learning data saved across devices",
+      "Guided onboarding tour updated with Account & Cloud Sync step",
+      "Small screen warning banner for viewports below 1280px",
+      "Renamed project to Data Center Lab Simulator across all surfaces",
+    ],
+  },
+  {
     version: "v1.0.0",
     title: "Official Release",
-    current: true,
     highlights: [
       "20 command simulators with 229 CLI definitions across 17 categories",
       "32 story-driven scenarios with sandbox isolation and auto-fault injection",
