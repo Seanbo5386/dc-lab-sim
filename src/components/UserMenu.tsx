@@ -208,6 +208,7 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
                   onClick={() => {
                     setAuthView("signUp");
                     setError("");
+                    setPasswordErrors([]);
                   }}
                   className="text-nvidia-green hover:underline"
                 >
@@ -269,6 +270,7 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
                   onClick={() => {
                     setAuthView("signIn");
                     setError("");
+                    setPasswordErrors([]);
                   }}
                   className="text-nvidia-green hover:underline"
                 >

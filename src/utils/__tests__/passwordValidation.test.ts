@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  validatePassword,
-  type PasswordValidationResult,
-} from "../passwordValidation";
+import { validatePassword } from "../passwordValidation";
 
 describe("validatePassword", () => {
   it("rejects passwords shorter than 8 characters", () => {
