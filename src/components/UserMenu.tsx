@@ -5,10 +5,11 @@ import { LogIn, LogOut, User, Cloud, CloudOff, Loader2 } from "lucide-react";
 import type { SyncStatus } from "@/hooks/useCloudSync";
 import { validatePassword } from "@/utils/passwordValidation";
 
+const RATE_LIMIT_COOLDOWN_MS = 30_000;
+
 function sanitizeAuthError(err: unknown): string {
   if (err instanceof Error) {
-    const name = (err as Error & { name?: string }).name;
-    switch (name) {
+    switch (err.name) {
       case "UserNotFoundException":
       case "NotAuthorizedException":
         return "Incorrect email or password.";
@@ -40,9 +41,28 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const [cooldown, setCooldown] = useState(false);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 });
+
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+    };
+  }, []);
+
+  const handleAuthError = (err: unknown) => {
+    setError(sanitizeAuthError(err));
+    if (err instanceof Error && err.name === "LimitExceededException") {
+      setCooldown(true);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = setTimeout(
+        () => setCooldown(false),
+        RATE_LIMIT_COOLDOWN_MS,
+      );
+    }
+  };
 
   useEffect(() => {
     if (authView !== "closed" && buttonRef.current) {
@@ -68,6 +88,8 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
         setConfirmCode("");
         setError("");
         setPasswordErrors([]);
+        setCooldown(false);
+        if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
         setAuthView("closed");
       }
     };
@@ -107,14 +129,7 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
         setError("Additional verification required.");
       }
     } catch (err: unknown) {
-      setError(sanitizeAuthError(err));
-      if (
-        err instanceof Error &&
-        (err as Error & { name?: string }).name === "LimitExceededException"
-      ) {
-        setCooldown(true);
-        setTimeout(() => setCooldown(false), 30000);
-      }
+      handleAuthError(err);
     } finally {
       setLoading(false);
     }
@@ -133,14 +148,7 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
       await signUp({ username: email, password });
       setAuthView("confirm");
     } catch (err: unknown) {
-      setError(sanitizeAuthError(err));
-      if (
-        err instanceof Error &&
-        (err as Error & { name?: string }).name === "LimitExceededException"
-      ) {
-        setCooldown(true);
-        setTimeout(() => setCooldown(false), 30000);
-      }
+      handleAuthError(err);
     } finally {
       setLoading(false);
     }
@@ -164,14 +172,7 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
         );
       }
     } catch (err: unknown) {
-      setError(sanitizeAuthError(err));
-      if (
-        err instanceof Error &&
-        (err as Error & { name?: string }).name === "LimitExceededException"
-      ) {
-        setCooldown(true);
-        setTimeout(() => setCooldown(false), 30000);
-      }
+      handleAuthError(err);
     } finally {
       setLoading(false);
     }
@@ -213,6 +214,9 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
             setConfirmCode("");
             setError("");
             setPasswordErrors([]);
+            setCooldown(false);
+            if (cooldownTimerRef.current)
+              clearTimeout(cooldownTimerRef.current);
             setAuthView("closed");
           } else {
             setAuthView("signIn");
