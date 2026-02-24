@@ -94,6 +94,7 @@ describe("incidentTemplates", () => {
       "thermal-runaway",
       "nvlink-failure",
       "ecc-accumulation",
+      "power-anomaly",
     ];
     for (const t of INCIDENT_TEMPLATES) {
       // At least the first propagation trigger should be known

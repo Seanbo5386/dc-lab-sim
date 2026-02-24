@@ -607,6 +607,36 @@ describe("useIncidentSession", () => {
   });
 
   // -------------------------------------------------------------------------
+  // workflowPhases updates after recordCommand (re-render fix)
+  // -------------------------------------------------------------------------
+  it("workflowPhases updates after recordCommand", () => {
+    const { result } = renderHook(() => useIncidentSession());
+
+    act(() => {
+      result.current.startIncident("beginner");
+    });
+
+    // Before any commands, workflowPhases is empty
+    expect(result.current.workflowPhases).toEqual([]);
+
+    // Configure getPhaseHistory to return data on subsequent reads
+    const phaseEntry = {
+      command: "nvidia-smi",
+      phase: "survey" as const,
+      timestamp: Date.now(),
+    };
+    mockGetPhaseHistory.mockReturnValue([phaseEntry]);
+
+    act(() => {
+      result.current.recordCommand("nvidia-smi");
+    });
+
+    // After recordCommand, workflowPhases should reflect the new data
+    expect(result.current.workflowPhases).toEqual([phaseEntry]);
+    expect(result.current.commandCount).toBe(1);
+  });
+
+  // -------------------------------------------------------------------------
   // Edge: recordCommand/submitDiagnosis are no-ops when idle
   // -------------------------------------------------------------------------
   it("recordCommand is a no-op when not active", () => {
@@ -628,6 +658,32 @@ describe("useIncidentSession", () => {
 
     expect(result.current.incidentState).toBe("idle");
     expect(result.current.reviewData).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // Hint penalty reduces total score
+  // -------------------------------------------------------------------------
+  it("hint penalty reduces total score by 5 per hint", () => {
+    const { result } = renderHook(() => useIncidentSession());
+
+    act(() => {
+      result.current.startIncident("beginner");
+    });
+
+    // Use 2 hints
+    act(() => {
+      result.current.requestHint();
+    });
+    act(() => {
+      result.current.requestHint();
+    });
+
+    act(() => {
+      result.current.submitDiagnosis("ECC memory error");
+    });
+
+    // Raw score was 77, with 2 hints => 77 - 10 = 67
+    expect(result.current.reviewData!.score.total).toBe(67);
   });
 
   // -------------------------------------------------------------------------

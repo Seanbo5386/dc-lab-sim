@@ -26,7 +26,6 @@ function defaultProps() {
     onSubmitDiagnosis: vi.fn(),
     onRequestHint: vi.fn(),
     onClose: vi.fn(),
-    hintsUsed: 0,
   };
 }
 
@@ -37,6 +36,20 @@ describe("IncidentWorkspace", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  // ==========================================================================
+  // CSS Positioning
+  // ==========================================================================
+
+  describe("CSS Positioning", () => {
+    it("renders as a fixed sidebar with correct positioning classes", () => {
+      const { container } = render(<IncidentWorkspace {...defaultProps()} />);
+      const root = container.firstElementChild as HTMLElement;
+      expect(root.className).toContain("fixed");
+      expect(root.className).toContain("inset-y-0");
+      expect(root.className).toContain("z-40");
+    });
   });
 
   // ==========================================================================
@@ -221,21 +234,40 @@ describe("IncidentWorkspace", () => {
       expect(screen.getByText(/-5 pts/i)).toBeInTheDocument();
     });
 
-    it("calls onRequestHint when clicked", () => {
+    it("calls onRequestHint and reveals diagnostic path step when clicked", () => {
       const props = defaultProps();
       render(<IncidentWorkspace {...props} />);
       fireEvent.click(screen.getByRole("button", { name: /request hint/i }));
       expect(props.onRequestHint).toHaveBeenCalled();
+      // First diagnostic path step should be revealed
+      expect(screen.getByText("nvidia-smi")).toBeInTheDocument();
     });
 
-    it("shows hints used count", () => {
+    it("reveals diagnostic path steps incrementally", () => {
       const props = defaultProps();
-      props.hintsUsed = 3;
       render(<IncidentWorkspace {...props} />);
-      // The hint count and "hints used" text appear in the same paragraph
-      const hintsText = screen.getByText(/hints? used/i);
-      expect(hintsText).toBeInTheDocument();
-      expect(hintsText.textContent).toContain("3");
+
+      // Click hint twice
+      fireEvent.click(screen.getByRole("button", { name: /request hint/i }));
+      fireEvent.click(screen.getByRole("button", { name: /request hint/i }));
+
+      // Both steps should now be visible
+      expect(screen.getByText("nvidia-smi")).toBeInTheDocument();
+      expect(screen.getByText("dmesg | grep -i xid")).toBeInTheDocument();
+    });
+
+    it("disables hint button when all diagnostic path steps are revealed", () => {
+      const props = defaultProps();
+      render(<IncidentWorkspace {...props} />);
+
+      // Click once for each step (3 steps in diagnosticPath)
+      for (let i = 0; i < props.diagnosticPath.length; i++) {
+        fireEvent.click(screen.getByRole("button", { name: /request hint/i }));
+      }
+
+      // Button should be disabled now
+      const hintBtn = screen.getByRole("button", { name: /request hint/i });
+      expect(hintBtn).toBeDisabled();
     });
   });
 

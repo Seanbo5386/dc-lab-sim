@@ -134,6 +134,32 @@ export const FAULT_PROPAGATION_RULES: PropagationRule[] = [
     ],
   },
   {
+    trigger: "power-anomaly",
+    consequences: [
+      {
+        delayMs: 5000,
+        action: "power-cap-reduce",
+        target: "same-node",
+        params: {},
+        description: "Firmware reduces GPU power caps to protect PSU",
+      },
+      {
+        delayMs: 15000,
+        action: "clock-throttle-all",
+        target: "same-node",
+        params: {},
+        description: "All GPUs throttle clocks under reduced power budget",
+      },
+      {
+        delayMs: 30000,
+        action: "utilization-drop",
+        target: "same-node",
+        params: {},
+        description: "Training throughput drops from power-induced throttling",
+      },
+    ],
+  },
+  {
     trigger: "ecc-accumulation",
     consequences: [
       {

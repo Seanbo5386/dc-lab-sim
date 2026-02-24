@@ -405,6 +405,34 @@ describe("Learning Progress Store", () => {
     });
   });
 
+  describe("Incident History", () => {
+    it("should cap incidentHistory at 50 entries, evicting oldest", () => {
+      // Seed 55 entries directly into state
+      const seedEntries = Array.from({ length: 55 }, (_, i) => ({
+        templateId: `template-${i}`,
+        score: 50 + i,
+        date: 1000 + i,
+      }));
+      useLearningProgressStore.setState({
+        incidentHistory: seedEntries,
+        incidentRating: 1000,
+      });
+
+      // Record one more
+      const store = useLearningProgressStore.getState();
+      store.recordIncidentResult("template-new", 99);
+
+      const state = useLearningProgressStore.getState();
+      expect(state.incidentHistory.length).toBe(50);
+      // Oldest entries should be evicted
+      expect(state.incidentHistory[0].templateId).not.toBe("template-0");
+      // Newest entry should be last
+      expect(
+        state.incidentHistory[state.incidentHistory.length - 1].templateId,
+      ).toBe("template-new");
+    });
+  });
+
   describe("Reset Progress", () => {
     it("should reset all progress", () => {
       const store = useLearningProgressStore.getState();

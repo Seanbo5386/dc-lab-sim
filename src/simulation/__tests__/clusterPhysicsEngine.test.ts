@@ -81,6 +81,61 @@ describe("ClusterPhysicsEngine", () => {
     expect(busyResult.powerDraw).toBeGreaterThan(idleResult.powerDraw);
   });
 
+  it("should fire ecc-accumulation on crossing threshold", () => {
+    const engine = new ClusterPhysicsEngine();
+    // First tick: ECC below threshold — no event
+    const gpuBelow = createTestGPU({
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 0,
+        aggregated: { singleBit: 90, doubleBit: 0 },
+      },
+    });
+    engine.tickGPU(gpuBelow);
+    expect(
+      engine.getThresholdEvents().some((e) => e.type === "ecc-accumulation"),
+    ).toBe(false);
+
+    // Second tick: crosses above 100
+    const gpuAbove = createTestGPU({
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 0,
+        aggregated: { singleBit: 110, doubleBit: 0 },
+      },
+    });
+    engine.tickGPU(gpuAbove);
+    expect(
+      engine.getThresholdEvents().some((e) => e.type === "ecc-accumulation"),
+    ).toBe(true);
+  });
+
+  it("should NOT re-fire ecc-accumulation on subsequent ticks above threshold", () => {
+    const engine = new ClusterPhysicsEngine();
+    // Tick 1: cross the threshold
+    const gpuFirst = createTestGPU({
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 0,
+        aggregated: { singleBit: 110, doubleBit: 0 },
+      },
+    });
+    engine.tickGPU(gpuFirst);
+    engine.consumeThresholdEvents(); // drain events
+
+    // Tick 2: still above — should NOT fire again
+    const gpuSecond = createTestGPU({
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 0,
+        aggregated: { singleBit: 120, doubleBit: 0 },
+      },
+    });
+    engine.tickGPU(gpuSecond);
+    const events = engine.getThresholdEvents();
+    expect(events.some((e) => e.type === "ecc-accumulation")).toBe(false);
+  });
+
   it("should detect thermal threshold crossing", () => {
     const engine = new ClusterPhysicsEngine();
     // First tick at 82C establishes previous temp below threshold

@@ -21,6 +21,7 @@ export interface ThresholdEvent {
 export class ClusterPhysicsEngine {
   private thresholdEvents: ThresholdEvent[] = [];
   private previousTemps: Map<string, number> = new Map();
+  private previousEccCounts: Map<string, number> = new Map();
 
   tickGPU(gpu: GPU): GPU {
     const updated = { ...gpu };
@@ -72,15 +73,17 @@ export class ClusterPhysicsEngine {
       updated.clocksSM = Math.max(600, gpu.clocksSM - reduction);
     }
 
-    // ECC accumulation check
+    // ECC accumulation check — fire only on crossing the threshold
     const totalEcc = gpu.eccErrors.aggregated.singleBit;
-    if (totalEcc > 100) {
+    const prevEcc = this.previousEccCounts.get(gpu.uuid) ?? 0;
+    if (prevEcc <= 100 && totalEcc > 100) {
       this.thresholdEvents.push({
         type: "ecc-accumulation",
         gpuId: gpu.id,
         value: totalEcc,
       });
     }
+    this.previousEccCounts.set(gpu.uuid, totalEcc);
 
     return updated;
   }
@@ -98,5 +101,6 @@ export class ClusterPhysicsEngine {
   reset(): void {
     this.thresholdEvents = [];
     this.previousTemps.clear();
+    this.previousEccCounts.clear();
   }
 }

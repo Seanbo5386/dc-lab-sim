@@ -314,7 +314,7 @@ export const INCIDENT_TEMPLATES: IncidentTemplate[] = [
     difficulty: "beginner",
     domains: [1],
     primaryFaults: [{ faultType: "power", target: "node" }],
-    propagationTrigger: "thermal-runaway",
+    propagationTrigger: "power-anomaly",
     diagnosticPath: [
       "nvidia-smi",
       "nvidia-smi -q -d POWER",

@@ -512,6 +512,7 @@ export const useLearningProgressStore = create<LearningProgressState>()(
        * Uses DifficultyScaler to adjust the ELO-like rating and appends to history
        */
       recordIncidentResult: (templateId: string, score: number): void => {
+        const MAX_INCIDENT_HISTORY = 50;
         set((state) => {
           const scaler = new DifficultyScaler(state.incidentRating);
           scaler.recordResult(score);
@@ -519,7 +520,7 @@ export const useLearningProgressStore = create<LearningProgressState>()(
           return {
             incidentRating: scaler.getRating(),
             incidentHistory: [
-              ...state.incidentHistory,
+              ...state.incidentHistory.slice(-(MAX_INCIDENT_HISTORY - 1)),
               { templateId, score, date: Date.now() },
             ],
           };

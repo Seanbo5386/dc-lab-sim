@@ -192,6 +192,8 @@ export function useIncidentSession() {
   const [situation, setSituation] = useState("");
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
   const [hintsUsed, setHintsUsed] = useState(0);
+  // commandCount forces re-renders so workflowPhases picks up fresh tracker data
+  const [commandCount, setCommandCount] = useState(0);
 
   // Refs for mutable instances (not re-render triggers)
   const composedRef = useRef<ComposedIncident | null>(null);
@@ -201,6 +203,7 @@ export function useIncidentSession() {
   const contextIdRef = useRef<string | null>(null);
   const contextRef = useRef<ScenarioContext | null>(null);
   const collateralCountRef = useRef(0);
+  const hintsUsedRef = useRef(0);
   const difficultyRef = useRef<string>("beginner");
   const domainRef = useRef<number | undefined>(undefined);
 
@@ -255,12 +258,14 @@ export function useIncidentSession() {
     contextIdRef.current = contextId;
     contextRef.current = context;
     collateralCountRef.current = 0;
+    hintsUsedRef.current = 0;
     difficultyRef.current = difficulty;
     domainRef.current = domain;
 
     // 9. Set state
     setSituation(composed.situation);
     setHintsUsed(0);
+    setCommandCount(0);
     setReviewData(null);
     setIncidentState("active");
   }, []);
@@ -276,6 +281,9 @@ export function useIncidentSession() {
 
       // 1. Forward to WorkflowTracker
       const entry = trackerRef.current.recordCommand(command);
+
+      // Bump counter to trigger re-render (so workflowPhases picks up fresh data)
+      setCommandCount((c) => c + 1);
 
       // 2. Check ConsequenceEngine against the first node in context
       //    (the node affected by the primary fault)
@@ -322,11 +330,16 @@ export function useIncidentSession() {
       // 1. Check correctness
       const correctDiagnosis = selectedRootCause === composed.correctRootCause;
 
-      // 2. Calculate score
-      const score = trackerRef.current.calculateScore({
+      // 2. Calculate score (with hint penalty)
+      const rawScore = trackerRef.current.calculateScore({
         correctDiagnosis,
         collateralDamage: collateralCountRef.current,
       });
+      const hintPenalty = hintsUsedRef.current * 5;
+      const score: WorkflowScore = {
+        ...rawScore,
+        total: Math.max(0, rawScore.total - hintPenalty),
+      };
 
       // 3. Record result in learningProgressStore
       useLearningProgressStore
@@ -398,6 +411,7 @@ export function useIncidentSession() {
     // 4. Set state to idle
     setSituation("");
     setHintsUsed(0);
+    setCommandCount(0);
     setReviewData(null);
     setIncidentState("idle");
   }, []);
@@ -407,6 +421,7 @@ export function useIncidentSession() {
   // -------------------------------------------------------------------------
   const requestHint = useCallback(() => {
     setHintsUsed((prev) => prev + 1);
+    hintsUsedRef.current += 1;
   }, []);
 
   // -------------------------------------------------------------------------
@@ -416,6 +431,7 @@ export function useIncidentSession() {
     incidentState,
     situation,
     workflowPhases: trackerRef.current?.getPhaseHistory() ?? [],
+    commandCount,
     reviewData,
     hintsUsed,
     rootCauseOptions: composedRef.current?.rootCauseOptions ?? [],

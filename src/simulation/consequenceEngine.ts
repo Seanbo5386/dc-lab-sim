@@ -9,7 +9,7 @@
 
 import {
   CONSEQUENCE_RULES,
-  SAFE_COMMAND_PREFIXES,
+  SAFE_COMMAND_PATTERNS,
   type ConsequenceRule,
   type ConsequenceResult,
   type NodeConditionInput,
@@ -24,7 +24,7 @@ export class ConsequenceEngine {
 
   constructor(rules?: ConsequenceRule[]) {
     this.rules = rules ?? CONSEQUENCE_RULES;
-    this.safePatterns = SAFE_COMMAND_PREFIXES.map(
+    this.safePatterns = SAFE_COMMAND_PATTERNS.map(
       (prefix) => new RegExp(`^${prefix}`),
     );
   }

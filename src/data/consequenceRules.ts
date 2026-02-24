@@ -167,11 +167,12 @@ export const CONSEQUENCE_RULES: ConsequenceRule[] = [
 ];
 
 /**
- * Commands that are always safe (read-only diagnostics).
- * If a command starts with one of these and doesn't match any dangerous pattern,
+ * Regex patterns for commands that are always safe (read-only diagnostics).
+ * Each string is anchored at `^` by the ConsequenceEngine before matching.
+ * If a command matches any pattern and doesn't match a dangerous rule,
  * it returns null.
  */
-export const SAFE_COMMAND_PREFIXES: string[] = [
+export const SAFE_COMMAND_PATTERNS: string[] = [
   "nvidia-smi$", // bare nvidia-smi (no flags) is safe
   "nvidia-smi\\s+-q", // query mode
   "nvidia-smi\\s+-L", // list GPUs

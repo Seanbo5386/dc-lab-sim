@@ -65,4 +65,19 @@ describe("FaultPropagationEngine", () => {
     engine.triggerFault({ faultType: "unknown-fault", nodeId: "dgx-00" });
     expect(engine.getPending()).toHaveLength(0);
   });
+
+  it("should schedule 3 consequences for power-anomaly trigger", () => {
+    const engine = new FaultPropagationEngine();
+    engine.triggerFault({
+      faultType: "power-anomaly",
+      nodeId: "dgx-05",
+    });
+    const pending = engine.getPending();
+    expect(pending).toHaveLength(3);
+    // First consequence due at 5s
+    vi.advanceTimersByTime(5000);
+    const due5s = engine.getDueConsequences();
+    expect(due5s.length).toBe(1);
+    expect(due5s[0].ruleAction).toBe("power-cap-reduce");
+  });
 });
