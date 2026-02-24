@@ -33,6 +33,7 @@ import { StudyDashboard } from "./components/StudyDashboard";
 import { SpacedReviewDrill } from "./components/SpacedReviewDrill";
 import { TierUnlockNotificationContainer } from "./components/TierUnlockNotification";
 import { FaultToastContainer } from "./components/FaultToast";
+import { SyncToast } from "./components/SyncToast";
 import { ExamGauntlet } from "./components/ExamGauntlet";
 import { WhichToolQuiz } from "./components/WhichToolQuiz";
 import { ToolMasteryQuiz } from "./components/ToolMasteryQuiz";
@@ -85,7 +86,7 @@ function App() {
   const [activeTour, setActiveTour] = useState<TourId | null>(null);
   const [smallScreenDismissed, setSmallScreenDismissed] = useState(false);
 
-  const { syncStatus, isLoggedIn } = useCloudSync();
+  const { syncStatus, isLoggedIn, manualRetry } = useCloudSync();
   const [userEmail, setUserEmail] = useState<string>();
 
   useEffect(() => {
@@ -581,6 +582,9 @@ function App() {
 
       {/* Fault Injection Toast Notifications */}
       <FaultToastContainer />
+
+      {/* Cloud Sync Toast Notifications */}
+      <SyncToast onRetry={manualRetry} />
     </div>
   );
 }

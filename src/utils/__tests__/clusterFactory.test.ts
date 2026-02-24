@@ -78,4 +78,33 @@ describe("createCustomCluster", () => {
     const gpu = cluster.nodes[0].gpus[0];
     expect(gpu.nvlinks).toHaveLength(18);
   });
+
+  it("should create GB200 cluster with correct GPU specs", () => {
+    const cluster = createCustomCluster(2, "DGX-GB200");
+    const node = cluster.nodes[0];
+    const gpu = node.gpus[0];
+    expect(gpu.name).toContain("GB200");
+    expect(gpu.type).toBe("GB200");
+    expect(gpu.memoryTotal).toBe(196608); // 192GB in MiB
+    expect(gpu.powerLimit).toBe(1200);
+  });
+
+  it("should create GB200 GPUs with 18 NVLinks", () => {
+    const cluster = createCustomCluster(1, "DGX-GB200");
+    const gpu = cluster.nodes[0].gpus[0];
+    expect(gpu.nvlinks).toHaveLength(18);
+  });
+
+  it("should create GB200 nodes with ConnectX-8 HCAs", () => {
+    const cluster = createCustomCluster(1, "DGX-GB200");
+    const hca = cluster.nodes[0].hcas[0];
+    expect(hca.caType).toContain("ConnectX-8");
+    expect(hca.ports[0].rate).toBe(800); // XDR
+  });
+
+  it("should create GB200 nodes with Grace CPU", () => {
+    const cluster = createCustomCluster(1, "DGX-GB200");
+    const node = cluster.nodes[0];
+    expect(node.cpuModel).toContain("Grace");
+  });
 });

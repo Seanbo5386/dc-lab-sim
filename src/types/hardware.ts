@@ -14,6 +14,7 @@ export type GPUType =
   | "H100-SXM"
   | "H200-SXM"
   | "B200"
+  | "GB200"
   | "Blackwell";
 
 export interface MIGProfile {

@@ -10,13 +10,19 @@ import {
   mergeLocalAndCloud,
   isAuthenticated,
 } from "@/utils/cloudSync";
+import { useSyncToastStore } from "@/store/syncToastStore";
 
 export type SyncStatus = "idle" | "syncing" | "synced" | "error" | "offline";
+
+const MAX_RETRIES = 3;
+const RETRY_DELAYS = [2000, 4000, 8000]; // exponential backoff
 
 export function useCloudSync() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCount = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Gather partialized state from all 3 stores
   const getLocalState = useCallback(() => {
@@ -57,9 +63,20 @@ export function useCloudSync() {
     };
   }, []);
 
-  // Push current local state to cloud
+  // Push current local state to cloud with retry logic
   const syncToCloud = useCallback(async () => {
     if (!isLoggedIn) return;
+    if (!navigator.onLine) {
+      setSyncStatus("offline");
+      useSyncToastStore
+        .getState()
+        .show(
+          "You're offline. Progress will sync when reconnected.",
+          "offline",
+        );
+      return;
+    }
+
     setSyncStatus("syncing");
     try {
       const local = getLocalState();
@@ -69,10 +86,36 @@ export function useCloudSync() {
         local.learningData,
       );
       setSyncStatus("synced");
+      retryCount.current = 0;
     } catch {
-      setSyncStatus("error");
+      if (retryCount.current < MAX_RETRIES) {
+        const delay = RETRY_DELAYS[retryCount.current];
+        retryCount.current++;
+        setSyncStatus("syncing");
+        useSyncToastStore
+          .getState()
+          .show(
+            `Sync failed. Retrying in ${delay / 1000}s... (${retryCount.current}/${MAX_RETRIES})`,
+            "retrying",
+          );
+        retryTimer.current = setTimeout(() => {
+          syncToCloud();
+        }, delay);
+      } else {
+        setSyncStatus("error");
+        retryCount.current = 0;
+        useSyncToastStore
+          .getState()
+          .show("Progress sync failed. Your data is saved locally.", "error");
+      }
     }
   }, [isLoggedIn, getLocalState]);
+
+  // Manual retry exposed for the toast "Retry now" button
+  const manualRetry = useCallback(() => {
+    retryCount.current = 0;
+    syncToCloud();
+  }, [syncToCloud]);
 
   // Debounced sync — called on store changes
   const debouncedSync = useCallback(() => {
@@ -121,6 +164,9 @@ export function useCloudSync() {
       setSyncStatus("synced");
     } catch {
       setSyncStatus("error");
+      useSyncToastStore
+        .getState()
+        .show("Progress sync failed. Your data is saved locally.", "error");
     }
   }, [getLocalState, syncToCloud]);
 
@@ -146,6 +192,37 @@ export function useCloudSync() {
     return unsubscribe;
   }, [pullAndMerge]);
 
+  // Online/offline detection
+  useEffect(() => {
+    const handleOnline = () => {
+      useSyncToastStore.getState().dismiss();
+      if (isLoggedIn) {
+        setSyncStatus("idle");
+        syncToCloud();
+      }
+    };
+
+    const handleOffline = () => {
+      setSyncStatus("offline");
+      if (isLoggedIn) {
+        useSyncToastStore
+          .getState()
+          .show(
+            "You're offline. Progress will sync when reconnected.",
+            "offline",
+          );
+      }
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [isLoggedIn, syncToCloud]);
+
   // Subscribe to store changes for debounced sync
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -162,8 +239,9 @@ export function useCloudSync() {
       unsub2();
       unsub3();
       if (debounceTimer.current) clearTimeout(debounceTimer.current);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
     };
   }, [isLoggedIn, debouncedSync, pullAndMerge]);
 
-  return { syncStatus, isLoggedIn };
+  return { syncStatus, isLoggedIn, manualRetry };
 }

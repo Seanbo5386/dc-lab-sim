@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Terminal as XTerm } from "xterm";
-import { FitAddon } from "xterm-addon-fit";
-import { WebLinksAddon } from "xterm-addon-web-links";
-import "xterm/css/xterm.css";
+import { Terminal as XTerm } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import { WebLinksAddon } from "@xterm/addon-web-links";
+import "@xterm/xterm/css/xterm.css";
 import type { CommandContext } from "@/types/commands";
 import { NvidiaSmiSimulator } from "@/simulators/nvidiaSmiSimulator";
 import { DcgmiSimulator } from "@/simulators/dcgmiSimulator";

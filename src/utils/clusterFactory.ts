@@ -21,6 +21,7 @@ const GPU_TYPE_MAP: Record<SystemType, GPUType> = {
   "DGX-H100": "H100-SXM",
   "DGX-H200": "H200-SXM",
   "DGX-B200": "B200",
+  "DGX-GB200": "GB200",
 };
 
 // MIG profiles for A100/H100
@@ -175,6 +176,7 @@ function createInfiniBandHCA(id: number, specs: HardwareSpec): InfiniBandHCA {
   const hcaDeviceIds: Record<string, string> = {
     "ConnectX-6": "mt4123",
     "ConnectX-7": "mt4129",
+    "ConnectX-8": "mt4131",
   };
   const deviceId = hcaDeviceIds[specs.network.hcaModel] || "mt4123";
   return {
@@ -182,7 +184,11 @@ function createInfiniBandHCA(id: number, specs: HardwareSpec): InfiniBandHCA {
     devicePath: `/dev/mst/${deviceId}_pciconf${id}`,
     caType: `${specs.network.hcaModel} HCA`,
     firmwareVersion:
-      specs.network.hcaModel === "ConnectX-7" ? "28.39.1002" : "20.35.1012",
+      specs.network.hcaModel === "ConnectX-8"
+        ? "32.41.1000"
+        : specs.network.hcaModel === "ConnectX-7"
+          ? "28.39.1002"
+          : "20.35.1012",
     ports: [createInfiniBandPort(1, specs)],
   };
 }
@@ -305,6 +311,7 @@ export function createDGXNode(
     Ampere: { driver: "535.129.03", cuda: "12.2" },
     Hopper: { driver: "550.54.15", cuda: "12.4" },
     Blackwell: { driver: "560.35.03", cuda: "12.6" },
+    "Blackwell Ultra": { driver: "565.47.01", cuda: "12.8" },
   };
   const versions =
     driverVersions[specs.system.generation] || driverVersions["Ampere"];

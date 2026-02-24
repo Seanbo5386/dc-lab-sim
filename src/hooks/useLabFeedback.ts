@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import type { Terminal as XTerm } from "xterm";
+import type { Terminal as XTerm } from "@xterm/xterm";
 import { useSimulationStore } from "@/store/simulationStore";
 
 /** Word-wrap text to fit within a given width */

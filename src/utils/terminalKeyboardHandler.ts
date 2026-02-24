@@ -1,4 +1,4 @@
-import type { Terminal as XTerm } from "xterm";
+import type { Terminal as XTerm } from "@xterm/xterm";
 import {
   getCompletions,
   parseCompletionContext,

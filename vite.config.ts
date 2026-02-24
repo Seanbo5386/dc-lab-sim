@@ -19,7 +19,11 @@ export default defineConfig({
         manualChunks: {
           "vendor-d3": ["d3"],
           "vendor-recharts": ["recharts"],
-          "vendor-xterm": ["xterm", "xterm-addon-fit", "xterm-addon-web-links"],
+          "vendor-xterm": [
+            "@xterm/xterm",
+            "@xterm/addon-fit",
+            "@xterm/addon-web-links",
+          ],
           "vendor-amplify": ["aws-amplify", "@aws-amplify/ui-react"],
         },
       },

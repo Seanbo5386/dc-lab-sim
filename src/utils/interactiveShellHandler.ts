@@ -1,11 +1,11 @@
-import type { Terminal as XTerm } from 'xterm';
-import type { CommandContext, CommandResult } from '@/types/commands';
+import type { Terminal as XTerm } from "@xterm/xterm";
+import type { CommandContext, CommandResult } from "@/types/commands";
 
 /**
  * Shell state for tracking current shell mode and prompt
  */
 export interface ShellState {
-  mode: 'bash' | 'nvsm' | 'cmsh';
+  mode: "bash" | "nvsm" | "cmsh";
   prompt: string;
 }
 
@@ -39,7 +39,7 @@ export function handleInteractiveShellInput(
   context: CommandContext,
   term: XTerm,
   currentState: ShellState,
-  promptFn: () => void
+  promptFn: () => void,
 ): ShellState {
   // Execute command through the interactive shell
   const result = simulator.executeInteractive(cmdLine, context);
@@ -48,7 +48,7 @@ export function handleInteractiveShellInput(
   let newState: ShellState;
   if (!result.prompt) {
     // Exiting shell - return to bash
-    newState = { mode: 'bash', prompt: '' };
+    newState = { mode: "bash", prompt: "" };
   } else {
     // Staying in shell - update prompt
     newState = { mode: currentState.mode, prompt: result.prompt };
@@ -56,11 +56,11 @@ export function handleInteractiveShellInput(
 
   // Display output if any
   if (result.output) {
-    term.write('\r\n' + result.output);
+    term.write("\r\n" + result.output);
   }
 
   // New line and display next prompt
-  term.write('\r\n');
+  term.write("\r\n");
   promptFn();
 
   return newState;
@@ -79,7 +79,7 @@ export function handleInteractiveShellInput(
  */
 export function shouldEnterInteractiveMode(
   result: CommandResult,
-  hasSubcommands: boolean
+  hasSubcommands: boolean,
 ): boolean {
   return !hasSubcommands && !!result.prompt;
 }

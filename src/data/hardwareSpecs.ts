@@ -11,7 +11,12 @@
  * - DGX B200: Blackwell generation, 8x B200 192GB, NVLink 5.0
  */
 
-export type SystemType = "DGX-A100" | "DGX-H100" | "DGX-H200" | "DGX-B200";
+export type SystemType =
+  | "DGX-A100"
+  | "DGX-H100"
+  | "DGX-H200"
+  | "DGX-B200"
+  | "DGX-GB200";
 
 export interface HardwareSpec {
   system: {
@@ -268,6 +273,57 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       totalCapacityTB: 34.56,
     },
   },
+
+  "DGX-GB200": {
+    system: {
+      type: "DGX-GB200",
+      generation: "Blackwell Ultra",
+      cpu: { model: "NVIDIA Grace", sockets: 2, coresPerSocket: 72 },
+      systemMemoryGB: 1920,
+      totalGpuMemoryGB: 1536,
+    },
+    gpu: {
+      model: "NVIDIA GB200-SXM-192GB",
+      count: 8,
+      memoryGB: 192,
+      memoryMiB: 196608,
+      memoryType: "HBM3e",
+      memoryBandwidthTBs: 8.0,
+      tdpWatts: 1200,
+      fp16Tflops: 2250,
+      tf32Tflops: 1125,
+      fp64Tflops: 56,
+      pciDeviceId: "2950",
+      baseClockMHz: 1380,
+      boostClockMHz: 2250,
+      memoryClockMHz: 3200,
+      smCount: 192,
+      architecture: "gb202",
+      computeCapability: "10.0",
+      bar1MemoryMiB: 262144,
+    },
+    nvlink: {
+      version: "5.0",
+      linksPerGpu: 18,
+      perLinkBandwidthGBs: 50,
+      totalBandwidthGBs: 1800,
+      nvSwitchCount: 2,
+      nvSwitchGeneration: "5th Gen",
+      nvLinkLabel: "NV18",
+    },
+    network: {
+      hcaModel: "ConnectX-8",
+      hcaCount: 8,
+      protocol: "XDR",
+      portRateGbs: 800,
+      hcasPerGpu: 1,
+    },
+    storage: {
+      osDrives: "2x 1.92TB NVMe",
+      dataDrives: "8x 3.84TB NVMe",
+      totalCapacityTB: 34.56,
+    },
+  },
 };
 
 export const ALL_SYSTEM_TYPES: SystemType[] = [
@@ -275,6 +331,7 @@ export const ALL_SYSTEM_TYPES: SystemType[] = [
   "DGX-H100",
   "DGX-H200",
   "DGX-B200",
+  "DGX-GB200",
 ];
 
 /**
@@ -301,6 +358,8 @@ export function getSystemDisplayName(systemType: SystemType): string {
       return "DGX H200";
     case "DGX-B200":
       return "DGX B200";
+    case "DGX-GB200":
+      return "DGX GB200";
     default:
       return systemType;
   }
