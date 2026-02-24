@@ -14,6 +14,7 @@ import type {
 } from "@/types/hardware";
 import { useSimulationStore } from "./simulationStore";
 import { logger } from "@/utils/logger";
+import { EventLog } from "@/simulation/eventLog";
 
 /**
  * Base interface for all state changes
@@ -47,6 +48,7 @@ export class ScenarioContext {
   private mutations: StateChange[] = [];
   private startTime: number;
   private readonly: boolean = false;
+  private eventLog: EventLog;
 
   constructor(scenarioId: string, baseCluster?: ClusterConfig) {
     this.scenarioId = scenarioId;
@@ -57,6 +59,7 @@ export class ScenarioContext {
 
     // Deep clone to prevent reference issues
     this.isolatedCluster = structuredClone(cluster);
+    this.eventLog = new EventLog();
   }
 
   /**
@@ -79,6 +82,13 @@ export class ScenarioContext {
   getGPU(nodeId: string, gpuId: number): GPU | undefined {
     const node = this.getNode(nodeId);
     return node?.gpus.find((g: GPU) => g.id === gpuId);
+  }
+
+  /**
+   * Get the event log for this scenario context
+   */
+  getEventLog(): EventLog {
+    return this.eventLog;
   }
 
   /**
@@ -436,6 +446,7 @@ export class ScenarioContext {
     const store = useSimulationStore.getState();
     this.isolatedCluster = structuredClone(store.cluster);
     this.mutations = [];
+    this.eventLog = new EventLog();
     logger.debug(`Reset scenario context ${this.scenarioId}`);
   }
 
