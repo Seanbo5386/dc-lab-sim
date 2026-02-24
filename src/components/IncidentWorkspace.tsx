@@ -87,6 +87,13 @@ export function IncidentWorkspace({
   // ---------------------------------------------------------------------------
   const [revealedHints, setRevealedHints] = useState(0);
   const [showDiagnosis, setShowDiagnosis] = useState(false);
+
+  // Reset hint/diagnosis state when situation changes (e.g. restart-in-place)
+  useEffect(() => {
+    setRevealedHints(0);
+    setShowDiagnosis(false);
+    setSelectedRootCause(null);
+  }, [situation]);
   const [selectedRootCause, setSelectedRootCause] = useState<string | null>(
     null,
   );

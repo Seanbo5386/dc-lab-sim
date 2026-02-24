@@ -191,7 +191,6 @@ export function useIncidentSession() {
   const [incidentState, setIncidentState] = useState<IncidentState>("idle");
   const [situation, setSituation] = useState("");
   const [reviewData, setReviewData] = useState<ReviewData | null>(null);
-  const [hintsUsed, setHintsUsed] = useState(0);
   // commandCount forces re-renders so workflowPhases picks up fresh tracker data
   const [commandCount, setCommandCount] = useState(0);
 
@@ -264,7 +263,6 @@ export function useIncidentSession() {
 
     // 9. Set state
     setSituation(composed.situation);
-    setHintsUsed(0);
     setCommandCount(0);
     setReviewData(null);
     setIncidentState("active");
@@ -410,7 +408,6 @@ export function useIncidentSession() {
 
     // 4. Set state to idle
     setSituation("");
-    setHintsUsed(0);
     setCommandCount(0);
     setReviewData(null);
     setIncidentState("idle");
@@ -420,7 +417,6 @@ export function useIncidentSession() {
   // requestHint
   // -------------------------------------------------------------------------
   const requestHint = useCallback(() => {
-    setHintsUsed((prev) => prev + 1);
     hintsUsedRef.current += 1;
   }, []);
 
@@ -433,7 +429,6 @@ export function useIncidentSession() {
     workflowPhases: trackerRef.current?.getPhaseHistory() ?? [],
     commandCount,
     reviewData,
-    hintsUsed,
     rootCauseOptions: composedRef.current?.rootCauseOptions ?? [],
     diagnosticPath: composedRef.current?.diagnosticPath ?? [],
     startIncident,
