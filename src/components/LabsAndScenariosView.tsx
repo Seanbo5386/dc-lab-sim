@@ -2,9 +2,11 @@ import { useState, useEffect } from "react";
 import { CheckCircle2, Clock, Crosshair } from "lucide-react";
 import { getAllScenarios, getScenarioMetadata } from "../utils/scenarioLoader";
 import { useSimulationStore } from "@/store/simulationStore";
+import { IncidentLauncher } from "./IncidentLauncher";
 
 interface LabsAndScenariosViewProps {
   onStartScenario: (scenarioId: string) => void;
+  onStartIncident?: (difficulty: string, domain?: number) => void;
 }
 
 const DOMAIN_INFO: Record<
@@ -33,6 +35,7 @@ const DIFFICULTY_ORDER: Record<string, number> = {
 
 export function LabsAndScenariosView({
   onStartScenario,
+  onStartIncident,
 }: LabsAndScenariosViewProps) {
   const completedScenarios = useSimulationStore((s) => s.completedScenarios);
   const [domainScenarios, setDomainScenarios] = useState<
@@ -200,6 +203,11 @@ export function LabsAndScenariosView({
             )}
           </div>
         </div>
+
+        {/* Live Incidents */}
+        {onStartIncident && (
+          <IncidentLauncher onStartIncident={onStartIncident} />
+        )}
       </div>
     </div>
   );
