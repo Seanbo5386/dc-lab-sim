@@ -28,8 +28,6 @@ interface IncidentWorkspaceProps {
   onRequestHint: () => void;
   /** Called when user abandons incident */
   onClose: () => void;
-  /** Number of hints already used */
-  hintsUsed: number;
 }
 
 const PHASE_ORDER: DiagnosticPhase[] = [
@@ -60,10 +58,10 @@ export function IncidentWorkspace({
   situation,
   phaseHistory,
   rootCauseOptions,
+  diagnosticPath,
   onSubmitDiagnosis,
   onRequestHint,
   onClose,
-  hintsUsed,
 }: IncidentWorkspaceProps) {
   // ---------------------------------------------------------------------------
   // Elapsed Timer
@@ -87,7 +85,15 @@ export function IncidentWorkspace({
   // ---------------------------------------------------------------------------
   // Diagnosis Submission
   // ---------------------------------------------------------------------------
+  const [revealedHints, setRevealedHints] = useState(0);
   const [showDiagnosis, setShowDiagnosis] = useState(false);
+
+  // Reset hint/diagnosis state when situation changes (e.g. restart-in-place)
+  useEffect(() => {
+    setRevealedHints(0);
+    setShowDiagnosis(false);
+    setSelectedRootCause(null);
+  }, [situation]);
   const [selectedRootCause, setSelectedRootCause] = useState<string | null>(
     null,
   );
@@ -102,7 +108,7 @@ export function IncidentWorkspace({
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="flex h-full flex-col bg-gray-800 text-white">
+    <div className="fixed inset-y-0 left-0 z-40 w-[85vw] max-w-[400px] xl:max-w-none xl:w-[clamp(340px,30vw,560px)] bg-gray-900 shadow-2xl flex flex-col border-r border-nvidia-green overflow-hidden">
       {/* Header */}
       <div className="border-b border-gray-700 p-4">
         <div className="flex items-center justify-between">
@@ -236,21 +242,36 @@ export function IncidentWorkspace({
         <section className="rounded bg-gray-900 p-3">
           <div className="flex items-center justify-between">
             <button
-              onClick={onRequestHint}
-              className="rounded border border-yellow-600 px-3 py-2 text-sm text-yellow-400 transition-colors hover:bg-yellow-600/20"
+              onClick={() => {
+                setRevealedHints((prev) => prev + 1);
+                onRequestHint();
+              }}
+              disabled={revealedHints >= diagnosticPath.length}
+              className="rounded border border-yellow-600 px-3 py-2 text-sm text-yellow-400 transition-colors hover:bg-yellow-600/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Request Hint
+              Request Hint ({revealedHints}/{diagnosticPath.length})
             </button>
             <span className="text-xs text-gray-400">
               <span className="text-yellow-400">-{HINT_PENALTY} pts</span> per
               hint
             </span>
           </div>
-          {hintsUsed > 0 && (
-            <p className="mt-2 text-xs text-gray-400">
-              <span className="text-yellow-400">{hintsUsed}</span>{" "}
-              {hintsUsed === 1 ? "hint" : "hints"} used
-            </p>
+          {revealedHints > 0 && (
+            <ul className="mt-2 space-y-1">
+              {diagnosticPath.slice(0, revealedHints).map((step, idx) => (
+                <li
+                  key={idx}
+                  className="flex items-center gap-2 text-xs text-gray-300"
+                >
+                  <span className="font-mono text-nvidia-green">
+                    {idx + 1}.
+                  </span>
+                  <code className="rounded bg-gray-800 px-1.5 py-0.5 font-mono">
+                    {step}
+                  </code>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       </div>

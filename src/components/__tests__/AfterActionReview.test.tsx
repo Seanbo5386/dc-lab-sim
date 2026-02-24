@@ -80,6 +80,20 @@ function defaultProps() {
 
 describe("AfterActionReview", () => {
   // ==========================================================================
+  // CSS Positioning
+  // ==========================================================================
+
+  describe("CSS Positioning", () => {
+    it("renders as a fixed modal overlay with correct positioning classes", () => {
+      const { container } = render(<AfterActionReview {...defaultProps()} />);
+      const root = container.firstElementChild as HTMLElement;
+      expect(root.className).toContain("fixed");
+      expect(root.className).toContain("inset-0");
+      expect(root.className).toContain("z-50");
+    });
+  });
+
+  // ==========================================================================
   // Diagnosis Result
   // ==========================================================================
 

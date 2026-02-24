@@ -135,7 +135,6 @@ function App() {
     situation: incidentSituation,
     workflowPhases,
     reviewData,
-    hintsUsed,
     rootCauseOptions,
     diagnosticPath,
     startIncident,
@@ -263,7 +262,7 @@ function App() {
 
       {/* Header + Nav scrollable wrapper */}
       <div
-        className={`overflow-x-auto flex-shrink-0 transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
+        className={`overflow-x-auto flex-shrink-0 transition-all duration-300 ${showLabWorkspace || incidentState === "active" ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="min-w-max">
           <header className="bg-black border-b border-gray-800 px-6 py-4">
@@ -468,7 +467,7 @@ function App() {
         id="main-content"
         role="tabpanel"
         aria-labelledby={`tab-${currentView}`}
-        className={`flex-1 h-0 flex flex-col overflow-hidden transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
+        className={`flex-1 h-0 flex flex-col overflow-hidden transition-all duration-300 ${showLabWorkspace || incidentState === "active" ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         {currentView === "simulator" && (
           <SimulatorView className="flex-1 h-full" />
@@ -499,7 +498,7 @@ function App() {
 
       {/* Footer */}
       <footer
-        className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${showLabWorkspace ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
+        className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${showLabWorkspace || incidentState === "active" ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400">
           <div className="whitespace-nowrap">v1.1.0</div>
@@ -556,7 +555,6 @@ function App() {
             onSubmitDiagnosis={submitDiagnosis}
             onRequestHint={requestHint}
             onClose={abandonIncident}
-            hintsUsed={hintsUsed}
           />
         </Suspense>
       )}

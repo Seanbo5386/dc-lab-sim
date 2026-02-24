@@ -291,7 +291,6 @@ describe("useIncidentSession", () => {
     expect(result.current.workflowPhases).toEqual([]);
     expect(result.current.rootCauseOptions).toEqual([]);
     expect(result.current.diagnosticPath).toEqual([]);
-    expect(result.current.hintsUsed).toBe(0);
   });
 
   // -------------------------------------------------------------------------
@@ -582,28 +581,53 @@ describe("useIncidentSession", () => {
   });
 
   // -------------------------------------------------------------------------
-  // Additional: requestHint increments hint count
+  // Additional: requestHint tracks via ref for scoring
   // -------------------------------------------------------------------------
-  it("requestHint increments hintsUsed", () => {
+  it("requestHint tracks hints for penalty scoring", () => {
     const { result } = renderHook(() => useIncidentSession());
 
     act(() => {
       result.current.startIncident("beginner");
     });
 
-    expect(result.current.hintsUsed).toBe(0);
-
+    // requestHint should not throw and should be callable multiple times
     act(() => {
+      result.current.requestHint();
       result.current.requestHint();
     });
 
-    expect(result.current.hintsUsed).toBe(1);
+    // Verify hint penalty is applied in score (tested more fully in hint penalty test)
+    expect(typeof result.current.requestHint).toBe("function");
+  });
+
+  // -------------------------------------------------------------------------
+  // workflowPhases updates after recordCommand (re-render fix)
+  // -------------------------------------------------------------------------
+  it("workflowPhases updates after recordCommand", () => {
+    const { result } = renderHook(() => useIncidentSession());
 
     act(() => {
-      result.current.requestHint();
+      result.current.startIncident("beginner");
     });
 
-    expect(result.current.hintsUsed).toBe(2);
+    // Before any commands, workflowPhases is empty
+    expect(result.current.workflowPhases).toEqual([]);
+
+    // Configure getPhaseHistory to return data on subsequent reads
+    const phaseEntry = {
+      command: "nvidia-smi",
+      phase: "survey" as const,
+      timestamp: Date.now(),
+    };
+    mockGetPhaseHistory.mockReturnValue([phaseEntry]);
+
+    act(() => {
+      result.current.recordCommand("nvidia-smi");
+    });
+
+    // After recordCommand, workflowPhases should reflect the new data
+    expect(result.current.workflowPhases).toEqual([phaseEntry]);
+    expect(result.current.commandCount).toBe(1);
   });
 
   // -------------------------------------------------------------------------
@@ -628,6 +652,32 @@ describe("useIncidentSession", () => {
 
     expect(result.current.incidentState).toBe("idle");
     expect(result.current.reviewData).toBeNull();
+  });
+
+  // -------------------------------------------------------------------------
+  // Hint penalty reduces total score
+  // -------------------------------------------------------------------------
+  it("hint penalty reduces total score by 5 per hint", () => {
+    const { result } = renderHook(() => useIncidentSession());
+
+    act(() => {
+      result.current.startIncident("beginner");
+    });
+
+    // Use 2 hints
+    act(() => {
+      result.current.requestHint();
+    });
+    act(() => {
+      result.current.requestHint();
+    });
+
+    act(() => {
+      result.current.submitDiagnosis("ECC memory error");
+    });
+
+    // Raw score was 77, with 2 hints => 77 - 10 = 67
+    expect(result.current.reviewData!.score.total).toBe(67);
   });
 
   // -------------------------------------------------------------------------
