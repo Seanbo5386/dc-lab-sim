@@ -128,6 +128,8 @@ function App() {
     activeScenario,
     scenarioProgress,
     exitScenario,
+    quizResults,
+    completeScenarioStep,
   } = useSimulationStore();
 
   // Narrative modal state for active scenarios
@@ -136,6 +138,14 @@ function App() {
     ? scenarioProgress[activeScenario.id]
     : undefined;
   const isNarrative = !!activeScenario?.narrative;
+
+  // Compute quiz score from store for NarrativeResolution
+  const quizScore = activeScenario
+    ? {
+        correct: Object.values(quizResults).filter(Boolean).length,
+        total: activeScenario.steps.filter((s) => s.narrativeQuiz).length,
+      }
+    : { correct: 0, total: 0 };
 
   // Reset narrative intro when a new scenario starts
   useEffect(() => {
@@ -561,7 +571,12 @@ function App() {
             narrative={activeScenario.narrative!}
             onBegin={() => setShowNarrativeIntro(false)}
             skippable={activeScenario.skippable}
-            onSkip={() => setShowNarrativeIntro(false)}
+            onSkip={() => {
+              activeScenario.steps.forEach((step) => {
+                completeScenarioStep(activeScenario.id, step.id);
+              });
+              setShowNarrativeIntro(false);
+            }}
           />
         )}
 
@@ -569,7 +584,7 @@ function App() {
       {activeScenario && isNarrative && scenarioProgressData?.completed && (
         <NarrativeResolution
           resolution={activeScenario.narrative!.resolution}
-          quizScore={{ correct: 0, total: 0 }}
+          quizScore={quizScore}
           timeSpent={activeScenario.estimatedTime}
           onExit={() => {
             exitScenario();

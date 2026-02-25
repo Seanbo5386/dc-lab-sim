@@ -77,6 +77,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
     (s) => s.completeScenarioStep,
   );
   const revealHint = useSimulationStore((s) => s.revealHint);
+  const recordQuizResult = useSimulationStore((s) => s.recordQuizResult);
   const updateValidationConfig = useSimulationStore(
     (s) => s.updateValidationConfig,
   );
@@ -372,8 +373,8 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   revealedHints={revealedHintTexts}
                   learningObjectives={activeScenario!.learningObjectives}
                   narrativeContext={activeScenario!.narrative?.setting}
-                  onQuizComplete={(_correct) => {
-                    // Quiz answered — advance to next step
+                  onQuizComplete={(correct) => {
+                    recordQuizResult(currentStep.id, correct);
                     completeScenarioStep(activeScenario!.id, currentStep.id);
                   }}
                 />

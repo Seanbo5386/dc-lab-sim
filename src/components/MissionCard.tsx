@@ -31,7 +31,7 @@ interface MissionCardStep {
   conceptText?: string;
   conceptContent?: string;
   observeCommand?: string;
-  narrativeQuiz?: unknown;
+  narrativeQuiz?: NarrativeQuiz;
 }
 
 export interface MissionCardProps {
@@ -291,10 +291,10 @@ export function MissionCard({
           (isStepCompleted || isConceptStep || isObserveStep) && (
             <div className="mb-1.5">
               <InlineQuiz
-                quiz={currentStep.narrativeQuiz as NarrativeQuiz}
+                quiz={currentStep.narrativeQuiz!}
                 onComplete={(correct) => {
                   setQuizAnswered(true);
-                  onQuizComplete!(correct);
+                  onQuizComplete?.(correct);
                 }}
               />
             </div>
