@@ -19,7 +19,7 @@ interface MissionCardStep {
   id: string;
   title?: string;
   situation?: string;
-  task: string;
+  task?: string;
   description?: string;
   expectedCommands?: string[];
   objectives?: string[];
@@ -27,6 +27,7 @@ interface MissionCardStep {
   validation?: { type: string };
   stepType?: "command" | "concept" | "observe";
   conceptText?: string;
+  conceptContent?: string;
   observeCommand?: string;
   narrativeQuiz?: unknown;
 }
@@ -244,7 +245,9 @@ export function MissionCard({
 
       {isConceptStep && (
         <p className="text-xs text-purple-300 bg-purple-900/20 rounded px-2 py-1.5 mb-1.5 line-clamp-3">
-          {currentStep.conceptText || currentStep.description}
+          {currentStep.conceptText ||
+            currentStep.conceptContent ||
+            currentStep.description}
         </p>
       )}
 
