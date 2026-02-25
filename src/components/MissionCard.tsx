@@ -326,7 +326,7 @@ export function MissionCard({
         {isStepCompleted ? (
           <button
             onClick={onNextStep}
-            className="bg-nvidia-green text-black text-[11px] font-semibold px-2.5 py-1 rounded hover:bg-green-500 transition-colors"
+            className="bg-nvidia-green text-black text-sm font-bold px-4 py-1.5 rounded-md hover:bg-green-500 transition-colors shadow-[0_0_10px_rgba(118,185,0,0.5)] animate-pulse"
           >
             {currentStepIndex + 1 < totalSteps ? "Next →" : "Finish →"}
           </button>
