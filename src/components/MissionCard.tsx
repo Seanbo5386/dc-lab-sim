@@ -110,7 +110,9 @@ export function MissionCard({
   const totalObjectives = objectivesPassed.length;
 
   const handleChipClick = useCallback(
-    (cmd: string, idx: number) => {
+    (cmd: string, idx: number, e: React.MouseEvent<HTMLButtonElement>) => {
+      // Blur the button so pressing Enter goes to the terminal, not re-clicking the chip
+      e.currentTarget.blur();
       onPasteCommand(cmd);
       setFlashingChip(idx);
       setTimeout(() => setFlashingChip(null), 600);
@@ -225,7 +227,7 @@ export function MissionCard({
               return (
                 <button
                   key={idx}
-                  onClick={() => !isExecuted && handleChipClick(cmd, idx)}
+                  onClick={(e) => !isExecuted && handleChipClick(cmd, idx, e)}
                   disabled={isExecuted}
                   className={`font-mono text-xs px-2 py-1 rounded border transition-all duration-200 ${
                     isExecuted
