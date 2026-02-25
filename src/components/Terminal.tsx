@@ -101,9 +101,14 @@ function formatPracticeExercises(
 
 interface TerminalProps {
   className?: string;
+  /** Called when terminal is ready, providing a function to paste text into the input buffer */
+  onReady?: (pasteCommand: (cmd: string) => void) => void;
 }
 
-export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
+export const Terminal: React.FC<TerminalProps> = ({
+  className = "",
+  onReady,
+}) => {
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const [, setCurrentCommand] = useState("");
@@ -123,6 +128,10 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
   const executeCommandRef = useRef<((cmd: string) => Promise<void>) | null>(
     null,
   );
+
+  // Ref to capture onReady callback (init effect has [] deps so we need a ref)
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   // Command simulators
   const nvidiaSmiSimulator = useRef(new NvidiaSmiSimulator());
@@ -298,6 +307,10 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
             setHistoryIndex(result.historyIndex);
           }
         });
+
+        // Notify parent that terminal is ready with paste capability
+        // Must fire after onData is wired so pasteToInput keeps currentLine in sync
+        onReadyRef.current?.(pasteToInput);
       });
     };
 
@@ -1249,6 +1262,16 @@ export const Terminal: React.FC<TerminalProps> = ({ className = "" }) => {
 
     // Store executeCommand ref for external access (auto-SSH on node selection)
     executeCommandRef.current = executeCommand;
+
+    // Paste text into terminal input buffer (no execute, no newline)
+    const pasteToInput = (text: string) => {
+      if (!term || disposed) return;
+      // Feed characters through normal input pipeline so onData handler
+      // keeps currentLine in sync
+      for (const char of text) {
+        term.input(char);
+      }
+    };
 
     // Defer term.open() until container has non-zero dimensions to prevent
     // xterm Viewport._innerRefresh from accessing uninitialized _renderService.dimensions
