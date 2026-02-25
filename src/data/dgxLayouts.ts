@@ -289,7 +289,7 @@ export const DGX_GB200_LAYOUT: DGXLayout = {
  * ConnectX-9 XDR2 1600Gb/s networking.
  */
 export const DGX_VR200_LAYOUT: DGXLayout = {
-  systemType: "DGX VR200",
+  systemType: "DGX-VR200",
   gpuCount: 8,
   nvSwitchCount: 2,
   gpuPositions: [

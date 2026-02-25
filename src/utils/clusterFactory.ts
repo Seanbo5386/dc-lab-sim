@@ -186,11 +186,13 @@ function createInfiniBandHCA(id: number, specs: HardwareSpec): InfiniBandHCA {
     devicePath: `/dev/mst/${deviceId}_pciconf${id}`,
     caType: `${specs.network.hcaModel} HCA`,
     firmwareVersion:
-      specs.network.hcaModel === "ConnectX-8"
-        ? "32.41.1000"
-        : specs.network.hcaModel === "ConnectX-7"
-          ? "28.39.1002"
-          : "20.35.1012",
+      specs.network.hcaModel === "ConnectX-9"
+        ? "34.42.1000"
+        : specs.network.hcaModel === "ConnectX-8"
+          ? "32.41.1000"
+          : specs.network.hcaModel === "ConnectX-7"
+            ? "28.39.1002"
+            : "20.35.1012",
     ports: [createInfiniBandPort(1, specs)],
   };
 }

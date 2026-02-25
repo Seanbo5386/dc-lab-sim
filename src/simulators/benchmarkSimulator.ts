@@ -619,7 +619,8 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     // Add performance summary for multi-node
     if (isMultiNode) {
       const bwSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
-      const expectedIntraNode = Math.round(bwSpecs.nvlink.totalBandwidthGBs / 4);
+      // totalBandwidthGBs is bidirectional; divide by 2 for unidirectional bus bandwidth
+      const expectedIntraNode = Math.round(bwSpecs.nvlink.totalBandwidthGBs / 2);
       const expectedInterNode = bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
 
       output += `# Performance Summary\n`;
@@ -984,7 +985,8 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
   ): number {
     // Intra-node bandwidth (NVLink)
     const bwSpecs = getHardwareSpecs(systemType || "DGX-A100");
-    const intraNodeBW = Math.round(bwSpecs.nvlink.totalBandwidthGBs / 4);
+    // totalBandwidthGBs is bidirectional; divide by 2 for unidirectional bus bandwidth
+    const intraNodeBW = Math.round(bwSpecs.nvlink.totalBandwidthGBs / 2);
 
     // Inter-node bandwidth (InfiniBand)
     const interNodeBW = bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
