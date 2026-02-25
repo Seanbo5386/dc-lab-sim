@@ -45,6 +45,7 @@ export interface HardwareSpec {
     architecture: string;
     computeCapability: string;
     bar1MemoryMiB: number;
+    sxmVersion: string; // "SXM4", "SXM5", "SXM6"
   };
   nvlink: {
     version: string;
@@ -61,6 +62,7 @@ export interface HardwareSpec {
     protocol: string;
     portRateGbs: number;
     hcasPerGpu: number;
+    interNodeBandwidthGBs: number; // Expected multi-node bandwidth per NIC (GB/s)
   };
   storage: {
     osDrives: string;
@@ -97,6 +99,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       architecture: "ga100",
       computeCapability: "8.0",
       bar1MemoryMiB: 131072,
+      sxmVersion: "SXM4",
     },
     nvlink: {
       version: "3.0",
@@ -113,6 +116,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       protocol: "HDR",
       portRateGbs: 200,
       hcasPerGpu: 1,
+      interNodeBandwidthGBs: 25,
     },
     storage: {
       osDrives: "2x 1.92TB NVMe",
@@ -148,6 +152,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       architecture: "gh100",
       computeCapability: "9.0",
       bar1MemoryMiB: 131072,
+      sxmVersion: "SXM5",
     },
     nvlink: {
       version: "4.0",
@@ -164,6 +169,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       protocol: "NDR",
       portRateGbs: 400,
       hcasPerGpu: 1,
+      interNodeBandwidthGBs: 50,
     },
     storage: {
       osDrives: "2x 1.92TB NVMe",
@@ -199,6 +205,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       architecture: "gh100",
       computeCapability: "9.0",
       bar1MemoryMiB: 131072,
+      sxmVersion: "SXM5",
     },
     nvlink: {
       version: "4.0",
@@ -215,6 +222,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       protocol: "NDR",
       portRateGbs: 400,
       hcasPerGpu: 1,
+      interNodeBandwidthGBs: 50,
     },
     storage: {
       osDrives: "2x 1.92TB NVMe",
@@ -250,6 +258,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       architecture: "gb100",
       computeCapability: "10.0",
       bar1MemoryMiB: 262144,
+      sxmVersion: "SXM5",
     },
     nvlink: {
       version: "5.0",
@@ -266,6 +275,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       protocol: "NDR",
       portRateGbs: 400,
       hcasPerGpu: 1,
+      interNodeBandwidthGBs: 50,
     },
     storage: {
       osDrives: "2x 1.92TB NVMe",
@@ -301,6 +311,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       architecture: "gb202",
       computeCapability: "10.0",
       bar1MemoryMiB: 262144,
+      sxmVersion: "SXM5",
     },
     nvlink: {
       version: "5.0",
@@ -317,6 +328,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       protocol: "XDR",
       portRateGbs: 800,
       hcasPerGpu: 1,
+      interNodeBandwidthGBs: 100,
     },
     storage: {
       osDrives: "2x 1.92TB NVMe",

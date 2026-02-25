@@ -75,4 +75,20 @@ describe("hardwareSpecs", () => {
       expect(HARDWARE_SPECS[type].gpu.count).toBe(8);
     }
   });
+
+  it("all specs include sxmVersion field", () => {
+    for (const type of ALL_SYSTEM_TYPES) {
+      const specs = getHardwareSpecs(type);
+      expect(specs.gpu.sxmVersion).toBeDefined();
+      expect(typeof specs.gpu.sxmVersion).toBe("string");
+    }
+  });
+
+  it("all specs include interNodeBandwidthGBs field", () => {
+    for (const type of ALL_SYSTEM_TYPES) {
+      const specs = getHardwareSpecs(type);
+      expect(specs.network.interNodeBandwidthGBs).toBeDefined();
+      expect(specs.network.interNodeBandwidthGBs).toBeGreaterThan(0);
+    }
+  });
 });
