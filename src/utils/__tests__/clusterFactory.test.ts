@@ -107,4 +107,45 @@ describe("createCustomCluster", () => {
     const node = cluster.nodes[0];
     expect(node.cpuModel).toContain("Grace");
   });
+
+  it("creates a DGX-VR200 cluster", () => {
+    const cluster = createCustomCluster(2, "DGX-VR200");
+    expect(cluster.nodes).toHaveLength(2);
+    expect(cluster.nodes[0].systemType).toBe("DGX-VR200");
+    expect(cluster.nodes[0].gpus[0].name).toContain("R200");
+    expect(cluster.nodes[0].gpus).toHaveLength(8);
+  });
+
+  it("should create VR200 GPUs with 18 NVLinks", () => {
+    const cluster = createCustomCluster(1, "DGX-VR200");
+    const gpu = cluster.nodes[0].gpus[0];
+    expect(gpu.nvlinks).toHaveLength(18);
+  });
+
+  it("should create VR200 nodes with ConnectX-9 HCAs", () => {
+    const cluster = createCustomCluster(1, "DGX-VR200");
+    const hca = cluster.nodes[0].hcas[0];
+    expect(hca.caType).toContain("ConnectX-9");
+    expect(hca.ports[0].rate).toBe(1600); // XDR2
+  });
+
+  it("should create VR200 nodes with Vera CPU", () => {
+    const cluster = createCustomCluster(1, "DGX-VR200");
+    const node = cluster.nodes[0];
+    expect(node.cpuModel).toContain("Vera");
+  });
+
+  it("should create VR200 nodes with Rubin driver version", () => {
+    const cluster = createCustomCluster(1, "DGX-VR200");
+    const node = cluster.nodes[0];
+    expect(node.nvidiaDriverVersion).toBe("570.10.01");
+    expect(node.cudaVersion).toBe("13.0");
+  });
+
+  it("should create VR200 nodes with correct GPU memory (288GB)", () => {
+    const cluster = createCustomCluster(1, "DGX-VR200");
+    const gpu = cluster.nodes[0].gpus[0];
+    expect(gpu.memoryTotal).toBe(294912); // 288GB in MiB
+    expect(gpu.powerLimit).toBe(1500);
+  });
 });

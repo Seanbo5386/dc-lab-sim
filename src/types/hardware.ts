@@ -115,7 +115,7 @@ export interface InfiniBandPort {
   portNumber: number;
   state: "Active" | "Down" | "Polling" | "Disabled";
   physicalState: "LinkUp" | "LinkDown" | "Polling" | "Sleep";
-  rate: 100 | 200 | 400 | 800; // Gb/s (EDR, HDR, NDR, XDR)
+  rate: 100 | 200 | 400 | 800 | 1600; // Gb/s (EDR, HDR, NDR, XDR, XDR2)
   lid: number;
   guid: string;
   linkLayer: "InfiniBand" | "Ethernet";
