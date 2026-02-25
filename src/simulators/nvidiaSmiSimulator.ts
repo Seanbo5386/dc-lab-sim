@@ -9,16 +9,10 @@ import { MIG_PROFILES } from "@/utils/clusterFactory";
 import { generateTimestamp } from "@/utils/outputTemplates";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
 
-function getArchitecture(gpuName: string): string {
-  if (gpuName.includes("B200") || gpuName.includes("GB200")) return "Blackwell";
-  if (gpuName.includes("H100") || gpuName.includes("H200")) return "Hopper";
-  if (
-    gpuName.includes("A100") ||
-    gpuName.includes("A30") ||
-    gpuName.includes("A40")
-  )
-    return "Ampere";
-  return "Ampere"; // Default fallback
+function getArchitecture(systemType?: string): string {
+  if (!systemType) return "Ampere";
+  const specs = getHardwareSpecs(systemType);
+  return specs.system.generation;
 }
 
 export class NvidiaSmiSimulator extends BaseSimulator {
@@ -1753,7 +1747,7 @@ export class NvidiaSmiSimulator extends BaseSimulator {
 
       output += `Product Name                              : ${g.name}\n`;
       output += `Product Brand                             : NVIDIA\n`;
-      output += `Product Architecture                      : ${getArchitecture(g.name)}\n`;
+      output += `Product Architecture                      : ${getArchitecture(node.systemType)}\n`;
       output += `Display Mode                              : Disabled\n`;
       output += `Display Active                            : Disabled\n`;
       output += `Persistence Mode                          : ${g.persistenceMode ? "Enabled" : "Disabled"}\n`;
