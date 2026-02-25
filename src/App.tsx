@@ -142,7 +142,8 @@ function App() {
     if (activeScenario) {
       setShowNarrativeIntro(true);
     }
-  }, [activeScenario]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally track by ID, not object reference
+  }, [activeScenario?.id]);
 
   // Activate metrics simulation when running
   useMetricsSimulation(isRunning);

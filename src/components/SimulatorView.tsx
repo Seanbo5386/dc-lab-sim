@@ -233,7 +233,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   const progress = activeScenario
     ? scenarioProgress[activeScenario.id]
     : undefined;
-  const currentStepIndex = progress?.currentStepIndex || 0;
+  const currentStepIndex = progress?.currentStepIndex ?? 0;
   const currentStep = activeScenario?.steps[currentStepIndex];
   const currentStepProgress = progress?.steps[currentStepIndex];
   const validationKey =
