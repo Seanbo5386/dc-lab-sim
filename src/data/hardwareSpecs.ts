@@ -9,6 +9,7 @@
  * - DGX H100: Hopper generation, 8x H100 80GB, NVLink 4.0
  * - DGX H200: Hopper generation, 8x H200 141GB, NVLink 4.0
  * - DGX B200: Blackwell generation, 8x B200 192GB, NVLink 5.0
+ * - DGX VR200: Rubin generation, 8x R200 288GB, NVLink 6.0
  */
 
 export type SystemType =
@@ -16,7 +17,8 @@ export type SystemType =
   | "DGX-H100"
   | "DGX-H200"
   | "DGX-B200"
-  | "DGX-GB200";
+  | "DGX-GB200"
+  | "DGX-VR200";
 
 export interface HardwareSpec {
   system: {
@@ -45,6 +47,7 @@ export interface HardwareSpec {
     architecture: string;
     computeCapability: string;
     bar1MemoryMiB: number;
+    sxmVersion: string; // "SXM4", "SXM5", "SXM6"
   };
   nvlink: {
     version: string;
@@ -61,6 +64,7 @@ export interface HardwareSpec {
     protocol: string;
     portRateGbs: number;
     hcasPerGpu: number;
+    interNodeBandwidthGBs: number; // Expected multi-node bandwidth per NIC (GB/s)
   };
   storage: {
     osDrives: string;
@@ -97,6 +101,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       architecture: "ga100",
       computeCapability: "8.0",
       bar1MemoryMiB: 131072,
+      sxmVersion: "SXM4",
     },
     nvlink: {
       version: "3.0",
@@ -113,6 +118,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       protocol: "HDR",
       portRateGbs: 200,
       hcasPerGpu: 1,
+      interNodeBandwidthGBs: 25,
     },
     storage: {
       osDrives: "2x 1.92TB NVMe",
@@ -148,6 +154,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       architecture: "gh100",
       computeCapability: "9.0",
       bar1MemoryMiB: 131072,
+      sxmVersion: "SXM5",
     },
     nvlink: {
       version: "4.0",
@@ -164,6 +171,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       protocol: "NDR",
       portRateGbs: 400,
       hcasPerGpu: 1,
+      interNodeBandwidthGBs: 50,
     },
     storage: {
       osDrives: "2x 1.92TB NVMe",
@@ -199,6 +207,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       architecture: "gh100",
       computeCapability: "9.0",
       bar1MemoryMiB: 131072,
+      sxmVersion: "SXM5",
     },
     nvlink: {
       version: "4.0",
@@ -215,6 +224,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       protocol: "NDR",
       portRateGbs: 400,
       hcasPerGpu: 1,
+      interNodeBandwidthGBs: 50,
     },
     storage: {
       osDrives: "2x 1.92TB NVMe",
@@ -250,6 +260,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       architecture: "gb100",
       computeCapability: "10.0",
       bar1MemoryMiB: 262144,
+      sxmVersion: "SXM5",
     },
     nvlink: {
       version: "5.0",
@@ -266,6 +277,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       protocol: "NDR",
       portRateGbs: 400,
       hcasPerGpu: 1,
+      interNodeBandwidthGBs: 50,
     },
     storage: {
       osDrives: "2x 1.92TB NVMe",
@@ -301,6 +313,7 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       architecture: "gb202",
       computeCapability: "10.0",
       bar1MemoryMiB: 262144,
+      sxmVersion: "SXM5",
     },
     nvlink: {
       version: "5.0",
@@ -317,6 +330,60 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       protocol: "XDR",
       portRateGbs: 800,
       hcasPerGpu: 1,
+      interNodeBandwidthGBs: 100,
+    },
+    storage: {
+      osDrives: "2x 1.92TB NVMe",
+      dataDrives: "8x 3.84TB NVMe",
+      totalCapacityTB: 34.56,
+    },
+  },
+
+  "DGX-VR200": {
+    system: {
+      type: "DGX-VR200",
+      generation: "Rubin",
+      cpu: { model: "NVIDIA Vera (Olympus)", sockets: 1, coresPerSocket: 88 },
+      systemMemoryGB: 1536,
+      totalGpuMemoryGB: 2304,
+    },
+    gpu: {
+      model: "NVIDIA R200-SXM-288GB",
+      count: 8,
+      memoryGB: 288,
+      memoryMiB: 294912,
+      memoryType: "HBM4",
+      memoryBandwidthTBs: 22.0,
+      tdpWatts: 1500,
+      fp16Tflops: 1800,
+      tf32Tflops: 900,
+      fp64Tflops: 90,
+      pciDeviceId: "2A00",
+      baseClockMHz: 1200,
+      boostClockMHz: 2100,
+      memoryClockMHz: 6500,
+      smCount: 256,
+      architecture: "rubin",
+      computeCapability: "11.0",
+      bar1MemoryMiB: 524288,
+      sxmVersion: "SXM6",
+    },
+    nvlink: {
+      version: "6.0",
+      linksPerGpu: 18,
+      perLinkBandwidthGBs: 200,
+      totalBandwidthGBs: 3600,
+      nvSwitchCount: 2,
+      nvSwitchGeneration: "6th Gen",
+      nvLinkLabel: "NV18",
+    },
+    network: {
+      hcaModel: "ConnectX-9",
+      hcaCount: 8,
+      protocol: "XDR2",
+      portRateGbs: 1600,
+      hcasPerGpu: 1,
+      interNodeBandwidthGBs: 200,
     },
     storage: {
       osDrives: "2x 1.92TB NVMe",
@@ -332,6 +399,7 @@ export const ALL_SYSTEM_TYPES: SystemType[] = [
   "DGX-H200",
   "DGX-B200",
   "DGX-GB200",
+  "DGX-VR200",
 ];
 
 /**
@@ -360,6 +428,8 @@ export function getSystemDisplayName(systemType: SystemType): string {
       return "DGX B200";
     case "DGX-GB200":
       return "DGX GB200";
+    case "DGX-VR200":
+      return "DGX VR200";
     default:
       return systemType;
   }

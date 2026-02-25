@@ -31,7 +31,7 @@ const CHANGELOG = [
       "20 command simulators with 229 CLI definitions across 17 categories",
       "32 story-driven scenarios with sandbox isolation and auto-fault injection",
       "199 exam questions, 60 tool selection quizzes, and 150 deep mastery quizzes",
-      "Multi-architecture support: DGX A100, H100, H200, and B200",
+      "Multi-architecture support: DGX A100, H100, H200, B200, GB200, and VR200",
       "3,200+ unit tests with full CI/CD pipeline",
     ],
   },
@@ -71,7 +71,7 @@ const CHANGELOG = [
     title: "Sandbox & Multi-Architecture",
     highlights: [
       "ScenarioContext isolation for per-scenario sandbox state",
-      "DGX A100, H100, H200, and B200 hardware support",
+      "DGX A100, H100, H200, B200, GB200, and VR200 hardware support",
       "Spotlight tour for guided onboarding",
       "CI/CD pipeline with lint, test, and build checks",
     ],
@@ -282,9 +282,10 @@ export function About() {
           <div className="bg-gray-800 rounded-lg p-5 text-sm text-gray-400 leading-relaxed space-y-3">
             <p>
               NVIDIA, the NVIDIA logo, DGX, DGX A100, DGX H100, DGX H200, DGX
-              B200, A100, H100, H200, B200, NVLink, NVSwitch, InfiniBand,
-              Mellanox, ConnectX, BlueField, CUDA, DCGM, NCCL, and NVSM are
-              trademarks and/or registered trademarks of{" "}
+              B200, DGX GB200, DGX VR200, A100, H100, H200, B200, GB200, R200,
+              NVLink, NVSwitch, InfiniBand, Mellanox, ConnectX, BlueField, CUDA,
+              DCGM, NCCL, and NVSM are trademarks and/or registered trademarks
+              of{" "}
               <span className="text-white font-medium">NVIDIA Corporation</span>{" "}
               in the United States and other countries.
             </p>

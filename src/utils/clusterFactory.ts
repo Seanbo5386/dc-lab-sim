@@ -22,6 +22,7 @@ const GPU_TYPE_MAP: Record<SystemType, GPUType> = {
   "DGX-H200": "H200-SXM",
   "DGX-B200": "B200",
   "DGX-GB200": "GB200",
+  "DGX-VR200": "R200",
 };
 
 // MIG profiles for A100/H100
@@ -156,7 +157,7 @@ function createInfiniBandPort(
     portNumber: portNum,
     state: "Active",
     physicalState: "LinkUp",
-    rate: specs.network.portRateGbs as 100 | 200 | 400 | 800,
+    rate: specs.network.portRateGbs as 100 | 200 | 400 | 800 | 1600,
     lid: 100 + portNum,
     guid: `0x${Math.floor(Math.random() * 0xffffffffffff)
       .toString(16)
@@ -177,6 +178,7 @@ function createInfiniBandHCA(id: number, specs: HardwareSpec): InfiniBandHCA {
     "ConnectX-6": "mt4123",
     "ConnectX-7": "mt4129",
     "ConnectX-8": "mt4131",
+    "ConnectX-9": "mt4133",
   };
   const deviceId = hcaDeviceIds[specs.network.hcaModel] || "mt4123";
   return {
@@ -184,11 +186,13 @@ function createInfiniBandHCA(id: number, specs: HardwareSpec): InfiniBandHCA {
     devicePath: `/dev/mst/${deviceId}_pciconf${id}`,
     caType: `${specs.network.hcaModel} HCA`,
     firmwareVersion:
-      specs.network.hcaModel === "ConnectX-8"
-        ? "32.41.1000"
-        : specs.network.hcaModel === "ConnectX-7"
-          ? "28.39.1002"
-          : "20.35.1012",
+      specs.network.hcaModel === "ConnectX-9"
+        ? "34.42.1000"
+        : specs.network.hcaModel === "ConnectX-8"
+          ? "32.41.1000"
+          : specs.network.hcaModel === "ConnectX-7"
+            ? "28.39.1002"
+            : "20.35.1012",
     ports: [createInfiniBandPort(1, specs)],
   };
 }
@@ -312,6 +316,7 @@ export function createDGXNode(
     Hopper: { driver: "550.54.15", cuda: "12.4" },
     Blackwell: { driver: "560.35.03", cuda: "12.6" },
     "Blackwell Ultra": { driver: "565.47.01", cuda: "12.8" },
+    Rubin: { driver: "570.10.01", cuda: "13.0" },
   };
   const versions =
     driverVersions[specs.system.generation] || driverVersions["Ampere"];

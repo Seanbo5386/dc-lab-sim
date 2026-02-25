@@ -75,4 +75,52 @@ describe("hardwareSpecs", () => {
       expect(HARDWARE_SPECS[type].gpu.count).toBe(8);
     }
   });
+
+  it("all specs include sxmVersion field", () => {
+    for (const type of ALL_SYSTEM_TYPES) {
+      const specs = getHardwareSpecs(type);
+      expect(specs.gpu.sxmVersion).toBeDefined();
+      expect(typeof specs.gpu.sxmVersion).toBe("string");
+    }
+  });
+
+  it("all specs include interNodeBandwidthGBs field", () => {
+    for (const type of ALL_SYSTEM_TYPES) {
+      const specs = getHardwareSpecs(type);
+      expect(specs.network.interNodeBandwidthGBs).toBeDefined();
+      expect(specs.network.interNodeBandwidthGBs).toBeGreaterThan(0);
+    }
+  });
+
+  describe("DGX-VR200 (Vera Rubin)", () => {
+    it("exists in ALL_SYSTEM_TYPES", () => {
+      expect(ALL_SYSTEM_TYPES).toContain("DGX-VR200");
+    });
+
+    it("has correct GPU specs", () => {
+      const specs = getHardwareSpecs("DGX-VR200");
+      expect(specs.gpu.model).toContain("R200");
+      expect(specs.gpu.memoryGB).toBe(288);
+      expect(specs.gpu.memoryType).toBe("HBM4");
+      expect(specs.gpu.count).toBe(8);
+    });
+
+    it("has NVLink 6.0", () => {
+      const specs = getHardwareSpecs("DGX-VR200");
+      expect(specs.nvlink.version).toBe("6.0");
+      expect(specs.nvlink.totalBandwidthGBs).toBe(3600);
+    });
+
+    it("has Vera CPU", () => {
+      const specs = getHardwareSpecs("DGX-VR200");
+      expect(specs.system.cpu.model).toContain("Vera");
+      expect(specs.system.generation).toBe("Rubin");
+    });
+
+    it("has ConnectX-9 networking", () => {
+      const specs = getHardwareSpecs("DGX-VR200");
+      expect(specs.network.hcaModel).toBe("ConnectX-9");
+      expect(specs.network.portRateGbs).toBe(1600);
+    });
+  });
 });

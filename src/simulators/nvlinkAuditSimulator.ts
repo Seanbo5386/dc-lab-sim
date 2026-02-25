@@ -115,7 +115,7 @@ export class NvlinkAuditSimulator extends BaseSimulator {
 
     // System Overview
     const specs = getHardwareSpecs(node.systemType || "DGX-A100");
-    const sxmVersion = node.systemType?.includes("A100") ? "SXM4" : "SXM5";
+    const sxmVersion = specs.gpu.sxmVersion;
     output += "=== System Overview ===\n";
     output += `Total GPUs: ${node.gpus.length}\n`;
     output += `NVSwitches: ${(node as ExtendedDGXNode).nvswitches?.length || specs.nvlink.nvSwitchCount}\n`;

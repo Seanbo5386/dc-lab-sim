@@ -618,13 +618,15 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
 
     // Add performance summary for multi-node
     if (isMultiNode) {
-      const expectedIntraNode = node.systemType.includes("H100") ? 450 : 300;
-      const expectedInterNode = 200; // HDR InfiniBand ~200 GB/s with 8 NICs
+      const bwSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
+      // totalBandwidthGBs is bidirectional; divide by 2 for unidirectional bus bandwidth
+      const expectedIntraNode = Math.round(bwSpecs.nvlink.totalBandwidthGBs / 2);
+      const expectedInterNode = bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
 
       output += `# Performance Summary\n`;
       output += `# -------------------\n`;
       output += `# Intra-node (NVLink): ~${expectedIntraNode} GB/s expected\n`;
-      output += `# Inter-node (IB HDR): ~${expectedInterNode} GB/s expected (8x ConnectX-7)\n`;
+      output += `# Inter-node (IB ${bwSpecs.network.protocol}): ~${expectedInterNode} GB/s expected (${bwSpecs.network.hcaCount}x ${bwSpecs.network.hcaModel})\n`;
       output += `# Achieved avg:        ${avgBusBW.toFixed(2)} GB/s\n`;
       output += `#\n`;
 
@@ -982,11 +984,12 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
     systemType: string,
   ): number {
     // Intra-node bandwidth (NVLink)
-    const intraNodeBW = systemType.includes("H100") ? 450 : 300;
+    const bwSpecs = getHardwareSpecs(systemType || "DGX-A100");
+    // totalBandwidthGBs is bidirectional; divide by 2 for unidirectional bus bandwidth
+    const intraNodeBW = Math.round(bwSpecs.nvlink.totalBandwidthGBs / 2);
 
     // Inter-node bandwidth (InfiniBand)
-    // HDR with 8 NICs: ~200 GB/s, NDR with 8 NICs: ~400 GB/s
-    const interNodeBW = systemType.includes("H100") ? 200 : 150;
+    const interNodeBW = bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
 
     // Message size efficiency
     const sizeMB = sizeBytes / (1024 * 1024);
