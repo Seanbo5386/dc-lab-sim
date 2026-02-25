@@ -35,11 +35,29 @@ vi.mock("../FaultInjection", () => ({
   FaultInjection: () => <div data-testid="fault-injection">Sandbox Panel</div>,
 }));
 
+vi.mock("../MissionCard", () => ({
+  MissionCard: () => <div data-testid="mission-card">Mission Card</div>,
+}));
+
+vi.mock("../../utils/hintManager", () => ({
+  HintManager: { getAvailableHints: vi.fn(() => null) },
+}));
+
+// Default mock state for simulation store
+const defaultMockState = {
+  activeScenario: null,
+  scenarioProgress: {},
+  stepValidation: {},
+  completeScenarioStep: vi.fn(),
+  revealHint: vi.fn(),
+  updateValidationConfig: vi.fn(),
+};
+
 // Mock useSimulationStore - default: no active scenario
 vi.mock("../../store/simulationStore", () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   useSimulationStore: vi.fn((selector?: any) =>
-    selector ? selector({ activeScenario: null }) : { activeScenario: null },
+    selector ? selector(defaultMockState) : defaultMockState,
   ),
 }));
 
@@ -95,9 +113,7 @@ describe("SimulatorView", () => {
       const mockStore = vi.mocked(useSimulationStore);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockStore.mockImplementation((selector?: any) =>
-        selector
-          ? selector({ activeScenario: null })
-          : { activeScenario: null },
+        selector ? selector(defaultMockState) : defaultMockState,
       );
     });
 
@@ -136,8 +152,14 @@ describe("SimulatorView", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockStore.mockImplementation((selector?: any) =>
         selector
-          ? selector({ activeScenario: { id: "test-scenario" } })
-          : { activeScenario: { id: "test-scenario" } },
+          ? selector({
+              ...defaultMockState,
+              activeScenario: { id: "test-scenario", steps: [], title: "Test" },
+            })
+          : {
+              ...defaultMockState,
+              activeScenario: { id: "test-scenario", steps: [], title: "Test" },
+            },
       );
 
       const { container } = render(<SimulatorView />);
@@ -156,9 +178,7 @@ describe("SimulatorView", () => {
       // Start with no scenario
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockStore.mockImplementation((selector?: any) =>
-        selector
-          ? selector({ activeScenario: null })
-          : { activeScenario: null },
+        selector ? selector(defaultMockState) : defaultMockState,
       );
 
       const { rerender } = render(<SimulatorView />);
@@ -172,8 +192,14 @@ describe("SimulatorView", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockStore.mockImplementation((selector?: any) =>
         selector
-          ? selector({ activeScenario: { id: "test-scenario" } })
-          : { activeScenario: { id: "test-scenario" } },
+          ? selector({
+              ...defaultMockState,
+              activeScenario: { id: "test-scenario", steps: [], title: "Test" },
+            })
+          : {
+              ...defaultMockState,
+              activeScenario: { id: "test-scenario", steps: [], title: "Test" },
+            },
       );
 
       // Re-render to trigger the useEffect

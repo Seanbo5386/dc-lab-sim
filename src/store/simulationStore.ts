@@ -86,6 +86,9 @@ interface SimulationState {
   // Exam state
   activeExam: ExamState | null;
 
+  // Quiz results for active scenario (stepId → correct)
+  quizResults: Record<string, boolean>;
+
   // Validation state
   stepValidation: Record<string, ValidationResult>; // key: "scenarioId-stepId"
   validationConfig: ValidationConfig;
@@ -134,6 +137,9 @@ interface SimulationState {
   revealHint: (scenarioId: string, stepId: string, hintId: string) => void;
   recordCommand: (scenarioId: string, stepId: string, command: string) => void;
   recordFailedAttempt: (scenarioId: string, stepId: string) => void;
+
+  // Quiz result tracking
+  recordQuizResult: (stepId: string, correct: boolean) => void;
 
   // Learning progress integration
   trackToolUsage: (command: string) => void;
@@ -190,6 +196,9 @@ export const useSimulationStore = create<SimulationState>()(
 
       // Exam state
       activeExam: null,
+
+      // Quiz results for active scenario
+      quizResults: {},
 
       // Validation state
       stepValidation: {},
@@ -458,7 +467,7 @@ export const useSimulationStore = create<SimulationState>()(
       },
 
       exitScenario: () => {
-        set({ activeScenario: null });
+        set({ activeScenario: null, quizResults: {} });
         // Clean up sandbox context (dynamic import to avoid circular deps)
         Promise.all([
           import("@/store/scenarioContext"),
@@ -518,6 +527,11 @@ export const useSimulationStore = create<SimulationState>()(
           progress.steps[stepIndex].failedAttempts += 1;
           progress.validationAttempts += 1;
           progress.validationFailures += 1;
+        }),
+
+      recordQuizResult: (stepId, correct) =>
+        set((state) => {
+          state.quizResults[stepId] = correct;
         }),
 
       // Learning progress integration

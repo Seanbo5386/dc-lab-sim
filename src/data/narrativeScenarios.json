@@ -469,6 +469,14 @@
           "situation": "nvidia-smi shows 8 GPUs but GPU 6 shows 'ERR!' in the temperature column.",
           "task": "Use nvidia-smi -q to get detailed information about GPU 6 and identify the issue.",
           "expectedCommands": ["nvidia-smi -q -i 6"],
+          "autoFaults": [
+            {
+              "nodeId": "dgx-00",
+              "gpuId": 6,
+              "type": "driver-error",
+              "severity": "critical"
+            }
+          ],
           "hints": [
             "nvidia-smi -q -i 6 for detailed info",
             "Check for driver or hardware errors",
@@ -1524,7 +1532,15 @@
             "type": "command",
             "command": "nvidia-smi",
             "pattern": "GPU|ERR"
-          }
+          },
+          "autoFaults": [
+            {
+              "nodeId": "dgx-00",
+              "gpuId": 3,
+              "type": "pcie-error",
+              "severity": "critical"
+            }
+          ]
         },
         {
           "id": "step-2",
@@ -3606,7 +3622,30 @@
             "type": "command",
             "command": "sensors",
             "pattern": "temp|Core|GPU"
-          }
+          },
+          "autoFaults": [
+            {
+              "nodeId": "dgx-00",
+              "gpuId": 2,
+              "type": "thermal",
+              "severity": "warning",
+              "parameters": { "targetTemp": 83 }
+            },
+            {
+              "nodeId": "dgx-00",
+              "gpuId": 5,
+              "type": "thermal",
+              "severity": "warning",
+              "parameters": { "targetTemp": 85 }
+            },
+            {
+              "nodeId": "dgx-00",
+              "gpuId": 5,
+              "type": "power",
+              "severity": "warning",
+              "parameters": { "powerDraw": 700 }
+            }
+          ]
         },
         {
           "id": "step-7",

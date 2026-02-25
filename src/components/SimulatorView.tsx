@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Dashboard } from "./Dashboard";
 import { Terminal } from "./Terminal";
 import { FaultInjection } from "./FaultInjection";
+import { MissionCard } from "./MissionCard";
 import { useSimulationStore } from "../store/simulationStore";
+import { HintManager } from "@/utils/hintManager";
 import {
   GripVertical,
   Lock,
@@ -69,6 +71,37 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
     "dashboard" | "terminal" | "faults"
   >("dashboard");
   const activeScenario = useSimulationStore((state) => state.activeScenario);
+  const scenarioProgress = useSimulationStore((s) => s.scenarioProgress);
+  const stepValidation = useSimulationStore((s) => s.stepValidation);
+  const completeScenarioStep = useSimulationStore(
+    (s) => s.completeScenarioStep,
+  );
+  const revealHint = useSimulationStore((s) => s.revealHint);
+  const recordQuizResult = useSimulationStore((s) => s.recordQuizResult);
+  const updateValidationConfig = useSimulationStore(
+    (s) => s.updateValidationConfig,
+  );
+
+  // Disable auto-advance when MissionCard is managing step progression
+  // so the user controls advancement via "Next →" button
+  useEffect(() => {
+    if (activeScenario) {
+      updateValidationConfig({ autoAdvance: false });
+    }
+    return () => {
+      updateValidationConfig({ autoAdvance: true });
+    };
+  }, [activeScenario, updateValidationConfig]);
+
+  // Paste callback ref — set by Terminal's onReady
+  const pasteCommandRef = useRef<((cmd: string) => void) | null>(null);
+  const handleTerminalReady = useCallback((pasteFn: (cmd: string) => void) => {
+    pasteCommandRef.current = pasteFn;
+  }, []);
+  const handlePasteCommand = useCallback((cmd: string) => {
+    pasteCommandRef.current?.(cmd);
+  }, []);
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Check for mobile viewport
@@ -209,6 +242,46 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
     setSplitRatio(DEFAULT_RATIO);
   };
 
+  // ---------------------------------------------------------------------------
+  // MissionCard data derivation
+  // ---------------------------------------------------------------------------
+  const progress = activeScenario
+    ? scenarioProgress[activeScenario.id]
+    : undefined;
+  const currentStepIndex = progress?.currentStepIndex ?? 0;
+  const currentStep = activeScenario?.steps[currentStepIndex];
+  const currentStepProgress = progress?.steps[currentStepIndex];
+  const validationKey =
+    activeScenario && currentStep
+      ? `${activeScenario.id}-${currentStep.id}`
+      : "";
+  const currentValidation = stepValidation[validationKey];
+  const isStepCompleted =
+    currentStepProgress?.completed || currentValidation?.passed || false;
+
+  // Hint evaluation
+  const hintEvaluation =
+    currentStep && currentStepProgress
+      ? HintManager.getAvailableHints(currentStep, currentStepProgress)
+      : null;
+
+  // Objective results from validation rule results
+  const objectivesPassed =
+    currentStep?.objectives?.map(
+      (_, idx) => currentValidation?.ruleResults?.[idx]?.passed || false,
+    ) || [];
+
+  // Get revealed hint texts
+  const revealedHintTexts =
+    hintEvaluation && currentStepProgress
+      ? hintEvaluation.allHints
+          .filter((h) => currentStepProgress.revealedHintIds.includes(h.id))
+          .map((h) => h.message)
+      : [];
+
+  const showMissionCard =
+    activeScenario != null && rightTab === "terminal" && currentStep != null;
+
   // Mobile layout: tabbed interface
   if (isMobile) {
     return (
@@ -266,8 +339,47 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             </div>
           )}
           {mobileTab === "terminal" && (
-            <div className="h-full bg-gray-900">
-              <Terminal className="h-full" />
+            <div className="h-full bg-gray-900 flex flex-col">
+              {showMissionCard && currentStep && (
+                <MissionCard
+                  missionTitle={activeScenario!.title}
+                  tier={activeScenario!.tier}
+                  currentStepIndex={currentStepIndex}
+                  totalSteps={activeScenario!.steps.length}
+                  currentStep={currentStep}
+                  commandsExecuted={currentStepProgress?.commandsExecuted || []}
+                  objectivesPassed={objectivesPassed}
+                  isStepCompleted={isStepCompleted}
+                  onPasteCommand={handlePasteCommand}
+                  onNextStep={() => {
+                    if (!progress?.completed) {
+                      completeScenarioStep(activeScenario!.id, currentStep.id);
+                    }
+                  }}
+                  onContinue={() => {
+                    completeScenarioStep(activeScenario!.id, currentStep.id);
+                  }}
+                  onRevealHint={() => {
+                    if (hintEvaluation?.nextHint) {
+                      revealHint(
+                        activeScenario!.id,
+                        currentStep.id,
+                        hintEvaluation.nextHint.id,
+                      );
+                    }
+                  }}
+                  availableHintCount={hintEvaluation?.totalCount || 0}
+                  revealedHintCount={hintEvaluation?.revealedCount || 0}
+                  revealedHints={revealedHintTexts}
+                  learningObjectives={activeScenario!.learningObjectives}
+                  narrativeContext={activeScenario!.narrative?.setting}
+                  onQuizComplete={(correct) => {
+                    recordQuizResult(currentStep.id, correct);
+                    completeScenarioStep(activeScenario!.id, currentStep.id);
+                  }}
+                />
+              )}
+              <Terminal className="flex-1" onReady={handleTerminalReady} />
             </div>
           )}
           {mobileTab === "faults" && (
@@ -324,7 +436,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <Terminal className="h-full" />
+              <Terminal className="h-full" onReady={handleTerminalReady} />
             </div>
           </div>
         </div>
@@ -456,9 +568,66 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 </div>
 
                 {/* Tab Content */}
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 overflow-hidden flex flex-col">
                   {rightTab === "terminal" ? (
-                    <Terminal className="h-full" />
+                    <>
+                      {showMissionCard && currentStep && (
+                        <MissionCard
+                          missionTitle={activeScenario!.title}
+                          tier={activeScenario!.tier}
+                          currentStepIndex={currentStepIndex}
+                          totalSteps={activeScenario!.steps.length}
+                          currentStep={currentStep}
+                          commandsExecuted={
+                            currentStepProgress?.commandsExecuted || []
+                          }
+                          objectivesPassed={objectivesPassed}
+                          isStepCompleted={isStepCompleted}
+                          onPasteCommand={handlePasteCommand}
+                          onNextStep={() => {
+                            if (!progress?.completed) {
+                              completeScenarioStep(
+                                activeScenario!.id,
+                                currentStep.id,
+                              );
+                            }
+                          }}
+                          onContinue={() => {
+                            completeScenarioStep(
+                              activeScenario!.id,
+                              currentStep.id,
+                            );
+                          }}
+                          onRevealHint={() => {
+                            if (hintEvaluation?.nextHint) {
+                              revealHint(
+                                activeScenario!.id,
+                                currentStep.id,
+                                hintEvaluation.nextHint.id,
+                              );
+                            }
+                          }}
+                          availableHintCount={hintEvaluation?.totalCount || 0}
+                          revealedHintCount={hintEvaluation?.revealedCount || 0}
+                          revealedHints={revealedHintTexts}
+                          learningObjectives={
+                            activeScenario!.learningObjectives
+                          }
+                          narrativeContext={activeScenario!.narrative?.setting}
+                          onQuizComplete={(_correct) => {
+                            // Quiz answered — advance to next step
+                            completeScenarioStep(
+                              activeScenario!.id,
+                              currentStep.id,
+                            );
+                          }}
+                        />
+                      )}
+                      <Terminal
+                        className="flex-1"
+                        onReady={handleTerminalReady}
+                      />
+                    </>
                   ) : (
                     <div className="h-full overflow-auto p-4">
                       <FaultInjection />

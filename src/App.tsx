@@ -39,6 +39,8 @@ const AfterActionReview = lazy(() =>
     default: m.AfterActionReview,
   })),
 );
+import { NarrativeIntro } from "./components/NarrativeIntro";
+import { NarrativeResolution } from "./components/NarrativeResolution";
 import { StudyDashboard } from "./components/StudyDashboard";
 import { SpacedReviewDrill } from "./components/SpacedReviewDrill";
 import { TierUnlockNotificationContainer } from "./components/TierUnlockNotification";
@@ -123,7 +125,35 @@ function App() {
     startSimulation,
     stopSimulation,
     resetSimulation,
+    activeScenario,
+    scenarioProgress,
+    exitScenario,
+    quizResults,
+    completeScenarioStep,
   } = useSimulationStore();
+
+  // Narrative modal state for active scenarios
+  const [showNarrativeIntro, setShowNarrativeIntro] = useState(true);
+  const scenarioProgressData = activeScenario
+    ? scenarioProgress[activeScenario.id]
+    : undefined;
+  const isNarrative = !!activeScenario?.narrative;
+
+  // Compute quiz score from store for NarrativeResolution
+  const quizScore = activeScenario
+    ? {
+        correct: Object.values(quizResults).filter(Boolean).length,
+        total: activeScenario.steps.filter((s) => s.narrativeQuiz).length,
+      }
+    : { correct: 0, total: 0 };
+
+  // Reset narrative intro when a new scenario starts
+  useEffect(() => {
+    if (activeScenario) {
+      setShowNarrativeIntro(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally track by ID, not object reference
+  }, [activeScenario?.id]);
 
   // Activate metrics simulation when running
   useMetricsSimulation(isRunning);
@@ -262,7 +292,7 @@ function App() {
 
       {/* Header + Nav scrollable wrapper */}
       <div
-        className={`overflow-x-auto flex-shrink-0 transition-all duration-300 ${showLabWorkspace || incidentState === "active" ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
+        className={`overflow-x-auto flex-shrink-0 transition-all duration-300 ${(showLabWorkspace && !activeScenario) || incidentState === "active" ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="min-w-max">
           <header className="bg-black border-b border-gray-800 px-6 py-4">
@@ -467,7 +497,7 @@ function App() {
         id="main-content"
         role="tabpanel"
         aria-labelledby={`tab-${currentView}`}
-        className={`flex-1 h-0 flex flex-col overflow-hidden transition-all duration-300 ${showLabWorkspace || incidentState === "active" ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
+        className={`flex-1 h-0 flex flex-col overflow-hidden transition-all duration-300 ${(showLabWorkspace && !activeScenario) || incidentState === "active" ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         {currentView === "simulator" && (
           <SimulatorView className="flex-1 h-full" />
@@ -498,10 +528,10 @@ function App() {
 
       {/* Footer */}
       <footer
-        className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${showLabWorkspace || incidentState === "active" ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
+        className={`bg-black border-t border-gray-800 px-6 py-3 transition-all duration-300 ${(showLabWorkspace && !activeScenario) || incidentState === "active" ? "xl:ml-[clamp(340px,30vw,560px)]" : ""}`}
       >
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-gray-400">
-          <div className="whitespace-nowrap">v1.1.0</div>
+          <div className="whitespace-nowrap">v1.2.0</div>
           <div className="flex items-center gap-2 sm:gap-4">
             <span className="flex items-center gap-1">
               <span
@@ -524,12 +554,44 @@ function App() {
         </div>
       </footer>
 
-      {/* Lab Workspace Overlay */}
+      {/* Lab Workspace Overlay — hidden during active scenarios (MissionCard takes over) */}
       <Suspense fallback={null}>
-        {showLabWorkspace && (
+        {showLabWorkspace && !activeScenario && (
           <LabWorkspace onClose={() => setShowLabWorkspace(false)} />
         )}
       </Suspense>
+
+      {/* Narrative Intro Modal (missions) */}
+      {activeScenario &&
+        isNarrative &&
+        showNarrativeIntro &&
+        !scenarioProgressData?.completed && (
+          <NarrativeIntro
+            title={activeScenario.title}
+            narrative={activeScenario.narrative!}
+            onBegin={() => setShowNarrativeIntro(false)}
+            skippable={activeScenario.skippable}
+            onSkip={() => {
+              activeScenario.steps.forEach((step) => {
+                completeScenarioStep(activeScenario.id, step.id);
+              });
+              setShowNarrativeIntro(false);
+            }}
+          />
+        )}
+
+      {/* Narrative Resolution Modal (missions) */}
+      {activeScenario && isNarrative && scenarioProgressData?.completed && (
+        <NarrativeResolution
+          resolution={activeScenario.narrative!.resolution}
+          quizScore={quizScore}
+          timeSpent={activeScenario.estimatedTime}
+          onExit={() => {
+            exitScenario();
+            setShowLabWorkspace(false);
+          }}
+        />
+      )}
 
       {/* Exam Workspace Overlay */}
       <Suspense fallback={null}>

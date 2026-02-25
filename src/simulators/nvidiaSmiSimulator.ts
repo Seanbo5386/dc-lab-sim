@@ -226,7 +226,11 @@ export class NvidiaSmiSimulator extends BaseSimulator {
 
       const handler = this.getCommand(subcommand);
       if (handler) {
-        return this.safeExecuteHandler(handler, parsed, context) as CommandResult;
+        return this.safeExecuteHandler(
+          handler,
+          parsed,
+          context,
+        ) as CommandResult;
       }
     }
 
@@ -1664,16 +1668,21 @@ export class NvidiaSmiSimulator extends BaseSimulator {
         "|\n";
 
       // Row 2: Fan, Temp, Perf, Power, Memory, Utilization
-      const temp = Math.round(gpu.temperature).toString().padStart(3);
+      const isCritical = gpu.healthStatus === "Critical";
+      const temp = isCritical
+        ? "ERR!"
+        : Math.round(gpu.temperature).toString().padStart(3) + "C";
       const pwr = Math.round(gpu.powerDraw).toString().padStart(3);
       const pwrMax = Math.round(gpu.powerLimit).toString().padStart(3);
       const memUsed = Math.round(gpu.memoryUsed).toString().padStart(5);
       const memTotal = Math.round(gpu.memoryTotal).toString().padStart(5);
-      const util = Math.round(gpu.utilization).toString().padStart(3);
+      const util = isCritical
+        ? "ERR"
+        : Math.round(gpu.utilization).toString().padStart(3) + "%";
 
-      const col1_r2 = ` N/A   ${temp}C    P0    ${pwr}W / ${pwrMax}W `;
+      const col1_r2 = ` N/A   ${temp.padStart(4)}    P0    ${pwr}W / ${pwrMax}W `;
       const col2_r2 = `   ${memUsed}MiB / ${memTotal}MiB `;
-      const col3_r2 = `     ${util}%      Default `;
+      const col3_r2 = `     ${util.padStart(4)}      Default `;
       output +=
         "|" +
         padCol(col1_r2, COL_1) +

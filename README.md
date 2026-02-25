@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.2.0-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Tests](https://img.shields.io/badge/tests-3200+-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-3497_unit_|_307_E2E-brightgreen?style=for-the-badge)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
 ![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
@@ -44,7 +44,7 @@ The NCP-AII certification exam tests hands-on datacenter skills — but most peo
 | **Architectures** | DGX A100, H100, H200, B200 (switchable from dashboard)                       |
 | **Learning**      | 3-tier progression (Guided > Choice > Realistic) with SM-2 spaced repetition |
 | **Cloud Sync**    | Optional sign-in to save progress across devices (AWS Cognito)               |
-| **Tests**         | 3,200+ unit tests, 0 TypeScript errors, 0 lint warnings                      |
+| **Tests**         | 3,497 unit + 307 E2E tests, 0 TypeScript errors, 0 lint warnings             |
 
 ---
 
@@ -326,9 +326,10 @@ Sign in with email/password to sync progress across devices. Powered by AWS Ampl
 
 ```bash
 npm run test           # Watch mode
-npm run test:run       # Single run (3,200+ tests)
+npm run test:run       # Single run (3,497 unit tests)
 npm run test:coverage  # With coverage report
 npm run lint           # ESLint (0 errors, 0 warnings)
+npx playwright test    # 307 E2E tests (commands, scenarios, visual regression)
 ```
 
 CI/CD via GitHub Actions runs lint, tests, and production build on every push.
@@ -347,7 +348,7 @@ CI/CD via GitHub Actions runs lint, tests, and production build on every push.
 | Visualization | D3.js (topology maps), Recharts (metrics)                       |
 | Auth & Sync   | AWS Amplify Gen 2 (Cognito, AppSync, DynamoDB) — optional       |
 | Build         | Vite                                                            |
-| Testing       | Vitest + React Testing Library                                  |
+| Testing       | Vitest + React Testing Library + Playwright                     |
 | CI/CD         | GitHub Actions                                                  |
 
 ### Project Structure
@@ -359,7 +360,7 @@ src/
 ├── cli/              # Data-driven CLI framework (229 JSON definitions)
 ├── data/             # Scenarios, exam questions, hardware specs
 ├── store/            # Zustand stores + sandbox context
-├── utils/            # 61 utility modules
+├── utils/            # 67 utility modules
 ├── types/            # TypeScript definitions
 └── App.tsx           # 5-tab layout (Simulator, Labs, Exams, Docs, About)
 ```
@@ -368,27 +369,29 @@ src/
 
 ## Roadmap
 
-### Completed (v1.1.0)
+### Completed (v1.2.0)
 
 - [x] 20 command simulators with 229 CLI definitions across 17 categories
 - [x] 32 narrative scenarios with story-driven learning across all 5 domains
 - [x] 199 exam questions, 60 tool selection quizzes, and 150 deep mastery quizzes
 - [x] Multi-architecture support (DGX A100, H100, H200, B200)
-- [x] User authentication and cloud sync (AWS Amplify Gen 2)
+- [x] User authentication and cloud sync (AWS Cognito + DynamoDB)
 - [x] Sandbox isolation with automatic per-step fault injection
 - [x] 3-tier learning progression with spaced repetition (SM-2)
 - [x] D3.js topology visualization (NVLink and InfiniBand fabric maps)
 - [x] Spotlight tour, data-driven CLI framework, tab completion
-- [x] CI/CD pipeline with 3,200+ unit tests, 0 TypeScript errors
+- [x] CI/CD pipeline with 3,497 unit + 307 E2E tests, 0 TypeScript errors
 - [x] Security hardening (secret scanning, error sanitization, rate limiting)
+- [x] Bundle splitting (main chunk reduced from 2,304 kB to 1,077 kB)
+- [x] E2E tests with Playwright (307 tests across 7 spec files)
+- [x] Inline MissionCard with click-to-paste commands, quiz gating, and mount animation
+- [x] nvidia-smi ERR! display for Critical GPU health status
 
 ### Up Next
 
-- [ ] Production auth deployment (cloud sync for all visitors)
-- [ ] Bundle splitting to reduce initial load time
 - [ ] DGX GB200 architecture support
-- [ ] E2E smoke tests with Playwright
 - [ ] PWA / offline support for study on the go
+- [ ] Live incident engine improvements (sidebar visibility, hint penalties)
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full roadmap with priorities and details.
 
@@ -401,8 +404,7 @@ Contributions welcome! Priority areas:
 1. **Exam questions** — especially Domains 4 and 5
 2. **Scenario authoring** — new story-driven labs
 3. **Command accuracy** — validated against real DGX output
-4. **E2E tests** — Playwright smoke tests
-5. **Accessibility** — keyboard navigation, screen reader support
+4. **Accessibility** — keyboard navigation, screen reader support
 
 ```bash
 git checkout -b feature/your-feature
