@@ -22,6 +22,7 @@ const GPU_TYPE_MAP: Record<SystemType, GPUType> = {
   "DGX-H200": "H200-SXM",
   "DGX-B200": "B200",
   "DGX-GB200": "GB200",
+  "DGX-VR200": "R200",
 };
 
 // MIG profiles for A100/H100

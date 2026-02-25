@@ -7,7 +7,8 @@ export type DGXSystemType =
   | "DGX-H100"
   | "DGX-H200"
   | "DGX-B200"
-  | "DGX-GB200";
+  | "DGX-GB200"
+  | "DGX-VR200";
 
 export type GPUType =
   | "A100-80GB"
@@ -15,6 +16,7 @@ export type GPUType =
   | "H200-SXM"
   | "B200"
   | "GB200"
+  | "R200"
   | "Blackwell";
 
 export interface MIGProfile {
