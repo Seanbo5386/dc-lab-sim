@@ -71,10 +71,9 @@ playwright-report/
 docs/*.webm
 tmp-video/
 
-# Amplify Gen 2
-amplify/
+# Amplify Gen 2 — track backend source, ignore generated files
 .amplify/
-amplifyconfiguration*
 amplify_outputs*
+amplifyconfiguration*
 aws-exports.js
 aws-exports.ts
