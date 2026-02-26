@@ -266,11 +266,14 @@ export function MissionCard({
           )}
 
         {isConceptStep && (
-          <p className="text-xs text-purple-300 bg-purple-900/20 rounded px-2 py-1.5 mb-1.5 line-clamp-3">
+          <div
+            tabIndex={0}
+            className="text-xs text-purple-300 bg-purple-900/20 rounded px-2 py-1.5 mb-1.5 max-h-32 overflow-y-auto whitespace-pre-line"
+          >
             {currentStep.conceptText ||
               currentStep.conceptContent ||
               currentStep.description}
-          </p>
+          </div>
         )}
 
         {isObserveStep && currentStep.observeCommand && (

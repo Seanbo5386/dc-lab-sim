@@ -13,9 +13,21 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v1.2.0",
+    title: "UX Overhaul & New Architectures",
+    current: true,
+    highlights: [
+      "Inline MissionCard replaces sidebar: click-to-paste commands, quiz gating, mount animation",
+      "NarrativeIntro popup with skip option for Linux basics tutorials",
+      "6 DGX architectures: added GB200 (Blackwell Ultra) and VR200 (Vera Rubin)",
+      "Data-driven simulator output: all architecture-specific logic reads from spec registry",
+      "nvidia-smi ERR! display for GPUs with Critical health status",
+      "E2E test suite: 307 Playwright tests across 7 spec files",
+    ],
+  },
+  {
     version: "v1.1.0",
     title: "Authentication & Cloud Sync",
-    current: true,
     highlights: [
       "User authentication with AWS Cognito (sign up, sign in, email verification)",
       "Cloud sync: progress, quiz scores, and learning data saved across devices",
