@@ -57,6 +57,7 @@ nul
 # Internal development docs (not for public consumption)
 docs/plans/
 docs/analysis/
+UI-UX-REPORT.md
 
 # Development screenshots (loose files in repo root)
 /*.png
