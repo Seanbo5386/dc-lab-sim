@@ -65,11 +65,7 @@ export function MissionBriefing({
 
         // After last character, advance to phase 3
         if (i === chars.length - 1) {
-          const t3 = setTimeout(() => {
-            setPhase(3);
-            const t4 = setTimeout(() => setPhase(4), 500);
-            timers.push(t4);
-          }, 300);
+          const t3 = setTimeout(() => setPhase(3), 300);
           timers.push(t3);
         }
       }, i * 35);
@@ -80,6 +76,13 @@ export function MissionBriefing({
       timers.forEach(clearTimeout);
     };
   }, [phase, narrative.hook, skippedAnimation]);
+
+  // Phase 3 -> 4: show Accept button after setting fades in
+  useEffect(() => {
+    if (phase !== 3 || skippedAnimation) return;
+    const t = setTimeout(() => setPhase(4), 500);
+    return () => clearTimeout(t);
+  }, [phase, skippedAnimation]);
 
   const handleBackdropClick = useCallback(() => {
     setSkippedAnimation(true);
