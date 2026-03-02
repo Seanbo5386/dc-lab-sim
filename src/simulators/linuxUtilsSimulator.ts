@@ -516,9 +516,22 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
     parsed: ParsedCommand,
     context: CommandContext,
   ): CommandResult {
-    const longFormat = this.hasAnyFlag(parsed, ["l"]);
-    const all = this.hasAnyFlag(parsed, ["a"]);
-    const rawPath = parsed.subcommands[0] || parsed.positionalArgs[0];
+    let longFormat = this.hasAnyFlag(parsed, ["l"]);
+    let all = this.hasAnyFlag(parsed, ["a"]);
+    let rawPath = parsed.subcommands[0] || parsed.positionalArgs[0];
+
+    // Handle combined short flags (e.g., -la, -lah, -al) that the parser
+    // treats as a single multi-char flag, consuming the next arg as its value
+    for (const [key, value] of parsed.flags) {
+      if (key.length > 1 && /^[laRrhS]+$/.test(key)) {
+        if (key.includes("l")) longFormat = true;
+        if (key.includes("a")) all = true;
+        if (!rawPath && typeof value === "string" && value !== "true") {
+          rawPath = value;
+        }
+      }
+    }
+
     const dirPath = rawPath
       ? this.resolvePath(rawPath, context)
       : context.currentPath || "/root";
@@ -738,6 +751,14 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
   ): CommandResult {
     let filePath = parsed.subcommands[0] || parsed.positionalArgs[0];
     let numLines = this.getFlagNumber(parsed, ["n"], -1);
+
+    // Handle -f flag: parser may consume the filename as -f's value
+    if (!filePath) {
+      const fValue = parsed.flags.get("f");
+      if (typeof fValue === "string" && fValue !== "true") {
+        filePath = fValue;
+      }
+    }
 
     // Check for numeric shorthand: -20 parsed as flag "20" with filename as value
     if (numLines === -1) {

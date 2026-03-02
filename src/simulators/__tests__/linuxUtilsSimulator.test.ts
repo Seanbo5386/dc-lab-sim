@@ -227,6 +227,20 @@ describe("LinuxUtilsSimulator", () => {
       expect(result.output).toContain("monitor.sh");
     });
 
+    it("should support combined -la flag with path argument", () => {
+      const result = simulator.execute(parse("ls -la /var/log"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("total");
+      expect(result.output).toContain("syslog");
+    });
+
+    it("should support -la flag without path (uses cwd)", () => {
+      const result = simulator.execute(parse("ls -la"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("total");
+      expect(result.output).toContain(".bashrc");
+    });
+
     it("should resolve .. in ls path", () => {
       context.currentPath = "/root/scripts";
       const result = simulator.execute(parse("ls .."), context);
@@ -328,6 +342,15 @@ describe("LinuxUtilsSimulator", () => {
       const result = simulator.execute(parse("tail -20"), context);
       expect(result.exitCode).not.toBe(0);
       expect(result.output).toContain("missing file operand");
+    });
+
+    it("should support -f flag with file path", () => {
+      const result = simulator.execute(
+        parse("tail -f /var/log/syslog"),
+        context,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("dgx-00");
     });
   });
 
