@@ -538,6 +538,28 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
 
     // Simulated directory listings
     const directories: Record<string, string[][]> = {
+      "/": [
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "bin"],
+        ["drwxr-xr-x", "4", "root", "root", "4096", "Jan 10 12:00", "boot"],
+        ["drwxr-xr-x", "18", "root", "root", "4200", "Jan 10 12:00", "dev"],
+        ["drwxr-xr-x", "130", "root", "root", "12288", "Jan 10 12:00", "etc"],
+        ["drwxr-xr-x", "3", "root", "root", "4096", "Jan 10 12:00", "home"],
+        ["drwxr-xr-x", "22", "root", "root", "4096", "Jan 10 12:00", "lib"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "lib64"],
+        ["drwx------", "2", "root", "root", "16384", "Jan 10 12:00", "lost+found"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "media"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "mnt"],
+        ["drwxr-xr-x", "4", "root", "root", "4096", "Jan 10 12:00", "opt"],
+        ["dr-xr-xr-x", "580", "root", "root", "0", "Jan 10 12:00", "proc"],
+        ["drwx------", "6", "root", "root", "4096", "Jan 10 12:00", "root"],
+        ["drwxr-xr-x", "32", "root", "root", "940", "Jan 10 12:00", "run"],
+        ["drwxr-xr-x", "2", "root", "root", "12288", "Jan 10 12:00", "sbin"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "srv"],
+        ["dr-xr-xr-x", "13", "root", "root", "0", "Jan 10 12:00", "sys"],
+        ["drwxrwxrwt", "14", "root", "root", "4096", "Feb 12 08:15", "tmp"],
+        ["drwxr-xr-x", "12", "root", "root", "4096", "Jan 10 12:00", "usr"],
+        ["drwxr-xr-x", "14", "root", "root", "4096", "Jan 10 12:00", "var"],
+      ],
       "/root": [
         ["-rw-r--r--", "1", "root", "root", "3106", "Jan 10 12:00", ".bashrc"],
         ["-rw-r--r--", "1", "root", "root", "161", "Jan 10 12:00", ".profile"],
@@ -653,6 +675,44 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
           "Jan 10 12:00",
           "nvidia-uvm",
         ],
+      ],
+      "/etc": [
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "apt"],
+        ["-rw-r--r--", "1", "root", "root", "2981", "Jan 10 12:00", "bash.bashrc"],
+        ["-rw-r--r--", "1", "root", "root", "367", "Jan 10 12:00", "hosts"],
+        ["-rw-r--r--", "1", "root", "root", "14", "Jan 10 12:00", "hostname"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "network"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "nvidia"],
+        ["-rw-r--r--", "1", "root", "root", "552", "Jan 10 12:00", "passwd"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "slurm"],
+        ["-rw-r--r--", "1", "root", "root", "1722", "Jan 10 12:00", "sysctl.conf"],
+      ],
+      "/home": [
+        ["drwxr-xr-x", "4", "admin", "admin", "4096", "Jan 10 12:00", "admin"],
+      ],
+      "/usr": [
+        ["drwxr-xr-x", "2", "root", "root", "69632", "Jan 10 12:00", "bin"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "include"],
+        ["drwxr-xr-x", "92", "root", "root", "4096", "Jan 10 12:00", "lib"],
+        ["drwxr-xr-x", "12", "root", "root", "4096", "Jan 10 12:00", "local"],
+        ["drwxr-xr-x", "2", "root", "root", "12288", "Jan 10 12:00", "sbin"],
+        ["drwxr-xr-x", "160", "root", "root", "4096", "Jan 10 12:00", "share"],
+      ],
+      "/usr/bin": [
+        ["-rwxr-xr-x", "1", "root", "root", "35312", "Jan 10 12:00", "bash"],
+        ["-rwxr-xr-x", "1", "root", "root", "142848", "Jan 10 12:00", "grep"],
+        ["-rwxr-xr-x", "1", "root", "root", "59160", "Jan 10 12:00", "less"],
+        ["-rwxr-xr-x", "1", "root", "root", "14568", "Jan 10 12:00", "nvidia-smi"],
+        ["-rwxr-xr-x", "1", "root", "root", "45896", "Jan 10 12:00", "python3"],
+        ["-rwxr-xr-x", "1", "root", "root", "35312", "Jan 10 12:00", "vim"],
+      ],
+      "/var": [
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "cache"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "lib"],
+        ["drwxrwxr-x", "14", "syslog", "adm", "4096", "Feb 12 08:15", "log"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "run"],
+        ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "spool"],
+        ["drwxrwxrwt", "2", "root", "root", "4096", "Jan 10 12:00", "tmp"],
       ],
       "/var/log": [
         [

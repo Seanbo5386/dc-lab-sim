@@ -227,6 +227,17 @@ describe("LinuxUtilsSimulator", () => {
       expect(result.output).toContain("monitor.sh");
     });
 
+    it("should list root directory with standard Linux directories", () => {
+      const result = simulator.execute(parse("ls /"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("etc");
+      expect(result.output).toContain("home");
+      expect(result.output).toContain("var");
+      expect(result.output).toContain("usr");
+      expect(result.output).toContain("dev");
+      expect(result.output).toContain("root");
+    });
+
     it("should support combined -la flag with path argument", () => {
       const result = simulator.execute(parse("ls -la /var/log"), context);
       expect(result.exitCode).toBe(0);
