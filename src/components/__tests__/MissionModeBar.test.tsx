@@ -77,6 +77,7 @@ describe("MissionModeBar", () => {
   });
 
   it("renders Standard badge when no tier is provided", () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { tier: _, ...propsWithoutTier } = defaultProps;
     render(<MissionModeBar {...propsWithoutTier} />);
     expect(screen.getByText("Standard")).toBeInTheDocument();
