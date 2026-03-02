@@ -20,9 +20,9 @@ vi.mock("lucide-react", () => {
     Monitor: createIcon("Monitor"),
     BookOpen: createIcon("BookOpen"),
     Cpu: createIcon("Cpu"),
-    ShieldCheck: createIcon("ShieldCheck"),
-    Activity: createIcon("Activity"),
     ArrowRight: createIcon("ArrowRight"),
+    Cloud: createIcon("Cloud"),
+    UserPlus: createIcon("UserPlus"),
   };
 });
 
@@ -85,27 +85,6 @@ describe("WelcomeScreen", () => {
   });
 
   // --------------------------------------------------------------------------
-  // Content verification
-  // --------------------------------------------------------------------------
-
-  it("shows the description text about NCP-AII certification", () => {
-    render(<WelcomeScreen onClose={onClose} />);
-    expect(
-      screen.getByText(/datacenter lab simulator for NCP-AII/i),
-    ).toBeInTheDocument();
-  });
-
-  it("shows NCP-AII certification reference", () => {
-    render(<WelcomeScreen onClose={onClose} />);
-    expect(
-      screen.getByText(/NCP-AII Certification Ready/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/NVIDIA Certified Professional/i),
-    ).toBeInTheDocument();
-  });
-
-  // --------------------------------------------------------------------------
   // Modal overlay
   // --------------------------------------------------------------------------
 
@@ -132,18 +111,6 @@ describe("WelcomeScreen", () => {
   });
 
   // --------------------------------------------------------------------------
-  // Key features / highlights
-  // --------------------------------------------------------------------------
-
-  it("shows all four key feature cards", () => {
-    render(<WelcomeScreen onClose={onClose} />);
-    expect(screen.getByText("Full CLI Simulation")).toBeInTheDocument();
-    expect(screen.getByText("Fault Injection Labs")).toBeInTheDocument();
-    expect(screen.getByText("Real-time Telemetry")).toBeInTheDocument();
-    expect(screen.getByText("Guided Scenarios")).toBeInTheDocument();
-  });
-
-  // --------------------------------------------------------------------------
   // Accessibility
   // --------------------------------------------------------------------------
 
@@ -152,5 +119,47 @@ describe("WelcomeScreen", () => {
     const dialog = screen.getByRole("dialog");
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(dialog).toHaveAttribute("aria-labelledby", "welcome-dialog-title");
+  });
+
+  // --------------------------------------------------------------------------
+  // Animated terminal demo
+  // --------------------------------------------------------------------------
+
+  it("renders the animated terminal demo container", () => {
+    render(<WelcomeScreen onClose={onClose} />);
+    expect(screen.getByTestId("terminal-demo")).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------------------------
+  // Stats bar
+  // --------------------------------------------------------------------------
+
+  it("renders stats bar with key numbers", () => {
+    render(<WelcomeScreen onClose={onClose} />);
+    expect(screen.getByText(/32 Missions/i)).toBeInTheDocument();
+    expect(screen.getByText(/229 Commands/i)).toBeInTheDocument();
+    expect(screen.getByText(/6 Architectures/i)).toBeInTheDocument();
+    expect(screen.getByText(/400\+ Questions/i)).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------------------------
+  // Feature pills
+  // --------------------------------------------------------------------------
+
+  it("renders feature pills", () => {
+    render(<WelcomeScreen onClose={onClose} />);
+    expect(screen.getByText("CLI Simulation")).toBeInTheDocument();
+    expect(screen.getByText("Fault Injection")).toBeInTheDocument();
+    expect(screen.getByText("Telemetry")).toBeInTheDocument();
+    expect(screen.getByText("Guided Scenarios")).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------------------------
+  // Sign-up CTA
+  // --------------------------------------------------------------------------
+
+  it("renders sign-up CTA", () => {
+    render(<WelcomeScreen onClose={onClose} />);
+    expect(screen.getByText(/sign up/i)).toBeInTheDocument();
   });
 });
