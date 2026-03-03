@@ -2,15 +2,76 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/nvidia-icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta property="og:title" content="Data Center Lab Simulator — NCP-AII Certification Practice" />
-    <meta property="og:description" content="Browser-based NCP-AII exam prep with 32 guided scenarios, 229 simulated datacenter commands, and a full learning progression system." />
-    <meta name="description" content="Browser-based NCP-AII exam prep with 32 guided scenarios, 229 simulated datacenter commands, and a full learning progression system." />
-    <meta property="og:image" content="/og-image.png" />
+
+    <!-- Primary SEO -->
+    <title>Data Center Lab Simulator — Free NCP-AII Certification Practice</title>
+    <meta name="description" content="Free browser-based NVIDIA NCP-AII certification exam prep. Practice 229 datacenter commands across 32 guided scenarios with realistic DGX/InfiniBand simulations, quizzes, and spaced-repetition review." />
+    <meta name="keywords" content="NCP-AII, NVIDIA certification, datacenter lab, DGX, InfiniBand, nvidia-smi, GPU monitoring, SLURM, certification practice, exam prep, data center training" />
+    <meta name="author" content="Sean Boerhout" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://www.dclabsim.com/" />
+
+    <!-- Theme / Icons -->
+    <meta name="theme-color" content="#76B900" />
+    <link rel="icon" type="image/svg+xml" href="/nvidia-icon.svg" />
+    <link rel="apple-touch-icon" href="/og-image.png" />
+
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DC Lab Sim" />
+    <meta property="og:title" content="Data Center Lab Simulator — Free NCP-AII Certification Practice" />
+    <meta property="og:description" content="Free browser-based NVIDIA NCP-AII certification exam prep. Practice 229 datacenter commands across 32 guided scenarios with realistic DGX/InfiniBand simulations." />
+    <meta property="og:url" content="https://www.dclabsim.com/" />
+    <meta property="og:image" content="https://www.dclabsim.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Data Center Lab Simulator terminal showing nvidia-smi and DGX diagnostic commands" />
+
+    <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <title>Data Center Lab Simulator — NCP-AII Certification Practice</title>
+    <meta name="twitter:title" content="Data Center Lab Simulator — Free NCP-AII Certification Practice" />
+    <meta name="twitter:description" content="Free browser-based NVIDIA NCP-AII exam prep with 229 simulated datacenter commands, guided scenarios, and spaced-repetition review." />
+    <meta name="twitter:image" content="https://www.dclabsim.com/og-image.png" />
+    <meta name="twitter:image:alt" content="Data Center Lab Simulator terminal showing nvidia-smi and DGX diagnostic commands" />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Data Center Lab Simulator",
+      "alternateName": "DC Lab Sim",
+      "url": "https://www.dclabsim.com",
+      "description": "Free browser-based NVIDIA NCP-AII certification exam prep. Practice 229 datacenter commands across 32 guided scenarios with realistic DGX and InfiniBand simulations.",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Any (browser-based)",
+      "browserRequirements": "Requires a modern web browser with JavaScript enabled",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Sean Boerhout"
+      },
+      "about": {
+        "@type": "EducationalOccupationalCredential",
+        "credentialCategory": "certification",
+        "name": "NVIDIA NCP-AII (AI Infrastructure)"
+      },
+      "featureList": [
+        "229 simulated datacenter commands",
+        "32 guided narrative scenarios",
+        "Realistic nvidia-smi, InfiniBand, and SLURM output",
+        "Spaced-repetition review system",
+        "Timed exam practice mode",
+        "DGX multi-architecture support (A100, H100, H200, B200, GB200, VR200)"
+      ]
+    }
+    </script>
+
     <!-- Monospace fonts for terminal -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +79,20 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <div style="padding:2rem;text-align:center;font-family:system-ui,sans-serif;color:#e5e7eb;background:#111827;min-height:100vh;">
+        <h1 style="color:#76B900;">Data Center Lab Simulator</h1>
+        <p>Free browser-based practice environment for the NVIDIA NCP-AII certification exam.</p>
+        <p>This application requires JavaScript to run. Please enable JavaScript in your browser settings.</p>
+        <ul style="text-align:left;max-width:600px;margin:2rem auto;line-height:1.8;">
+          <li>229 simulated datacenter commands (nvidia-smi, InfiniBand, SLURM, and more)</li>
+          <li>32 guided narrative scenarios across 5 exam domains</li>
+          <li>Realistic terminal with DGX multi-architecture support</li>
+          <li>Spaced-repetition review and timed exam practice</li>
+          <li>Track your progress with quizzes and mastery scoring</li>
+        </ul>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
