@@ -1293,6 +1293,7 @@ export const Terminal: React.FC<TerminalProps> = ({
       term.write(text);
       currentLine += text;
       setCurrentCommand(currentLine);
+      term.focus();
     };
 
     // Defer term.open() until container has non-zero dimensions to prevent
