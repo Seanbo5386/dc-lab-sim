@@ -220,6 +220,27 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
         setError("Additional verification required.");
       }
     } catch (err: unknown) {
+      // Stale cached session — clear it and retry once
+      if (
+        err instanceof Error &&
+        err.name === "UserAlreadyAuthenticatedException"
+      ) {
+        try {
+          await signOut();
+          const { isSignedIn } = await signIn({
+            username: email,
+            password,
+          });
+          if (isSignedIn) {
+            handleClose();
+            useAuthToastStore.getState().show("Signed in!", "success");
+          }
+          return;
+        } catch (retryErr: unknown) {
+          handleAuthError(retryErr);
+          return;
+        }
+      }
       handleAuthError(err);
     } finally {
       setLoading(false);

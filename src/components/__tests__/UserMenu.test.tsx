@@ -322,6 +322,34 @@ describe("UserMenu", () => {
     expect(screen.queryByText("User does not exist.")).not.toBeInTheDocument();
   });
 
+  it("retries sign-in after clearing stale session on UserAlreadyAuthenticatedException", async () => {
+    mockSignIn
+      .mockRejectedValueOnce(
+        Object.assign(new Error("Already authenticated"), {
+          name: "UserAlreadyAuthenticatedException",
+        }),
+      )
+      .mockResolvedValueOnce({ isSignedIn: true });
+    mockSignOut.mockResolvedValue(undefined);
+    render(<UserMenu isLoggedIn={false} syncStatus="idle" />);
+    fireEvent.click(screen.getByText("Sign in"));
+    fireEvent.change(screen.getByPlaceholderText("Email"), {
+      target: { value: "test@example.com" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Password"), {
+      target: { value: "password123" },
+    });
+    const submitBtn = screen
+      .getAllByRole("button", { name: "Sign in" })
+      .find((btn) => btn.getAttribute("type") === "submit")!;
+    fireEvent.click(submitBtn);
+    await waitFor(() => {
+      expect(mockSignOut).toHaveBeenCalled();
+      expect(mockSignIn).toHaveBeenCalledTimes(2);
+      expect(mockShowToast).toHaveBeenCalledWith("Signed in!", "success");
+    });
+  });
+
   it("shows generic error for NotAuthorizedException", async () => {
     mockSignIn.mockRejectedValue(
       Object.assign(new Error("Incorrect username or password."), {
