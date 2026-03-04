@@ -3,7 +3,12 @@ export interface PasswordValidationResult {
   errors: string[];
 }
 
-const rules: { test: (pw: string) => boolean; message: string }[] = [
+export interface PasswordRule {
+  test: (pw: string) => boolean;
+  message: string;
+}
+
+export const passwordRules: PasswordRule[] = [
   { test: (pw) => pw.length >= 8, message: "At least 8 characters" },
   { test: (pw) => /[A-Z]/.test(pw), message: "One uppercase letter" },
   { test: (pw) => /[a-z]/.test(pw), message: "One lowercase letter" },
@@ -15,7 +20,7 @@ const rules: { test: (pw: string) => boolean; message: string }[] = [
 ];
 
 export function validatePassword(password: string): PasswordValidationResult {
-  const errors = rules
+  const errors = passwordRules
     .filter((rule) => !rule.test(password))
     .map((rule) => rule.message);
 

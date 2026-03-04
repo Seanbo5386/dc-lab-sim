@@ -48,6 +48,7 @@ import { SpacedReviewDrill } from "./components/SpacedReviewDrill";
 import { TierUnlockNotificationContainer } from "./components/TierUnlockNotification";
 import { FaultToastContainer } from "./components/FaultToast";
 import { SyncToast } from "./components/SyncToast";
+import { AuthToast } from "./components/AuthToast";
 import { ExamGauntlet } from "./components/ExamGauntlet";
 import { WhichToolQuiz } from "./components/WhichToolQuiz";
 import { ToolMasteryQuiz } from "./components/ToolMasteryQuiz";
@@ -778,6 +779,9 @@ function App() {
 
       {/* Cloud Sync Toast Notifications */}
       <SyncToast onRetry={manualRetry} />
+
+      {/* Auth Toast Notifications */}
+      <AuthToast />
     </div>
   );
 }

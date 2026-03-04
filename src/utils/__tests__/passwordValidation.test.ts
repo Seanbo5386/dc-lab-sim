@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { validatePassword } from "../passwordValidation";
+import { validatePassword, passwordRules } from "../passwordValidation";
+
+describe("passwordRules", () => {
+  it("exports 5 password rules", () => {
+    expect(passwordRules).toHaveLength(5);
+    passwordRules.forEach((rule) => {
+      expect(typeof rule.test).toBe("function");
+      expect(typeof rule.message).toBe("string");
+    });
+  });
+});
 
 describe("validatePassword", () => {
   it("rejects passwords shorter than 8 characters", () => {
