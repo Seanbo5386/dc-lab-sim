@@ -21,7 +21,9 @@ import {
   ChevronDown,
 } from "lucide-react";
 import type { GPU, HealthStatus } from "@/types/hardware";
-import { MetricsChart } from "./MetricsChart";
+const MetricsChart = React.lazy(() =>
+  import("./MetricsChart").then((m) => ({ default: m.MetricsChart })),
+);
 import { TopologyGraph } from "./TopologyGraph";
 import { InfiniBandMap } from "./InfiniBandMap";
 import { FabricHealthSummary } from "./FabricHealthSummary";
@@ -774,7 +776,15 @@ export const Dashboard: React.FC = () => {
               ))}
             </select>
           </div>
-          <MetricsChart nodeId={currentNode.id} gpuId={selectedGPU} />
+          <React.Suspense
+            fallback={
+              <div className="h-64 flex items-center justify-center text-gray-500">
+                Loading chart...
+              </div>
+            }
+          >
+            <MetricsChart nodeId={currentNode.id} gpuId={selectedGPU} />
+          </React.Suspense>
         </div>
       )}
 
