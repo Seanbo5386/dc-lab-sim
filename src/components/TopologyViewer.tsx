@@ -402,7 +402,9 @@ export const TopologyViewer: React.FC<TopologyViewerProps> = ({
                   {selectedGPU.healthStatus}
                 </div>
                 <div className="text-gray-400">Temperature:</div>
-                <div className="text-gray-300">{selectedGPU.temperature}°C</div>
+                <div className="text-gray-300">
+                  {Math.round(selectedGPU.temperature)}°C
+                </div>
                 <div className="text-gray-400">Active XID Errors:</div>
                 <div className="text-gray-300">
                   {selectedGPU.xidErrors.length}

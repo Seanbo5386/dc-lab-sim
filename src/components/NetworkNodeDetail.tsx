@@ -288,7 +288,7 @@ export const NetworkNodeDetail: React.FC<NetworkNodeDetailProps> = ({
                 <div>
                   <div className="text-gray-400">Temperature</div>
                   <div className="text-white font-medium">
-                    {node.data.temperature}°C
+                    {Math.round(node.data.temperature)}°C
                   </div>
                 </div>
               </div>
@@ -349,7 +349,7 @@ export const NetworkNodeDetail: React.FC<NetworkNodeDetailProps> = ({
                 <div>
                   <div className="text-gray-400">Temperature</div>
                   <div className="text-white font-medium">
-                    {node.data.temperature}°C
+                    {Math.round(node.data.temperature)}°C
                   </div>
                 </div>
               </div>
@@ -441,7 +441,7 @@ export const NetworkNodeDetail: React.FC<NetworkNodeDetailProps> = ({
                 <div>
                   <div className="text-gray-400">Temperature</div>
                   <div className="text-white font-medium">
-                    {node.data.temperature}°C
+                    {Math.round(node.data.temperature)}°C
                   </div>
                 </div>
               </div>

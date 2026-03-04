@@ -333,7 +333,15 @@ export const NVSwitchTopology: React.FC<NVSwitchTopologyProps> = ({
         .attr("fill", d.utilization > 80 ? "#76B900" : "#10B981")
         .attr("rx", 2);
     });
-  }, [node, selectedNode, handleNodeClick, showDataFlow, dataFlowPath, width, height]);
+  }, [
+    node,
+    selectedNode,
+    handleNodeClick,
+    showDataFlow,
+    dataFlowPath,
+    width,
+    height,
+  ]);
 
   return (
     <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
@@ -377,16 +385,24 @@ export const NVSwitchTopology: React.FC<NVSwitchTopologyProps> = ({
               </div>
               <div className="text-gray-400">Temperature:</div>
               <div className="text-gray-300">
-                {((selectedNode || hoveredNode) as GPUNode).temperature}°C
+                {Math.round(
+                  ((selectedNode || hoveredNode) as GPUNode).temperature,
+                )}
+                °C
               </div>
               <div className="text-gray-400">Utilization:</div>
               <div className="text-gray-300">
-                {((selectedNode || hoveredNode) as GPUNode).utilization}%
+                {Math.round(
+                  ((selectedNode || hoveredNode) as GPUNode).utilization,
+                )}
+                %
               </div>
               <div className="text-gray-400">Power:</div>
               <div className="text-gray-300">
-                {((selectedNode || hoveredNode) as GPUNode).gpu.powerDraw}W /{" "}
-                {((selectedNode || hoveredNode) as GPUNode).gpu.powerLimit}W
+                {Math.round(
+                  ((selectedNode || hoveredNode) as GPUNode).gpu.powerDraw,
+                )}
+                W / {((selectedNode || hoveredNode) as GPUNode).gpu.powerLimit}W
               </div>
               <div className="text-gray-400">Memory:</div>
               <div className="text-gray-300">
