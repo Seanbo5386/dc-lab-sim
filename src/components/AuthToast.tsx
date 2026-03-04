@@ -14,10 +14,10 @@ const ICON_MAP = {
   error: AlertCircle,
 };
 
-const COLOR_MAP = {
-  success: "text-nvidia-green border-nvidia-green",
-  info: "text-blue-400 border-blue-400",
-  error: "text-red-400 border-red-400",
+const COLOR_MAP: Record<AuthToastType, { text: string; border: string }> = {
+  success: { text: "text-nvidia-green", border: "border-nvidia-green" },
+  info: { text: "text-blue-400", border: "border-blue-400" },
+  error: { text: "text-red-400", border: "border-red-400" },
 };
 
 export function AuthToast() {
@@ -34,7 +34,7 @@ export function AuthToast() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [visible, type, dismiss]);
+  }, [visible, type, message, dismiss]);
 
   if (!visible) return null;
 
@@ -43,12 +43,12 @@ export function AuthToast() {
 
   return (
     <div
-      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 bg-gray-800/95 backdrop-blur-sm border ${colors.split(" ")[1]} rounded-lg shadow-2xl`}
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-3 bg-gray-800/95 backdrop-blur-sm border ${colors.border} rounded-lg shadow-2xl`}
       role="status"
       aria-live="polite"
       data-testid="auth-toast"
     >
-      <Icon className={`w-5 h-5 flex-shrink-0 ${colors.split(" ")[0]}`} />
+      <Icon className={`w-5 h-5 flex-shrink-0 ${colors.text}`} />
       <span className="text-sm text-white">{message}</span>
     </div>
   );

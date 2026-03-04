@@ -22,7 +22,11 @@ import {
   Circle,
 } from "lucide-react";
 import type { SyncStatus } from "@/hooks/useCloudSync";
-import { validatePassword, passwordRules } from "@/utils/passwordValidation";
+import {
+  validatePassword,
+  passwordRules,
+  MIN_PASSWORD_LENGTH,
+} from "@/utils/passwordValidation";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { useAuthToastStore } from "@/store/authToastStore";
 
@@ -111,7 +115,7 @@ function PasswordInput({
         onChange={(e) => onChange(e.target.value)}
         className="w-full px-3 py-2 pr-10 bg-gray-900 border border-gray-600 rounded text-sm text-white placeholder-gray-500 focus:border-nvidia-green focus:outline-none"
         required={required}
-        minLength={8}
+        minLength={MIN_PASSWORD_LENGTH}
       />
       <button
         type="button"
@@ -157,6 +161,7 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
     setPassword("");
     setConfirmCode("");
     setError("");
+    setLoading(false);
     setCooldown(false);
     setShowPassword(false);
     setNewPassword("");
@@ -308,11 +313,20 @@ export function UserMenu({ isLoggedIn, syncStatus, userEmail }: UserMenuProps) {
         confirmationCode: resetCode,
         newPassword,
       });
-      await signIn({ username: email, password: newPassword });
-      handleClose();
-      useAuthToastStore
-        .getState()
-        .show("Password reset successful!", "success");
+      const { isSignedIn } = await signIn({
+        username: email,
+        password: newPassword,
+      });
+      if (isSignedIn) {
+        handleClose();
+        useAuthToastStore
+          .getState()
+          .show("Password reset successful!", "success");
+      } else {
+        setError(
+          "Password reset succeeded but sign-in requires additional verification. Please sign in manually.",
+        );
+      }
     } catch (err: unknown) {
       handleAuthError(err);
     } finally {

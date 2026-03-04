@@ -516,6 +516,37 @@ describe("UserMenu", () => {
     expect(mockConfirmResetPassword).not.toHaveBeenCalled();
   });
 
+  it("shows error when auto-sign-in after reset returns isSignedIn false", async () => {
+    mockResetPassword.mockResolvedValue({});
+    mockConfirmResetPassword.mockResolvedValue({});
+    mockSignIn.mockResolvedValue({ isSignedIn: false });
+    render(<UserMenu isLoggedIn={false} syncStatus="idle" />);
+    fireEvent.click(screen.getByText("Sign in"));
+    fireEvent.change(screen.getByPlaceholderText("Email"), {
+      target: { value: "test@example.com" },
+    });
+    fireEvent.click(screen.getByText("Forgot password?"));
+    fireEvent.click(screen.getByRole("button", { name: "Send reset code" }));
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("Reset code")).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByPlaceholderText("Reset code"), {
+      target: { value: "123456" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("New password"), {
+      target: { value: "NewPass123!" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Reset password" }));
+    await waitFor(() => {
+      expect(
+        screen.getByText(/sign-in requires additional verification/),
+      ).toBeInTheDocument();
+    });
+    // Modal should still be open (not closed with false success)
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(mockShowToast).not.toHaveBeenCalled();
+  });
+
   it("shows back to sign in link from forgot password", () => {
     render(<UserMenu isLoggedIn={false} syncStatus="idle" />);
     fireEvent.click(screen.getByText("Sign in"));

@@ -32,7 +32,7 @@ This guide walks through adding "Continue with Google" sign-in to the Data Cente
 3. Application type: **Web application**
 4. Name: `DC Lab Simulator`
 5. Add **Authorized redirect URIs**:
-   - Development: `https://localhost:5173/` (or your dev port)
+   - Development: `http://localhost:5173/` (or your dev port)
    - Sandbox: `https://<sandbox-domain>/`
    - Production: `https://<production-domain>/`
    - Cognito callback: `https://<your-user-pool-domain>.auth.<region>.amazoncognito.com/oauth2/idpresponse`
