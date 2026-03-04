@@ -75,7 +75,15 @@
     <!-- Monospace fonts for terminal -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" as="style">
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Preload critical assets -->
+    <link rel="preload" href="/nvidia-icon.svg" as="image" type="image/svg+xml">
+
+    <!-- DNS prefetch for AWS services -->
+    <link rel="dns-prefetch" href="https://cognito-idp.us-east-1.amazonaws.com">
+    <link rel="dns-prefetch" href="https://cognito-identity.us-east-1.amazonaws.com">
   </head>
   <body>
     <div id="root"></div>
