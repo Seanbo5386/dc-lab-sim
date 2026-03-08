@@ -1819,8 +1819,10 @@ export class NvidiaSmiSimulator extends BaseSimulator {
 
       output += `Compute Mode                              : Default\n\n`;
 
+      const isCritical = g.healthStatus === "Critical";
+
       output += `Utilization\n`;
-      output += `    Gpu                                   : ${g.utilization} %\n`;
+      output += `    Gpu                                   : ${isCritical ? "ERR!" : g.utilization + " %"}\n`;
       output += `    Memory                                : 0 %\n`;
       output += `    Encoder                               : 0 %\n`;
       output += `    Decoder                               : 0 %\n\n`;
@@ -1842,12 +1844,12 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       output += `        DRAM Uncorrectable                : ${g.eccErrors.aggregated.doubleBit}\n\n`;
 
       output += `Temperature\n`;
-      output += `    GPU Current Temp                      : ${Math.round(g.temperature)} C\n`;
+      output += `    GPU Current Temp                      : ${isCritical ? "ERR!" : Math.round(g.temperature) + " C"}\n`;
       output += `    GPU Shutdown Temp                     : 90 C\n`;
       output += `    GPU Slowdown Temp                     : 85 C\n`;
       output += `    GPU Max Operating Temp                : 83 C\n`;
       output += `    GPU Target Temperature                : N/A\n`;
-      output += `    Memory Current Temp                   : ${Math.round(g.temperature - 5)} C\n`;
+      output += `    Memory Current Temp                   : ${isCritical ? "ERR!" : Math.round(g.temperature - 5) + " C"}\n`;
       output += `    Memory Max Operating Temp             : 95 C\n\n`;
 
       output += `Power Readings\n`;
