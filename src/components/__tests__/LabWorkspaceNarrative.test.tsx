@@ -165,6 +165,8 @@ describe("LabWorkspace Narrative Integration", () => {
       scenarioProgress: { "test-narrative": mockProgress },
       exitScenario: vi.fn(),
       completeScenarioStep: vi.fn(),
+      recordQuizResult: vi.fn(),
+      quizResults: {},
       revealHint: vi.fn(),
       stepValidation: {},
       validationConfig: { enabled: false },

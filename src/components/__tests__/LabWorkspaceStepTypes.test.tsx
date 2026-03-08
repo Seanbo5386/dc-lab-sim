@@ -175,6 +175,8 @@ function makeMockStore(
     },
     exitScenario: vi.fn(),
     completeScenarioStep: mockCompleteScenarioStep,
+    recordQuizResult: vi.fn(),
+    quizResults: {},
     revealHint: vi.fn(),
     stepValidation: {},
     validationConfig: { enabled: false },

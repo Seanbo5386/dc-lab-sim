@@ -96,6 +96,7 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
     exitScenario,
     completeScenarioStep,
     recordQuizResult,
+    quizResults,
     revealHint: revealHintAction,
     stepValidation,
     validationConfig,
@@ -111,7 +112,6 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
   const [toolHintsSidebarOpen, setToolHintsSidebarOpen] = useState(true);
   const isSmallScreen = useMediaQuery("(max-width: 1279px)");
   const [showNarrativeIntro, setShowNarrativeIntro] = useState(true);
-  const [quizResults, setQuizResults] = useState<Record<string, boolean>>({});
 
   // Get command families for tool hints
   const commandFamilies = useMemo(() => {
@@ -761,10 +761,6 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                       <InlineQuiz
                         quiz={currentStep.narrativeQuiz}
                         onComplete={(correct) => {
-                          setQuizResults((prev) => ({
-                            ...prev,
-                            [currentStep.id]: correct,
-                          }));
                           recordQuizResult(currentStep.id, correct);
                           // Advance to next step after quiz is answered
                           if (!isStepCompleted) {
