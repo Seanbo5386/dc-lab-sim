@@ -95,6 +95,7 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
     scenarioProgress,
     exitScenario,
     completeScenarioStep,
+    recordQuizResult,
     revealHint: revealHintAction,
     stepValidation,
     validationConfig,
@@ -761,6 +762,7 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                             ...prev,
                             [currentStep.id]: correct,
                           }));
+                          recordQuizResult(currentStep.id, correct);
                           // Advance to next step after quiz is answered
                           if (!isStepCompleted) {
                             completeScenarioStep(
