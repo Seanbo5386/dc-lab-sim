@@ -1,0 +1,188 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420">
+  <style>
+    @keyframes gpuPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.82; }
+    }
+    .gpu {
+      animation: gpuPulse 2s ease-in-out infinite;
+    }
+    .node0 .gpu { animation-delay: 0s; }
+    .node1 .gpu { animation-delay: 0.25s; }
+    .node2 .gpu { animation-delay: 0.5s; }
+    .node3 .gpu { animation-delay: 0.75s; }
+    .node4 .gpu { animation-delay: 1.0s; }
+    .node5 .gpu { animation-delay: 1.25s; }
+    .node6 .gpu { animation-delay: 1.5s; }
+    .node7 .gpu { animation-delay: 1.75s; }
+  </style>
+
+  <!-- Background -->
+  <rect width="960" height="420" fill="#0D1117" rx="12"/>
+
+  <!-- Status bar background -->
+  <rect width="960" height="52" fill="#161B22" rx="12"/>
+  <rect y="12" width="960" height="40" fill="#161B22"/>
+
+  <!-- Status bar: left text -->
+  <text x="20" y="26" fill="#C9D1D9" font-family="Consolas, 'Courier New', monospace" font-size="13" font-weight="bold">DGX SuperPOD</text>
+
+  <!-- Status bar: center stats -->
+  <text x="400" y="26" fill="#8B949E" font-family="Consolas, 'Courier New', monospace" font-size="11" text-anchor="middle">
+    <tspan>8 Nodes</tspan>
+    <tspan dx="8">&#x2022;</tspan>
+    <tspan dx="8">64 GPUs</tspan>
+  </text>
+
+  <!-- Status bar: healthy indicator -->
+  <g class="status-healthy">
+    <circle cx="880" cy="22" r="4" fill="#76B900"/>
+    <text x="890" y="26" fill="#76B900" font-family="Consolas, 'Courier New', monospace" font-size="11">HEALTHY</text>
+  </g>
+
+  <!-- Status bar: degraded indicator (hidden) -->
+  <g class="status-degraded" opacity="0">
+    <circle cx="880" cy="22" r="4" fill="#D4A017"/>
+    <text x="890" y="26" fill="#D4A017" font-family="Consolas, 'Courier New', monospace" font-size="11">DEGRADED</text>
+  </g>
+
+  <!-- Node 0: dgx-00 (x=30, y=60) -->
+  <g class="node0">
+    <rect x="30" y="60" width="205" height="140" fill="#161B22" stroke="#30363D" stroke-width="1" rx="8"/>
+    <text x="42" y="84" fill="#C9D1D9" font-family="Consolas, 'Courier New', monospace" font-size="12">dgx-00</text>
+    <!-- GPU grid: 4x2, starts at x=42, y=96 -->
+    <rect x="42" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="64" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="86" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="108" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="42" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="64" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="86" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="108" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <!-- Temperature -->
+    <text x="42" y="152" fill="#8B949E" font-family="Consolas, 'Courier New', monospace" font-size="10">45&#xB0;C</text>
+    <!-- Status -->
+    <text x="215" y="152" fill="#76B900" font-family="Consolas, 'Courier New', monospace" font-size="10" text-anchor="end">OK</text>
+  </g>
+
+  <!-- Node 1: dgx-01 (x=255, y=60) -->
+  <g class="node1">
+    <rect x="255" y="60" width="205" height="140" fill="#161B22" stroke="#30363D" stroke-width="1" rx="8"/>
+    <text x="267" y="84" fill="#C9D1D9" font-family="Consolas, 'Courier New', monospace" font-size="12">dgx-01</text>
+    <rect x="267" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="289" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="311" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="333" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="267" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="289" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="311" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="333" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <text x="267" y="152" fill="#8B949E" font-family="Consolas, 'Courier New', monospace" font-size="10">44&#xB0;C</text>
+    <text x="440" y="152" fill="#76B900" font-family="Consolas, 'Courier New', monospace" font-size="10" text-anchor="end">OK</text>
+  </g>
+
+  <!-- Node 2: dgx-02 (x=480, y=60) -->
+  <g class="node2">
+    <rect x="480" y="60" width="205" height="140" fill="#161B22" stroke="#30363D" stroke-width="1" rx="8"/>
+    <text x="492" y="84" fill="#C9D1D9" font-family="Consolas, 'Courier New', monospace" font-size="12">dgx-02</text>
+    <rect x="492" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="514" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="536" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="558" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="492" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="514" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="536" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="558" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <text x="492" y="152" fill="#8B949E" font-family="Consolas, 'Courier New', monospace" font-size="10">46&#xB0;C</text>
+    <text x="665" y="152" fill="#76B900" font-family="Consolas, 'Courier New', monospace" font-size="10" text-anchor="end">OK</text>
+  </g>
+
+  <!-- Node 3: dgx-03 (x=705, y=60) — fault node -->
+  <g class="node3">
+    <rect x="705" y="60" width="205" height="140" fill="#161B22" stroke="#30363D" stroke-width="1" rx="8" class="node3-border"/>
+    <text x="717" y="84" fill="#C9D1D9" font-family="Consolas, 'Courier New', monospace" font-size="12">dgx-03</text>
+    <!-- GPU grid: GPU 0-2 healthy, GPU 3 fault, GPU 4-7 healthy -->
+    <rect x="717" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="739" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="761" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="783" y="96" width="16" height="16" rx="3" fill="#76B900" class="gpu-fault"/>
+    <rect x="717" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="739" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="761" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="783" y="118" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <!-- Temperature: healthy (visible) -->
+    <text x="717" y="152" fill="#8B949E" font-family="Consolas, 'Courier New', monospace" font-size="10" class="temp-healthy">47&#xB0;C</text>
+    <!-- Temperature: fault (hidden) -->
+    <text x="717" y="152" fill="#E5534B" font-family="Consolas, 'Courier New', monospace" font-size="10" class="temp-fault" opacity="0">85&#xB0;C</text>
+    <!-- ECC label (hidden) -->
+    <text x="717" y="165" fill="#E5534B" font-family="Consolas, 'Courier New', monospace" font-size="10" class="ecc-label" opacity="0">ECC: 8</text>
+    <!-- XID badge (hidden) -->
+    <text x="760" y="165" fill="#E5534B" font-family="Consolas, 'Courier New', monospace" font-size="10" class="xid-badge" opacity="0">XID 63</text>
+    <!-- Status -->
+    <text x="890" y="152" fill="#76B900" font-family="Consolas, 'Courier New', monospace" font-size="10" text-anchor="end">OK</text>
+  </g>
+
+  <!-- Node 4: dgx-04 (x=30, y=220) -->
+  <g class="node4">
+    <rect x="30" y="220" width="205" height="140" fill="#161B22" stroke="#30363D" stroke-width="1" rx="8"/>
+    <text x="42" y="244" fill="#C9D1D9" font-family="Consolas, 'Courier New', monospace" font-size="12">dgx-04</text>
+    <rect x="42" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="64" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="86" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="108" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="42" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="64" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="86" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="108" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <text x="42" y="312" fill="#8B949E" font-family="Consolas, 'Courier New', monospace" font-size="10">43&#xB0;C</text>
+    <text x="215" y="312" fill="#76B900" font-family="Consolas, 'Courier New', monospace" font-size="10" text-anchor="end">OK</text>
+  </g>
+
+  <!-- Node 5: dgx-05 (x=255, y=220) -->
+  <g class="node5">
+    <rect x="255" y="220" width="205" height="140" fill="#161B22" stroke="#30363D" stroke-width="1" rx="8"/>
+    <text x="267" y="244" fill="#C9D1D9" font-family="Consolas, 'Courier New', monospace" font-size="12">dgx-05</text>
+    <rect x="267" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="289" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="311" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="333" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="267" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="289" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="311" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="333" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <text x="267" y="312" fill="#8B949E" font-family="Consolas, 'Courier New', monospace" font-size="10">45&#xB0;C</text>
+    <text x="440" y="312" fill="#76B900" font-family="Consolas, 'Courier New', monospace" font-size="10" text-anchor="end">OK</text>
+  </g>
+
+  <!-- Node 6: dgx-06 (x=480, y=220) -->
+  <g class="node6">
+    <rect x="480" y="220" width="205" height="140" fill="#161B22" stroke="#30363D" stroke-width="1" rx="8"/>
+    <text x="492" y="244" fill="#C9D1D9" font-family="Consolas, 'Courier New', monospace" font-size="12">dgx-06</text>
+    <rect x="492" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="514" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="536" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="558" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="492" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="514" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="536" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="558" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <text x="492" y="312" fill="#8B949E" font-family="Consolas, 'Courier New', monospace" font-size="10">44&#xB0;C</text>
+    <text x="665" y="312" fill="#76B900" font-family="Consolas, 'Courier New', monospace" font-size="10" text-anchor="end">OK</text>
+  </g>
+
+  <!-- Node 7: dgx-07 (x=705, y=220) -->
+  <g class="node7">
+    <rect x="705" y="220" width="205" height="140" fill="#161B22" stroke="#30363D" stroke-width="1" rx="8"/>
+    <text x="717" y="244" fill="#C9D1D9" font-family="Consolas, 'Courier New', monospace" font-size="12">dgx-07</text>
+    <rect x="717" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="739" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="761" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="783" y="256" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="717" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="739" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="761" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <rect x="783" y="278" width="16" height="16" rx="3" fill="#76B900" class="gpu"/>
+    <text x="717" y="312" fill="#8B949E" font-family="Consolas, 'Courier New', monospace" font-size="10">46&#xB0;C</text>
+    <text x="890" y="312" fill="#76B900" font-family="Consolas, 'Courier New', monospace" font-size="10" text-anchor="end">OK</text>
+  </g>
+</svg>
