@@ -15,7 +15,111 @@
     .node5 .gpu { animation-delay: 1.25s; }
     .node6 .gpu { animation-delay: 1.5s; }
     .node7 .gpu { animation-delay: 1.75s; }
+
+    /* GPU 3 color: green 0-4s, transition to amber by 7s, transition to red by 10s, hold red 10-13s, reset 13-15s */
+    @keyframes gpuFaultColor {
+      0%, 26.7% { fill: #76B900; }
+      46.7% { fill: #D4A017; }
+      66.7%, 86.7% { fill: #E5534B; }
+      100% { fill: #76B900; }
+    }
+
+    /* Healthy temp "47°C" visible 0-4s, fades out by 7s, back at 15s */
+    @keyframes tempHealthy {
+      0%, 26.7% { opacity: 1; }
+      46.7%, 86.7% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    /* Fault temp "85°C" hidden 0-4s, fades in by 7s, back to hidden at 15s */
+    @keyframes tempFault {
+      0%, 26.7% { opacity: 0; }
+      46.7%, 86.7% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* ECC label hidden 0-4s, fades in by 7s */
+    @keyframes eccFadeIn {
+      0%, 26.7% { opacity: 0; }
+      46.7%, 86.7% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* XID badge hidden 0-7s, fades in by 10s */
+    @keyframes xidFadeIn {
+      0%, 46.7% { opacity: 0; }
+      66.7%, 86.7% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Node 3 border: gray 0-7s, amber 7-13s, reset */
+    @keyframes borderFault {
+      0%, 46.7% { stroke: #30363D; }
+      66.7%, 86.7% { stroke: #D4A017; }
+      100% { stroke: #30363D; }
+    }
+
+    /* HEALTHY visible 0-7s, fades out 7-10s, reappears 13-15s */
+    @keyframes statusHealthy {
+      0%, 46.7% { opacity: 1; }
+      66.7%, 86.7% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+
+    /* DEGRADED hidden 0-7s, fades in 7-10s, fades out 13-15s */
+    @keyframes statusDegraded {
+      0%, 46.7% { opacity: 0; }
+      66.7%, 86.7% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* Amber glow on dgx-03 */
+    @keyframes glowFadeIn {
+      0%, 46.7% { opacity: 0; }
+      66.7%, 86.7% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    .gpu-fault {
+      animation: gpuFaultColor 15s ease-in-out infinite;
+    }
+    .temp-healthy {
+      animation: tempHealthy 15s ease-in-out infinite;
+    }
+    .temp-fault {
+      animation: tempFault 15s ease-in-out infinite;
+    }
+    .ecc-label {
+      animation: eccFadeIn 15s ease-in-out infinite;
+    }
+    .xid-badge {
+      animation: xidFadeIn 15s ease-in-out infinite;
+    }
+    .node3-border {
+      animation: borderFault 15s ease-in-out infinite;
+    }
+    .status-healthy {
+      animation: statusHealthy 15s ease-in-out infinite;
+    }
+    .status-degraded {
+      animation: statusDegraded 15s ease-in-out infinite;
+    }
+    .node3-glow {
+      animation: glowFadeIn 15s ease-in-out infinite;
+    }
   </style>
+
+  <defs>
+    <filter id="amberGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#D4A017" flood-opacity="0.3" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
 
   <!-- Background -->
   <rect width="960" height="420" fill="#0D1117" rx="12"/>
@@ -116,6 +220,8 @@
     <text x="760" y="165" fill="#E5534B" font-family="Consolas, 'Courier New', monospace" font-size="10" class="xid-badge" opacity="0">XID 63</text>
     <!-- Status -->
     <text x="890" y="152" fill="#76B900" font-family="Consolas, 'Courier New', monospace" font-size="10" text-anchor="end">OK</text>
+    <!-- Amber glow overlay -->
+    <rect x="705" y="60" width="205" height="140" rx="8" fill="none" stroke="#D4A017" stroke-width="1" filter="url(#amberGlow)" class="node3-glow" opacity="0"/>
   </g>
 
   <!-- Node 4: dgx-04 (x=30, y=220) -->

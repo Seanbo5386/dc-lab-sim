@@ -13,7 +13,7 @@
 
 Practice on a simulated 8-node DGX SuperPOD with 64 GPUs. No hardware required.
 
-![Demo](docs/demo-optimized.gif)
+![Demo](docs/demo.gif)
 
 [Live Demo](https://www.dclabsim.com) · [Get Started](#quick-start) · [Scenarios](#narrative-scenarios) · [Roadmap](docs/ROADMAP.md)
 
