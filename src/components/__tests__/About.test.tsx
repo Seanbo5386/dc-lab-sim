@@ -18,6 +18,7 @@ vi.mock("lucide-react", () => {
     Sparkles: mk("Sparkles"),
     Linkedin: mk("Linkedin"),
     Shield: mk("Shield"),
+    Lock: mk("Lock"),
     ChevronRight: mk("ChevronRight"),
   };
 });

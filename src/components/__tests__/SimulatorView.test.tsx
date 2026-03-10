@@ -209,8 +209,10 @@ describe("SimulatorView", () => {
 
       // Should have auto-switched to Terminal tab
       expect(screen.getByTestId("terminal")).toBeInTheDocument();
-      // FaultInjection should no longer be visible
-      expect(screen.queryByTestId("fault-injection")).not.toBeInTheDocument();
+      // FaultInjection should be hidden (still in DOM but display:none via `hidden` class)
+      expect(
+        screen.getByTestId("fault-injection").closest("div.hidden"),
+      ).toBeTruthy();
     });
   });
 });
