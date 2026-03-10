@@ -97,7 +97,7 @@ export function generateWelcomeMessage(cols: number): string {
   const boxInner = Math.min(48, w - 2); // 2 for ║…║
   const rule = "═".repeat(boxInner);
   const line1 = "Data Center Lab Simulator";
-  const line2 = "NCP-AII Certification Practice v1.2.1";
+  const line2 = `NCP-AII Certification Practice v${import.meta.env.VITE_APP_VERSION}`;
 
   const boxLine = (text: string) => {
     const t = text.length > boxInner - 2 ? text.slice(0, boxInner - 2) : text;
