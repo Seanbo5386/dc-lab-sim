@@ -87,8 +87,11 @@ interface TrendPoint {
 export const PerformanceBenchmark: React.FC<PerformanceBenchmarkProps> = ({
   className = "",
 }) => {
-  const { domainProgress, examAttempts, getReadinessScore } =
-    useLearningStore();
+  const domainProgress = useLearningStore((state) => state.domainProgress);
+  const examAttempts = useLearningStore((state) => state.examAttempts);
+  const getReadinessScore = useLearningStore(
+    (state) => state.getReadinessScore,
+  );
 
   // Calculate user's score per domain
   const domainComparisons = useMemo((): DomainComparison[] => {
@@ -143,8 +146,7 @@ export const PerformanceBenchmark: React.FC<PerformanceBenchmarkProps> = ({
       }
     }
     return 5;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [domainProgress]);
+  }, [getReadinessScore]);
 
   // Calculate improvement trend
   const improvementTrend = useMemo((): TrendPoint[] => {
