@@ -19,7 +19,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --force
+        run: |
+          npm install
+          npm ls @rollup/rollup-linux-x64-gnu || npm install @rollup/rollup-linux-x64-gnu --no-save
 
       - name: Lint
         run: npm run lint

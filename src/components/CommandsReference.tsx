@@ -357,8 +357,16 @@ const CommandDetail: React.FC<{ def: CommandDefinition }> = ({ def }) => (
             const flagDisplay =
               opt.flag ||
               [
-                opt.short ? `-${opt.short}` : "",
-                opt.long ? `--${opt.long}` : "",
+                opt.short
+                  ? opt.short.startsWith("-")
+                    ? opt.short
+                    : `-${opt.short}`
+                  : "",
+                opt.long
+                  ? opt.long.startsWith("-")
+                    ? opt.long
+                    : `--${opt.long}`
+                  : "",
               ]
                 .filter(Boolean)
                 .join(", ");
