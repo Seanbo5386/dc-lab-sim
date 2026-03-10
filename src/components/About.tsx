@@ -9,6 +9,7 @@ import {
   Sparkles,
   Linkedin,
   Shield,
+  Lock,
 } from "lucide-react";
 
 const CHANGELOG = [
@@ -349,6 +350,98 @@ export function About() {
               registered trademark of Linus Torvalds. Docker is a trademark of
               Docker, Inc.
             </p>
+          </div>
+        </section>
+
+        {/* Security & Privacy */}
+        <section>
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-3">
+            <Lock className="w-5 h-5 text-nvidia-green" />
+            Security & Privacy
+          </h3>
+          <div className="bg-gray-800 rounded-lg p-5 text-sm text-gray-300 leading-relaxed space-y-2">
+            <p>
+              Your data is handled with care. Here's how we keep things secure:
+            </p>
+            <ul className="space-y-2 mt-3">
+              <li className="flex items-start gap-2">
+                <span className="text-nvidia-green mt-0.5 shrink-0">
+                  &#x2713;
+                </span>
+                <span>
+                  <span className="text-white font-medium">
+                    HTTPS everywhere
+                  </span>{" "}
+                  &mdash; hosted on AWS Amplify with TLS encryption for all
+                  traffic
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-nvidia-green mt-0.5 shrink-0">
+                  &#x2713;
+                </span>
+                <span>
+                  <span className="text-white font-medium">
+                    AWS Cognito authentication
+                  </span>{" "}
+                  &mdash; passwords are managed by AWS, never stored by the
+                  application
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-nvidia-green mt-0.5 shrink-0">
+                  &#x2713;
+                </span>
+                <span>
+                  <span className="text-white font-medium">
+                    Owner-scoped data access
+                  </span>{" "}
+                  &mdash; progress data is stored in AWS DynamoDB with
+                  encryption at rest, and only you can access your own records
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-nvidia-green mt-0.5 shrink-0">
+                  &#x2713;
+                </span>
+                <span>
+                  <span className="text-white font-medium">
+                    Minimal data collection
+                  </span>{" "}
+                  &mdash; only your email is collected for account creation; no
+                  tracking, analytics, or third-party data sharing
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-nvidia-green mt-0.5 shrink-0">
+                  &#x2713;
+                </span>
+                <span>
+                  <span className="text-white font-medium">
+                    Client-side simulation
+                  </span>{" "}
+                  &mdash; all terminal commands run locally in your browser;
+                  nothing is sent to a server
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-nvidia-green mt-0.5 shrink-0">
+                  &#x2713;
+                </span>
+                <span>
+                  <span className="text-white font-medium">Open source</span>{" "}
+                  &mdash; the full codebase is{" "}
+                  <a
+                    href={REPO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-nvidia-green hover:text-green-400 transition-colors underline"
+                  >
+                    publicly auditable on GitHub
+                  </a>
+                </span>
+              </li>
+            </ul>
           </div>
         </section>
 
