@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.2.1-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![Tests](https://img.shields.io/badge/tests-3510_unit_|_307_E2E-brightgreen?style=for-the-badge)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
@@ -324,6 +324,17 @@ Sign in with email/password to sync progress across devices. Powered by AWS Ampl
 
 ---
 
+## Security & Privacy
+
+- **All traffic encrypted** — HTTPS/TLS enforced via AWS Amplify hosting
+- **Authentication** — AWS Cognito user pools with email verification and secure password policy
+- **Data isolation** — DynamoDB records scoped to authenticated user (owner-based authorization); users can only read/write their own data
+- **Minimal data collection** — Only learning progress is stored; no PII beyond email
+- **Client-side simulation** — All commands execute locally in the browser; nothing is sent to a server
+- **Open source** — Full codebase available for security review
+
+---
+
 ## Testing
 
 ```bash
@@ -370,6 +381,14 @@ src/
 ---
 
 ## Roadmap
+
+### Completed (v1.2.1)
+
+- [x] Security & Privacy section detailing AWS hosting, Cognito auth, and data isolation
+- [x] Terminal session persistence across tab switches
+- [x] Fixed double-dash flag rendering in Commands Reference
+- [x] nvidia-smi formatter consistency fixes
+- [x] Version consistency across all surfaces
 
 ### Completed (v1.2.0)
 

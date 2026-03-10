@@ -15,6 +15,7 @@ import {
  * - XDR = 800 Gb/s (200 Gb/s per lane x 4)
  */
 export function getIBStandardName(rateGbps: number): string {
+  if (rateGbps >= 1600) return "XDR2";
   if (rateGbps >= 800) return "XDR";
   if (rateGbps >= 400) return "NDR";
   if (rateGbps >= 200) return "HDR";
@@ -114,7 +115,9 @@ export class InfiniBandSimulator extends BaseSimulator {
   ): CommandResult {
     parsed = this.parseWithSchema(parsed.raw);
     if (this.hasAnyFlag(parsed, ["help", "h"])) {
-      return this.getHelpFromRegistry("ibportstate", parsed) || this.handleHelp();
+      return (
+        this.getHelpFromRegistry("ibportstate", parsed) || this.handleHelp()
+      );
     }
 
     if (this.hasAnyFlag(parsed, ["version", "V"])) {
@@ -195,7 +198,9 @@ Options:
   ): CommandResult {
     parsed = this.parseWithSchema(parsed.raw);
     if (this.hasAnyFlag(parsed, ["help", "h"])) {
-      return this.getHelpFromRegistry("iblinkinfo", parsed) || this.handleHelp();
+      return (
+        this.getHelpFromRegistry("iblinkinfo", parsed) || this.handleHelp()
+      );
     }
 
     if (this.hasAnyFlag(parsed, ["version", "V"])) {
@@ -370,7 +375,9 @@ Options:
   ): CommandResult {
     parsed = this.parseWithSchema(parsed.raw);
     if (this.hasAnyFlag(parsed, ["help", "h"])) {
-      return this.getHelpFromRegistry("ibnetdiscover", parsed) || this.handleHelp();
+      return (
+        this.getHelpFromRegistry("ibnetdiscover", parsed) || this.handleHelp()
+      );
     }
 
     if (this.hasAnyFlag(parsed, ["version", "V"])) {
@@ -555,7 +562,9 @@ Options:
   ): CommandResult {
     parsed = this.parseWithSchema(parsed.raw);
     if (this.hasAnyFlag(parsed, ["help", "h"])) {
-      return this.getHelpFromRegistry("ibswitches", parsed) || this.handleHelp();
+      return (
+        this.getHelpFromRegistry("ibswitches", parsed) || this.handleHelp()
+      );
     }
 
     if (this.hasAnyFlag(parsed, ["version", "V"])) {
@@ -752,7 +761,9 @@ Options:
   ): CommandResult {
     parsed = this.parseWithSchema(parsed.raw);
     if (this.hasAnyFlag(parsed, ["help", "h"])) {
-      return this.getHelpFromRegistry("ib_write_bw", parsed) || this.handleHelp();
+      return (
+        this.getHelpFromRegistry("ib_write_bw", parsed) || this.handleHelp()
+      );
     }
 
     if (this.hasAnyFlag(parsed, ["version", "V"])) {
@@ -798,7 +809,9 @@ Options:
   ): CommandResult {
     parsed = this.parseWithSchema(parsed.raw);
     if (this.hasAnyFlag(parsed, ["help", "h"])) {
-      return this.getHelpFromRegistry("ib_read_bw", parsed) || this.handleHelp();
+      return (
+        this.getHelpFromRegistry("ib_read_bw", parsed) || this.handleHelp()
+      );
     }
 
     if (this.hasAnyFlag(parsed, ["version", "V"])) {

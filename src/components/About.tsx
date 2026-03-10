@@ -14,9 +14,20 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v1.2.1",
+    title: "Polish & Security",
+    current: true,
+    highlights: [
+      "Security & Privacy section with AWS hosting details",
+      "Terminal session persistence across tab switches",
+      "Fixed double-dash flag rendering in Commands Reference",
+      "nvidia-smi formatter consistency fixes",
+      "Version consistency across all surfaces",
+    ],
+  },
+  {
     version: "v1.2.0",
     title: "UX Overhaul & New Architectures",
-    current: true,
     highlights: [
       "Inline MissionCard replaces sidebar: click-to-paste commands, quiz gating, mount animation",
       "NarrativeIntro popup with skip option for Linux basics tutorials",

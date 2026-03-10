@@ -121,6 +121,7 @@ export const Terminal: React.FC<TerminalProps> = ({
   });
   const selectedNode = useSimulationStore((state) => state.selectedNode);
   const cluster = useSimulationStore((state) => state.cluster);
+  const systemType = useSimulationStore((state) => state.systemType);
   const initialNode = selectedNode || cluster.nodes[0]?.id || "dgx-00";
   const [connectedNode, setConnectedNode] = useState<string>(initialNode);
 
@@ -128,6 +129,9 @@ export const Terminal: React.FC<TerminalProps> = ({
   const executeCommandRef = useRef<((cmd: string) => Promise<void>) | null>(
     null,
   );
+
+  // Ref to store terminal reset callback (called on architecture change)
+  const resetTerminalRef = useRef<(() => void) | null>(null);
 
   // Ref to capture onReady callback (init effect has [] deps so we need a ref)
   const onReadyRef = useRef(onReady);
@@ -193,6 +197,17 @@ export const Terminal: React.FC<TerminalProps> = ({
       executeCommandRef.current(sshCommand);
     }
   }, [selectedNode, isTerminalReady, shellState.mode, connectedNode]);
+
+  // Reset terminal when architecture changes
+  const systemTypeRef = useRef(systemType);
+  useEffect(() => {
+    if (systemTypeRef.current !== systemType) {
+      systemTypeRef.current = systemType;
+      if (resetTerminalRef.current) {
+        resetTerminalRef.current();
+      }
+    }
+  }, [systemType]);
 
   // Manage scenario context when scenario changes
   useEffect(() => {
@@ -289,6 +304,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         setIsTerminalReady(true);
         term.write(generateWelcomeMessage(term.cols));
         prompt();
+
         term.onData((data) => {
           const result = handleKeyboardInput(data, {
             term,
@@ -1314,8 +1330,27 @@ export const Terminal: React.FC<TerminalProps> = ({
       initObserver.observe(container);
     }
 
+    // Expose reset callback for architecture changes
+    resetTerminalRef.current = () => {
+      term.reset();
+      currentLine = "";
+      setCommandHistory([]);
+      setHistoryIndex(-1);
+      const newNode =
+        useSimulationStore.getState().cluster.nodes[0]?.id || "dgx-00";
+      setConnectedNode(newNode);
+      currentContext.current.currentNode = newNode;
+      currentContext.current.currentPath = "/root";
+      currentContext.current.history = [];
+      currentContext.current.scenarioContext = undefined;
+      currentContext.current.cluster = useSimulationStore.getState().cluster;
+      term.write(generateWelcomeMessage(term.cols));
+      prompt();
+    };
+
     return () => {
       disposed = true;
+      resetTerminalRef.current = null;
       initObserver?.disconnect();
       resizeObserver.disconnect();
       term.dispose();
