@@ -57,10 +57,10 @@ describe("About", () => {
     expect(screen.getByText("v0.1.0")).toBeInTheDocument();
   });
 
-  it("marks v1.2.2 as the current version", () => {
+  it("marks v1.2.3 as the current version", () => {
     render(<About />);
     const current = screen.getByTestId("current-version");
-    expect(current).toHaveTextContent("v1.2.2");
+    expect(current).toHaveTextContent("v1.2.3");
     expect(screen.getByText("current")).toBeInTheDocument();
   });
 });
