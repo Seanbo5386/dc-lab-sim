@@ -402,9 +402,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   // ---------------------------------------------------------------------------
   if (missionMode) {
     return (
-      <div className={`flex ${className}`}>
+      <div className={`flex overflow-hidden ${className}`}>
         {showMissionCard && currentStep && (
-          <div className="w-[35%] min-w-[300px] max-w-[480px] shrink-0">
+          <div className="w-[35%] min-w-[300px] max-w-[480px] shrink-0 h-full overflow-hidden">
             <MissionInstructionPanel
               missionTitle={activeScenario!.title}
               tier={activeScenario!.tier}
