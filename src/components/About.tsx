@@ -14,9 +14,21 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v1.2.3",
+    title: "Quiz Stats & Dashboard Toggle",
+    current: true,
+    highlights: [
+      "Tool Selection quiz scores display as percentages instead of raw counts",
+      "Exam stats (Exams Taken, Avg Score, Pass Rate) include all quiz types",
+      "Pass rate uses quiz-specific thresholds (80% Tool Selection, 75% Deep Mastery)",
+      "Cluster/Terminal toggle in mission mode with dashboard update indicator",
+      "Mobile: auto-switch to terminal on scenario start, horizontal scroll for output",
+      "Store versioning with migration support for learningProgressStore",
+    ],
+  },
+  {
     version: "v1.2.2",
     title: "Audit Fixes & Scoring Pipeline",
-    current: true,
     highlights: [
       "Exam scoring pipeline: real breakdown persisted and recorded in analytics",
       "Fixed readiness benchmark showing inflated percentiles (6500% → 65%)",

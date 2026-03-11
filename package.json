@@ -1,6 +1,6 @@
 {
   "name": "dc-lab-sim",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "description": "Browser-based datacenter lab simulator for NCP-AII certification exam prep",
   "author": "Sean Boerhout",
   "license": "MIT",

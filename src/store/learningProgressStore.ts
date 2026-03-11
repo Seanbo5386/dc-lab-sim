@@ -536,7 +536,17 @@ export const useLearningProgressStore = create<LearningProgressState>()(
     }),
     {
       name: "ncp-aii-learning-progress-v2",
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+      migrate: (persisted, version) => {
+        const state = persisted as Record<string, unknown>;
+        if (version === 0) {
+          // v0 → v1: added incidentRating, incidentHistory, lastAttemptDate on quiz results
+          if (!("incidentRating" in state)) state.incidentRating = 1000;
+          if (!("incidentHistory" in state)) state.incidentHistory = [];
+        }
+        return state as LearningProgressState;
+      },
       partialize: (state) => ({
         toolsUsed: state.toolsUsed,
         familyQuizScores: state.familyQuizScores,
