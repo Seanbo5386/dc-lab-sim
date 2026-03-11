@@ -395,8 +395,8 @@ const ClusterHealthSummary: React.FC = () => {
 
   return (
     <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg p-6 border border-gray-700">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between mb-4 gap-2 overflow-hidden">
+        <div className="flex items-center gap-4 min-w-0 flex-wrap">
           <h2 className="text-xl font-bold text-nvidia-green">
             Cluster Health
           </h2>

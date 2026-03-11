@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.2.2-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.2.3-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Tests](https://img.shields.io/badge/tests-3616_unit_|_307_E2E-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-3631_unit_|_307_E2E-brightgreen?style=for-the-badge)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
 ![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)

@@ -39,6 +39,22 @@
   overflow-y: scroll !important;
 }
 
+/* Touch devices: xterm.js renders a custom scrollbar overlay that only handles
+   mouse events — it's non-functional on touch. Hide it and let JS handle
+   touch scrolling (see Terminal.tsx touch handler). */
+@media (pointer: coarse) {
+  /* Prevent browser from handling touch gestures on the terminal —
+     JS manually scrolls both axes (see Terminal.tsx useEffect). */
+  .terminal-content {
+    touch-action: none;
+  }
+
+  /* Hide xterm's custom scrollbar overlay (mouse-only) */
+  .xterm .xterm-scrollable-element > .scrollbar {
+    display: none !important;
+  }
+}
+
 /* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
   width: 10px;
