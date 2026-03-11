@@ -24,13 +24,14 @@
 .terminal-content {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
   width: 100%;
 }
 
 .xterm {
   height: 100% !important;
-  width: 100% !important;
+  min-width: max-content;
   padding: 10px;
 }
 

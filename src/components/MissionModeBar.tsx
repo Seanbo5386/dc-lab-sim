@@ -1,4 +1,4 @@
-import { ArrowLeft, BarChart3 } from "lucide-react";
+import { ArrowLeft, BarChart3, TerminalSquare } from "lucide-react";
 
 export interface MissionModeBarProps {
   title: string;
@@ -7,6 +7,7 @@ export interface MissionModeBarProps {
   tier?: 1 | 2 | 3;
   onAbort: () => void;
   onToggleDashboard: () => void;
+  isDashboardActive?: boolean;
 }
 
 const tierConfig: Record<1 | 2 | 3, { label: string; className: string }> = {
@@ -36,6 +37,7 @@ export function MissionModeBar({
   tier,
   onAbort,
   onToggleDashboard,
+  isDashboardActive = false,
 }: MissionModeBarProps) {
   const displayStep = currentStep + 1;
   const { label, className: badgeClass } = tier
@@ -97,14 +99,24 @@ export function MissionModeBar({
       {/* Divider */}
       <div className="w-px h-5 bg-gray-700" />
 
-      {/* Cluster dashboard button */}
+      {/* Cluster dashboard toggle */}
       <button
         onClick={onToggleDashboard}
         aria-label="Toggle cluster dashboard"
-        className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+        className={`flex items-center gap-1.5 transition-colors text-sm ${
+          isDashboardActive
+            ? "text-nvidia-green"
+            : "text-gray-400 hover:text-white"
+        }`}
       >
-        <BarChart3 className="w-4 h-4" />
-        <span className="hidden sm:inline">Cluster</span>
+        {isDashboardActive ? (
+          <TerminalSquare className="w-4 h-4" />
+        ) : (
+          <BarChart3 className="w-4 h-4" />
+        )}
+        <span className="hidden sm:inline">
+          {isDashboardActive ? "Terminal" : "Cluster"}
+        </span>
       </button>
     </div>
   );

@@ -258,6 +258,9 @@ export const Terminal: React.FC<TerminalProps> = ({
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
 
+    // Minimum columns to prevent wrapping of wide output (nvidia-smi tables)
+    const MIN_COLS = 120;
+
     // Safe fit function that checks container dimensions first
     const safeFit = () => {
       if (disposed || !terminalRef.current) return;
@@ -267,9 +270,11 @@ export const Terminal: React.FC<TerminalProps> = ({
           fitAddon.fit();
 
           // Subtract 1 column as safety margin for subpixel rounding.
-          if (term.cols > 2) {
-            term.resize(term.cols - 1, term.rows);
-          }
+          const cols = Math.max(
+            MIN_COLS,
+            term.cols > 2 ? term.cols - 1 : term.cols,
+          );
+          term.resize(cols, term.rows);
         } catch (e) {
           // Ignore fit errors during layout transitions
         }

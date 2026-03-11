@@ -41,7 +41,6 @@ const AfterActionReview = lazy(() =>
 );
 import { MissionBriefing } from "./components/MissionBriefing";
 import { MissionModeBar } from "./components/MissionModeBar";
-import { DashboardSlideOver } from "./components/DashboardSlideOver";
 import { NarrativeResolution } from "./components/NarrativeResolution";
 import { StudyDashboard } from "./components/StudyDashboard";
 import { SpacedReviewDrill } from "./components/SpacedReviewDrill";
@@ -289,11 +288,12 @@ function App() {
             tier={activeScenario!.tier}
             onAbort={handleAbortMission}
             onToggleDashboard={() => setShowDashboardSlideOver((v) => !v)}
+            isDashboardActive={showDashboardSlideOver}
           />
-          <SimulatorView className="flex-1 h-full" missionMode={true} />
-          <DashboardSlideOver
-            isOpen={showDashboardSlideOver}
-            onClose={() => setShowDashboardSlideOver(false)}
+          <SimulatorView
+            className="flex-1 h-full"
+            missionMode={true}
+            showDashboard={showDashboardSlideOver}
           />
         </>
       ) : (
