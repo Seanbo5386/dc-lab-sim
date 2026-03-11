@@ -640,7 +640,13 @@
             "type": "command",
             "command": "sinfo",
             "pattern": "STATE|alloc|idle"
-          }
+          },
+          "autoFaults": [
+            {"nodeId": "dgx-00", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "bert-finetune-4n", "nodeIds": ["dgx-00", "dgx-01", "dgx-02", "dgx-03"], "gpusPerNode": 8, "runtime": "4:12:33", "user": "jchen"}},
+            {"nodeId": "dgx-04", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "gpt-pretrain-2n", "nodeIds": ["dgx-04", "dgx-05"], "gpusPerNode": 8, "runtime": "1:45:10", "user": "mwilson"}},
+            {"nodeId": "dgx-06", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "diffusion-train", "nodeIds": ["dgx-06"], "gpusPerNode": 8, "runtime": "6:30:22", "user": "apark"}},
+            {"nodeId": "dgx-07", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "vit-eval-batch", "nodeIds": ["dgx-07"], "gpusPerNode": 4, "runtime": "0:22:15", "user": "lzhang"}}
+          ]
         },
         {
           "id": "step-2",
@@ -2422,7 +2428,12 @@
             "type": "command",
             "command": "nvidia-smi",
             "pattern": "GPU|Driver"
-          }
+          },
+          "autoFaults": [
+            {"nodeId": "dgx-00", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "pytorch-v2", "nodeIds": ["dgx-00", "dgx-01"], "gpusPerNode": 8, "runtime": "0:05:30", "user": "mlteam", "state": "FAILED"}},
+            {"nodeId": "dgx-02", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "tf-distrib", "nodeIds": ["dgx-02", "dgx-03"], "gpusPerNode": 8, "runtime": "0:02:15", "user": "dataeng", "state": "FAILED"}},
+            {"nodeId": "dgx-04", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "infer-server", "nodeIds": ["dgx-04"], "gpusPerNode": 4, "runtime": "12:30:00", "user": "prodops"}}
+          ]
         },
         {
           "id": "step-2",
@@ -2639,7 +2650,13 @@
             "type": "command",
             "command": "nvidia-smi",
             "pattern": "GPU|Utilization|%"
-          }
+          },
+          "autoFaults": [
+            {"nodeId": "dgx-00", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "imagenet-trn", "nodeIds": ["dgx-00", "dgx-01"], "gpusPerNode": 8, "runtime": "1:20:00", "user": "vision_team", "utilization": 8}},
+            {"nodeId": "dgx-02", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "nlp-preproc", "nodeIds": ["dgx-02"], "gpusPerNode": 4, "runtime": "0:45:30", "user": "nlp_team", "utilization": 10}},
+            {"nodeId": "dgx-03", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "diffusion-lg", "nodeIds": ["dgx-03", "dgx-04", "dgx-05", "dgx-06"], "gpusPerNode": 8, "runtime": "3:55:12", "user": "genai_lab", "utilization": 8}},
+            {"nodeId": "dgx-07", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "rl-training", "nodeIds": ["dgx-07"], "gpusPerNode": 8, "runtime": "0:30:22", "user": "rl_team", "utilization": 10}}
+          ]
         },
         {
           "id": "step-2",
@@ -2851,7 +2868,13 @@
             "type": "command",
             "command": "squeue",
             "pattern": "RUNNING|NODELIST"
-          }
+          },
+          "autoFaults": [
+            {"nodeId": "dgx-00", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "llm-megatron-8n", "nodeIds": ["dgx-00", "dgx-01", "dgx-02", "dgx-03", "dgx-04", "dgx-05", "dgx-06", "dgx-07"], "gpusPerNode": 8, "runtime": "3:22:45", "user": "researcher1", "utilization": 0}},
+            {"nodeId": "dgx-08", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "resnet-bench", "nodeIds": ["dgx-08"], "gpusPerNode": 8, "runtime": "0:45:12", "user": "benchuser"}},
+            {"nodeId": "dgx-09", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "vae-training", "nodeIds": ["dgx-09", "dgx-10"], "gpusPerNode": 8, "runtime": "5:10:30", "user": "genai_lab"}},
+            {"nodeId": "dgx-11", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "data-preproc", "nodeIds": ["dgx-11"], "gpusPerNode": 4, "runtime": "0:15:45", "user": "dataeng"}}
+          ]
         },
         {
           "id": "step-2",
@@ -3079,6 +3102,10 @@
           "tips": [
             "NVLink is 12x faster than PCIe for GPU-to-GPU transfers",
             "InfiniBand uses RDMA for low-latency cross-node communication"
+          ],
+          "autoFaults": [
+            {"nodeId": "dgx-00", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "nccl-allreduce", "nodeIds": ["dgx-00", "dgx-01", "dgx-02", "dgx-03"], "gpusPerNode": 8, "runtime": "0:35:20", "user": "mlops"}},
+            {"nodeId": "dgx-06", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "llama-finetune", "nodeIds": ["dgx-06", "dgx-07"], "gpusPerNode": 8, "runtime": "2:10:45", "user": "researcher2"}}
           ]
         },
         {
@@ -3311,7 +3338,10 @@
             "type": "command",
             "command": "squeue",
             "pattern": "RUNNING|TIME"
-          }
+          },
+          "autoFaults": [
+            {"nodeId": "dgx-00", "type": "allocate-job", "severity": "warning", "parameters": {"jobName": "llm-70b-train", "nodeIds": ["dgx-00", "dgx-01", "dgx-02", "dgx-03", "dgx-04", "dgx-05", "dgx-06", "dgx-07"], "gpusPerNode": 8, "runtime": "3:15:42", "user": "airesearch", "utilization": 0}}
+          ]
         },
         {
           "id": "step-2",
