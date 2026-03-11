@@ -1387,6 +1387,75 @@ export const Terminal: React.FC<TerminalProps> = ({
   // Lab Feedback - display messages when labs start/complete
   useLabFeedback(xtermRef.current, isTerminalReady, selectedNode || "dgx-00");
 
+  // Mobile touch scrolling — xterm.js v6's custom scrollbar only handles mouse
+  // events and registers document-level touch handlers with {passive:false}.
+  // CSS sets `touch-action: none` on .terminal-content. This handler uses
+  // xterm's own scrollLines() API for vertical and manual scrollLeft for horizontal.
+  useEffect(() => {
+    const container = terminalRef.current;
+    if (!container) return;
+
+    let startY = 0;
+    let startX = 0;
+    // Accumulated sub-line vertical delta (xterm scrollLines takes integer lines)
+    let accumulatedDY = 0;
+    const LINE_HEIGHT = 18; // approximate pixel height per terminal line
+
+    const onTouchStart = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      startY = touch.clientY;
+      startX = touch.clientX;
+      accumulatedDY = 0;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      const dy = touch.clientY - startY;
+      const dx = touch.clientX - startX;
+
+      // Vertical: use xterm's scroll API
+      const term = xtermRef.current;
+      if (term && Math.abs(dy) > 0) {
+        accumulatedDY += dy;
+        const lines = Math.trunc(accumulatedDY / LINE_HEIGHT);
+        if (lines !== 0) {
+          term.scrollLines(-lines);
+          accumulatedDY -= lines * LINE_HEIGHT;
+        }
+      }
+
+      // Horizontal: scroll the .terminal-content container
+      if (Math.abs(dx) > 0) {
+        container.scrollLeft -= dx;
+      }
+
+      startY = touch.clientY;
+      startX = touch.clientX;
+      e.preventDefault();
+    };
+
+    container.addEventListener("touchstart", onTouchStart, {
+      passive: true,
+      capture: true,
+    });
+    container.addEventListener("touchmove", onTouchMove, {
+      passive: false,
+      capture: true,
+    });
+
+    return () => {
+      container.removeEventListener("touchstart", onTouchStart, {
+        capture: true,
+      });
+      container.removeEventListener("touchmove", onTouchMove, {
+        capture: true,
+      });
+    };
+  }, []);
+
   return (
     <div data-testid="terminal" className={`terminal-container ${className}`}>
       <div className="terminal-node-indicator px-3 py-1.5 bg-gray-800 border-b border-gray-700 text-xs font-mono flex items-center gap-2">
