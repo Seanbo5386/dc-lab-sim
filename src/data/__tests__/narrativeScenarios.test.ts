@@ -295,6 +295,8 @@ describe("narrativeScenarios.json", () => {
       "driver-error",
       "pcie-error",
       "add-node",
+      "allocate-job",
+      "set-slurm-state",
     ];
 
     const allAutoFaults = scenarios.flatMap((s) =>
@@ -357,6 +359,40 @@ describe("narrativeScenarios.json", () => {
     it("autoFaults should have valid severity values", () => {
       allAutoFaults.forEach((fault) => {
         expect(["warning", "critical"]).toContain(fault.severity);
+      });
+    });
+
+    it("allocate-job faults should reference valid node IDs in parameters.nodeIds", () => {
+      const validNodeIds = Array.from(
+        { length: 10 },
+        (_, i) => `dgx-${String(i).padStart(2, "0")}`,
+      );
+
+      const allocateJobFaults = allAutoFaults.filter(
+        (f) => f.type === "allocate-job",
+      );
+      expect(allocateJobFaults.length).toBeGreaterThan(0);
+
+      allocateJobFaults.forEach((fault) => {
+        if (fault.parameters?.nodeIds) {
+          const nodeIds = fault.parameters.nodeIds as string[];
+          nodeIds.forEach((nodeId) => {
+            expect(validNodeIds).toContain(nodeId);
+          });
+        }
+      });
+    });
+
+    it("set-slurm-state faults should have a valid state parameter", () => {
+      const validSlurmStates = ["idle", "alloc", "drain", "down"];
+      const slurmStateFaults = allAutoFaults.filter(
+        (f) => f.type === "set-slurm-state",
+      );
+
+      slurmStateFaults.forEach((fault) => {
+        if (fault.parameters?.state) {
+          expect(validSlurmStates).toContain(fault.parameters.state);
+        }
       });
     });
   });

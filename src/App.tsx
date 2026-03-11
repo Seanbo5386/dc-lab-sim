@@ -41,7 +41,6 @@ const AfterActionReview = lazy(() =>
 );
 import { MissionBriefing } from "./components/MissionBriefing";
 import { MissionModeBar } from "./components/MissionModeBar";
-import { DashboardSlideOver } from "./components/DashboardSlideOver";
 import { NarrativeResolution } from "./components/NarrativeResolution";
 import { StudyDashboard } from "./components/StudyDashboard";
 import { SpacedReviewDrill } from "./components/SpacedReviewDrill";
@@ -220,6 +219,27 @@ function App() {
     : undefined;
   const missionStepIndex = missionProgress?.currentStepIndex ?? 0;
 
+  // Check if the current step has faults that visually affect the dashboard
+  const DASHBOARD_FAULT_TYPES = new Set([
+    "xid-error",
+    "thermal",
+    "ecc-error",
+    "nvlink-failure",
+    "gpu-hang",
+    "power",
+    "memory-full",
+    "driver-error",
+    "pcie-error",
+    "allocate-job",
+    "set-slurm-state",
+    "add-node",
+  ]);
+  const currentStepFaults = activeScenario?.steps[missionStepIndex]?.autoFaults;
+  const scenarioFaults = activeScenario?.faults;
+  const hasDashboardUpdate =
+    !!currentStepFaults?.some((f) => DASHBOARD_FAULT_TYPES.has(f.type)) ||
+    !!scenarioFaults?.some((f) => DASHBOARD_FAULT_TYPES.has(f.type));
+
   const handleStartIncident = useCallback(
     (difficulty: string, domain?: number) => {
       startIncident(difficulty, domain);
@@ -289,11 +309,13 @@ function App() {
             tier={activeScenario!.tier}
             onAbort={handleAbortMission}
             onToggleDashboard={() => setShowDashboardSlideOver((v) => !v)}
+            isDashboardActive={showDashboardSlideOver}
+            hasDashboardUpdate={hasDashboardUpdate && !showDashboardSlideOver}
           />
-          <SimulatorView className="flex-1 h-full" missionMode={true} />
-          <DashboardSlideOver
-            isOpen={showDashboardSlideOver}
-            onClose={() => setShowDashboardSlideOver(false)}
+          <SimulatorView
+            className="flex-1 h-full"
+            missionMode={true}
+            showDashboard={showDashboardSlideOver}
           />
         </>
       ) : (

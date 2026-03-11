@@ -540,6 +540,123 @@ describe("scenarioLoader", () => {
 
       expect(context.getMutationCount()).toBe(0);
     });
+
+    it("should handle allocate-job fault: set node slurmState and GPU allocation", () => {
+      const cluster = createMockCluster();
+      const context = new ScenarioContext("test", cluster);
+
+      const faults: FaultInjectionConfig[] = [
+        {
+          nodeId: "dgx-00",
+          type: "allocate-job",
+          severity: "warning",
+          parameters: {
+            jobName: "test-training",
+            nodeIds: ["dgx-00"],
+            gpusPerNode: 2,
+            runtime: "1:30:00",
+            user: "researcher",
+          },
+        },
+      ];
+
+      applyFaultsToContext(faults, context);
+
+      // Node should be allocated
+      const node = context.getNode("dgx-00");
+      expect(node?.slurmState).toBe("alloc");
+
+      // GPUs should have utilization set (default ~85)
+      const gpu0 = context.getGPU("dgx-00", 0);
+      expect(gpu0?.allocatedJobId).toBeDefined();
+      expect(gpu0?.utilization).toBe(85);
+
+      // Seed job should be stored
+      const seeds = context.getSeedJobs();
+      expect(seeds).toHaveLength(1);
+      expect(seeds[0].jobName).toBe("test-training");
+      expect(seeds[0].state).toBe("RUNNING");
+    });
+
+    it("should handle allocate-job with custom utilization", () => {
+      const cluster = createMockCluster();
+      const context = new ScenarioContext("test", cluster);
+
+      const faults: FaultInjectionConfig[] = [
+        {
+          nodeId: "dgx-00",
+          type: "allocate-job",
+          severity: "warning",
+          parameters: {
+            jobName: "deadlocked-job",
+            nodeIds: ["dgx-00"],
+            gpusPerNode: 2,
+            runtime: "3:00:00",
+            user: "user1",
+            utilization: 0,
+          },
+        },
+      ];
+
+      applyFaultsToContext(faults, context);
+
+      const gpu0 = context.getGPU("dgx-00", 0);
+      expect(gpu0?.utilization).toBe(0);
+    });
+
+    it("should handle allocate-job with FAILED state (no GPU allocation)", () => {
+      const cluster = createMockCluster();
+      const context = new ScenarioContext("test", cluster);
+
+      const faults: FaultInjectionConfig[] = [
+        {
+          nodeId: "dgx-00",
+          type: "allocate-job",
+          severity: "warning",
+          parameters: {
+            jobName: "crashed-job",
+            nodeIds: ["dgx-00"],
+            gpusPerNode: 2,
+            runtime: "0:05:00",
+            user: "user1",
+            state: "FAILED",
+          },
+        },
+      ];
+
+      applyFaultsToContext(faults, context);
+
+      // FAILED jobs should NOT allocate GPUs or change node state
+      const node = context.getNode("dgx-00");
+      expect(node?.slurmState).toBe("idle");
+
+      // But seed job should still be stored (for squeue history)
+      const seeds = context.getSeedJobs();
+      expect(seeds).toHaveLength(1);
+      expect(seeds[0].state).toBe("FAILED");
+    });
+
+    it("should handle set-slurm-state fault", () => {
+      const cluster = createMockCluster();
+      const context = new ScenarioContext("test", cluster);
+
+      const faults: FaultInjectionConfig[] = [
+        {
+          nodeId: "dgx-00",
+          type: "set-slurm-state",
+          severity: "warning",
+          parameters: {
+            state: "drain",
+            reason: "BMC firmware update",
+          },
+        },
+      ];
+
+      applyFaultsToContext(faults, context);
+
+      const node = context.getNode("dgx-00");
+      expect(node?.slurmState).toBe("drain");
+    });
   });
 
   // ── clearAllFaults ────────────────────────────────────────────

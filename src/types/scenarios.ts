@@ -14,7 +14,9 @@ export type FaultType =
   | "memory-full"
   | "driver-error"
   | "pcie-error"
-  | "add-node";
+  | "add-node"
+  | "allocate-job"
+  | "set-slurm-state";
 
 export interface FaultInjectionConfig {
   nodeId: string;
@@ -23,6 +25,24 @@ export interface FaultInjectionConfig {
   severity: "warning" | "critical";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   parameters?: Record<string, any>;
+}
+
+/**
+ * Describes a pre-existing Slurm job to inject into scenarios.
+ * Used by the `allocate-job` fault type to populate squeue output
+ * and set realistic node/GPU state.
+ */
+export interface SeedJob {
+  jobName: string;
+  nodeIds: string[];
+  gpusPerNode: number;
+  runtime: string;
+  user: string;
+  partition: string;
+  state: "RUNNING" | "PENDING" | "FAILED";
+  reasonPending?: string;
+  utilization?: number;
+  memoryPercent?: number;
 }
 
 // ============================================================================

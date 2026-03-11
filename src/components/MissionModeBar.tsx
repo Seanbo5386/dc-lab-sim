@@ -1,4 +1,4 @@
-import { ArrowLeft, BarChart3 } from "lucide-react";
+import { ArrowLeft, BarChart3, TerminalSquare } from "lucide-react";
 
 export interface MissionModeBarProps {
   title: string;
@@ -7,6 +7,8 @@ export interface MissionModeBarProps {
   tier?: 1 | 2 | 3;
   onAbort: () => void;
   onToggleDashboard: () => void;
+  isDashboardActive?: boolean;
+  hasDashboardUpdate?: boolean;
 }
 
 const tierConfig: Record<1 | 2 | 3, { label: string; className: string }> = {
@@ -36,6 +38,8 @@ export function MissionModeBar({
   tier,
   onAbort,
   onToggleDashboard,
+  isDashboardActive = false,
+  hasDashboardUpdate = false,
 }: MissionModeBarProps) {
   const displayStep = currentStep + 1;
   const { label, className: badgeClass } = tier
@@ -97,14 +101,27 @@ export function MissionModeBar({
       {/* Divider */}
       <div className="w-px h-5 bg-gray-700" />
 
-      {/* Cluster dashboard button */}
+      {/* Cluster/Terminal toggle pill */}
       <button
         onClick={onToggleDashboard}
         aria-label="Toggle cluster dashboard"
-        className="flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+        className={`relative flex items-center gap-1.5 text-sm px-3 py-1 rounded-full border transition-all ${
+          isDashboardActive
+            ? "bg-nvidia-green/20 text-nvidia-green border-nvidia-green/50"
+            : hasDashboardUpdate
+              ? "bg-yellow-900/40 text-yellow-300 border-yellow-500/60 animate-pulse"
+              : "bg-gray-800 text-gray-300 border-gray-600 hover:border-gray-400 hover:text-white"
+        }`}
       >
-        <BarChart3 className="w-4 h-4" />
-        <span className="hidden sm:inline">Cluster</span>
+        {isDashboardActive ? (
+          <TerminalSquare className="w-4 h-4" />
+        ) : (
+          <BarChart3 className="w-4 h-4" />
+        )}
+        <span>{isDashboardActive ? "Terminal" : "Cluster"}</span>
+        {hasDashboardUpdate && !isDashboardActive && (
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full border border-black" />
+        )}
       </button>
     </div>
   );

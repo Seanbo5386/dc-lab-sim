@@ -101,7 +101,7 @@ export function MissionInstructionPanel({
       className="flex flex-col h-full bg-gray-900 border-r border-gray-700"
     >
       {/* Scrollable content area */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 break-words">
         {/* Step counter + dot indicators */}
         <div>
           <span className="text-sm text-gray-400">
@@ -179,7 +179,9 @@ export function MissionInstructionPanel({
                         isExecuted ? "Executed" : "Click to paste into terminal"
                       }
                     >
-                      <span className="mr-2">{isExecuted ? "\u2713" : "\u25CB"}</span>
+                      <span className="mr-2">
+                        {isExecuted ? "\u2713" : "\u25CB"}
+                      </span>
                       {cmd}
                     </button>
                   );
@@ -295,7 +297,9 @@ export function MissionInstructionPanel({
             onClick={onNextStep}
             className="w-full bg-nvidia-green hover:bg-green-500 text-black text-sm font-bold py-2.5 rounded transition-colors"
           >
-            {currentStepIndex + 1 < totalSteps ? "Next \u2192" : "Finish \u2192"}
+            {currentStepIndex + 1 < totalSteps
+              ? "Next \u2192"
+              : "Finish \u2192"}
           </button>
         )}
 

@@ -1091,4 +1091,70 @@ describe("ScenarioContextManager", () => {
       expect(ctx.getGPU("dgx-00", 5)!.temperature).not.toBe(95);
     });
   });
+
+  describe("Seed Jobs", () => {
+    it("should store and retrieve seed jobs", () => {
+      const cluster = createTestCluster();
+      const ctx = new ScenarioContext("test-scenario", cluster);
+
+      ctx.addSeedJob({
+        jobName: "test-training",
+        nodeIds: ["node-01"],
+        gpusPerNode: 2,
+        runtime: "1:00:00",
+        user: "researcher",
+        partition: "gpu",
+        state: "RUNNING",
+      });
+
+      const seeds = ctx.getSeedJobs();
+      expect(seeds).toHaveLength(1);
+      expect(seeds[0].jobName).toBe("test-training");
+    });
+
+    it("should clear seed jobs", () => {
+      const cluster = createTestCluster();
+      const ctx = new ScenarioContext("test-scenario", cluster);
+
+      ctx.addSeedJob({
+        jobName: "job-1",
+        nodeIds: ["node-01"],
+        gpusPerNode: 2,
+        runtime: "1:00:00",
+        user: "user1",
+        partition: "gpu",
+        state: "RUNNING",
+      });
+
+      ctx.clearSeedJobs();
+      expect(ctx.getSeedJobs()).toHaveLength(0);
+    });
+
+    it("should accumulate multiple seed jobs", () => {
+      const cluster = createTestCluster();
+      const ctx = new ScenarioContext("test-scenario", cluster);
+
+      ctx.addSeedJob({
+        jobName: "job-1",
+        nodeIds: ["node-01"],
+        gpusPerNode: 2,
+        runtime: "1:00:00",
+        user: "user1",
+        partition: "gpu",
+        state: "RUNNING",
+      });
+      ctx.addSeedJob({
+        jobName: "job-2",
+        nodeIds: ["node-02"],
+        gpusPerNode: 2,
+        runtime: "2:00:00",
+        user: "user2",
+        partition: "gpu",
+        state: "PENDING",
+        reasonPending: "Resources",
+      });
+
+      expect(ctx.getSeedJobs()).toHaveLength(2);
+    });
+  });
 });

@@ -12,6 +12,7 @@ import type {
   HealthStatus,
   XIDError,
 } from "@/types/hardware";
+import type { SeedJob } from "@/types/scenarios";
 import { useSimulationStore } from "./simulationStore";
 import { logger } from "@/utils/logger";
 import { EventLog } from "@/simulation/eventLog";
@@ -49,6 +50,7 @@ export class ScenarioContext {
   private startTime: number;
   private readonly: boolean = false;
   private eventLog: EventLog;
+  private seedJobs: SeedJob[] = [];
 
   constructor(scenarioId: string, baseCluster?: ClusterConfig) {
     this.scenarioId = scenarioId;
@@ -501,6 +503,20 @@ export class ScenarioContext {
   getDiff(): StateChange[] {
     // Return all mutations as they represent the diff
     return this.getMutations();
+  }
+
+  // ── Seed Jobs (for allocate-job fault type) ──────────────────────
+
+  addSeedJob(job: SeedJob): void {
+    this.seedJobs.push(job);
+  }
+
+  getSeedJobs(): SeedJob[] {
+    return [...this.seedJobs];
+  }
+
+  clearSeedJobs(): void {
+    this.seedJobs = [];
   }
 }
 

@@ -212,20 +212,31 @@ export const Terminal: React.FC<TerminalProps> = ({
     }
   }, [systemType]);
 
-  // Manage scenario context when scenario changes
+  // Keep command context cluster ref in sync (runs on every cluster change)
+  useEffect(() => {
+    if (!activeScenarioId) {
+      currentContext.current.cluster = cluster;
+    }
+  }, [cluster, activeScenarioId]);
+
+  // Manage scenario context when scenario changes (keyed only on scenario ID)
   useEffect(() => {
     const store = useSimulationStore.getState();
     if (store.activeScenario) {
       // Create or get scenario context
       const context = scenarioContextManager.getOrCreateContext(
         store.activeScenario.id,
-        cluster,
+        store.cluster,
       );
       scenarioContextManager.setActiveContext(store.activeScenario.id);
 
       // Add to command context
       currentContext.current.scenarioContext = context;
       currentContext.current.cluster = context.getCluster();
+
+      // Sync seed jobs from scenario context into slurm simulator
+      slurmSimulator.current.clearJobs();
+      slurmSimulator.current.syncFromContext(currentContext.current);
 
       logger.debug(
         `Terminal: Using scenario context for ${store.activeScenario.id}`,
@@ -234,11 +245,12 @@ export const Terminal: React.FC<TerminalProps> = ({
       // Clear scenario context when no active scenario
       scenarioContextManager.setActiveContext(null);
       currentContext.current.scenarioContext = undefined;
-      currentContext.current.cluster = cluster;
+      currentContext.current.cluster = store.cluster;
+      slurmSimulator.current.clearJobs();
 
       logger.debug("Terminal: Cleared scenario context");
     }
-  }, [cluster, activeScenarioId]);
+  }, [activeScenarioId]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -253,6 +265,9 @@ export const Terminal: React.FC<TerminalProps> = ({
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
 
+    // Minimum columns to prevent wrapping of wide output (nvidia-smi tables)
+    const MIN_COLS = 120;
+
     // Safe fit function that checks container dimensions first
     const safeFit = () => {
       if (disposed || !terminalRef.current) return;
@@ -262,9 +277,11 @@ export const Terminal: React.FC<TerminalProps> = ({
           fitAddon.fit();
 
           // Subtract 1 column as safety margin for subpixel rounding.
-          if (term.cols > 2) {
-            term.resize(term.cols - 1, term.rows);
-          }
+          const cols = Math.max(
+            MIN_COLS,
+            term.cols > 2 ? term.cols - 1 : term.cols,
+          );
+          term.resize(cols, term.rows);
         } catch (e) {
           // Ignore fit errors during layout transitions
         }

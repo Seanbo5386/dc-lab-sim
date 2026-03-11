@@ -191,6 +191,8 @@ vi.mock("../../simulators/slurmSimulator", () => ({
   SlurmSimulator: vi.fn(() => ({
     execute: vi.fn(() => ""),
     getOutput: vi.fn(() => ""),
+    clearJobs: vi.fn(),
+    syncFromContext: vi.fn(),
   })),
 }));
 vi.mock("../../simulators/containerSimulator", () => ({

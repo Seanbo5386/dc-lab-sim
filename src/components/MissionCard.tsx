@@ -143,7 +143,7 @@ export function MissionCard({
       }`}
     >
       {/* Left content area */}
-      <div className="flex-1 min-w-0 px-3 py-2 overflow-y-auto">
+      <div className="flex-1 min-w-0 px-3 py-2 overflow-y-auto break-words">
         {/* Row 1a — Title */}
         <h3 className="text-sm font-semibold text-white mb-0.5">
           {missionTitle}

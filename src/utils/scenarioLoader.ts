@@ -295,6 +295,73 @@ export function applyFaultsToContext(
         break;
       }
 
+      case "allocate-job": {
+        const jobName = (parameters?.jobName as string) ?? "training-job";
+        const nodeIds = (parameters?.nodeIds as string[]) ?? [nodeId];
+        const gpusPerNode = (parameters?.gpusPerNode as number) ?? 8;
+        const runtime = (parameters?.runtime as string) ?? "1:00:00";
+        const user = (parameters?.user as string) ?? "researcher";
+        const partition = (parameters?.partition as string) ?? "gpu";
+        const jobState =
+          (parameters?.state as "RUNNING" | "PENDING" | "FAILED") ?? "RUNNING";
+        const utilization = parameters?.utilization as number | undefined;
+        const memoryPercent = parameters?.memoryPercent as number | undefined;
+        const reasonPending = parameters?.reasonPending as string | undefined;
+
+        // Store seed job for SlurmSimulator to pick up
+        context.addSeedJob({
+          jobName,
+          nodeIds,
+          gpusPerNode,
+          runtime,
+          user,
+          partition,
+          state: jobState,
+          reasonPending,
+          utilization,
+          memoryPercent,
+        });
+
+        // Only RUNNING jobs allocate nodes and GPUs
+        if (jobState === "RUNNING") {
+          const seedJobId = 1000 + context.getSeedJobs().length - 1;
+          const targetUtil = utilization ?? 85;
+          const memPct = memoryPercent ?? 75;
+
+          for (const nId of nodeIds) {
+            const node = context.getNode(nId);
+            if (!node) continue;
+
+            context.setSlurmState(nId, "alloc");
+
+            const gpuIds = node.gpus.slice(0, gpusPerNode).map((g) => g.id);
+            for (const gId of gpuIds) {
+              const gpu = context.getGPU(nId, gId);
+              if (!gpu) continue;
+              context.updateGPU(nId, gId, {
+                utilization: targetUtil,
+                memoryUsed: Math.floor(gpu.memoryTotal * (memPct / 100)),
+                powerDraw: gpu.powerLimit * (targetUtil > 0 ? 0.8 : 0.15),
+                temperature: targetUtil > 0 ? 72 : 35,
+                allocatedJobId: seedJobId,
+              });
+            }
+          }
+        }
+        break;
+      }
+
+      case "set-slurm-state": {
+        const targetState = (parameters?.state as string) ?? "idle";
+        const reason = parameters?.reason as string | undefined;
+        context.setSlurmState(
+          nodeId,
+          targetState as "idle" | "alloc" | "drain" | "down",
+          reason,
+        );
+        break;
+      }
+
       default:
         logger.warn(`Unknown fault type: ${type}`);
     }
