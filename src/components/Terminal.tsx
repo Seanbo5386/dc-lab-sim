@@ -212,14 +212,21 @@ export const Terminal: React.FC<TerminalProps> = ({
     }
   }, [systemType]);
 
-  // Manage scenario context when scenario changes
+  // Keep command context cluster ref in sync (runs on every cluster change)
+  useEffect(() => {
+    if (!activeScenarioId) {
+      currentContext.current.cluster = cluster;
+    }
+  }, [cluster, activeScenarioId]);
+
+  // Manage scenario context when scenario changes (keyed only on scenario ID)
   useEffect(() => {
     const store = useSimulationStore.getState();
     if (store.activeScenario) {
       // Create or get scenario context
       const context = scenarioContextManager.getOrCreateContext(
         store.activeScenario.id,
-        cluster,
+        store.cluster,
       );
       scenarioContextManager.setActiveContext(store.activeScenario.id);
 
@@ -238,12 +245,13 @@ export const Terminal: React.FC<TerminalProps> = ({
       // Clear scenario context when no active scenario
       scenarioContextManager.setActiveContext(null);
       currentContext.current.scenarioContext = undefined;
-      currentContext.current.cluster = cluster;
+      currentContext.current.cluster = store.cluster;
       slurmSimulator.current.clearJobs();
 
       logger.debug("Terminal: Cleared scenario context");
     }
-  }, [cluster, activeScenarioId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only re-run when scenario changes, not on every cluster mutation
+  }, [activeScenarioId]);
 
   useEffect(() => {
     if (!terminalRef.current) return;

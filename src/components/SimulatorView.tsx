@@ -443,13 +443,15 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
             />
           </div>
         )}
-        {showDashboard ? (
+        {showDashboard && (
           <div className="flex-1 overflow-auto p-4 bg-gray-900">
             <Dashboard />
           </div>
-        ) : (
-          <Terminal className="flex-1" onReady={handleTerminalReady} />
         )}
+        <Terminal
+          className={`flex-1 ${showDashboard ? "hidden" : ""}`}
+          onReady={handleTerminalReady}
+        />
       </div>
     );
   }
