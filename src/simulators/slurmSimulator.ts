@@ -5,6 +5,7 @@ import {
   type SimulatorMetadata,
 } from "@/simulators/BaseSimulator";
 import type { DGXNode } from "@/types/hardware";
+import type { SeedJob } from "@/types/scenarios";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
 
 interface SlurmJob {
@@ -47,6 +48,74 @@ export class SlurmSimulator extends BaseSimulator {
   constructor() {
     super();
     this.initializeDefinitionRegistry();
+  }
+
+  /**
+   * Inject a pre-existing job into the simulator.
+   * Used by scenario initialization to populate squeue/scontrol output.
+   * Node slurmState and GPU allocation are handled separately by applyFaultsToContext.
+   */
+  injectJob(seed: SeedJob): void {
+    const job: SlurmJob = {
+      jobId: this.nextJobId++,
+      partition: seed.partition,
+      name: seed.jobName,
+      user: seed.user,
+      state: seed.state,
+      time: seed.runtime,
+      timeLimit: "infinite",
+      nodes: seed.state === "PENDING" ? 0 : seed.nodeIds.length,
+      nodelist:
+        seed.state === "PENDING"
+          ? `(${seed.reasonPending ?? "Resources"})`
+          : seed.nodeIds.join(","),
+      cpus: seed.nodeIds.length * 128,
+      gpus: seed.nodeIds.length * seed.gpusPerNode,
+      memory: "512G",
+      submitTime: new Date(Date.now() - this.parseRuntime(seed.runtime)),
+      startTime:
+        seed.state === "RUNNING"
+          ? new Date(Date.now() - this.parseRuntime(seed.runtime))
+          : undefined,
+      endTime: seed.state === "FAILED" ? new Date() : undefined,
+      priority: 1000 + Math.floor(Math.random() * 100),
+      account: "default",
+      qos: "normal",
+      workDir: `/home/${seed.user}`,
+      command: `${seed.jobName}.sh`,
+      reasonPending: seed.reasonPending,
+    };
+    this.jobs.push(job);
+  }
+
+  /**
+   * Read seed jobs from a ScenarioContext and populate internal job state.
+   */
+  syncFromContext(context: CommandContext): void {
+    const sc = context.scenarioContext;
+    if (!sc) return;
+    const seeds = sc.getSeedJobs();
+    for (const seed of seeds) {
+      this.injectJob(seed);
+    }
+  }
+
+  /**
+   * Clear all jobs and reset the job ID counter.
+   * Called when exiting a scenario or loading a new one.
+   */
+  clearJobs(): void {
+    this.jobs = [];
+    this.nextJobId = 1000;
+  }
+
+  /** Parse "H:MM:SS" runtime string to milliseconds */
+  private parseRuntime(runtime: string): number {
+    const parts = runtime.split(":").map(Number);
+    if (parts.length === 3) {
+      return (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000;
+    }
+    return 0;
   }
 
   getMetadata(): SimulatorMetadata {
