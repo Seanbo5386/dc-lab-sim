@@ -227,6 +227,10 @@ export const Terminal: React.FC<TerminalProps> = ({
       currentContext.current.scenarioContext = context;
       currentContext.current.cluster = context.getCluster();
 
+      // Sync seed jobs from scenario context into slurm simulator
+      slurmSimulator.current.clearJobs();
+      slurmSimulator.current.syncFromContext(currentContext.current);
+
       logger.debug(
         `Terminal: Using scenario context for ${store.activeScenario.id}`,
       );
@@ -235,6 +239,7 @@ export const Terminal: React.FC<TerminalProps> = ({
       scenarioContextManager.setActiveContext(null);
       currentContext.current.scenarioContext = undefined;
       currentContext.current.cluster = cluster;
+      slurmSimulator.current.clearJobs();
 
       logger.debug("Terminal: Cleared scenario context");
     }
