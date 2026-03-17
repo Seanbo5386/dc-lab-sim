@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.2.3-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.3.0-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
 ![Tests](https://img.shields.io/badge/tests-3631_unit_|_307_E2E-brightgreen?style=for-the-badge)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
@@ -74,6 +74,10 @@ $ nvidia-smi
 > **The Midnight Deployment** — It's 2AM and the training job crashed. Nodes are reporting XID errors, NCCL allreduce is hanging, and the team lead wants answers by morning. You have ibstat, dcgmi, and nvidia-smi. Go.
 
 Scenarios run in **sandboxed isolation** — faults and mutations never leak to other scenarios or the global cluster state.
+
+### User Feedback
+
+Submit general feedback, bug reports, or success stories directly from the header. Authenticated submission via Cognito prevents spam.
 
 ### Multi-Architecture Support
 

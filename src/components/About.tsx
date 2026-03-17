@@ -15,9 +15,17 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v1.3.0",
+    title: "User Feedback",
+    current: true,
+    highlights: [
+      "Feedback form in header — submit general feedback, bug reports, or success stories",
+      "Authenticated submission via Cognito to prevent spam",
+    ],
+  },
+  {
     version: "v1.2.3",
     title: "Quiz Stats & Dashboard Toggle",
-    current: true,
     highlights: [
       "Tool Selection quiz scores display as percentages instead of raw counts",
       "Exam stats (Exams Taken, Avg Score, Pass Rate) include all quiz types",
