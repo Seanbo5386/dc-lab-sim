@@ -425,7 +425,7 @@ const ClusterHealthSummary: React.FC = () => {
           role="status"
           aria-label="InfiniBand status: Active"
         >
-          <div className="text-2xl font-bold text-green-500">
+          <div className="text-2xl font-bold text-nvidia-green">
             <span aria-hidden="true">✓ </span>Active
           </div>
           <div className="text-sm text-gray-400">InfiniBand</div>
@@ -436,7 +436,7 @@ const ClusterHealthSummary: React.FC = () => {
           role="status"
           aria-label={`BCM HA state: ${effectiveCluster.bcmHA.state}`}
         >
-          <div className="text-2xl font-bold text-green-500">
+          <div className="text-2xl font-bold text-nvidia-green">
             <span aria-hidden="true">✓ </span>
             {effectiveCluster.bcmHA.state}
           </div>

@@ -19,6 +19,7 @@ vi.mock("lucide-react", () => {
     Linkedin: mk("Linkedin"),
     Shield: mk("Shield"),
     Lock: mk("Lock"),
+    HelpCircle: mk("HelpCircle"),
     ChevronRight: mk("ChevronRight"),
   };
 });

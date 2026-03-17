@@ -10,6 +10,7 @@ import {
   Linkedin,
   Shield,
   Lock,
+  HelpCircle,
 } from "lucide-react";
 
 const CHANGELOG = [
@@ -477,6 +478,42 @@ export function About() {
                 </span>
               </li>
             </ul>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section>
+          <h3 className="text-lg font-semibold text-white flex items-center gap-2 mb-3">
+            <HelpCircle className="w-5 h-5 text-nvidia-green" />
+            FAQ
+          </h3>
+          <div className="bg-gray-800 rounded-lg p-5 space-y-4 text-sm">
+            {[
+              {
+                q: "How do I prepare for the NCP-AII exam?",
+                a: "Focus on hands-on CLI skills across the 5 exam domains. The heaviest domains are Cluster Test & Verification (33%) and Systems Bring-Up (31%). Use the Labs tab to work through guided scenarios, then test yourself in Exams. The spaced-repetition system will schedule reviews for commands you've practiced.",
+              },
+              {
+                q: "Is this an official NVIDIA training resource?",
+                a: "No. This is an independent, community-built practice tool. It is not affiliated with, endorsed by, or certified by NVIDIA. Always refer to official NVIDIA documentation and training for authoritative exam content.",
+              },
+              {
+                q: "What's the difference between NCA-AIIO, NCP-AII, and NCP-AIO?",
+                a: "NCA-AIIO (AI Infrastructure & Operations) is the associate-level fundamentals cert. NCP-AII (AI Infrastructure) and NCP-AIO (AI Operations) are professional-level certs requiring deeper hands-on expertise. This simulator focuses on NCP-AII — the infrastructure side.",
+              },
+              {
+                q: "What commands does the simulator cover?",
+                a: "229 commands across 6 families: GPU monitoring (nvidia-smi, dcgmi, nvsm), InfiniBand tools (ibstat, iblinkinfo, perfquery), BMC/hardware (ipmitool, sensors, dmidecode), cluster tools (sinfo, squeue, scontrol), containers (docker, enroot, pyxis), and diagnostics (dcgmi diag, gpu-burn).",
+              },
+            ].map(({ q, a }) => (
+              <details key={q} className="group">
+                <summary className="cursor-pointer text-white font-medium flex items-center gap-2 list-none [&::-webkit-details-marker]:hidden">
+                  <ChevronRight className="w-4 h-4 text-gray-400 transition-transform group-open:rotate-90 shrink-0" />
+                  {q}
+                </summary>
+                <p className="text-gray-300 leading-relaxed mt-2 ml-6">{a}</p>
+              </details>
+            ))}
           </div>
         </section>
 
