@@ -9,6 +9,13 @@ const schema = a.schema({
       lastSyncedAt: a.datetime(),
     })
     .authorization((allow) => [allow.owner()]),
+
+  Feedback: a
+    .model({
+      category: a.string().required(),
+      message: a.string().required(),
+    })
+    .authorization((allow) => [allow.owner()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
