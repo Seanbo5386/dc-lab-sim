@@ -972,12 +972,13 @@ export function LabWorkspace({ onClose }: LabWorkspaceProps) {
                           </div>
                           <button
                             data-testid="skip-step-btn"
-                            onClick={() =>
+                            onClick={() => {
                               completeScenarioStep(
                                 activeScenario.id,
                                 currentStep.id,
-                              )
-                            }
+                              );
+                              setShowAnswer(false);
+                            }}
                             className="w-full text-amber-400 hover:text-amber-300 text-sm font-medium py-2 px-4 rounded bg-amber-500/10 hover:bg-amber-500/20 transition-colors border border-amber-500/30"
                           >
                             Skip this step

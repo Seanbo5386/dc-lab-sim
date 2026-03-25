@@ -560,6 +560,23 @@ describe("LabWorkspace Step Types", () => {
     );
   });
 
+  it("shows Show Answer button via legacy hint path when all legacy hints are revealed", () => {
+    currentMockStore = makeMockStore({ stepType: "command" });
+    // hintEvaluation is null (mockGetAvailableHints returns null by default)
+    mockGetAvailableHints.mockReturnValue(null);
+    renderAndBegin();
+
+    // Legacy hints exist (step.hints = ["Try nvidia-smi"]) but none revealed yet
+    expect(screen.queryByTestId("show-answer-btn")).not.toBeInTheDocument();
+
+    // Reveal the single legacy hint
+    fireEvent.click(screen.getByText("Reveal Next Hint"));
+
+    // Now all legacy hints are revealed → show-answer button should appear
+    expect(screen.getByTestId("show-answer-btn")).toBeInTheDocument();
+    expect(screen.getByText("Stuck? Show the answer")).toBeInTheDocument();
+  });
+
   it("does NOT show Show Answer button on concept steps", () => {
     currentMockStore = makeMockStore({
       stepType: "concept",
