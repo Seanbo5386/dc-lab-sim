@@ -69,7 +69,8 @@ vi.mock("../InlineQuiz", () => ({
 }));
 
 // Mock utilities
-const mockGetAvailableHints = vi.fn(() => null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockGetAvailableHints = vi.fn<any[], any>(() => null);
 vi.mock("@/utils/hintManager", () => ({
   HintManager: {
     getAvailableHints: (...args: unknown[]) => mockGetAvailableHints(...args),
