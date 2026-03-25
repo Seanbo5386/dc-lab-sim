@@ -1008,7 +1008,7 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
         <div ref={containerRef} className="overflow-x-auto">
           <svg
             ref={svgRef}
-            className="w-full min-w-[600px] bg-gray-900 rounded-lg"
+            className="w-full min-w-[320px] bg-gray-900 rounded-lg"
           />
         </div>
 
