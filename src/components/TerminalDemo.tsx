@@ -1,4 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import {
+  executeCommand,
+  resetFallbackIndex,
+  type CommandResult,
+} from "../data/easterEggShell";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -157,12 +162,24 @@ interface VisibleLine {
 // Component
 // ---------------------------------------------------------------------------
 
-export const TerminalDemo: React.FC = () => {
+interface TerminalDemoProps {
+  onEnterApp?: () => void;
+}
+
+export const TerminalDemo: React.FC<TerminalDemoProps> = ({ onEnterApp }) => {
   const [lines, setLines] = useState<VisibleLine[]>([]);
   const [typingText, setTypingText] = useState<string | null>(null);
-  const [showCursor, setShowCursor] = useState(false);
   const [animationDone, setAnimationDone] = useState(false);
   const [isCompact, setIsCompact] = useState(false);
+  // Interactive easter-egg state
+  const [inputBuffer, setInputBuffer] = useState("");
+  const inputBufferRef = useRef("");
+  const [interactiveLines, setInteractiveLines] = useState<VisibleLine[]>([]);
+  const cwdRef = useRef("/home/operator");
+  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
   const abortRef = useRef<AbortController | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -218,8 +235,7 @@ export const TerminalDemo: React.FC = () => {
         }
       }
 
-      // Animation complete — show blinking cursor on final prompt
-      setShowCursor(true);
+      // Animation complete — interactive mode will take over the cursor
       setAnimationDone(true);
     },
     [],
@@ -230,15 +246,90 @@ export const TerminalDemo: React.FC = () => {
     if (bodyRef.current) {
       bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
     }
-  }, [lines, typingText]);
+  }, [lines, typingText, interactiveLines, inputBuffer]);
+
+  // Interactive keyboard handler — only active after animation completes
+  useEffect(() => {
+    if (!animationDone) return;
+    resetFallbackIndex();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore modifier-only presses and combos (except Shift for uppercase)
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const cmd = inputBufferRef.current;
+        const prompt = `root@dgx-00:${cwdRef.current === "/home/operator" ? "~" : cwdRef.current}# `;
+
+        // Append the prompt+command as a visible line
+        setInteractiveLines((prev) => [
+          ...prev,
+          { type: "prompt" as LineType, text: prompt + cmd },
+        ]);
+        inputBufferRef.current = "";
+        setInputBuffer("");
+
+        if (!cmd.trim()) return;
+
+        const result: CommandResult = executeCommand(cwdRef.current, cmd);
+        cwdRef.current = result.newCwd;
+
+        if (result.clear) {
+          setInteractiveLines([]);
+          return;
+        }
+
+        // Append output lines
+        if (result.output.length > 0) {
+          setInteractiveLines((prev) => [
+            ...prev,
+            ...result.output.map((text) => ({
+              type: "output" as LineType,
+              text,
+            })),
+          ]);
+        }
+
+        // Auto-advance after a delay
+        if (result.autoAdvance && onEnterApp) {
+          autoAdvanceTimerRef.current = setTimeout(() => {
+            onEnterApp();
+          }, 1500);
+        }
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        inputBufferRef.current = inputBufferRef.current.slice(0, -1);
+        setInputBuffer(inputBufferRef.current);
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        // No tab completion — do nothing
+      } else if (e.key.length === 1) {
+        e.preventDefault();
+        inputBufferRef.current += e.key;
+        setInputBuffer(inputBufferRef.current);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (autoAdvanceTimerRef.current) {
+        clearTimeout(autoAdvanceTimerRef.current);
+      }
+    };
+  }, [animationDone, onEnterApp]);
 
   // Start the animation sequence (restarts when compact mode changes)
   useEffect(() => {
     // Reset state for new run
     setLines([]);
     setTypingText(null);
-    setShowCursor(false);
     setAnimationDone(false);
+    setInteractiveLines([]);
+    setInputBuffer("");
+    inputBufferRef.current = "";
+    cwdRef.current = "/home/operator";
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -291,19 +382,11 @@ export const TerminalDemo: React.FC = () => {
       // If this is the last line, the animation may still be typing onto it
       const isLastLine = index === lines.length - 1;
       const isTyping = isLastLine && typingText !== null;
-      const showFinalCursor = isLastLine && animationDone && showCursor;
-
       return (
         <div key={index} className="flex">
           <span style={{ color: "#76B900" }}>{line.text}</span>
           {isTyping && <span className="text-white">{typingText}</span>}
           {isTyping && (
-            <span
-              className="inline-block w-2 h-4 ml-px animate-blink"
-              style={{ backgroundColor: "#76B900" }}
-            />
-          )}
-          {showFinalCursor && (
             <span
               className="inline-block w-2 h-4 ml-px animate-blink"
               style={{ backgroundColor: "#76B900" }}
@@ -380,7 +463,30 @@ export const TerminalDemo: React.FC = () => {
         ref={bodyRef}
         className="p-4 h-[420px] overflow-y-auto scrollbar-thin"
       >
-        {lines.map((line, i) => renderLine(line, i))}
+        {lines.map((line, i) => {
+          // Skip the final animation prompt — the interactive input line replaces it
+          if (animationDone && i === lines.length - 1 && line.type === "prompt")
+            return null;
+          return renderLine(line, i);
+        })}
+
+        {/* Interactive lines (easter egg) */}
+        {interactiveLines.map((line, i) => renderLine(line, lines.length + i))}
+
+        {/* Live input prompt */}
+        {animationDone && (
+          <div className="flex">
+            <span style={{ color: "#76B900" }}>
+              root@dgx-00:
+              {cwdRef.current === "/home/operator" ? "~" : cwdRef.current}#{" "}
+            </span>
+            <span className="text-white">{inputBuffer}</span>
+            <span
+              className="inline-block w-2 h-4 ml-px animate-blink"
+              style={{ backgroundColor: "#76B900" }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Blink keyframes injected via style tag */}

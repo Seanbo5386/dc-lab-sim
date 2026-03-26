@@ -78,7 +78,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onClose }) => {
 
         {/* 2. Terminal Demo — center stage; gets all remaining space */}
         <div className="px-3 sm:px-6 pt-3 sm:pt-5 pb-2 sm:pb-3 flex-1 min-h-0 overflow-y-auto">
-          <TerminalDemo />
+          <TerminalDemo onEnterApp={handleClose} />
         </div>
 
         {/* 3. Stats Bar */}
