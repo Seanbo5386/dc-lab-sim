@@ -156,6 +156,8 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 interface VisibleLine {
   type: LineType;
   text: string;
+  /** Committed command text shown in white after a prompt */
+  command?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -223,7 +225,7 @@ export const TerminalDemo: React.FC<TerminalDemoProps> = ({ onEnterApp }) => {
             if (lastIdx >= 0 && updated[lastIdx].type === "prompt") {
               updated[lastIdx] = {
                 ...updated[lastIdx],
-                text: updated[lastIdx].text + line.text,
+                command: line.text,
               };
             }
             return updated;
@@ -385,6 +387,9 @@ export const TerminalDemo: React.FC<TerminalDemoProps> = ({ onEnterApp }) => {
       return (
         <div key={index} className="flex">
           <span style={{ color: "#76B900" }}>{line.text}</span>
+          {line.command && !isTyping && (
+            <span className="text-white">{line.command}</span>
+          )}
           {isTyping && <span className="text-white">{typingText}</span>}
           {isTyping && (
             <span
