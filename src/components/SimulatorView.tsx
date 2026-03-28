@@ -255,6 +255,15 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
     : undefined;
   const currentStepIndex = progress?.currentStepIndex ?? 0;
   const currentStep = activeScenario?.steps[currentStepIndex];
+  const handleQuizComplete = useCallback(
+    (correct: boolean) => {
+      if (currentStep && activeScenario) {
+        recordQuizResult(currentStep.id, correct);
+        completeScenarioStep(activeScenario.id, currentStep.id);
+      }
+    },
+    [currentStep, activeScenario, recordQuizResult, completeScenarioStep],
+  );
   const currentStepProgress = progress?.steps[currentStepIndex];
   const validationKey =
     activeScenario && currentStep
@@ -379,10 +388,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 revealedHints={revealedHintTexts}
                 learningObjectives={activeScenario!.learningObjectives}
                 narrativeContext={activeScenario!.narrative?.setting}
-                onQuizComplete={(correct) => {
-                  recordQuizResult(currentStep.id, correct);
-                  completeScenarioStep(activeScenario!.id, currentStep.id);
-                }}
+                onQuizComplete={handleQuizComplete}
               />
             )}
             <Terminal className="flex-1" onReady={handleTerminalReady} />
@@ -437,10 +443,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
               revealedHints={revealedHintTexts}
               learningObjectives={activeScenario!.learningObjectives}
               narrativeContext={activeScenario!.narrative?.setting}
-              onQuizComplete={(correct) => {
-                recordQuizResult(currentStep.id, correct);
-                completeScenarioStep(activeScenario!.id, currentStep.id);
-              }}
+              onQuizComplete={handleQuizComplete}
             />
           </div>
         )}
@@ -676,14 +679,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                         revealedHints={revealedHintTexts}
                         learningObjectives={activeScenario!.learningObjectives}
                         narrativeContext={activeScenario!.narrative?.setting}
-                        onQuizComplete={(correct) => {
-                          recordQuizResult(currentStep.id, correct);
-                          // Quiz answered — advance to next step
-                          completeScenarioStep(
-                            activeScenario!.id,
-                            currentStep.id,
-                          );
-                        }}
+                        onQuizComplete={handleQuizComplete}
                       />
                     )}
                     <Terminal
