@@ -59,7 +59,7 @@ const toolFamilyMap: Record<string, string | string[]> = {
   pyxis: "container-tools",
   // Diagnostics
   "dcgmi-diag": ["diagnostics", "xid-diagnostics"],
-  "nvidia-bug-report": "diagnostics",
+  "nvidia-bug-report": ["diagnostics", "xid-diagnostics"],
   "gpu-burn": "diagnostics",
   // XID Diagnostics
   dmesg: "xid-diagnostics",
