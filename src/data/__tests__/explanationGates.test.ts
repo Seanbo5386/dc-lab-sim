@@ -26,6 +26,7 @@ const validFamilyIds = [
   "cluster-tools",
   "container-tools",
   "diagnostics",
+  "xid-diagnostics",
 ];
 
 // All expected gate IDs from scenarios
@@ -91,6 +92,8 @@ const expectedGateIds = [
   "gate-domain5-xid-errors",
   "gate-domain5-sel-analysis",
   "gate-domain5-thermal",
+  // XID Diagnostics family
+  "gate-xid-diagnostics",
 ];
 
 describe("explanationGates.json", () => {
@@ -103,8 +106,8 @@ describe("explanationGates.json", () => {
       expect(Array.isArray(gates)).toBe(true);
     });
 
-    it("should have the expected number of gates (56)", () => {
-      expect(gates.length).toBe(56);
+    it("should have the expected number of gates (57)", () => {
+      expect(gates.length).toBe(57);
     });
   });
 
@@ -122,8 +125,8 @@ describe("explanationGates.json", () => {
       expect(uniqueIds.size).toBe(ids.length);
     });
 
-    it("should have IDs matching pattern gate-domain#-*", () => {
-      const idPattern = /^gate-domain[1-5]-[\w-]+$/;
+    it("should have IDs matching pattern gate-domain#-* or gate-<familyId>", () => {
+      const idPattern = /^gate-(domain[1-5]-[\w-]+|[\w-]+)$/;
       gates.forEach((gate) => {
         expect(gate.id).toMatch(idPattern);
       });
@@ -210,8 +213,12 @@ describe("explanationGates.json", () => {
   });
 
   describe("scenarioId consistency", () => {
-    it("scenarioId should match gate ID pattern", () => {
+    it("scenarioId should match gate ID pattern or be empty for family-level gates", () => {
       gates.forEach((gate) => {
+        if (gate.scenarioId === "") {
+          // Family-level gates (not tied to a specific scenario) may have empty scenarioId
+          return;
+        }
         // gate-domain1-foo -> domain1-foo
         const expectedScenarioPrefix = gate.id.replace("gate-", "");
         expect(gate.scenarioId).toBe(expectedScenarioPrefix);

@@ -761,6 +761,20 @@
       ],
       "correctAnswer": 2,
       "explanation": "Most datacenter GPUs like A100 and H100 begin thermal throttling around 83°C to prevent damage. Sustained temperatures above 80°C indicate cooling issues. Check 'nvidia-smi -q -d TEMPERATURE' for throttle thresholds."
+    },
+    {
+      "id": "gate-xid-diagnostics",
+      "scenarioId": "",
+      "familyId": "xid-diagnostics",
+      "question": "When you see multiple XID errors in dmesg for the same GPU, what is the most important factor in determining whether the GPU needs replacement versus a driver reset?",
+      "choices": [
+        "The total number of XID events logged",
+        "Whether the XIDs are correctable (single-bit) or uncorrectable (double-bit/hardware)",
+        "How long the GPU has been running since last reboot",
+        "Whether the errors occurred during a compute workload or at idle"
+      ],
+      "correctAnswer": 1,
+      "explanation": "The key distinction is between correctable errors (like high single-bit ECC rates from XID 92) which can be monitored, and uncorrectable errors (like double-bit ECC from XID 48 or GPU fallen off bus from XID 79) which indicate hardware failure. Uncorrectable errors mean data integrity is compromised and the GPU likely needs replacement."
     }
   ]
 }
