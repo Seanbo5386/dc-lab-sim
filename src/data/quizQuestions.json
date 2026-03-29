@@ -1152,7 +1152,7 @@
       "scenario": "After racking a new DGX H100 node, you need to run a quick Level 1 diagnostic to verify basic GPU health and driver functionality before starting the full burn-in process.",
       "choices": ["dcgmi diag", "nvidia-bug-report", "gpu-burn"],
       "correctAnswer": "dcgmi diag",
-      "explanation": "dcgmi diag -r 1 runs a quick Level 1 diagnostic that validates basic GPU health, driver sanity, and NVML functionality in under a minute. It is the standard first step in new hardware validation.",
+      "explanation": "dcgmi runs a quick Level 1 diagnostic that validates basic GPU health, driver sanity, and NVML functionality in under a minute. It is the standard first step in new hardware validation.",
       "whyNotOthers": [
         {
           "tool": "nvidia-bug-report",
@@ -1256,6 +1256,121 @@
         {
           "tool": "nvidia-bug-report",
           "reason": "nvidia-bug-report is a data collection tool and does not generate any GPU workload or validate computation accuracy"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "xid-diag-q1",
+      "familyId": "xid-diagnostics",
+      "scenario": "A GPU training job failed overnight and you need to check if any XID errors were logged in the kernel messages to determine the cause.",
+      "choices": ["dmesg", "nvidia-smi", "dcgmi", "nvidia-bug-report"],
+      "correctAnswer": "dmesg",
+      "explanation": "dmesg displays kernel ring buffer messages where NVIDIA XID errors are logged. Filtering with grep -i xid gives you a timeline of GPU errors that occurred during the failed job.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-smi",
+          "reason": "nvidia-smi shows current GPU state but doesn't show historical XID error logs from the kernel"
+        },
+        {
+          "tool": "dcgmi",
+          "reason": "dcgmi diag runs active diagnostics on the GPU but doesn't show past XID errors from the system log"
+        },
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "nvidia-bug-report collects a comprehensive diagnostic bundle but is overkill for simply checking XID logs"
+        }
+      ],
+      "difficulty": "beginner"
+    },
+    {
+      "id": "xid-diag-q2",
+      "familyId": "xid-diagnostics",
+      "scenario": "You found XID 48 (Double-Bit ECC Error) in dmesg and need to verify the current ECC error counts and GPU health status before deciding whether to replace the GPU.",
+      "choices": ["nvidia-smi", "dmesg", "dcgmi", "nvidia-bug-report"],
+      "correctAnswer": "nvidia-smi",
+      "explanation": "nvidia-smi with ECC display options shows current volatile and aggregate ECC error counts, letting you assess whether the double-bit error was isolated or part of a pattern.",
+      "whyNotOthers": [
+        {
+          "tool": "dmesg",
+          "reason": "You already found the XID in dmesg; now you need GPU state details that dmesg doesn't provide"
+        },
+        {
+          "tool": "dcgmi",
+          "reason": "Running diagnostics is a good follow-up step but checking current ECC counters first gives you immediate context"
+        },
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "A full bug report is for escalation; checking ECC counters first helps you decide if escalation is needed"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "xid-diag-q3",
+      "familyId": "xid-diagnostics",
+      "scenario": "After seeing multiple XID 79 (GPU Fallen Off Bus) errors, you need to run a thorough hardware validation to confirm whether the GPU needs replacement.",
+      "choices": ["dcgmi", "nvidia-smi", "dmesg", "nvidia-bug-report"],
+      "correctAnswer": "dcgmi",
+      "explanation": "dcgmi diag runs DCGM diagnostic tests that actively validate GPU compute and memory integrity. After XID 79 (GPU fell off the PCIe bus), active diagnostics confirm whether the GPU is still functional.",
+      "whyNotOthers": [
+        {
+          "tool": "nvidia-smi",
+          "reason": "nvidia-smi shows current state but can't actively test GPU compute/memory integrity the way dcgmi diag can"
+        },
+        {
+          "tool": "dmesg",
+          "reason": "dmesg shows historical logs but doesn't perform active hardware validation"
+        },
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "Bug reports collect data for support tickets but don't actively test whether the GPU is functional"
+        }
+      ],
+      "difficulty": "intermediate"
+    },
+    {
+      "id": "xid-diag-q4",
+      "familyId": "xid-diagnostics",
+      "scenario": "Multiple GPUs in a DGX node are reporting XID 74 (NVLink Error) intermittently. You need to check the kernel logs for a pattern of when these errors occur relative to job submissions.",
+      "choices": ["dmesg", "dcgmi", "nvidia-smi", "nvidia-bug-report"],
+      "correctAnswer": "dmesg",
+      "explanation": "dmesg provides timestamped kernel messages that let you correlate NVLink XID errors with job start/stop times. This timeline is essential for determining if errors are load-triggered or random.",
+      "whyNotOthers": [
+        {
+          "tool": "dcgmi",
+          "reason": "Diagnostics test current state but won't show the historical pattern of when errors occurred"
+        },
+        {
+          "tool": "nvidia-smi",
+          "reason": "nvidia-smi shows current NVLink status but not the historical error timeline needed for pattern analysis"
+        },
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "A bug report captures a snapshot but isn't the right tool for analyzing error patterns over time"
+        }
+      ],
+      "difficulty": "advanced"
+    },
+    {
+      "id": "xid-diag-q5",
+      "familyId": "xid-diagnostics",
+      "scenario": "A GPU shows XID 92 (High Single-Bit ECC Rate) in the logs. You want to check the current ECC error counts to determine if the error rate warrants scheduling a maintenance window.",
+      "choices": ["nvidia-smi", "dmesg", "dcgmi", "nvidia-bug-report"],
+      "correctAnswer": "nvidia-smi",
+      "explanation": "nvidia-smi with ECC display shows both volatile (since last reset) and aggregate (lifetime) ECC counters. Comparing these tells you if the high SBE rate is recent or accumulated over time, informing your maintenance decision.",
+      "whyNotOthers": [
+        {
+          "tool": "dmesg",
+          "reason": "dmesg shows the XID event but not the detailed ECC counter breakdown needed for rate assessment"
+        },
+        {
+          "tool": "dcgmi",
+          "reason": "Active diagnostics test functionality but don't provide the ECC counter history needed for maintenance planning"
+        },
+        {
+          "tool": "nvidia-bug-report",
+          "reason": "A full bug report is for escalation to NVIDIA support, not for routine ECC rate assessment"
         }
       ],
       "difficulty": "advanced"

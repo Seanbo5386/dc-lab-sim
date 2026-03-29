@@ -276,6 +276,15 @@
           "exampleCommand": "dcgmi diag -r 1 -i 0",
           "permissions": "root",
           "relatedTools": ["nvidia-smi", "nvidia-bug-report"]
+        },
+        {
+          "name": "nvidia-bug-report",
+          "tagline": "Support bundle",
+          "description": "Collects comprehensive GPU diagnostic data including driver state, XID history, and system logs into a single archive for NVIDIA support",
+          "bestFor": "Escalating XID issues to NVIDIA support, collecting full diagnostic snapshots after critical GPU errors",
+          "exampleCommand": "nvidia-bug-report.sh",
+          "permissions": "root",
+          "relatedTools": ["dmesg", "nvidia-smi", "dcgmi"]
         }
       ]
     }

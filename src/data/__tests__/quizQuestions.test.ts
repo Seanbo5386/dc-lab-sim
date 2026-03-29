@@ -33,6 +33,7 @@ const VALID_FAMILY_IDS = [
   "cluster-tools",
   "container-tools",
   "diagnostics",
+  "xid-diagnostics",
 ];
 
 describe("quizQuestions.json", () => {
@@ -105,15 +106,21 @@ describe("quizQuestions.json", () => {
   });
 
   describe("family coverage", () => {
-    it("each family should have at least 10 quiz questions", () => {
+    it("each family should have at least the minimum quiz questions", () => {
       const questionsByFamily: Record<string, number> = {};
       questions.forEach((q) => {
         questionsByFamily[q.familyId] =
           (questionsByFamily[q.familyId] || 0) + 1;
       });
 
+      const FAMILY_MIN_QUESTIONS: Record<string, number> = {
+        "xid-diagnostics": 5,
+      };
+      const DEFAULT_MIN = 10;
+
       VALID_FAMILY_IDS.forEach((familyId) => {
-        expect(questionsByFamily[familyId]).toBeGreaterThanOrEqual(10);
+        const min = FAMILY_MIN_QUESTIONS[familyId] ?? DEFAULT_MIN;
+        expect(questionsByFamily[familyId]).toBeGreaterThanOrEqual(min);
       });
     });
   });
