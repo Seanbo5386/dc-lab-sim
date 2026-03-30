@@ -571,14 +571,20 @@ function App() {
           <XIDDrillQuiz
             tier={xidUnlockedTier}
             onComplete={(passed, score, totalQuestions) => {
-              useLearningProgressStore
-                .getState()
-                .completeMasteryQuiz(
-                  activeToolQuiz,
-                  passed,
-                  score,
-                  totalQuestions,
-                );
+              if (xidUnlockedTier === 1) {
+                useLearningProgressStore
+                  .getState()
+                  .completeQuiz(activeToolQuiz, passed, score);
+              } else {
+                useLearningProgressStore
+                  .getState()
+                  .completeMasteryQuiz(
+                    activeToolQuiz,
+                    passed,
+                    score,
+                    totalQuestions,
+                  );
+              }
               setActiveToolQuiz(null);
             }}
             onClose={() => setActiveToolQuiz(null)}

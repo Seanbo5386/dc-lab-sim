@@ -58,8 +58,8 @@ const toolFamilyMap: Record<string, string | string[]> = {
   enroot: "container-tools",
   pyxis: "container-tools",
   // Diagnostics
-  "dcgmi-diag": ["diagnostics", "xid-diagnostics"],
-  "nvidia-bug-report": ["diagnostics", "xid-diagnostics"],
+  "dcgmi diag": ["diagnostics", "xid-diagnostics"],
+  "nvidia-bug-report.sh": ["diagnostics", "xid-diagnostics"],
   "gpu-burn": "diagnostics",
   // XID Diagnostics
   dmesg: "xid-diagnostics",
@@ -562,10 +562,20 @@ export const useSimulationStore = create<SimulationState>()(
 
       // Learning progress integration
       trackToolUsage: (command: string) => {
-        const baseCommand = command.split(" ")[0];
-        const familyIds = toolFamilyMap[baseCommand];
-        if (familyIds) {
+        let bestMatch = "";
+        for (const toolKey in toolFamilyMap) {
+          if (
+            command.startsWith(toolKey) &&
+            toolKey.length > bestMatch.length
+          ) {
+            bestMatch = toolKey;
+          }
+        }
+
+        if (bestMatch) {
+          const familyIds = toolFamilyMap[bestMatch];
           const ids = Array.isArray(familyIds) ? familyIds : [familyIds];
+          const baseCommand = bestMatch.split(" ")[0];
           for (const familyId of ids) {
             useLearningProgressStore
               .getState()

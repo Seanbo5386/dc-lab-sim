@@ -270,7 +270,10 @@ export const XIDDrillQuiz: React.FC<XIDDrillQuizProps> = ({
             >
               {xidInfo.severity}
             </span>
-            <span className="text-xs text-gray-400 flex items-center gap-1">
+            <span
+              className="text-xs text-gray-400 flex items-center gap-1"
+              data-testid="category-label"
+            >
               <span className="text-gray-500">
                 {CATEGORY_ICONS[xidInfo.category]}
               </span>

@@ -61,22 +61,27 @@ describe("simulationStore.trackToolUsage - Multi-family mapping", () => {
     expect(markToolUsedSpy).toHaveBeenCalledWith("infiniband-tools", "ibstat");
   });
 
-  it("should credit both gpu-monitoring and xid-diagnostics for dcgmi", () => {
+  it("should credit both diagnostics and xid-diagnostics for dcgmi diag (compound key)", () => {
     useSimulationStore.getState().trackToolUsage("dcgmi diag -r 1");
 
     expect(markToolUsedSpy).toHaveBeenCalledTimes(2);
-    expect(markToolUsedSpy).toHaveBeenCalledWith("gpu-monitoring", "dcgmi");
+    expect(markToolUsedSpy).toHaveBeenCalledWith("diagnostics", "dcgmi");
     expect(markToolUsedSpy).toHaveBeenCalledWith("xid-diagnostics", "dcgmi");
   });
 
-  it("should credit both diagnostics and xid-diagnostics for dcgmi-diag", () => {
-    useSimulationStore.getState().trackToolUsage("dcgmi-diag");
+  it("should credit both diagnostics and xid-diagnostics for nvidia-bug-report.sh", () => {
+    useSimulationStore
+      .getState()
+      .trackToolUsage("nvidia-bug-report.sh --safe-mode");
 
     expect(markToolUsedSpy).toHaveBeenCalledTimes(2);
-    expect(markToolUsedSpy).toHaveBeenCalledWith("diagnostics", "dcgmi-diag");
+    expect(markToolUsedSpy).toHaveBeenCalledWith(
+      "diagnostics",
+      "nvidia-bug-report.sh",
+    );
     expect(markToolUsedSpy).toHaveBeenCalledWith(
       "xid-diagnostics",
-      "dcgmi-diag",
+      "nvidia-bug-report.sh",
     );
   });
 

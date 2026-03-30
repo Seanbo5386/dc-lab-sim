@@ -281,6 +281,6 @@ describe("XIDDrillQuiz", () => {
     expect(screen.getByTestId("severity-badge").textContent).toBe("Critical");
 
     // Should show category
-    expect(screen.getByText("Memory")).toBeInTheDocument();
+    expect(screen.getByTestId("category-label")).toHaveTextContent("Memory");
   });
 });
