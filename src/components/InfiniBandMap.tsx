@@ -184,12 +184,17 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
   const animationLinks: AnimationLink[] = useMemo(() => {
     const links: AnimationLink[] = [];
 
+    // Proportional Y positions (fraction of height)
+    const spineY = height * 0.15;
+    const leafY = height * 0.45;
+    const hostY = height * 0.8;
+
     // Spine positions (use config)
     const spineCount = fabricConfig.spineCount;
     const spineNodes = Array.from({ length: spineCount }, (_, i) => ({
       id: `spine-${i}`,
       x: (width / (spineCount + 1)) * (i + 1),
-      y: 80,
+      y: spineY,
     }));
 
     // Leaf positions (use config, capped by cluster size)
@@ -197,7 +202,7 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
     const leafNodes = Array.from({ length: leafCount }, (_, i) => ({
       id: `leaf-${i}`,
       x: (width / (leafCount + 1)) * (i + 1),
-      y: 250,
+      y: leafY,
     }));
 
     // Host positions
@@ -205,7 +210,7 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
     const hostNodes = cluster.nodes.map((node, idx) => ({
       id: node.id,
       x: nodeSpacing * (idx + 1),
-      y: 450,
+      y: hostY,
       active: node.hcas.some((hca) =>
         hca.ports.some((p) => p.state === "Active"),
       ),
@@ -271,6 +276,14 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
     const nodes: FabricNode[] = [];
     const links: FabricLink[] = [];
 
+    // Proportional Y positions (fraction of height)
+    const spineY = height * 0.15;
+    const leafY = height * 0.45;
+    const hostY = height * 0.8;
+
+    // Scale node sizes based on container width
+    const scaleFactor = Math.max(0.5, Math.min(1, width / 1000));
+
     // Spine switches (top tier) - use config
     const spineCount = fabricConfig.spineCount;
     for (let i = 0; i < spineCount; i++) {
@@ -280,7 +293,7 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
         label: `Spine Switch ${i + 1}`,
         status: "active",
         x: (width / (spineCount + 1)) * (i + 1),
-        y: 80,
+        y: spineY,
       });
     }
 
@@ -293,7 +306,7 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
         label: `R${i}`,
         status: "active",
         x: (width / (leafCount + 1)) * (i + 1),
-        y: 250,
+        y: leafY,
       });
     }
 
@@ -310,7 +323,7 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
         label: node.id,
         status: hasActiveIB ? "active" : "down",
         x: nodeSpacing * (idx + 1),
-        y: 450,
+        y: hostY,
       });
     });
 
@@ -507,15 +520,21 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
         d.type === "host" && stableHighlightedNodes.includes(d.id);
       const isHighlighted = isHighlightedSwitch || isHighlightedNode;
 
+      // Scaled sizes
+      const spineW = 100 * scaleFactor;
+      const spineH = 50 * scaleFactor;
+      const leafR = 30 * scaleFactor;
+      const hostR = 25 * scaleFactor;
+
       // Add highlight ring first (behind the shape)
       if (isHighlighted) {
         if (d.type === "spine") {
           group
             .append("rect")
-            .attr("x", -58)
-            .attr("y", -33)
-            .attr("width", 116)
-            .attr("height", 66)
+            .attr("x", -(spineW / 2 + 8))
+            .attr("y", -(spineH / 2 + 8))
+            .attr("width", spineW + 16)
+            .attr("height", spineH + 16)
             .attr("fill", "none")
             .attr("stroke", "#facc15")
             .attr("stroke-width", 3)
@@ -525,7 +544,7 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
         } else if (d.type === "leaf") {
           group
             .append("circle")
-            .attr("r", 42)
+            .attr("r", leafR + 12)
             .attr("fill", "none")
             .attr("stroke", "#facc15")
             .attr("stroke-width", 3)
@@ -534,7 +553,7 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
         } else {
           group
             .append("circle")
-            .attr("r", 35)
+            .attr("r", hostR + 10)
             .attr("fill", "none")
             .attr("stroke", "#facc15")
             .attr("stroke-width", 3)
@@ -547,10 +566,10 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
         // Rectangle for spine switches
         group
           .append("rect")
-          .attr("x", -50)
-          .attr("y", -25)
-          .attr("width", 100)
-          .attr("height", 50)
+          .attr("x", -spineW / 2)
+          .attr("y", -spineH / 2)
+          .attr("width", spineW)
+          .attr("height", spineH)
           .attr("fill", d.status === "active" ? "#3B82F6" : "#EF4444")
           .attr("stroke", "#1F2937")
           .attr("stroke-width", 2)
@@ -560,8 +579,8 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
         const points = [];
         for (let i = 0; i < 6; i++) {
           const angle = (Math.PI / 3) * i;
-          const x = 30 * Math.cos(angle);
-          const y = 30 * Math.sin(angle);
+          const x = leafR * Math.cos(angle);
+          const y = leafR * Math.sin(angle);
           points.push(`${x},${y}`);
         }
         group
@@ -574,19 +593,23 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
         // Circle for hosts
         group
           .append("circle")
-          .attr("r", 25)
+          .attr("r", hostR)
           .attr("fill", d.status === "active" ? "#10B981" : "#EF4444")
           .attr("stroke", "#1F2937")
           .attr("stroke-width", 2);
       }
 
       // Label
+      const fontSize =
+        d.type === "host"
+          ? Math.max(8, 10 * scaleFactor)
+          : Math.max(9, 12 * scaleFactor);
       group
         .append("text")
         .attr("text-anchor", "middle")
         .attr("dy", "0.3em")
         .attr("fill", "#fff")
-        .attr("font-size", d.type === "host" ? "10px" : "12px")
+        .attr("font-size", `${fontSize}px`)
         .attr("font-weight", "bold")
         .text(
           d.type === "host"
@@ -603,13 +626,15 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
       .text((d) => `${d.label}\nType: ${d.type}\nStatus: ${d.status}`);
 
     // Error badge for host nodes (hidden by default, shown by dynamic update effect)
+    const badgeOffset = 18 * scaleFactor;
+    const badgeR = 8 * scaleFactor;
     nodeGroups
       .filter((d) => d.type === "host")
       .append("circle")
       .attr("class", "error-badge")
-      .attr("cx", 18)
-      .attr("cy", -18)
-      .attr("r", 8)
+      .attr("cx", badgeOffset)
+      .attr("cy", -badgeOffset)
+      .attr("r", badgeR)
       .attr("fill", "#EF4444")
       .attr("stroke", "#1F2937")
       .attr("stroke-width", 1.5)
@@ -619,8 +644,8 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
       .filter((d) => d.type === "host")
       .append("text")
       .attr("class", "error-badge-text")
-      .attr("x", 18)
-      .attr("y", -18)
+      .attr("x", badgeOffset)
+      .attr("y", -badgeOffset)
       .attr("text-anchor", "middle")
       .attr("dy", "0.35em")
       .attr("fill", "#fff")
@@ -838,38 +863,39 @@ export const InfiniBandMap: React.FC<InfiniBandMapProps> = ({
     // Click on background to deselect
     svg.on("click", () => setSelectedNode(null));
 
-    // Add tier labels
+    // Add tier labels using proportional Y positions
+    const labelFontSize = Math.max(10, 14 * scaleFactor);
     svg
       .append("text")
       .attr("x", 10)
-      .attr("y", 80)
+      .attr("y", spineY)
       .attr("fill", "#9CA3AF")
-      .attr("font-size", "14px")
+      .attr("font-size", `${labelFontSize}px`)
       .attr("font-weight", "bold")
       .text("Spine Tier");
 
     const leafLabel = svg
       .append("text")
       .attr("x", 10)
-      .attr("y", 250)
+      .attr("y", leafY)
       .attr("fill", "#9CA3AF")
-      .attr("font-size", "14px")
+      .attr("font-size", `${labelFontSize}px`)
       .attr("font-weight", "bold");
     leafLabel.append("tspan").text("Leaf Tier");
     leafLabel
       .append("tspan")
       .attr("x", 10)
       .attr("dy", "1.2em")
-      .attr("font-size", "12px")
+      .attr("font-size", `${Math.max(9, 12 * scaleFactor)}px`)
       .attr("font-weight", "normal")
       .text("(Rails)");
 
     svg
       .append("text")
       .attr("x", 10)
-      .attr("y", 450)
+      .attr("y", hostY)
       .attr("fill", "#9CA3AF")
-      .attr("font-size", "14px")
+      .attr("font-size", `${labelFontSize}px`)
       .attr("font-weight", "bold")
       .text("Host Tier");
 

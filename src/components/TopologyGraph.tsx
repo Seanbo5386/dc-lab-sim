@@ -209,6 +209,9 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
       .attr("height", height)
       .attr("viewBox", `0 0 ${width} ${height}`);
 
+    // Scale factor for all node elements based on container width
+    const gpuScale = Math.max(0.5, Math.min(1, width / 800));
+
     // Draw links using memoized data
     const linkGroup = svg.append("g").attr("class", "links");
 
@@ -331,13 +334,15 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
       .append("g")
       .attr("transform", (d) => `translate(${d.x}, ${d.y})`);
 
-    // NVSwitch rectangles
+    // NVSwitch rectangles (scaled)
+    const nvsW = 40 * gpuScale;
+    const nvsH = 20 * gpuScale;
     nvSwitchNodes
       .append("rect")
-      .attr("x", -20)
-      .attr("y", -10)
-      .attr("width", 40)
-      .attr("height", 20)
+      .attr("x", -nvsW / 2)
+      .attr("y", -nvsH / 2)
+      .attr("width", nvsW)
+      .attr("height", nvsH)
       .attr("fill", "#6366F1")
       .attr("stroke", "#1F2937")
       .attr("stroke-width", 2)
@@ -350,7 +355,7 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
       .attr("text-anchor", "middle")
       .attr("dy", "0.35em")
       .attr("fill", "#fff")
-      .attr("font-size", "9px")
+      .attr("font-size", `${Math.max(7, 9 * gpuScale)}px`)
       .attr("font-weight", "bold")
       .text((d) => `NVS${d.id}`);
 
@@ -404,10 +409,15 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
       .attr("transform", (d) => `translate(${d.x}, ${d.y})`)
       .style("cursor", "pointer");
 
+    // Scaled node sizes
+    const gpuR = 35 * gpuScale;
+    const utilR = 40 * gpuScale;
+    const highlightR = 48 * gpuScale;
+
     // Node circles
     nodeGroups
       .append("circle")
-      .attr("r", 35)
+      .attr("r", gpuR)
       .attr("fill", (d) => {
         if (d.health === "Critical") return "#EF4444";
         if (d.health === "Warning") return "#F59E0B";
@@ -424,7 +434,7 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
       if (isHighlighted) {
         d3.select(this)
           .insert("circle", ":first-child")
-          .attr("r", 48)
+          .attr("r", highlightR)
           .attr("fill", "none")
           .attr("stroke", "#facc15")
           .attr("stroke-width", 3)
@@ -437,25 +447,30 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
     nodeGroups.each(function (d) {
       const angle = (d.utilization / 100) * 360;
       const radians = (angle * Math.PI) / 180;
-      const x = 40 * Math.sin(radians);
-      const y = -40 * Math.cos(radians);
+      const x = utilR * Math.sin(radians);
+      const y = -utilR * Math.cos(radians);
 
       d3.select(this)
         .append("path")
-        .attr("d", `M 0,-40 A 40,40 0 ${angle > 180 ? 1 : 0},1 ${x},${y}`)
+        .attr(
+          "d",
+          `M 0,${-utilR} A ${utilR},${utilR} 0 ${angle > 180 ? 1 : 0},1 ${x},${y}`,
+        )
         .attr("stroke", "#76B900")
-        .attr("stroke-width", 4)
+        .attr("stroke-width", Math.max(2, 4 * gpuScale))
         .attr("fill", "none")
         .attr("stroke-linecap", "round");
     });
 
     // GPU number text
+    const gpuFontSize = Math.max(12, 18 * gpuScale);
+    const tempFontSize = Math.max(8, 11 * gpuScale);
     nodeGroups
       .append("text")
       .attr("text-anchor", "middle")
       .attr("dy", "-0.2em")
       .attr("fill", "#fff")
-      .attr("font-size", "18px")
+      .attr("font-size", `${gpuFontSize}px`)
       .attr("font-weight", "bold")
       .text((d) => String(d.id));
 
@@ -465,7 +480,7 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
       .attr("text-anchor", "middle")
       .attr("dy", "1.2em")
       .attr("fill", "#fff")
-      .attr("font-size", "11px")
+      .attr("font-size", `${tempFontSize}px`)
       .text((d) => `${Math.round(d.temperature)}°C`);
 
     // Add tooltips
@@ -477,12 +492,14 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
       );
 
     // Error badge (hidden by default, shown by dynamic update effect)
+    const gpuBadgeOffset = 24 * gpuScale;
+    const gpuBadgeR = 10 * gpuScale;
     nodeGroups
       .append("circle")
       .attr("class", "error-badge")
-      .attr("cx", 24)
-      .attr("cy", -24)
-      .attr("r", 10)
+      .attr("cx", gpuBadgeOffset)
+      .attr("cy", -gpuBadgeOffset)
+      .attr("r", gpuBadgeR)
       .attr("fill", "#EF4444")
       .attr("stroke", "#1F2937")
       .attr("stroke-width", 1.5)
@@ -491,8 +508,8 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
     nodeGroups
       .append("text")
       .attr("class", "error-badge-text")
-      .attr("x", 24)
-      .attr("y", -24)
+      .attr("x", gpuBadgeOffset)
+      .attr("y", -gpuBadgeOffset)
       .attr("text-anchor", "middle")
       .attr("dy", "0.35em")
       .attr("fill", "#fff")
@@ -505,10 +522,13 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
     // Add hover effects and click handlers
     nodeGroups
       .on("mouseover", function () {
-        d3.select(this).select("circle").attr("r", 40).attr("opacity", 1);
+        d3.select(this)
+          .select("circle")
+          .attr("r", gpuR + 5 * gpuScale)
+          .attr("opacity", 1);
       })
       .on("mouseout", function () {
-        d3.select(this).select("circle").attr("r", 35).attr("opacity", 0.9);
+        d3.select(this).select("circle").attr("r", gpuR).attr("opacity", 0.9);
       })
       .on("click", function (event, d) {
         event.stopPropagation();
@@ -548,6 +568,10 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
     const svg = d3.select(svgRef.current);
     const nodeGroup = svg.select("g.nodes");
 
+    // Scale utilization ring radius to match initial render
+    const dynScale = Math.max(0.5, Math.min(1, width / 800));
+    const dynUtilR = 40 * dynScale;
+
     // Update each GPU node's visual attributes based on current data
     nodeGroup.selectAll("g").each(function (_, i) {
       const gpu = node.gpus[i];
@@ -574,11 +598,14 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
       // Update utilization ring
       const angle = (gpu.utilization / 100) * 360;
       const radians = (angle * Math.PI) / 180;
-      const x = 40 * Math.sin(radians);
-      const y = -40 * Math.cos(radians);
+      const x = dynUtilR * Math.sin(radians);
+      const y = -dynUtilR * Math.cos(radians);
       group
         .select("path")
-        .attr("d", `M 0,-40 A 40,40 0 ${angle > 180 ? 1 : 0},1 ${x},${y}`);
+        .attr(
+          "d",
+          `M 0,${-dynUtilR} A ${dynUtilR},${dynUtilR} 0 ${angle > 180 ? 1 : 0},1 ${x},${y}`,
+        );
 
       // Update tooltip
       group
@@ -673,7 +700,7 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
           `GPU ${sourceId} ↔ GPU ${targetId}\nStatus: ${status}\nErrors: ${totalErrors}`,
         );
     });
-  }, [node.gpus]);
+  }, [node.gpus, width]);
 
   return (
     <div className="bg-gray-800 rounded-lg p-6 border border-gray-700 relative">
