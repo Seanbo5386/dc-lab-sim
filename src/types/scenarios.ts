@@ -16,7 +16,8 @@ export type FaultType =
   | "pcie-error"
   | "add-node"
   | "allocate-job"
-  | "set-slurm-state";
+  | "set-slurm-state"
+  | "service-state";
 
 export interface FaultInjectionConfig {
   nodeId: string;

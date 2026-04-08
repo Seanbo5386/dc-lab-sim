@@ -297,6 +297,7 @@ describe("narrativeScenarios.json", () => {
       "add-node",
       "allocate-job",
       "set-slurm-state",
+      "service-state",
     ];
 
     const allAutoFaults = scenarios.flatMap((s) =>

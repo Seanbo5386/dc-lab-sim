@@ -51,6 +51,7 @@ export class ScenarioContext {
   private readonly: boolean = false;
   private eventLog: EventLog;
   private seedJobs: SeedJob[] = [];
+  private serviceStates: Map<string, "active" | "inactive"> = new Map();
 
   constructor(scenarioId: string, baseCluster?: ClusterConfig) {
     this.scenarioId = scenarioId;
@@ -517,6 +518,29 @@ export class ScenarioContext {
 
   clearSeedJobs(): void {
     this.seedJobs = [];
+  }
+
+  // ── Service States (for systemctl simulation) ────────────────────
+
+  /**
+   * Get a service's current state. Returns "active" by default if not set,
+   * matching real systemd behavior where most services are running unless
+   * explicitly marked otherwise by a scenario.
+   */
+  getServiceState(serviceName: string): "active" | "inactive" {
+    return this.serviceStates.get(serviceName) ?? "active";
+  }
+
+  /**
+   * Set a service's state. Used by scenarios to mark services as inactive,
+   * and by `systemctl start/stop/restart` to flip state at runtime.
+   */
+  setServiceState(serviceName: string, state: "active" | "inactive"): void {
+    if (this.readonly) {
+      logger.warn("Cannot set service state in readonly context");
+      return;
+    }
+    this.serviceStates.set(serviceName, state);
   }
 }
 

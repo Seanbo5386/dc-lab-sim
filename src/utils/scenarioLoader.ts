@@ -362,6 +362,18 @@ export function applyFaultsToContext(
         break;
       }
 
+      case "service-state": {
+        const serviceName = parameters?.service as string | undefined;
+        const targetState = (parameters?.state as string) ?? "inactive";
+        if (serviceName) {
+          context.setServiceState(
+            serviceName,
+            targetState === "active" ? "active" : "inactive",
+          );
+        }
+        break;
+      }
+
       default:
         logger.warn(`Unknown fault type: ${type}`);
     }

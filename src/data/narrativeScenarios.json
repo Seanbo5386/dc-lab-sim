@@ -4697,10 +4697,21 @@
             "Look for active/inactive state",
             "Fabric Manager manages NVSwitch"
           ],
+          "autoFaults": [
+            {
+              "nodeId": "dgx-00",
+              "type": "service-state",
+              "severity": "critical",
+              "parameters": {
+                "service": "nvidia-fabricmanager",
+                "state": "inactive"
+              }
+            }
+          ],
           "validation": {
             "type": "command",
             "command": "systemctl",
-            "pattern": "nvidia-fabricmanager|status"
+            "pattern": "^systemctl\\s+status\\b"
           },
           "quiz": {
             "question": "What is the primary purpose of NVIDIA Fabric Manager?",
@@ -4727,7 +4738,7 @@
           "validation": {
             "type": "command",
             "command": "systemctl",
-            "pattern": "start|nvidia-fabricmanager"
+            "pattern": "^systemctl\\s+start\\b"
           }
         },
         {
@@ -4743,7 +4754,7 @@
           "validation": {
             "type": "command",
             "command": "journalctl",
-            "pattern": "nvidia-fabricmanager|fabric"
+            "pattern": "^journalctl\\b"
           }
         },
         {

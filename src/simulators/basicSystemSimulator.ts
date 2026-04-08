@@ -789,14 +789,24 @@ ${formatTimestamp(3.789012)} ACPI Warning: SystemIO range conflicts with OpRegio
    */
   private handleSystemctl(
     parsed: ParsedCommand,
-    _context: CommandContext,
+    context: CommandContext,
   ): CommandResult {
     const action = parsed.subcommands[0];
     const service = parsed.subcommands[1];
+    const scenarioCtx = context.scenarioContext;
 
     if (action === "status") {
       if (!service) {
         return this.createError("Usage: systemctl status <service>");
+      }
+
+      const state = scenarioCtx?.getServiceState(service) ?? "active";
+
+      if (state === "inactive") {
+        const output = `● ${service}.service - ${service}
+   Loaded: loaded (/usr/lib/systemd/system/${service}.service; disabled; vendor preset: enabled)
+   Active: inactive (dead)`;
+        return this.createSuccess(output);
       }
 
       if (service.startsWith("nvsm")) {
@@ -823,6 +833,13 @@ ${formatTimestamp(3.789012)} ACPI Warning: SystemIO range conflicts with OpRegio
     if (action === "start" || action === "stop" || action === "restart") {
       if (!service) {
         return this.createError(`Usage: systemctl ${action} <service>`);
+      }
+      // Update scenario service state if a sandbox is active
+      if (scenarioCtx) {
+        scenarioCtx.setServiceState(
+          service,
+          action === "stop" ? "inactive" : "active",
+        );
       }
       // Silent success for start/stop/restart
       return this.createSuccess("");
