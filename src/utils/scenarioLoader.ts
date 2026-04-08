@@ -362,6 +362,29 @@ export function applyFaultsToContext(
         break;
       }
 
+      case "service-state": {
+        const serviceName = parameters?.service as string | undefined;
+        const rawState = parameters?.state as string | undefined;
+        if (!serviceName) {
+          logger.warn("service-state fault missing required 'service' parameter");
+          break;
+        }
+        if (!nodeId) {
+          logger.warn(
+            `service-state fault for '${serviceName}' missing required nodeId`,
+          );
+          break;
+        }
+        if (rawState !== "active" && rawState !== "inactive") {
+          logger.warn(
+            `service-state fault for '${serviceName}' has invalid state '${rawState}'; expected 'active' or 'inactive'`,
+          );
+          break;
+        }
+        context.setServiceState(nodeId, serviceName, rawState);
+        break;
+      }
+
       default:
         logger.warn(`Unknown fault type: ${type}`);
     }
