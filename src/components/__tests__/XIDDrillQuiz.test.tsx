@@ -276,11 +276,15 @@ describe("XIDDrillQuiz", () => {
     fireEvent.click(choiceButtons[0]); // Select A
     fireEvent.click(screen.getByText("Submit Answer"));
 
-    // Should show severity badge (XID 48 is Critical)
+    // Both tier-1 mock questions (XID 48 and XID 79) are Critical severity,
+    // so this assertion is stable regardless of shuffle order.
     expect(screen.getByTestId("severity-badge")).toBeInTheDocument();
     expect(screen.getByTestId("severity-badge").textContent).toBe("Critical");
 
-    // Should show category
-    expect(screen.getByTestId("category-label")).toHaveTextContent("Memory");
+    // The component shuffles questions on mount, so either XID 48 (Memory)
+    // or XID 79 (Hardware) may render first. Accept either valid category.
+    expect(screen.getByTestId("category-label")).toHaveTextContent(
+      /Memory|Hardware/,
+    );
   });
 });
