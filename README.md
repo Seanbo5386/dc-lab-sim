@@ -38,7 +38,7 @@ The NCP-AII certification exam tests hands-on datacenter skills — but most peo
 
 |                   |                                                                              |
 | ----------------- | ---------------------------------------------------------------------------- |
-| **Commands**      | 20 simulators, 229 CLI definitions across 17 categories                      |
+| **Commands**      | 20 simulators, 229 CLI definitions across 18 categories                      |
 | **Scenarios**     | 32 story-driven labs across all 5 exam domains                               |
 | **Exam Prep**     | 199 practice questions + 60 tool selection + 150 deep mastery quizzes        |
 | **Architectures** | DGX A100, H100, H200, B200, GB200, VR200 (switchable from dashboard)         |
@@ -102,10 +102,10 @@ Switch architectures from the dashboard dropdown. Everything adapts — GPU spec
 
 ### Learning System
 
-- **6 Command Families**: GPU Monitoring, InfiniBand Tools, BMC/Hardware, Cluster Tools, Container Tools, Diagnostics
+- **7 Command Families**: GPU Monitoring, InfiniBand Tools, BMC/Hardware, Cluster Tools, Container Tools, Diagnostics, XID Diagnostics
 - **3-Tier Progression**: Guided (tool specified) > Choice (problem area identified) > Realistic (symptom only, figure it out)
 - **Spaced Repetition**: SM-2 algorithm schedules review drills at optimal intervals
-- **56 Explanation Gates**: Post-scenario conceptual checks to reinforce understanding
+- **57 Explanation Gates**: Post-scenario conceptual checks to reinforce understanding
 
 ### Real-Time Dashboard
 

@@ -74,7 +74,7 @@ describe("commandFamilies.json", () => {
     });
   });
 
-  describe("all 6 families present", () => {
+  describe("all 7 families present", () => {
     it("should contain all expected family IDs", () => {
       const actualIds = families.map((f) => f.id);
       EXPECTED_FAMILY_IDS.forEach((expectedId) => {

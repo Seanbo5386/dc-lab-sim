@@ -47,8 +47,8 @@ describe("quizQuestions.json", () => {
       expect(Array.isArray(questions)).toBe(true);
     });
 
-    it("should have at least 60 questions (10 per family x 6 families)", () => {
-      expect(questions.length).toBeGreaterThanOrEqual(60);
+    it("should have at least 65 questions (10 per family x 6 families + 5 XID diagnostics)", () => {
+      expect(questions.length).toBeGreaterThanOrEqual(65);
     });
   });
 

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { useLearningProgressStore } from "@/store/learningProgressStore";
 import { useLearningStore } from "@/store/learningStore";
 import { ProgressRing } from "./ProgressRing";
+import commandFamiliesData from "@/data/commandFamilies.json";
 
 export const OverallProgressDashboard: React.FC = () => {
   const { familyQuizScores, reviewSchedule } = useLearningProgressStore();
@@ -12,7 +13,7 @@ export const OverallProgressDashboard: React.FC = () => {
     const families = Object.values(familyQuizScores);
     const totalAttempts = families.reduce((sum, f) => sum + f.attempts, 0);
     const passedFamilies = families.filter((f) => f.passed).length;
-    const totalFamilies = 6; // We have 6 command families
+    const totalFamilies = commandFamiliesData.families.length;
     const avgScore =
       families.length > 0
         ? Math.round(

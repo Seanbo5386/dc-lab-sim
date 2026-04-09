@@ -7,13 +7,14 @@ describe("CommandFamilyCards", () => {
     it("should render all command families by default", () => {
       render(<CommandFamilyCards />);
 
-      // Check that all 6 families are rendered
+      // Check that all 7 families are rendered
       expect(screen.getByText("GPU Monitoring")).toBeInTheDocument();
       expect(screen.getByText("InfiniBand Tools")).toBeInTheDocument();
       expect(screen.getByText("BMC & Hardware")).toBeInTheDocument();
       expect(screen.getByText("Slurm Cluster Tools")).toBeInTheDocument();
       expect(screen.getByText("Container Tools")).toBeInTheDocument();
       expect(screen.getByText("Diagnostics & Testing")).toBeInTheDocument();
+      expect(screen.getByText("XID Diagnostics")).toBeInTheDocument();
     });
 
     it("should render a specific family when familyId is provided", () => {

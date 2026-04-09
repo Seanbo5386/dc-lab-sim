@@ -265,10 +265,10 @@ export function About() {
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
               {[
-                { label: "Scenarios", value: "28" },
+                { label: "Scenarios", value: "32" },
                 { label: "Domains", value: "5" },
-                { label: "Exam Questions", value: "150+" },
-                { label: "Command Families", value: "6" },
+                { label: "Exam Questions", value: "199" },
+                { label: "Command Families", value: "7" },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -522,7 +522,7 @@ export function About() {
               },
               {
                 q: "What commands does the simulator cover?",
-                a: "229 commands across 6 families: GPU monitoring (nvidia-smi, dcgmi, nvsm), InfiniBand tools (ibstat, iblinkinfo, perfquery), BMC/hardware (ipmitool, sensors, dmidecode), cluster tools (sinfo, squeue, scontrol), containers (docker, enroot, pyxis), and diagnostics (dcgmi diag, gpu-burn).",
+                a: "229 commands across 7 families: GPU monitoring (nvidia-smi, dcgmi, nvsm), InfiniBand tools (ibstat, iblinkinfo, perfquery), BMC/hardware (ipmitool, sensors, dmidecode), cluster tools (sinfo, squeue, scontrol), containers (docker, enroot, pyxis), diagnostics (dcgmi diag, gpu-burn), and XID diagnostics.",
               },
             ].map(({ q, a }) => (
               <details key={q} className="group">

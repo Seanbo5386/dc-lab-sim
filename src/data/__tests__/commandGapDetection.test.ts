@@ -252,7 +252,7 @@ describe("Command Gap Detection", () => {
     expect(new Set(arr).size).toBe(arr.length);
   });
 
-  it("should cover all 6 command families", () => {
+  it("should cover all 7 command families", () => {
     // Spot-check that at least one command from each family appears
     const familyRepresentatives: Record<string, string> = {
       "gpu-monitoring": "nvidia-smi",
@@ -261,6 +261,7 @@ describe("Command Gap Detection", () => {
       "cluster-tools": "sinfo",
       "container-tools": "docker",
       diagnostics: "gpu-burn",
+      "xid-diagnostics": "dmesg",
     };
 
     for (const [family, cmd] of Object.entries(familyRepresentatives)) {
