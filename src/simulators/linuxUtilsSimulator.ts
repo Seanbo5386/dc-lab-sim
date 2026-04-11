@@ -402,7 +402,7 @@ Feb 12 08:15:07 dgx-00 nvidia-fabricmanager[1234]: NVSwitch fabric initialized s
 Feb 12 08:15:10 dgx-00 dcgm[5678]: DCGM initialized successfully
 Feb 12 08:15:12 dgx-00 kernel: [234568.100] mlx5_core 0000:e3:00.0: firmware version: 20.38.1002
 Feb 12 08:15:12 dgx-00 kernel: [234568.101] mlx5_core 0000:e3:00.0: ConnectX-7 HCA registered
-Feb 12 08:15:15 dgx-00 slurmd[9012]: slurmd version 23.02.7 started
+Feb 12 08:15:15 dgx-00 slurmd[9012]: slurmd version 23.02.6 started
 Feb 12 08:15:15 dgx-00 slurmd[9012]: Node configuration: CPUs=128 Boards=1 SocketsPerBoard=2
 Feb 12 08:15:16 dgx-00 kernel: [234568.500] nvidia-peermem: module loaded
 Feb 12 08:15:17 dgx-00 containerd[3456]: containerd started
@@ -546,7 +546,15 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
         ["drwxr-xr-x", "3", "root", "root", "4096", "Jan 10 12:00", "home"],
         ["drwxr-xr-x", "22", "root", "root", "4096", "Jan 10 12:00", "lib"],
         ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "lib64"],
-        ["drwx------", "2", "root", "root", "16384", "Jan 10 12:00", "lost+found"],
+        [
+          "drwx------",
+          "2",
+          "root",
+          "root",
+          "16384",
+          "Jan 10 12:00",
+          "lost+found",
+        ],
         ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "media"],
         ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "mnt"],
         ["drwxr-xr-x", "4", "root", "root", "4096", "Jan 10 12:00", "opt"],
@@ -678,14 +686,30 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
       ],
       "/etc": [
         ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "apt"],
-        ["-rw-r--r--", "1", "root", "root", "2981", "Jan 10 12:00", "bash.bashrc"],
+        [
+          "-rw-r--r--",
+          "1",
+          "root",
+          "root",
+          "2981",
+          "Jan 10 12:00",
+          "bash.bashrc",
+        ],
         ["-rw-r--r--", "1", "root", "root", "367", "Jan 10 12:00", "hosts"],
         ["-rw-r--r--", "1", "root", "root", "14", "Jan 10 12:00", "hostname"],
         ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "network"],
         ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "nvidia"],
         ["-rw-r--r--", "1", "root", "root", "552", "Jan 10 12:00", "passwd"],
         ["drwxr-xr-x", "2", "root", "root", "4096", "Jan 10 12:00", "slurm"],
-        ["-rw-r--r--", "1", "root", "root", "1722", "Jan 10 12:00", "sysctl.conf"],
+        [
+          "-rw-r--r--",
+          "1",
+          "root",
+          "root",
+          "1722",
+          "Jan 10 12:00",
+          "sysctl.conf",
+        ],
       ],
       "/home": [
         ["drwxr-xr-x", "4", "admin", "admin", "4096", "Jan 10 12:00", "admin"],
@@ -702,7 +726,15 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
         ["-rwxr-xr-x", "1", "root", "root", "35312", "Jan 10 12:00", "bash"],
         ["-rwxr-xr-x", "1", "root", "root", "142848", "Jan 10 12:00", "grep"],
         ["-rwxr-xr-x", "1", "root", "root", "59160", "Jan 10 12:00", "less"],
-        ["-rwxr-xr-x", "1", "root", "root", "14568", "Jan 10 12:00", "nvidia-smi"],
+        [
+          "-rwxr-xr-x",
+          "1",
+          "root",
+          "root",
+          "14568",
+          "Jan 10 12:00",
+          "nvidia-smi",
+        ],
         ["-rwxr-xr-x", "1", "root", "root", "45896", "Jan 10 12:00", "python3"],
         ["-rwxr-xr-x", "1", "root", "root", "35312", "Jan 10 12:00", "vim"],
       ],
@@ -1160,13 +1192,17 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
    */
   private handleEnv(
     parsed: ParsedCommand,
-    _context: CommandContext,
+    context: CommandContext,
   ): CommandResult {
     const rawCommand = parsed.raw || "";
     const grepNCCL =
       rawCommand.includes("grep NCCL") || rawCommand.includes("grep -i nccl");
     const grepCUDA =
       rawCommand.includes("grep CUDA") || rawCommand.includes("grep -i cuda");
+
+    const node = this.resolveNode(context);
+    const cudaVersion = node?.cudaVersion ?? "12.2";
+    const cudaMajor = cudaVersion.split(".").slice(0, 2).join(".");
 
     const ncclVars = [
       "NCCL_DEBUG=INFO",
@@ -1179,8 +1215,8 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
     ];
 
     const cudaVars = [
-      "CUDA_HOME=/usr/local/cuda-12.2",
-      "CUDA_PATH=/usr/local/cuda-12.2",
+      `CUDA_HOME=/usr/local/cuda-${cudaMajor}`,
+      `CUDA_PATH=/usr/local/cuda-${cudaMajor}`,
       "CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7",
     ];
 
@@ -1195,14 +1231,14 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
     // Full environment
     const allVars = [
       "SHELL=/bin/bash",
-      "PATH=/usr/local/cuda-12.2/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      `PATH=/usr/local/cuda-${cudaMajor}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`,
       "HOME=/root",
       "USER=root",
       "LOGNAME=root",
       "LANG=en_US.UTF-8",
       "TERM=xterm-256color",
       "HOSTNAME=dgx-00",
-      "LD_LIBRARY_PATH=/usr/local/cuda-12.2/lib64:/usr/lib/x86_64-linux-gnu",
+      `LD_LIBRARY_PATH=/usr/local/cuda-${cudaMajor}/lib64:/usr/lib/x86_64-linux-gnu`,
       ...cudaVars,
       ...ncclVars,
       "NVIDIA_DRIVER_CAPABILITIES=compute,utility,graphics",
@@ -1220,9 +1256,13 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
    */
   private handleDpkg(
     parsed: ParsedCommand,
-    _context: CommandContext,
+    context: CommandContext,
   ): CommandResult {
     const rawCommand = parsed.raw || "";
+    const node = this.resolveNode(context);
+    const cudaVersion = node?.cudaVersion ?? "12.2";
+    const cudaMajor = cudaVersion.split(".").slice(0, 2).join(".");
+    const cudaPkgSlug = cudaMajor.replace(".", "-");
     const listFlag = this.hasAnyFlag(parsed, ["l"]);
     const grepNvidiaContainer =
       rawCommand.includes("grep nvidia-container") ||
@@ -1261,7 +1301,7 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
 
       // Full package listing (abbreviated)
       return this.createSuccess(
-        `Desired=Unknown/Install/Remove/Purge/Hold\n| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend\n|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)\n||/ Name                            Version             Architecture Description\n+++-===============================-===================-============-==================================================\nii  apt                             2.4.10              amd64        commandline package manager\nii  base-files                      12ubuntu4.4         amd64        Debian base system miscellaneous files\nii  bash                            5.1-6ubuntu1.1      amd64        GNU Bourne Again SHell\n${[...nvidiaDriverPkgs, ...nvidiaContainerPkgs].join("\n")}\nii  cuda-toolkit-12-2               12.2.2-1            amd64        CUDA Toolkit 12.2 meta-package\nii  datacenter-gpu-manager           3.1.8-1             amd64        NVIDIA DCGM`,
+        `Desired=Unknown/Install/Remove/Purge/Hold\n| Status=Not/Inst/Conf-files/Unpacked/halF-conf/Half-inst/trig-aWait/Trig-pend\n|/ Err?=(none)/Reinst-required (Status,Err: uppercase=bad)\n||/ Name                            Version             Architecture Description\n+++-===============================-===================-============-==================================================\nii  apt                             2.4.10              amd64        commandline package manager\nii  base-files                      12ubuntu4.4         amd64        Debian base system miscellaneous files\nii  bash                            5.1-6ubuntu1.1      amd64        GNU Bourne Again SHell\n${[...nvidiaDriverPkgs, ...nvidiaContainerPkgs].join("\n")}\nii  cuda-toolkit-${cudaPkgSlug}               ${cudaMajor}.2-1            amd64        CUDA Toolkit ${cudaMajor} meta-package\nii  datacenter-gpu-manager           3.3.5-1             amd64        NVIDIA DCGM`,
       );
     }
 
@@ -1275,9 +1315,13 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
    */
   private handleApt(
     parsed: ParsedCommand,
-    _context: CommandContext,
+    context: CommandContext,
   ): CommandResult {
     const subcommand = parsed.subcommands[0] || "";
+    const node = this.resolveNode(context);
+    const cudaVersion = node?.cudaVersion ?? "12.2";
+    const cudaMajor = cudaVersion.split(".").slice(0, 2).join(".");
+    const cudaPkgSlug = cudaMajor.replace(".", "-");
     const rawCommand = parsed.raw || "";
     const grepNvidiaDriver =
       rawCommand.includes("nvidia-driver") ||
@@ -1301,7 +1345,7 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
       ];
 
       const cudaPkgs = [
-        "cuda-toolkit-12-2/jammy,now 12.2.2-1 amd64 [installed]",
+        `cuda-toolkit-${cudaPkgSlug}/jammy,now ${cudaMajor}.2-1 amd64 [installed]`,
         "cuda-drivers-535/jammy,now 535.129.03-1 amd64 [installed]",
       ];
 
@@ -1348,26 +1392,25 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
    */
   private handleNvcc(
     parsed: ParsedCommand,
-    _context: CommandContext,
+    context: CommandContext,
   ): CommandResult {
-    if (this.hasAnyFlag(parsed, ["version", "V"])) {
-      const output = `nvcc: NVIDIA (R) Cuda compiler driver
+    const node = this.resolveNode(context);
+    const cudaVersion = node?.cudaVersion ?? "12.2";
+    const cudaMajor = cudaVersion.split(".").slice(0, 2).join(".");
+
+    const nvccOutput = `nvcc: NVIDIA (R) Cuda compiler driver
 Copyright (c) 2005-2023 NVIDIA Corporation
 Built on Tue_Aug_15_22:02:13_PDT_2023
-Cuda compilation tools, release 12.2, V12.2.140
-Build cuda_12.2.r12.2/compiler.33191640_0
-CUDA version: 12.2`;
-      return this.createSuccess(output);
+Cuda compilation tools, release ${cudaMajor}, V${cudaMajor}.140
+Build cuda_${cudaMajor}.r${cudaMajor}/compiler.33191640_0
+CUDA version: ${cudaMajor}`;
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess(nvccOutput);
     }
 
     // Default: show version info
-    const output = `nvcc: NVIDIA (R) Cuda compiler driver
-Copyright (c) 2005-2023 NVIDIA Corporation
-Built on Tue_Aug_15_22:02:13_PDT_2023
-Cuda compilation tools, release 12.2, V12.2.140
-Build cuda_12.2.r12.2/compiler.33191640_0
-CUDA version: 12.2`;
-    return this.createSuccess(output);
+    return this.createSuccess(nvccOutput);
   }
 
   /**
@@ -1503,7 +1546,7 @@ null         read         write        commit       open
    */
   private handleLdconfig(
     parsed: ParsedCommand,
-    _context: CommandContext,
+    context: CommandContext,
   ): CommandResult {
     const printCache = this.hasAnyFlag(parsed, ["p", "print-cache"]);
     const rawCommand = parsed.raw || "";
@@ -1517,6 +1560,10 @@ null         read         write        commit       open
       rawCommand.includes("grep -i nvidia");
 
     if (printCache || grepNCCL || grepCuda || grepNvidia) {
+      const node = this.resolveNode(context);
+      const cudaVersion = node?.cudaVersion ?? "12.2";
+      const cudaMajor = cudaVersion.split(".").slice(0, 2).join(".");
+
       const ncclLibs = [
         "\tlibnccl.so.2 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libnccl.so.2",
         "\tlibnccl.so.2.19.3 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libnccl.so.2.19.3",
@@ -1524,9 +1571,9 @@ null         read         write        commit       open
       ];
 
       const cudaLibs = [
-        "\tlibcudart.so.12 (libc6,x86-64) => /usr/local/cuda-12.2/lib64/libcudart.so.12",
-        "\tlibcudart.so.12.2.140 (libc6,x86-64) => /usr/local/cuda-12.2/lib64/libcudart.so.12.2.140",
-        "\tlibcublas.so.12 (libc6,x86-64) => /usr/local/cuda-12.2/lib64/libcublas.so.12",
+        `\tlibcudart.so.12 (libc6,x86-64) => /usr/local/cuda-${cudaMajor}/lib64/libcudart.so.12`,
+        `\tlibcudart.so.${cudaMajor}.140 (libc6,x86-64) => /usr/local/cuda-${cudaMajor}/lib64/libcudart.so.${cudaMajor}.140`,
+        `\tlibcublas.so.12 (libc6,x86-64) => /usr/local/cuda-${cudaMajor}/lib64/libcublas.so.12`,
         "\tlibcudnn.so.8 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libcudnn.so.8",
       ];
 

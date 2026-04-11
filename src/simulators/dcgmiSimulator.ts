@@ -247,7 +247,7 @@ export class DcgmiSimulator extends BaseSimulator {
   getMetadata(): SimulatorMetadata {
     return {
       name: "dcgmi",
-      version: "3.1.3",
+      version: "3.3.5",
       description: "NVIDIA Data Center GPU Manager Interface",
       commands: Array.from(this.commandMetadata.values()),
     };

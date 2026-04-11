@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { LinuxUtilsSimulator } from "../linuxUtilsSimulator";
+import { useSimulationStore } from "@/store/simulationStore";
 import { parse } from "@/utils/commandParser";
 import type { CommandContext } from "@/types/commands";
 
@@ -18,6 +19,23 @@ describe("LinuxUtilsSimulator", () => {
       environment: {},
       history: [],
     };
+    vi.mocked(useSimulationStore.getState).mockReturnValue({
+      cluster: {
+        nodes: [
+          {
+            id: "dgx-00",
+            hostname: "dgx-00.cluster.local",
+            systemType: "DGX-H100",
+            cudaVersion: "12.4",
+            gpus: [],
+            cpuCount: 2,
+            ramTotal: 2048,
+            ramUsed: 512,
+            slurmState: "idle",
+          },
+        ],
+      },
+    } as unknown as ReturnType<typeof useSimulationStore.getState>);
   });
 
   describe("Metadata", () => {
@@ -593,7 +611,7 @@ describe("LinuxUtilsSimulator", () => {
       expect(result.exitCode).toBe(0);
       expect(result.output).toMatch(/cuda/i);
       expect(result.output).toMatch(/version/i);
-      expect(result.output).toContain("12.2");
+      expect(result.output).toMatch(/12\.\d/);
     });
 
     it("should show version with -V flag", () => {
