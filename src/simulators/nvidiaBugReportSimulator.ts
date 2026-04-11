@@ -25,7 +25,7 @@ export class NvidiaBugReportSimulator extends BaseSimulator {
   getMetadata(): SimulatorMetadata {
     return {
       name: "nvidia-bug-report.sh",
-      version: "535.104.05",
+      version: "535.129.03",
       description: "NVIDIA System Diagnostic Report Generator",
       commands: [
         {
@@ -46,8 +46,10 @@ export class NvidiaBugReportSimulator extends BaseSimulator {
     // Handle version
     if (this.hasAnyFlag(parsed, ["version"])) {
       const node = this.resolveNode(context);
-      const driverVersion = node?.nvidiaDriverVersion || "535.104.05";
-      return this.createSuccess(`nvidia-bug-report.sh version ${driverVersion}`);
+      const driverVersion = node?.nvidiaDriverVersion || "535.129.03";
+      return this.createSuccess(
+        `nvidia-bug-report.sh version ${driverVersion}`,
+      );
     }
 
     // Get output file from flags
@@ -168,7 +170,7 @@ export class NvidiaBugReportSimulator extends BaseSimulator {
     output += `  Architecture:      x86_64\n\n`;
 
     // Driver info
-    const driverVersion = node.nvidiaDriverVersion || "535.104.05";
+    const driverVersion = node.nvidiaDriverVersion || "535.129.03";
     const cudaVersion = node.cudaVersion || "12.2";
     output += `\x1b[1mDriver Information:\x1b[0m\n`;
     output += `  Driver Version:    ${driverVersion}\n`;

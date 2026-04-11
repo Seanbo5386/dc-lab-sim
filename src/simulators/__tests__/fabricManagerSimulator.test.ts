@@ -798,7 +798,7 @@ describe("FabricManagerSimulator", () => {
     it("should return metadata with correct name and version", () => {
       const meta = simulator.getMetadata();
       expect(meta.name).toBe("nv-fabricmanager");
-      expect(meta.version).toBe("535.104.05");
+      expect(meta.version).toBe("535.129.03");
       expect(meta.description).toBe("NVIDIA Fabric Manager CLI");
     });
   });

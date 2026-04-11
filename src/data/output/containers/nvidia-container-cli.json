@@ -279,12 +279,12 @@
     {
       "description": "Display system GPU and driver information",
       "command": "nvidia-container-cli info",
-      "output_example": "NVRM version:   535.104.12\nCUDA version:   12.2\n\nDevice Index:   0\nDevice Minor:   0\nModel:          NVIDIA A100-SXM4-80GB\nBrand:          Tesla\nGPU UUID:       GPU-12345678-1234-1234-1234-123456789abc\nBus Location:   00000000:07:00.0\nArchitecture:   8.0"
+      "output_example": "NVRM version:   535.129.03\nCUDA version:   12.2\n\nDevice Index:   0\nDevice Minor:   0\nModel:          NVIDIA A100-SXM4-80GB\nBrand:          Tesla\nGPU UUID:       GPU-12345678-1234-1234-1234-123456789abc\nBus Location:   00000000:07:00.0\nArchitecture:   8.0"
     },
     {
       "description": "List all NVIDIA libraries that would be injected for compute workloads",
       "command": "nvidia-container-cli list --compute --libraries",
-      "output_example": "/usr/lib/x86_64-linux-gnu/libcuda.so.535.104.12\n/usr/lib/x86_64-linux-gnu/libcudadebugger.so.535.104.12\n/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.535.104.12\n/usr/lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.535.104.12"
+      "output_example": "/usr/lib/x86_64-linux-gnu/libcuda.so.535.129.03\n/usr/lib/x86_64-linux-gnu/libcudadebugger.so.535.129.03\n/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.535.129.03\n/usr/lib/x86_64-linux-gnu/libnvidia-ptxjitcompiler.so.535.129.03"
     },
     {
       "description": "List utility binaries (nvidia-smi and related tools)",
@@ -304,17 +304,17 @@
     {
       "description": "Debug container GPU setup with verbose output",
       "command": "nvidia-container-cli --debug info",
-      "output_example": "-- nvidia-container-cli --debug info\nI0101 12:00:00.000000 12345 nvc.c:234] initializing library context\nI0101 12:00:00.000001 12345 nvc.c:456] loading kernel modules\nNVRM version:   535.104.12\n..."
+      "output_example": "-- nvidia-container-cli --debug info\nI0101 12:00:00.000000 12345 nvc.c:234] initializing library context\nI0101 12:00:00.000001 12345 nvc.c:456] loading kernel modules\nNVRM version:   535.129.03\n..."
     },
     {
       "description": "List all driver components for full GPU access",
       "command": "nvidia-container-cli list --compute --utility --graphics --video",
-      "output_example": "/usr/lib/x86_64-linux-gnu/libcuda.so.535.104.12\n/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.535.104.12\n/usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.535.104.12\n/usr/lib/x86_64-linux-gnu/libnvidia-encode.so.535.104.12\n..."
+      "output_example": "/usr/lib/x86_64-linux-gnu/libcuda.so.535.129.03\n/usr/lib/x86_64-linux-gnu/libnvidia-ml.so.535.129.03\n/usr/lib/x86_64-linux-gnu/libEGL_nvidia.so.535.129.03\n/usr/lib/x86_64-linux-gnu/libnvidia-encode.so.535.129.03\n..."
     },
     {
       "description": "Display info in CSV format for scripting",
       "command": "nvidia-container-cli info --csv",
-      "output_example": "NVRM version,535.104.12\nCUDA version,12.2\nDevice Index,0\nDevice Minor,0\nModel,NVIDIA A100-SXM4-80GB\nGPU UUID,GPU-12345678-1234-1234-1234-123456789abc"
+      "output_example": "NVRM version,535.129.03\nCUDA version,12.2\nDevice Index,0\nDevice Minor,0\nModel,NVIDIA A100-SXM4-80GB\nGPU UUID,GPU-12345678-1234-1234-1234-123456789abc"
     }
   ],
   "error_messages": [

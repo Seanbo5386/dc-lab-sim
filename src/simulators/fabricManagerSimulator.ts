@@ -50,7 +50,7 @@ export class FabricManagerSimulator extends BaseSimulator {
   getMetadata(): SimulatorMetadata {
     return {
       name: "nv-fabricmanager",
-      version: "535.104.05",
+      version: "535.129.03",
       description: "NVIDIA Fabric Manager CLI",
       commands: [
         { name: "nv-fabricmanager", description: "NVIDIA Fabric Manager CLI" },
@@ -132,7 +132,7 @@ export class FabricManagerSimulator extends BaseSimulator {
 
   private showVersion(context?: CommandContext): CommandResult {
     const node = context ? this.resolveNode(context) : undefined;
-    const driverVersion = node?.nvidiaDriverVersion || "535.104.05";
+    const driverVersion = node?.nvidiaDriverVersion || "535.129.03";
     const cudaVersion = node?.cudaVersion || "12.2";
     return this.createSuccess(
       `nv-fabricmanager version ${driverVersion}\nCUDA Version: ${cudaVersion}\nDriver Version: ${driverVersion}\n`,
