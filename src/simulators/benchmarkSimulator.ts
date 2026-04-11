@@ -12,6 +12,25 @@ import type { CommandContext, CommandResult } from "@/types/commands";
 import type { ParsedCommand } from "@/utils/commandParser";
 import type { GPU, DGXNode } from "@/types/hardware";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
+import type { SystemType } from "@/data/hardwareSpecs";
+
+const ncclBaselineBandwidthGBs: Record<SystemType, number> = {
+  "DGX-A100": 240,
+  "DGX-H100": 380,
+  "DGX-H200": 380,
+  "DGX-B200": 760,
+  "DGX-GB200": 760,
+  "DGX-VR200": 1520,
+};
+
+const hplBaselineTflops: Record<SystemType, number> = {
+  "DGX-A100": 135,
+  "DGX-H100": 240,
+  "DGX-H200": 240,
+  "DGX-B200": 312,
+  "DGX-GB200": 312,
+  "DGX-VR200": 500,
+};
 
 export class BenchmarkSimulator extends BaseSimulator {
   constructor() {
@@ -393,9 +412,12 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     output += `Each iteration takes approximately 2-3 minutes\n\n`;
 
     // Simulate burn-in iterations
+    const baseline =
+      hplBaselineTflops[node.systemType as SystemType] ??
+      hplBaselineTflops["DGX-A100"];
     const tflopsValues: number[] = [];
     for (let i = 1; i <= Math.min(5, iterations); i++) {
-      const gflops = 450 + Math.random() * 50; // 450-500 TFLOPS
+      const gflops = baseline * (0.9 + Math.random() * 0.1);
       tflopsValues.push(gflops);
       output += `Iteration ${i}/${iterations}: ${gflops.toFixed(2)} TFLOPS\n`;
     }
@@ -404,7 +426,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       output += `... (${iterations - 5} more iterations)\n`;
       // Generate additional TFLOPS values for statistics
       for (let i = 6; i <= iterations; i++) {
-        tflopsValues.push(450 + Math.random() * 50);
+        tflopsValues.push(baseline * (0.9 + Math.random() * 0.1));
       }
     }
 
@@ -577,6 +599,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         sizeBytes,
         ngpus,
         numNodes,
+        node.systemType,
       );
 
       // Bus bandwidth depends on collective type
@@ -620,8 +643,11 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     if (isMultiNode) {
       const bwSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
       // totalBandwidthGBs is bidirectional; divide by 2 for unidirectional bus bandwidth
-      const expectedIntraNode = Math.round(bwSpecs.nvlink.totalBandwidthGBs / 2);
-      const expectedInterNode = bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
+      const expectedIntraNode = Math.round(
+        bwSpecs.nvlink.totalBandwidthGBs / 2,
+      );
+      const expectedInterNode =
+        bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
 
       output += `# Performance Summary\n`;
       output += `# -------------------\n`;
@@ -763,54 +789,32 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       });
     });
 
-    let output = `
-GPU Burn - GPU Stress Test
-==========================
+    const hplSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
+    const gpuFlops = hplSpecs.gpu.fp64Tflops * 1000; // Gflop/s per GPU
 
-Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
+    let output = `gpu-burn ${duration}\n`;
+    output += `GPU 0: ${gpusToTest[0]?.name || "Unknown GPU"}\n`;
 
-`;
-
-    gpusToTest.forEach((gpu: GPU, idx: number) => {
-      output += `GPU ${idx}: ${gpu.name}\n`;
-      output += `  Temperature: ${Math.round(gpu.temperature)}°C\n`;
-      output += `  Power: ${gpu.powerDraw.toFixed(0)}W / ${gpu.powerLimit}W\n`;
-      output += `  Utilization: ${gpu.utilization}%\n`;
-    });
-
-    output += `\nStress test running... (Ctrl+C to stop)\n\n`;
-
-    // Show progress
-    const interval = Math.floor(duration / 10);
-    for (let i = 1; i <= 10; i++) {
-      const elapsed = i * interval;
-      const percent = ((elapsed / duration) * 100).toFixed(0);
-      output += `[${elapsed}s] ${"█".repeat(i)}${"░".repeat(10 - i)} ${percent}%\n`;
+    // Simulate progress updates (real gpu-burn emits lines like these)
+    const sampleCount = Math.min(5, Math.floor(duration / 10));
+    const elapsedStep = Math.floor(duration / sampleCount);
+    for (let sample = 0; sample < sampleCount; sample++) {
+      const elapsed = (sample + 1) * elapsedStep;
+      const pct = Math.round((elapsed / duration) * 100);
+      const processed = Math.round((pct / 100) * 8192);
+      gpusToTest.forEach((gpu: GPU, idx: number) => {
+        const temp = Math.min(85, gpu.temperature + 10 + sample * 2);
+        const flops = gpuFlops * (0.97 + Math.random() * 0.02);
+        output += `GPU ${idx}: ${pct}% proc'd: ${processed} (8192) - ${flops.toFixed(1)} Gflop/s - temp: ${temp.toFixed(0)}C [OK]\n`;
+      });
     }
 
-    // Check for thermal issues
+    // Final summary line
     const thermalIssues = gpusToTest.filter((gpu: GPU) => gpu.temperature > 83);
-    const status =
+    output +=
       thermalIssues.length === 0
-        ? "\x1b[32mPASSED\x1b[0m"
-        : "\x1b[33mWARNING\x1b[0m";
-
-    output += `\n==========================\n`;
-    output += `Test Duration: ${duration}s\n`;
-    output += `Status: ${status}\n\n`;
-
-    if (thermalIssues.length > 0) {
-      output += `\x1b[33mThermal throttling detected on ${thermalIssues.length} GPU(s)\x1b[0m\n`;
-      output += `Check cooling and GPU placement.\n\n`;
-    }
-
-    gpusToTest.forEach((gpu: GPU, idx: number) => {
-      const avgTemp = (gpu.temperature + originalState[idx].temperature) / 2;
-      output += `GPU ${idx} Results:\n`;
-      output += `  Avg Temperature: ${avgTemp.toFixed(1)}°C\n`;
-      output += `  Peak Power: ${gpu.powerDraw.toFixed(0)}W\n`;
-      output += `  Passed: ${gpu.temperature < 85 ? "\x1b[32mYES\x1b[0m" : "\x1b[31mNO\x1b[0m"}\n\n`;
-    });
+        ? `\x1b[32mOK\x1b[0m\n`
+        : `\x1b[33mNote: ${thermalIssues.length} GPU(s) near thermal limit\x1b[0m\n`;
 
     // Reset GPUs to original state after test via StateMutator
     setTimeout(() => {
@@ -881,7 +885,12 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
         1,
         node.systemType,
       );
-      const latency = this.calculateNCCLLatencyMultiNode(sizeBytes, ngpus, 1);
+      const latency = this.calculateNCCLLatencyMultiNode(
+        sizeBytes,
+        ngpus,
+        1,
+        node.systemType,
+      );
       const busBW = (bandwidth * 2 * (ngpus - 1)) / ngpus;
       totalBusBW += busBW;
 
@@ -983,13 +992,12 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
     numNodes: number,
     systemType: string,
   ): number {
-    // Intra-node bandwidth (NVLink)
     const bwSpecs = getHardwareSpecs(systemType || "DGX-A100");
-    // totalBandwidthGBs is bidirectional; divide by 2 for unidirectional bus bandwidth
-    const intraNodeBW = Math.round(bwSpecs.nvlink.totalBandwidthGBs / 2);
+    const sysType = (systemType || "DGX-A100") as SystemType;
 
     // Inter-node bandwidth (InfiniBand)
-    const interNodeBW = bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
+    const interNodeBW =
+      bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
 
     // Message size efficiency
     const sizeMB = sizeBytes / (1024 * 1024);
@@ -1005,27 +1013,33 @@ Testing ${gpusToTest.length} GPU(s) for ${duration} seconds
 
     // For multi-node, bottleneck is inter-node bandwidth
     if (numNodes > 1) {
-      // Ring algorithm bandwidth is limited by slowest link
-      // With proper NIC-GPU affinity, we get full inter-node BW
       const effectiveBW = interNodeBW * efficiency * 0.85;
       return effectiveBW;
     }
 
-    // Single node uses NVLink
-    return intraNodeBW * efficiency * 0.8;
+    // Single node: use system-type baseline NVLink bandwidth
+    const intraNodeBW =
+      ncclBaselineBandwidthGBs[sysType] ?? ncclBaselineBandwidthGBs["DGX-A100"];
+    return intraNodeBW * efficiency;
   }
 
   private calculateNCCLLatencyMultiNode(
     sizeBytes: number,
     gpusPerNode: number,
     numNodes: number,
+    systemType?: string,
   ): number {
     // Base latency
     const intraNodeLatency = 2; // us (NVLink)
     const interNodeLatency = 5; // us (InfiniBand)
 
-    // Transfer time
-    const bandwidth = numNodes > 1 ? 200 : 300; // GB/s
+    const sysType = (systemType || "DGX-A100") as SystemType;
+    const intraNodeBW =
+      ncclBaselineBandwidthGBs[sysType] ?? ncclBaselineBandwidthGBs["DGX-A100"];
+    const bwSpecs = getHardwareSpecs(sysType);
+    const interNodeBW =
+      bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
+    const bandwidth = numNodes > 1 ? interNodeBW : intraNodeBW;
     const transferTime = (sizeBytes / (bandwidth * 1e9)) * 1e6; // us
 
     if (numNodes > 1) {

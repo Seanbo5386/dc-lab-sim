@@ -27,7 +27,7 @@ describe("BenchmarkSimulator", () => {
           {
             id: "dgx-00",
             hostname: "dgx-node01",
-            systemType: "DGX H100",
+            systemType: "DGX-H100",
             healthStatus: "OK",
             nvidiaDriverVersion: "535.129.03",
             cudaVersion: "12.2",
@@ -313,7 +313,7 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).not.toContain("more iterations");
     });
 
-    it("should report performance within expected range (450-500 TFLOPS)", () => {
+    it("should report performance within expected range for system type", () => {
       const parsed = parse("hpl --burn-in --iterations 10");
       const result = simulator.execute(parsed, context);
 
@@ -327,10 +327,10 @@ describe("BenchmarkSimulator", () => {
         parseFloat(match[1]),
       );
 
-      // Verify all TFLOPS are in range
+      // DGX-H100 baseline is 240 TFLOPS; range is 90-100% of baseline
       tflopsValues.forEach((tf) => {
-        expect(tf).toBeGreaterThanOrEqual(450);
-        expect(tf).toBeLessThanOrEqual(500);
+        expect(tf).toBeGreaterThanOrEqual(200);
+        expect(tf).toBeLessThanOrEqual(260);
       });
     });
 
@@ -369,9 +369,9 @@ describe("BenchmarkSimulator", () => {
         expect(min).toBeLessThanOrEqual(avg);
         // Max should be greater than or equal to average
         expect(max).toBeGreaterThanOrEqual(avg);
-        // All should be in expected range
-        expect(min).toBeGreaterThanOrEqual(450);
-        expect(max).toBeLessThanOrEqual(500);
+        // DGX-H100 baseline 240 TFLOPS at 90-100%
+        expect(min).toBeGreaterThanOrEqual(200);
+        expect(max).toBeLessThanOrEqual(260);
         // Std deviation should be positive
         expect(stdDev).toBeGreaterThan(0);
       }
@@ -384,8 +384,8 @@ describe("BenchmarkSimulator", () => {
       const result = simulator.execute(parsed, context);
 
       expect(result.exitCode).toBe(0);
-      expect(result.output).toContain("GPU Burn - GPU Stress Test");
-      expect(result.output).toContain("Testing");
+      expect(result.output).toContain("gpu-burn 60");
+      expect(result.output).toMatch(/Gflop\/s/);
     });
   });
 
