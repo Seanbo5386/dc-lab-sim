@@ -8,7 +8,10 @@ import {
 import { MIG_PROFILES } from "@/utils/clusterFactory";
 import { generateTimestamp } from "@/utils/outputTemplates";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
-import { DISPLAY_FORMATTERS } from "@/simulators/nvidiaSmiFormatters";
+import {
+  DISPLAY_FORMATTERS,
+  getThermalThresholds,
+} from "@/simulators/nvidiaSmiFormatters";
 
 function getArchitecture(systemType?: string): string {
   if (!systemType) return "Ampere";
@@ -1360,10 +1363,13 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       const persist = gpu.persistenceMode ? "On " : "Off";
       const col1_r1 = `   ${gpu.id}  ${gpuName.padEnd(16)} ${persist}`;
       const col2_r1 = ` ${gpu.pciAddress.padEnd(16)} Off `;
+      // Datacenter GPUs with ECC enabled show "0" not "N/A" when no errors
       const ecc =
         gpu.eccErrors.doubleBit > 0
           ? gpu.eccErrors.doubleBit.toString()
-          : "N/A";
+          : gpu.eccEnabled
+            ? "0"
+            : "N/A";
       const col3_r1 = ecc.padStart(COL_3 - 1) + " ";
       output +=
         "|" +
@@ -1556,11 +1562,12 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       output += `        DRAM Correctable                  : ${g.eccErrors.aggregated.singleBit}\n`;
       output += `        DRAM Uncorrectable                : ${g.eccErrors.aggregated.doubleBit}\n\n`;
 
+      const thermalThresh = getThermalThresholds(g.name || "");
       output += `Temperature\n`;
       output += `    GPU Current Temp                      : ${isCritical ? "ERR!" : Math.round(g.temperature) + " C"}\n`;
-      output += `    GPU Shutdown Temp                     : 90 C\n`;
-      output += `    GPU Slowdown Temp                     : 85 C\n`;
-      output += `    GPU Max Operating Temp                : 83 C\n`;
+      output += `    GPU Shutdown Temp                     : ${thermalThresh.shutdown} C\n`;
+      output += `    GPU Slowdown Temp                     : ${thermalThresh.slowdown} C\n`;
+      output += `    GPU Max Operating Temp                : ${thermalThresh.maxOp} C\n`;
       output += `    GPU Target Temperature                : N/A\n`;
       output += `    Memory Current Temp                   : ${isCritical ? "ERR!" : Math.round(g.temperature - 5) + " C"}\n`;
       output += `    Memory Max Operating Temp             : 95 C\n\n`;

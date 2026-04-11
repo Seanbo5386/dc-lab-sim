@@ -23,7 +23,10 @@ export function formatDisplayMemory(gpu: GPU, node?: DGXNode): string {
 }
 
 export function formatDisplayUtilization(gpu: GPU, _node?: DGXNode): string {
-  const memUtil = gpu.memoryTotal > 0 ? Math.round((gpu.memoryUsed / gpu.memoryTotal) * 100) : 0;
+  const memUtil =
+    gpu.memoryTotal > 0
+      ? Math.round((gpu.memoryUsed / gpu.memoryTotal) * 100)
+      : 0;
   let output = `    Utilization\n`;
   output += `        Gpu                               : ${Math.round(gpu.utilization)} %\n`;
   output += `        Memory                            : ${memUtil} %\n`;
@@ -52,15 +55,35 @@ export function formatDisplayECC(gpu: GPU, _node?: DGXNode): string {
   return output;
 }
 
+export function getThermalThresholds(gpuName: string): {
+  shutdown: number;
+  slowdown: number;
+  maxOp: number;
+} {
+  if (gpuName.includes("H100") || gpuName.includes("H200")) {
+    return { shutdown: 95, slowdown: 90, maxOp: 83 };
+  }
+  if (
+    gpuName.includes("B200") ||
+    gpuName.includes("GB200") ||
+    gpuName.includes("R200")
+  ) {
+    return { shutdown: 95, slowdown: 90, maxOp: 83 };
+  }
+  // A100 default
+  return { shutdown: 92, slowdown: 89, maxOp: 85 };
+}
+
 export function formatDisplayTemperature(gpu: GPU, _node?: DGXNode): string {
   const currentTemp = Math.round(gpu.temperature);
   const memTemp = Math.round(gpu.temperature + 5);
+  const thresholds = getThermalThresholds(gpu.name || "");
   let output = `    Temperature\n`;
   output += `        GPU Current Temp                  : ${currentTemp} C\n`;
-  output += `        GPU T.Limit Temp                  : 83 C\n`;
-  output += `        GPU Shutdown Temp                 : 90 C\n`;
-  output += `        GPU Slowdown Temp                 : 85 C\n`;
-  output += `        GPU Max Operating Temp            : 83 C\n`;
+  output += `        GPU T.Limit Temp                  : ${thresholds.maxOp} C\n`;
+  output += `        GPU Shutdown Temp                 : ${thresholds.shutdown} C\n`;
+  output += `        GPU Slowdown Temp                 : ${thresholds.slowdown} C\n`;
+  output += `        GPU Max Operating Temp            : ${thresholds.maxOp} C\n`;
   output += `        GPU Target Temperature            : N/A\n`;
   output += `        Memory Current Temp               : ${memTemp} C\n`;
   output += `        Memory Max Operating Temp         : 95 C\n`;
