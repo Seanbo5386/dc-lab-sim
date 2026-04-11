@@ -1020,7 +1020,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     // Single node: use system-type baseline NVLink bandwidth
     const intraNodeBW =
       ncclBaselineBandwidthGBs[sysType] ?? ncclBaselineBandwidthGBs["DGX-A100"];
-    return intraNodeBW * efficiency;
+    return intraNodeBW * efficiency * 0.9;
   }
 
   private calculateNCCLLatencyMultiNode(
