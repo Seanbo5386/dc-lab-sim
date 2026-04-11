@@ -384,7 +384,7 @@
         "dcgmi health -r 2"
       ],
       "correctAnswer": 0,
-      "explanation": "'dcgmi diag -r 2' (or --mode 2) runs Level 2 diagnostics. Level 2 includes short stress tests and takes 1-2 minutes per GPU.",
+      "explanation": "'dcgmi diag -r 2' (or --run 2) runs Level 2 diagnostics. Level 2 includes short stress tests and takes 1-2 minutes per GPU.",
       "points": 1,
       "difficulty": "beginner"
     },
@@ -1251,13 +1251,13 @@
       "questionText": "How do you reset InfiniBand port error counters?",
       "type": "multiple-choice",
       "choices": [
-        "ibportstate -R",
+        "ibportstate <lid> <port> reset",
         "perfquery -x -R",
         "ibclearcounters",
         "Both A and B"
       ],
       "correctAnswer": 3,
-      "explanation": "Use 'perfquery -x -R' to reset extended counters or 'ibportstate -R' to reset port. Clearing counters before tests helps isolate new errors.",
+      "explanation": "Use 'perfquery -x -R' to reset extended performance counters, or 'ibportstate <lid> <port> reset' to reset port state. Clearing counters before tests helps isolate new errors. Note: ibportstate requires the LID and port number as positional arguments.",
       "points": 1,
       "difficulty": "intermediate"
     },
@@ -2958,10 +2958,10 @@
         "dcgmi diag -r 1 (Quick - ~30 seconds)",
         "dcgmi diag -r 2 (Medium - ~2 minutes)",
         "dcgmi diag -r 3 (Long - ~15 minutes)",
-        "dcgmi diag -r 4 (Extended - ~30 minutes)"
+        "dcgmi diag --nvlink-only (NVLink-specific run)"
       ],
-      "correctAnswer": [2, 3],
-      "explanation": "NVLink stress and bandwidth tests are only included in level 3 (Long) and level 4 (Extended) diagnostics. Level 1 runs only basic health checks, and level 2 adds PCIe and short memory tests but does not include full NVLink bandwidth testing.",
+      "correctAnswer": [2],
+      "explanation": "NVLink stress and bandwidth tests are only included in level 3 (Long) diagnostics. Level 1 runs only basic health checks, and level 2 adds PCIe and short memory tests but does not include full NVLink bandwidth testing. Note: dcgmi diag supports only levels 1, 2, and 3; there is no level 4 or --nvlink-only flag.",
       "points": 1,
       "difficulty": "intermediate"
     },
@@ -3022,7 +3022,7 @@
         "ipmitool fru print",
         "ipmitool sdr list",
         "ipmitool mc info",
-        "ipmitool power status"
+        "ipmitool chassis power status"
       ],
       "correctAnswer": [0, 1, 2],
       "explanation": "'fru print' shows Field Replaceable Unit data (serial numbers, part numbers, manufacturer), 'sdr list' shows all Sensor Data Records (hardware sensors), and 'mc info' shows BMC management controller details. 'power status' only shows on/off state, not inventory.",

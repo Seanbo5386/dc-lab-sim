@@ -629,12 +629,12 @@
       "question": "What nvidia-smi query shows current PCIe link generation and width?",
       "choices": [
         "nvidia-smi -L",
-        "nvidia-smi --query-gpu=pci.link.gen.current,pci.link.width.current --format=csv",
+        "nvidia-smi --query-gpu=pcie.link.gen.current,pcie.link.width.current --format=csv",
         "nvidia-smi topo -m",
         "nvidia-smi -q -d MEMORY"
       ],
       "correctAnswer": 1,
-      "explanation": "The query 'nvidia-smi --query-gpu=pci.link.gen.current,pci.link.width.current --format=csv' shows PCIe link speed and width. H100 should show Gen4/Gen5 x16. Degraded links (e.g., x8 instead of x16) indicate slot or cable issues."
+      "explanation": "The query 'nvidia-smi --query-gpu=pcie.link.gen.current,pcie.link.width.current --format=csv' shows PCIe link speed and width. H100 should show Gen4/Gen5 x16. Degraded links (e.g., x8 instead of x16) indicate slot or cable issues."
     },
     {
       "id": "gate-domain5-xid-hardware",

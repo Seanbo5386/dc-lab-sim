@@ -1133,7 +1133,7 @@
           "validation": {
             "type": "none"
           },
-          "observeCommand": "ipmitool power status"
+          "observeCommand": "ipmitool chassis power status"
         },
         {
           "id": "step-3",
@@ -6355,7 +6355,7 @@
           "task": "Configure DCGM health watches for continuous GPU monitoring.",
           "expectedCommands": ["dcgmi health -c"],
           "hints": [
-            "dcgmi health -c configures watches",
+            "dcgmi health -c checks current health status",
             "Enables background monitoring",
             "Catches issues between audits"
           ],
@@ -6819,7 +6819,7 @@
           "task": "Set up DCGM health watches for ongoing production monitoring.",
           "expectedCommands": ["dcgmi health -c"],
           "hints": [
-            "dcgmi health -c configures watches",
+            "dcgmi health -c checks current health status",
             "Set for all GPUs",
             "Enables proactive monitoring"
           ],
