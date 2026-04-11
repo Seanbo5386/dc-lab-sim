@@ -15,9 +15,24 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v1.4.0",
+    title: "Realism Audit",
+    current: true,
+    highlights: [
+      "GPU UUID v4 format compliant with RFC 4122",
+      "Per-model thermal thresholds (A100: 92/89/85°C, H100+: 95/90/83°C)",
+      "SLURM GRES type derived from system type (gpu:h100:8, gpu:a100:8, etc.)",
+      "Dynamic CUDA paths from node hardware spec across env, nvcc, dpkg, apt, ldconfig",
+      "System-type-aware NCCL bandwidth and HPL TFLOPS baselines",
+      "Real gpu-burn output format with Gflop/s and temperature per GPU",
+      "nvidia-smi topo -m includes full NVLink legend",
+      "H100 NVSwitch full-mesh topology (all 4 switches connect to all 8 GPUs)",
+      "Reserved VRAM = 2% of total per GPU; DCGM version bumped to 3.3.5",
+    ],
+  },
+  {
     version: "v1.3.1",
     title: "Soft-Block Fixes",
-    current: true,
     highlights: [
       "Show Answer button lets stuck users reveal commands and skip steps",
       "Pipe validation enforced — piped commands now check filtered output",
