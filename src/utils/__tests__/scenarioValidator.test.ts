@@ -287,4 +287,45 @@ describe("ScenarioValidator - command matching", () => {
       expect(r.passed).toBe(true);
     });
   });
+
+  describe("requireAllCommands distinguishes flag-value pairs", () => {
+    const step = makeStep(
+      ["dmidecode -t system", "dmidecode -t memory"],
+      "dmidecode",
+      undefined,
+      true,
+    );
+
+    it("fails when only one -t variant was executed", () => {
+      const r = ScenarioValidator.validateCommand(
+        "dmidecode -t system",
+        "DMI table...",
+        step,
+        ctx,
+      );
+      expect(r.passed).toBe(false);
+    });
+
+    it("passes when both -t variants were executed", () => {
+      const r = ScenarioValidator.validateCommand(
+        "dmidecode -t memory",
+        "Memory Device...",
+        step,
+        ctx,
+        ["dmidecode -t system"],
+      );
+      expect(r.passed).toBe(true);
+    });
+
+    it("keeps numeric flag values flexible (dcgmi diag -r 1 vs -r 3)", () => {
+      const dcgmiStep = makeStep(["dcgmi diag -r 1"], "dcgmi", undefined, true);
+      const r = ScenarioValidator.validateCommand(
+        "dcgmi diag -r 3",
+        "PASS",
+        dcgmiStep,
+        ctx,
+      );
+      expect(r.passed).toBe(true);
+    });
+  });
 });

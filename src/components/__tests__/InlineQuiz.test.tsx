@@ -81,4 +81,31 @@ describe("InlineQuiz", () => {
       expect(button).toBeDisabled();
     });
   });
+
+  it("substitutes hardware placeholders in question, options, and explanation", () => {
+    // Default systemType in simulationStore is DGX-A100 → NVLINK_LABEL="NV12",
+    // NVLINK_LINKS_PER_GPU="12".
+    const placeholderQuiz = {
+      question: "What does '{{NVLINK_LABEL}}' indicate?",
+      options: [
+        "{{NVLINK_LINKS_PER_GPU}} NVLink connections",
+        "Unrelated answer",
+        "Another unrelated answer",
+        "Final unrelated answer",
+      ],
+      correctIndex: 0,
+      explanation:
+        "{{NVLINK_LABEL}} indicates {{NVLINK_LINKS_PER_GPU}} NVLink connections.",
+    };
+    render(<InlineQuiz quiz={placeholderQuiz} onComplete={vi.fn()} />);
+    expect(
+      screen.getByText(/what does 'NV12' indicate\?/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText("12 NVLink connections")).toBeInTheDocument();
+    // Trigger feedback to render the explanation
+    fireEvent.click(screen.getByText("12 NVLink connections"));
+    expect(
+      screen.getByText(/NV12 indicates 12 NVLink connections/i),
+    ).toBeInTheDocument();
+  });
 });

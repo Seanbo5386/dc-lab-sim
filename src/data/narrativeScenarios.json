@@ -1212,13 +1212,13 @@
           "quiz": {
             "question": "What does '{{NVLINK_LABEL}}' in topology output indicate?",
             "options": [
-              "12 NVLink connections",
-              "NVLink version 1.2",
-              "12th generation GPU",
-              "PCIe gen 4 x12"
+              "{{NVLINK_LINKS_PER_GPU}} NVLink connections between the GPU pair",
+              "NVLink protocol version",
+              "GPU generation indicator",
+              "PCIe lane width"
             ],
             "correctIndex": 0,
-            "explanation": "{{NVLINK_LABEL}} indicates 12 NVLink connections between the GPU pair, providing high-bandwidth communication for multi-GPU workloads like distributed training."
+            "explanation": "{{NVLINK_LABEL}} indicates {{NVLINK_LINKS_PER_GPU}} NVLink connections between the GPU pair, providing high-bandwidth communication for multi-GPU workloads like distributed training."
           }
         },
         {

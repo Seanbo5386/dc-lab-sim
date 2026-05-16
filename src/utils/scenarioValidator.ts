@@ -391,8 +391,16 @@ export class ScenarioValidator {
           // For commands with flags/args beyond the key, check key parts are present
           for (let i = expectedKey.length; i < expectedTokens.length; i++) {
             const token = expectedTokens[i];
-            // Skip generic/common flags
-            if (token === "--format=csv" || token === "-i") continue;
+            const nextToken = expectedTokens[i + 1];
+
+            // Skip generic flexible flags
+            if (token === "--format=csv") continue;
+            // -i (GPU index): flexible; also skip its numeric value
+            if (token === "-i") {
+              if (nextToken && /^\d+$/.test(nextToken)) i++;
+              continue;
+            }
+
             // For key=value args, check the key prefix exists (flexible on value)
             if (
               token.includes("=") &&
@@ -401,11 +409,36 @@ export class ScenarioValidator {
             ) {
               const prefix = token.split("=")[0];
               if (!cmdNormalized.includes(prefix)) return false;
-            } else if (token.startsWith("-")) {
-              // Flags: check the flag exists in the command
+              continue;
+            }
+
+            // Flag followed by a non-numeric, non-quoted, non-flag value
+            // (e.g. "-t memory", "-u docker"): treat as a subcommand selector
+            // pair and require both flag and value to appear together in the
+            // user's command. Without this, "dmidecode -t system" and
+            // "dmidecode -t memory" would match each other.
+            if (
+              token.startsWith("-") &&
+              nextToken &&
+              !nextToken.startsWith("-") &&
+              !nextToken.startsWith("'") &&
+              !nextToken.startsWith('"') &&
+              !nextToken.includes("=") &&
+              !/^\d+$/.test(nextToken)
+            ) {
+              const pairPattern = new RegExp(
+                `${escapeRegex(token)}\\s+${escapeRegex(nextToken)}\\b`,
+              );
+              if (!pairPattern.test(cmdNormalized)) return false;
+              i++; // consume the value, already verified
+              continue;
+            }
+
+            if (token.startsWith("-")) {
+              // Standalone flag (or flag followed by numeric/quoted/flag value)
               if (!cmdNormalized.includes(token)) return false;
             }
-            // Skip quoted values and positional args — too restrictive to check
+            // Else: skip quoted values and bare positional args
           }
 
           return true;

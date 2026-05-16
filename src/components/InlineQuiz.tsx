@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { NarrativeQuiz } from "../types/scenarios";
 import { Check, X } from "lucide-react";
+import { useHardwareText } from "@/utils/hardwareTextSubstitution";
 
 interface InlineQuizProps {
   quiz: NarrativeQuiz;
@@ -8,6 +9,7 @@ interface InlineQuizProps {
 }
 
 export function InlineQuiz({ quiz, onComplete }: InlineQuizProps) {
+  const sub = useHardwareText();
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const isAnswered = selectedIndex !== null;
   const isCorrect = selectedIndex === quiz.correctIndex;
@@ -26,7 +28,7 @@ export function InlineQuiz({ quiz, onComplete }: InlineQuizProps) {
       <h4 className="text-sm font-semibold text-indigo-300 mb-3">
         KNOWLEDGE CHECK
       </h4>
-      <p className="text-white font-medium mb-4">{quiz.question}</p>
+      <p className="text-white font-medium mb-4">{sub(quiz.question)}</p>
 
       <div className="space-y-2">
         {quiz.options.map((option, idx) => {
@@ -64,7 +66,7 @@ export function InlineQuiz({ quiz, onComplete }: InlineQuizProps) {
                 {isAnswered && isSelected && !isCorrect && (
                   <X className="w-4 h-4 text-red-400" />
                 )}
-                {option}
+                {sub(option)}
               </span>
             </button>
           );
@@ -79,7 +81,7 @@ export function InlineQuiz({ quiz, onComplete }: InlineQuizProps) {
           <p className="font-semibold mb-1">
             {isCorrect ? "Correct!" : "Not quite."}
           </p>
-          <p>{quiz.explanation}</p>
+          <p>{sub(quiz.explanation)}</p>
         </div>
       )}
     </div>
