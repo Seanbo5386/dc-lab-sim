@@ -185,6 +185,7 @@ export const ExplanationGate: React.FC<ExplanationGateProps> = ({
           <button
             key={index}
             onClick={() => handleAnswerSelect(index)}
+            aria-label={`Select answer ${String.fromCharCode(65 + index)}`}
             className={`w-full p-4 rounded-lg border-2 text-left transition-all ${
               selectedAnswer === index
                 ? "border-nvidia-green bg-nvidia-green/10 text-white"

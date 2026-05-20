@@ -3152,6 +3152,512 @@ GPU 0: OK - temp: 79C - 18172 Gflop/s  (240s elapsed)`,
 ];
 
 // ============================================================================
+// XID DIAGNOSTICS (tm-xid-001 through tm-xid-025)
+// Tools: dmesg (7), nvidia-smi (7), dcgmi (6), nvidia-bug-report (5)
+// ============================================================================
+
+const xidDiagnosticsQuestions: ToolMasteryQuestion[] = [
+  // dmesg (7 questions)
+  {
+    id: "tm-xid-001",
+    familyId: "xid-diagnostics",
+    tool: "dmesg",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "Which dmesg command filters kernel logs to show only NVIDIA GPU XID errors?",
+    choices: [
+      "dmesg | grep -i 'NVRM: Xid'",
+      "dmesg --filter=nvidia",
+      "dmesg -d nvidia-xid",
+      "dmesg | grep GPU_ERROR",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "NVIDIA kernel driver messages are logged with the 'NVRM' prefix. XID errors specifically appear as 'NVRM: Xid' entries in the kernel ring buffer. Using 'dmesg | grep -i \"NVRM: Xid\"' filters for these GPU error messages.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-002",
+    familyId: "xid-diagnostics",
+    tool: "dmesg",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText: "What does this dmesg output indicate?",
+    codeSnippet: `[12345.678] NVRM: Xid (PCI:0000:3b:00): 48, pid=5432, name=python3, Ch 00000010
+[12345.679] NVRM: Xid (PCI:0000:3b:00): 48, pid=5432, name=python3, Ch 00000010`,
+    choices: [
+      "A single-bit correctable ECC error that can be safely ignored",
+      "A double-bit uncorrectable ECC error on GPU at PCI 3b:00 — the GPU memory is failing",
+      "A driver timeout that requires a process restart",
+      "A PCIe link training failure requiring a system reboot",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "XID 48 indicates a double-bit (uncorrectable) ECC error in GPU memory. Unlike single-bit errors that ECC can correct, double-bit errors corrupt data and cannot be recovered. Repeated XID 48 errors on the same GPU strongly suggest failing GPU memory that requires hardware replacement.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-003",
+    familyId: "xid-diagnostics",
+    tool: "dmesg",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText: "What does XID error code 79 in dmesg indicate?",
+    codeSnippet: `[98765.432] NVRM: Xid (PCI:0000:86:00): 79, pid='<unknown>', name=<unknown>
+[98765.433] NVRM: GPU at PCI:0000:86:00 has fallen off the bus`,
+    choices: [
+      "The GPU driver crashed and needs to be reloaded",
+      "The GPU has fallen off the PCIe bus — a critical hardware failure requiring physical intervention",
+      "The GPU firmware needs an update",
+      "The GPU is throttling due to excessive temperature",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "XID 79 means the GPU has lost communication with the system over the PCIe bus. The 'fallen off the bus' message confirms a critical hardware event. This typically requires reseating the GPU in its PCIe slot, checking PCIe cables, or replacing the GPU. A system reboot is required to recover.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-004",
+    familyId: "xid-diagnostics",
+    tool: "dmesg",
+    category: "flags-options",
+    difficulty: "beginner",
+    questionText:
+      "Which dmesg option adds human-readable timestamps to the output, making it easier to correlate XID errors with other system events?",
+    choices: [
+      "dmesg -T",
+      "dmesg --timestamp",
+      "dmesg -v",
+      "dmesg --human-time",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "The -T flag converts the kernel's monotonic clock timestamps to human-readable local time format. This is essential when correlating XID errors with application logs, job scheduler events, or hardware monitoring timestamps.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-005",
+    familyId: "xid-diagnostics",
+    tool: "dmesg",
+    category: "output-interpretation",
+    difficulty: "advanced",
+    questionText:
+      "A dmesg log shows repeated XID 63 errors on GPU 3. What is the correct interpretation and action?",
+    codeSnippet: `[45678.901] NVRM: Xid (PCI:0000:c1:00): 63, pid=0, Row Remapper: New row marked for remapping
+[45678.902] NVRM: Xid (PCI:0000:c1:00): 63, pid=0, Row Remapper: New row marked for remapping`,
+    choices: [
+      "This is normal ECC behavior — no action needed",
+      "The GPU is retiring failing memory rows; monitor the count and plan replacement if rows approach the maximum",
+      "The GPU driver has crashed and needs to be reinstalled",
+      "The GPU temperature is too high — adjust fan speed",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "XID 63 indicates ECC page retirement — the GPU's row remapper is marking failing memory rows as unavailable and redirecting to spare rows. Each GPU has a limited number of spare rows. While a few retirements are normal over a GPU's lifetime, rapidly accumulating retirements indicate degrading memory. Check retirement counts with 'nvidia-smi -q -d PAGE_RETIREMENT' and plan replacement if approaching limits.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-xid-006",
+    familyId: "xid-diagnostics",
+    tool: "dmesg",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "You see XID 31 errors in dmesg that only occur during a specific training job. What is the most likely root cause?",
+    choices: [
+      "Faulty GPU hardware that needs replacement",
+      "A bug in the application code causing illegal memory access on the GPU",
+      "Insufficient PCIe bandwidth between GPUs",
+      "NVLink cable degradation",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "XID 31 indicates a GPU memory page fault — an access to an invalid GPU memory address. When this error only occurs with a specific application, it almost always indicates a software bug such as an out-of-bounds memory access, use-after-free, or incorrect CUDA memory management. If the error occurred across multiple applications, hardware would be more suspect.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-007",
+    familyId: "xid-diagnostics",
+    tool: "dmesg",
+    category: "conceptual",
+    difficulty: "beginner",
+    questionText:
+      "What is the relationship between XID error codes and the NVIDIA kernel module (NVRM)?",
+    choices: [
+      "XID codes are generated by the CUDA runtime library",
+      "XID codes are generated by the NVIDIA kernel driver (NVRM) and logged to the kernel ring buffer via dmesg",
+      "XID codes are generated by the DCGM daemon",
+      "XID codes are generated by nvidia-smi polling",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "XID (eXtended Information Detail) error codes are generated by NVRM, the NVIDIA Resource Manager kernel module. When the GPU hardware reports an error condition, NVRM translates it into an XID code and logs it to the kernel ring buffer. These messages are then visible through dmesg and journalctl.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+
+  // nvidia-smi (7 questions)
+  {
+    id: "tm-xid-008",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-smi",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "Which nvidia-smi command displays the count of ECC page retirements related to double-bit errors?",
+    choices: [
+      "nvidia-smi -q -d PAGE_RETIREMENT",
+      "nvidia-smi --ecc-errors",
+      "nvidia-smi -q -d ECC_PAGES",
+      "nvidia-smi --retirement-count",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "The command 'nvidia-smi -q -d PAGE_RETIREMENT' displays retired page information including single-bit and double-bit retirement causes, pending retirements, and whether a reboot is needed to apply pending retirements. This is the primary tool for assessing GPU memory health after XID 48 or XID 63 errors.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-xid-009",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-smi",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText:
+      "What does this nvidia-smi ECC output tell you about the GPU's health?",
+    codeSnippet: `$ nvidia-smi -q -d ECC -i 2
+    ECC Errors
+        Volatile
+            SRAM Correctable              : 0
+            SRAM Uncorrectable            : 0
+            DRAM Correctable              : 142
+            DRAM Uncorrectable            : 0
+        Aggregate
+            SRAM Correctable              : 0
+            SRAM Uncorrectable            : 2
+            DRAM Correctable              : 3847
+            DRAM Uncorrectable            : 1`,
+    choices: [
+      "The GPU is failing and must be replaced immediately",
+      "The GPU has historical uncorrectable errors but is currently stable — monitor closely and plan replacement",
+      "The GPU is perfectly healthy with only correctable errors",
+      "ECC is malfunctioning and needs to be disabled",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "Volatile counters (reset each boot) show zero uncorrectable errors — the GPU is currently stable. However, Aggregate counters (lifetime) show 2 SRAM uncorrectable and 1 DRAM uncorrectable errors historically. This GPU has experienced serious errors in the past. While stable now, it should be monitored closely and scheduled for replacement during the next maintenance window.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-xid-010",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-smi",
+    category: "flags-options",
+    difficulty: "intermediate",
+    questionText:
+      "After a GPU reports XID 48 errors, which nvidia-smi command should you run first to assess the damage?",
+    choices: [
+      "nvidia-smi -q -d PERFORMANCE",
+      "nvidia-smi -q -d ECC,PAGE_RETIREMENT -i <gpu_id>",
+      "nvidia-smi --reset-ecc-errors",
+      "nvidia-smi -pl 300",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "After XID 48 (double-bit ECC error), you need to check both ECC error counts and page retirement status. The combined query 'nvidia-smi -q -d ECC,PAGE_RETIREMENT -i <gpu_id>' shows current error counts, whether pages were retired, and if a reboot is pending to apply retirements.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-011",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-smi",
+    category: "output-interpretation",
+    difficulty: "advanced",
+    questionText:
+      "You run nvidia-smi and see 'ERR!' in the GPU utilization column. What XID-related condition causes this?",
+    choices: [
+      "The GPU is overclocked beyond safe limits",
+      "The GPU has a critical health status due to unrecoverable errors (XID 48, 64, or 79)",
+      "The nvidia-smi binary is outdated and needs updating",
+      "The GPU is in MIG mode and cannot report utilization",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-smi displays 'ERR!' when it cannot communicate with the GPU or the GPU is in a critical error state. This typically follows XID 79 (GPU fallen off bus), XID 48 (uncorrectable ECC), or XID 64 (ECC error with GPU exception). The GPU is non-functional and requires at minimum a GPU reset, driver reload, or system reboot.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-012",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-smi",
+    category: "troubleshooting",
+    difficulty: "intermediate",
+    questionText:
+      "A GPU shows XID 13 errors during training. Which nvidia-smi command helps determine if the issue is thermal throttling?",
+    choices: [
+      "nvidia-smi -q -d TEMPERATURE,POWER -i <gpu_id>",
+      "nvidia-smi --gpu-reset -i <gpu_id>",
+      "nvidia-smi -q -d CLOCK",
+      "nvidia-smi dmon -s t",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "XID 13 (GPU exception) can be caused by thermal issues. Checking 'nvidia-smi -q -d TEMPERATURE,POWER' shows current temperature, thermal slowdown threshold, thermal shutdown threshold, and power draw. If the GPU temperature is near the slowdown threshold, thermal throttling is likely contributing to the XID 13 errors.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-013",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-smi",
+    category: "best-practice",
+    difficulty: "beginner",
+    questionText:
+      "What is the recommended first step when nvidia-smi shows a GPU with persistent XID errors?",
+    choices: [
+      "Immediately replace the GPU hardware",
+      "Reset the GPU ECC error counters and see if errors reappear",
+      "Isolate the GPU by draining it from the job scheduler, then run diagnostics",
+      "Reboot the entire node immediately",
+    ],
+    correctAnswer: 2,
+    explanation:
+      "The recommended workflow is: (1) drain the node or specific GPU from the job scheduler to prevent new jobs, (2) run DCGM diagnostics to assess the GPU's health, (3) check ECC counts and page retirements, (4) decide on remediation. Immediately replacing hardware or rebooting wastes time if the issue is software-related, and resetting counters loses diagnostic evidence.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-014",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-smi",
+    category: "conceptual",
+    difficulty: "advanced",
+    questionText:
+      "What is the difference between volatile and aggregate ECC error counters in nvidia-smi?",
+    choices: [
+      "Volatile counts errors in GPU L2 cache; aggregate counts errors in HBM",
+      "Volatile counts since last driver load; aggregate counts across all time since manufacturing",
+      "Volatile counts correctable errors; aggregate counts uncorrectable errors",
+      "Volatile counts single-GPU errors; aggregate counts multi-GPU NVLink errors",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "Volatile ECC counters reset when the GPU driver is loaded (typically at boot). They show errors accumulated during the current session. Aggregate counters persist across driver loads and reboots — they represent the GPU's lifetime error history stored in the GPU's InfoROM. Comparing both tells you whether errors are a new issue or chronic.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+
+  // dcgmi (6 questions)
+  {
+    id: "tm-xid-015",
+    familyId: "xid-diagnostics",
+    tool: "dcgmi",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "Which DCGM diagnostic level is recommended for investigating XID errors after isolating a suspicious GPU?",
+    choices: [
+      "dcgmi diag -r 1 (short — 30 seconds)",
+      "dcgmi diag -r 2 (medium — 2 minutes)",
+      "dcgmi diag -r 3 (long — 15+ minutes, includes stress tests)",
+      "dcgmi diag -r 0 (quick health check)",
+    ],
+    correctAnswer: 2,
+    explanation:
+      "Level 3 (long diagnostic, via -r 3) runs comprehensive stress tests including memory bandwidth tests, compute stress tests, and PCIe throughput validation. After XID errors, you need a thorough assessment to determine if the GPU can reliably handle sustained workloads. Levels 1 and 2 may miss intermittent faults that only manifest under load.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-xid-016",
+    familyId: "xid-diagnostics",
+    tool: "dcgmi",
+    category: "output-interpretation",
+    difficulty: "intermediate",
+    questionText:
+      "What does a DCGM health check result of 'Warning' for the 'Memory' subsystem suggest after XID errors?",
+    choices: [
+      "The GPU memory is completely failed and cannot be used",
+      "The GPU has accumulated ECC errors that haven't yet reached critical thresholds but warrant monitoring",
+      "The DCGM service is misconfigured",
+      "The GPU memory bandwidth is below expected performance",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "A 'Warning' status for the Memory subsystem in 'dcgmi health --check' means DCGM has detected ECC errors that are below the critical failure threshold but above normal levels. The GPU is still functional but showing signs of degradation. Schedule replacement during the next maintenance window.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-xid-017",
+    familyId: "xid-diagnostics",
+    tool: "dcgmi",
+    category: "flags-options",
+    difficulty: "intermediate",
+    questionText:
+      "How do you configure DCGM to automatically monitor for XID errors and trigger an alert?",
+    choices: [
+      "dcgmi policy -g 1 --set 1,1 -x --action 1",
+      "dcgmi health --set --watches xid",
+      "dcgmi stats --enable-xid-watch",
+      "dcgmi config --set-alert xid",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "The DCGM policy system monitors GPU health conditions and triggers actions. 'dcgmi policy -g 1 --set 1,1 -x --action 1' sets a policy on group 1 (-g flag required) watching for XID errors (-x flag) with specified violation and action parameters. When an XID error occurs, DCGM logs the event and can trigger configurable responses.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+  {
+    id: "tm-xid-018",
+    familyId: "xid-diagnostics",
+    tool: "dcgmi",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "A DCGM level-3 diagnostic reports 'FAIL' on the 'Diagnostic' test for GPU 5. The GPU previously showed XID 64 errors. What should you do?",
+    choices: [
+      "Reset the ECC counters and retry the diagnostic",
+      "Update the GPU firmware and rerun",
+      "Mark the GPU for replacement — XID 64 plus diagnostic failure confirms hardware degradation",
+      "Lower the GPU power limit and retry",
+    ],
+    correctAnswer: 2,
+    explanation:
+      "XID 64 indicates ECC errors combined with a GPU exception, meaning compute operations are being corrupted. When a level-3 DCGM diagnostic also fails, this confirms the GPU cannot reliably perform computations. The combination of runtime XID 64 errors and diagnostic failure is strong evidence of hardware degradation. The GPU should be replaced.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-019",
+    familyId: "xid-diagnostics",
+    tool: "dcgmi",
+    category: "best-practice",
+    difficulty: "intermediate",
+    questionText:
+      "What is the recommended sequence for using DCGM when triaging a GPU that reported XID errors during a training job?",
+    choices: [
+      "Run mode 3 diagnostic immediately while the job is still running",
+      "Stop the job, run 'dcgmi health --check', then 'dcgmi diag -r 3' if health shows warnings",
+      "Reboot the node first, then run diagnostics",
+      "Skip DCGM and go straight to hardware replacement",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "The recommended triage sequence is: (1) stop/drain workloads from the GPU, (2) run 'dcgmi health --check' for a quick subsystem assessment, (3) if any subsystem shows Warning or Error, run 'dcgmi diag --mode 3' for comprehensive stress testing. Running diagnostics while a job is active gives unreliable results. Rebooting before diagnostics can clear volatile error counters.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-020",
+    familyId: "xid-diagnostics",
+    tool: "dcgmi",
+    category: "conceptual",
+    difficulty: "beginner",
+    questionText:
+      "What DCGM health subsystems are most relevant when investigating GPU XID errors?",
+    choices: [
+      "PCIe and NVLink subsystems only",
+      "Memory, GPU Core, and Thermal subsystems",
+      "Only the Memory subsystem",
+      "All 8 DCGM health subsystems equally",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "When investigating XID errors, the most relevant DCGM health subsystems are: Memory (ECC errors, page retirements), GPU Core (compute engine faults, hardware exceptions), and Thermal (overheating causing GPU instability). PCIe and NVLink are relevant for XID 79 (fallen off bus) but less common.",
+    examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
+  },
+
+  // nvidia-bug-report (5 questions)
+  {
+    id: "tm-xid-021",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-bug-report",
+    category: "command-syntax",
+    difficulty: "beginner",
+    questionText:
+      "What command generates a comprehensive NVIDIA diagnostic bundle for support escalation after XID errors?",
+    choices: [
+      "nvidia-bug-report.sh",
+      "nvidia-collect-logs --all",
+      "nvidia-smi --generate-report",
+      "dcgmi report --full",
+    ],
+    correctAnswer: 0,
+    explanation:
+      "nvidia-bug-report.sh generates a compressed archive containing GPU state, driver versions, kernel logs (including XID errors), PCI topology, ECC status, and system configuration. This is the standard artifact to include when escalating GPU issues to NVIDIA support.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-022",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-bug-report",
+    category: "best-practice",
+    difficulty: "intermediate",
+    questionText:
+      "When should you run nvidia-bug-report.sh relative to investigating XID errors?",
+    choices: [
+      "After rebooting the system to get a clean state",
+      "Before rebooting or resetting the GPU — while error state is still in memory",
+      "Only after NVIDIA support requests it",
+      "It does not matter when you run it",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-bug-report.sh should be run before any reboot, GPU reset, or driver reload. The report captures volatile kernel logs (dmesg), current GPU state, and runtime error counters that are lost on reboot. Running it after a reboot produces a clean-looking report that lacks the critical error evidence needed for diagnosis.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-023",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-bug-report",
+    category: "flags-options",
+    difficulty: "intermediate",
+    questionText:
+      "Which option generates the nvidia-bug-report output to a specific file path?",
+    choices: [
+      "nvidia-bug-report.sh --output-dir /tmp/gpu-report",
+      "nvidia-bug-report.sh --output-file /tmp/gpu-report.gz",
+      "nvidia-bug-report.sh -o /tmp/gpu-report",
+      "nvidia-bug-report.sh > /tmp/gpu-report.gz",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-bug-report.sh uses --output-file to specify the output path for the compressed report archive. By default, it creates nvidia-bug-report.log.gz in the current directory. Specifying a custom path is useful when the current directory has limited space or when collecting reports from multiple nodes to a shared filesystem.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-024",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-bug-report",
+    category: "conceptual",
+    difficulty: "beginner",
+    questionText:
+      "What key information does nvidia-bug-report.sh capture that is relevant to XID error diagnosis?",
+    choices: [
+      "Only the current nvidia-smi output",
+      "Kernel logs with XID errors, GPU state, ECC counters, PCIe topology, driver version, and system configuration",
+      "A screenshot of the GPU temperature graph",
+      "Only the DCGM diagnostic results",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-bug-report.sh creates a comprehensive snapshot including: full dmesg with XID error history, nvidia-smi output for all GPUs, ECC error and page retirement counters, PCIe link status and topology, driver and firmware versions, and system configuration. This single artifact provides all the context needed to diagnose XID errors.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+  {
+    id: "tm-xid-025",
+    familyId: "xid-diagnostics",
+    tool: "nvidia-bug-report",
+    category: "troubleshooting",
+    difficulty: "advanced",
+    questionText:
+      "You need to collect diagnostic data from a node where GPU 3 has XID 79 (fallen off bus) and nvidia-smi hangs. How should you proceed?",
+    choices: [
+      "Wait for nvidia-smi to respond, then run nvidia-bug-report.sh",
+      "Run nvidia-bug-report.sh — it has timeout mechanisms and can capture partial data even with hung GPUs",
+      "Reboot the node first to restore GPU communication, then collect data",
+      "Skip data collection and replace the GPU immediately",
+    ],
+    correctAnswer: 1,
+    explanation:
+      "nvidia-bug-report.sh includes timeout mechanisms for each data collection step, so it can complete even when individual GPUs are unresponsive. It will capture the available kernel logs showing the XID 79 error, working GPU states, and PCIe topology showing the failed device. Rebooting would lose the volatile error logs. Always attempt data collection before destructive recovery steps.",
+    examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
+  },
+];
+
+// ============================================================================
 // COMBINED EXPORT
 // ============================================================================
 
@@ -3162,6 +3668,7 @@ export const TOOL_MASTERY_QUESTIONS: ToolMasteryQuestion[] = [
   ...clusterToolsQuestions,
   ...containerToolsQuestions,
   ...diagnosticsQuestions,
+  ...xidDiagnosticsQuestions,
 ];
 
 export function getQuestionsForFamily(

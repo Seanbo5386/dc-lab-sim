@@ -13,6 +13,7 @@ const VALID_FAMILY_IDS = [
   "cluster-tools",
   "container-tools",
   "diagnostics",
+  "xid-diagnostics",
 ];
 
 const VALID_CATEGORIES: MasteryCategory[] = [
