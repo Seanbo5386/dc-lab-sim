@@ -193,6 +193,9 @@ export function ExamWorkspace({
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const isUnanswered = (answer: unknown): boolean =>
+    answer === undefined || (Array.isArray(answer) && answer.length === 0);
+
   // Show results screen
   if (showResults && activeExam?.breakdown) {
     const breakdown = activeExam.breakdown;
@@ -405,7 +408,9 @@ export function ExamWorkspace({
               <h2 className="text-xl font-bold text-green-400">Review Mode</h2>
               <p className="text-sm text-gray-400 mt-1">
                 Question {currentQuestionIdx + 1} of {questions.length}
-                {isCorrect ? (
+                {isUnanswered(userAnswer) ? (
+                  <span className="text-yellow-400 ml-2">○ Not Answered</span>
+                ) : isCorrect ? (
                   <span className="text-green-400 ml-2">✓ Correct</span>
                 ) : (
                   <span className="text-red-400 ml-2">✗ Incorrect</span>
@@ -418,6 +423,7 @@ export function ExamWorkspace({
                 setShowResults(true);
               }}
               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded font-semibold transition-colors"
+              aria-label="Back to results"
             >
               Back to Results
             </button>
@@ -448,6 +454,17 @@ export function ExamWorkspace({
               <h3 className="text-xl text-white mb-6 leading-relaxed">
                 {currentQuestion.questionText}
               </h3>
+
+              {/* Not Answered Banner */}
+              {isUnanswered(userAnswer) && (
+                <div className="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded-lg p-4 mb-6 flex items-center gap-3">
+                  <span className="text-yellow-400 text-lg">○</span>
+                  <span className="text-yellow-300 text-sm">
+                    You did not answer this question. The correct answer is
+                    highlighted below.
+                  </span>
+                </div>
+              )}
 
               {/* Answer Choices with Feedback */}
               <div className="space-y-3 mb-6">
@@ -522,18 +539,22 @@ export function ExamWorkspace({
                     (r) => r.questionId === q.id,
                   );
                   const correct = qResult?.correct || false;
+                  const wasAnswered = !isUnanswered(activeExam.answers[q.id]);
                   const current = idx === currentQuestionIdx;
 
                   return (
                     <button
                       key={q.id}
                       onClick={() => setCurrentQuestionIdx(idx)}
+                      aria-label={`Question ${idx + 1}${!wasAnswered ? ", not answered" : correct ? ", correct" : ", incorrect"}`}
                       className={`w-full aspect-square rounded flex items-center justify-center text-sm font-semibold transition-all ${
                         current
                           ? "bg-blue-500 text-white"
-                          : correct
-                            ? "bg-green-600 text-white"
-                            : "bg-red-600 text-white hover:bg-red-500"
+                          : !wasAnswered
+                            ? "bg-yellow-600 text-white hover:bg-yellow-500"
+                            : correct
+                              ? "bg-green-600 text-white"
+                              : "bg-red-600 text-white hover:bg-red-500"
                       }`}
                     >
                       {idx + 1}
@@ -554,6 +575,10 @@ export function ExamWorkspace({
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 bg-red-600 rounded" />
                   <span>Incorrect</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-yellow-600 rounded" />
+                  <span>Not Answered</span>
                 </div>
               </div>
 
@@ -580,6 +605,7 @@ export function ExamWorkspace({
                 setCurrentQuestionIdx(Math.max(0, currentQuestionIdx - 1))
               }
               disabled={currentQuestionIdx === 0}
+              aria-label="Previous question"
               className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded font-semibold transition-colors flex items-center gap-2"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -587,7 +613,11 @@ export function ExamWorkspace({
             </button>
 
             <div className="text-sm">
-              {isCorrect ? (
+              {isUnanswered(userAnswer) ? (
+                <span className="text-yellow-400 font-semibold">
+                  ○ Not Answered
+                </span>
+              ) : isCorrect ? (
                 <span className="text-green-400 font-semibold">✓ Correct</span>
               ) : (
                 <span className="text-red-400 font-semibold">✗ Incorrect</span>
@@ -601,6 +631,7 @@ export function ExamWorkspace({
                 )
               }
               disabled={currentQuestionIdx === questions.length - 1}
+              aria-label="Next question"
               className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded font-semibold transition-colors flex items-center gap-2"
             >
               Next
@@ -780,6 +811,9 @@ export function ExamWorkspace({
 
             <button
               onClick={handleToggleFlag}
+              aria-label={
+                isFlagged ? "Unflag question" : "Flag question for review"
+              }
               className={`w-full px-4 py-2 rounded font-semibold transition-colors flex items-center justify-center gap-2 ${
                 isFlagged
                   ? "bg-yellow-600 hover:bg-yellow-700 text-white"
@@ -799,6 +833,7 @@ export function ExamWorkspace({
               setCurrentQuestionIdx(Math.max(0, currentQuestionIdx - 1))
             }
             disabled={currentQuestionIdx === 0}
+            aria-label="Previous question"
             className="px-4 py-2 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:text-gray-600 text-white rounded font-semibold transition-colors flex items-center gap-2"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -816,6 +851,7 @@ export function ExamWorkspace({
           {currentQuestionIdx < questions.length - 1 ? (
             <button
               onClick={() => setCurrentQuestionIdx(currentQuestionIdx + 1)}
+              aria-label="Next question"
               className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
             >
               Next
@@ -824,6 +860,7 @@ export function ExamWorkspace({
           ) : (
             <button
               onClick={handleSubmitExam}
+              aria-label="Submit exam"
               className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-semibold transition-colors flex items-center gap-2"
             >
               Submit Exam

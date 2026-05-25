@@ -232,6 +232,11 @@ export const CommandsReference: React.FC = () => {
       <div className="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
         <button
           onClick={() => setGuidesExpanded(!guidesExpanded)}
+          aria-label={
+            guidesExpanded
+              ? "Collapse quick decision guide"
+              : "Expand quick decision guide"
+          }
           className="w-full p-4 text-left hover:bg-gray-700/50 transition-colors"
         >
           <div className="flex items-center gap-3">
@@ -305,6 +310,7 @@ export const CommandsReference: React.FC = () => {
             {/* Category header */}
             <button
               onClick={() => toggleCategory(cat.category)}
+              aria-label={`${isExpanded ? "Collapse" : "Expand"} ${cat.displayName} category`}
               className="w-full p-4 text-left hover:bg-gray-700/50 transition-colors"
             >
               <div className="flex items-center gap-3">
@@ -338,6 +344,7 @@ export const CommandsReference: React.FC = () => {
                     >
                       <button
                         onClick={() => toggleCommand(cmdKey)}
+                        aria-label={`${cmdExpanded ? "Collapse" : "Expand"} ${cmd.command} details`}
                         className="w-full flex items-start gap-3 p-4 text-left hover:bg-gray-900/50 transition-colors"
                       >
                         <span className="mt-0.5 shrink-0">

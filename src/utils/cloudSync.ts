@@ -6,6 +6,7 @@ import {
   mergeLearningProgress,
   mergeLearningData,
 } from "./mergeProgress";
+import { logger } from "./logger";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const client = generateClient<any>();
@@ -59,7 +60,7 @@ export async function fetchCloudProgress(): Promise<CloudProgressData | null> {
       lastSyncedAt: record.lastSyncedAt || "",
     };
   } catch (err) {
-    console.error("[CloudSync] Failed to fetch progress:", err);
+    logger.error("Failed to fetch progress:", err);
     return null;
   }
 }
@@ -98,7 +99,7 @@ export async function saveCloudProgress(
       await client.models.UserProgress.create(payload);
     }
   } catch (err) {
-    console.error("[CloudSync] Failed to save progress:", err);
+    logger.error("Failed to save progress:", err);
     throw err;
   }
 }
