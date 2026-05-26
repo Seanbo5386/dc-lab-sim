@@ -3133,7 +3133,7 @@
         },
         {
           "id": "step-4",
-          "situation": "GPU 3 shows 47 ECC single-bit errors. This could cause intermittent issues.",
+          "situation": "GPU 3 shows 150 ECC single-bit errors. This could cause intermittent issues.",
           "task": "Use dcgmi to get detailed GPU health information.",
           "expectedCommands": ["dcgmi diag -r 1"],
           "hints": [
