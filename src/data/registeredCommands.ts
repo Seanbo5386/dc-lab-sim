@@ -5,7 +5,7 @@ export const TERMINAL_COMMANDS = new Set<string>([
   "practice",
   "ssh",
   "hint",
-  "clear",
+  "clear", // handled by a pre-router branch in Terminal.tsx (not router.register)
 
   // NVIDIA GPU monitoring
   "nvidia-smi",
@@ -81,7 +81,7 @@ export const TERMINAL_COMMANDS = new Set<string>([
   "hostname",
   "sensors",
 
-  // PCI / journalctl
+  // PCI tools
   "lspci",
   "journalctl",
 
@@ -127,6 +127,19 @@ export const TERMINAL_COMMANDS = new Set<string>([
   "nfsstat",
   "ldconfig",
   "taskset",
+
+  // Shell built-ins (router.register() in Terminal.tsx)
+  "unset", // ~895
+  "history", // ~903
+  "type", // ~956
+  "man", // ~986
+  "alias", // ~1017
+  "source", // ~1029
+  ".", // ~1043 (dot-source operator, alias for source)
+  "exit", // ~1055
+  "logout", // ~1061
+  "set", // ~1067
+  "date", // ~1092
 
   // Shell builtins registered directly in Terminal.tsx
   "chmod",

@@ -181,13 +181,22 @@ const ALLOWLIST_DOCS_ONLY = new Set<string>([
   "unzip",
   "wget",
   "xargs",
+  // ── ADDING HERE? Prefer implementing the command in Terminal.tsx and moving it to TERMINAL_COMMANDS. This list should shrink, not grow. ──
 ]);
 
 describe("every JSON-defined command is executable or explicitly docs-only", () => {
+  it("discovers a realistic number of command definitions (glob sanity)", () => {
+    expect(commandNames.length).toBeGreaterThan(150);
+  });
+
   it("no JSON command silently returns 'command not found'", () => {
     const orphans = commandNames
       .filter((n) => !TERMINAL_COMMANDS.has(n) && !ALLOWLIST_DOCS_ONLY.has(n))
       .sort();
     expect(orphans).toEqual([]);
+  });
+
+  it("nvidia-bug-report is registered under its .sh name", () => {
+    expect(TERMINAL_COMMANDS.has("nvidia-bug-report.sh")).toBe(true);
   });
 });
