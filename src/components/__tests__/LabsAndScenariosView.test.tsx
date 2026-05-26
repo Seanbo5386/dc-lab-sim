@@ -22,6 +22,9 @@ vi.mock("lucide-react", () => ({
   Crosshair: (props: Record<string, unknown>) => (
     <svg data-testid="icon-Crosshair" {...props} />
   ),
+  ChevronRight: (props: Record<string, unknown>) => (
+    <svg data-testid="icon-ChevronRight" {...props} />
+  ),
 }));
 
 // Mock FaultInjection to isolate LabsAndScenariosView testing
@@ -42,12 +45,19 @@ const mockScenariosByDomain: Record<string, string[]> = {
 
 const mockMetadata: Record<
   string,
-  { title: string; difficulty: string; estimatedTime: number }
+  {
+    title: string;
+    difficulty: string;
+    estimatedTime: number;
+    description?: string;
+  }
 > = {
   "domain1-midnight-deployment": {
     title: "The Midnight Deployment",
     difficulty: "intermediate",
     estimatedTime: 25,
+    description:
+      "Four pristine nodes need to be online before the morning run.",
   },
   "domain1-rack-expansion": {
     title: "The Rack Expansion",
@@ -372,6 +382,51 @@ describe("LabsAndScenariosView", () => {
       // Domain 2: 0 of 1 completed
       const d2 = screen.getByTestId("domain-2-completion");
       expect(d2).toHaveTextContent("0/1 completed");
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 25. Each domain renders a labeled horizontal scroll region
+  // --------------------------------------------------------------------------
+
+  it("renders a labeled horizontal track per domain", async () => {
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("region", { name: "Domain 1 missions" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("region", { name: "Domain 4 missions" }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 26. Exam-weight badge per domain ("Foundational" for domain 0)
+  // --------------------------------------------------------------------------
+
+  it("shows the exam-weight badge per domain (and 'Foundational' for domain 0)", () => {
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+    expect(screen.getByText("31% of exam")).toBeInTheDocument();
+    expect(screen.getByText("33% of exam")).toBeInTheDocument();
+    expect(screen.getByText("Foundational")).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------------------------
+  // 27. Scenario description renders when metadata provides one
+  // --------------------------------------------------------------------------
+
+  it("renders a scenario description when metadata provides one", async () => {
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Four pristine nodes need to be online before the morning run.",
+        ),
+      ).toBeInTheDocument();
     });
   });
 });
