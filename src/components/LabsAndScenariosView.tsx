@@ -180,11 +180,11 @@ export function LabsAndScenariosView({
                             <button
                               onClick={() => onStartScenario(scenario.id)}
                               style={{ scrollSnapAlign: "start" }}
-                              className={`w-64 flex-shrink-0 text-left p-3 rounded-lg bg-gray-900 hover:bg-gray-700 transition-colors group ${done ? "ring-1 ring-nvidia-green" : ""}`}
+                              className={`flex w-64 flex-shrink-0 self-stretch flex-col text-left p-3 rounded-lg bg-gray-900 hover:bg-gray-700 transition-colors group ${done ? "ring-1 ring-nvidia-green" : ""}`}
                             >
-                              <div className="flex items-start gap-2">
+                              <div className="flex items-start gap-2 flex-1">
                                 <Crosshair className="w-4 h-4 text-nvidia-green mt-0.5 flex-shrink-0" />
-                                <div className="flex-1 min-w-0">
+                                <div className="flex-1 min-w-0 flex flex-col self-stretch">
                                   <div className="flex items-start gap-1.5">
                                     <span className="text-sm font-medium text-gray-200 group-hover:text-white line-clamp-2">
                                       {scenario.title}
@@ -197,11 +197,11 @@ export function LabsAndScenariosView({
                                     )}
                                   </div>
                                   {scenario.description && (
-                                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                                    <p className="text-xs text-gray-400 mt-1">
                                       {scenario.description}
                                     </p>
                                   )}
-                                  <div className="flex items-center gap-2 mt-2">
+                                  <div className="flex items-center gap-2 mt-auto pt-2">
                                     <span
                                       {...(domainIndex === 0 &&
                                       scenarioIndex === 0
