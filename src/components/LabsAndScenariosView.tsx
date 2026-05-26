@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { CheckCircle2, Clock, Crosshair, ChevronRight } from "lucide-react";
 import { getAllScenarios, getScenarioMetadata } from "../utils/scenarioLoader";
 import { useSimulationStore } from "@/store/simulationStore";
+import { useHardwareText } from "@/utils/hardwareTextSubstitution";
 import { IncidentLauncher } from "./IncidentLauncher";
 
 interface LabsAndScenariosViewProps {
@@ -52,6 +53,7 @@ export function LabsAndScenariosView({
   onStartIncident,
 }: LabsAndScenariosViewProps) {
   const completedScenarios = useSimulationStore((s) => s.completedScenarios);
+  const substituteText = useHardwareText();
   const [domainScenarios, setDomainScenarios] = useState<
     Record<string, ScenarioMeta[]>
   >({});
@@ -167,7 +169,7 @@ export function LabsAndScenariosView({
                     <div
                       role="region"
                       aria-label={`Domain ${info.number} missions`}
-                      className="flex items-stretch gap-3 px-5 pb-5 overflow-x-auto [scrollbar-width:thin]"
+                      className="flex items-stretch gap-3 px-5 pb-5 overflow-x-auto"
                       style={{ scrollSnapType: "x proximity" }}
                     >
                       {scenarios.map((scenario, scenarioIndex) => {
@@ -187,7 +189,7 @@ export function LabsAndScenariosView({
                                 <div className="flex-1 min-w-0 flex flex-col self-stretch">
                                   <div className="flex items-start gap-1.5">
                                     <span className="text-sm font-medium text-gray-200 group-hover:text-white line-clamp-2">
-                                      {scenario.title}
+                                      {substituteText(scenario.title)}
                                     </span>
                                     {done && (
                                       <CheckCircle2
@@ -198,7 +200,7 @@ export function LabsAndScenariosView({
                                   </div>
                                   {scenario.description && (
                                     <p className="text-xs text-gray-400 mt-1">
-                                      {scenario.description}
+                                      {substituteText(scenario.description)}
                                     </p>
                                   )}
                                   <div className="flex items-center gap-2 mt-auto pt-2">

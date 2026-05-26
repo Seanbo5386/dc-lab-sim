@@ -63,6 +63,7 @@ const mockMetadata: Record<
     title: "The Rack Expansion",
     difficulty: "beginner",
     estimatedTime: 28,
+    description: "Bring four new {{GPU_MODEL}} nodes into the fabric.",
   },
   "domain2-nvlink-mystery": {
     title: "The NVLink Mystery",
@@ -97,12 +98,16 @@ vi.mock("@/utils/scenarioLoader", () => ({
     Promise.resolve(mockMetadata[id] || null),
 }));
 
-// Mock simulationStore for completedScenarios
+// Mock simulationStore for completedScenarios + systemType (drives placeholder
+// substitution). DGX-A100 makes {{GPU_MODEL}} resolve to "A100".
 let mockCompletedScenarios: string[] = [];
 vi.mock("@/store/simulationStore", () => ({
   useSimulationStore: vi.fn(
     (selector?: (s: Record<string, unknown>) => unknown) => {
-      const state = { completedScenarios: mockCompletedScenarios };
+      const state = {
+        completedScenarios: mockCompletedScenarios,
+        systemType: "DGX-A100",
+      };
       return selector ? selector(state) : state;
     },
   ),
@@ -428,5 +433,22 @@ describe("LabsAndScenariosView", () => {
         ),
       ).toBeInTheDocument();
     });
+  });
+
+  // --------------------------------------------------------------------------
+  // 28. Hardware placeholders in descriptions are substituted (not raw tokens)
+  // --------------------------------------------------------------------------
+
+  it("substitutes {{PLACEHOLDER}} tokens in descriptions with hardware values", async () => {
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+    await waitFor(() => {
+      // {{GPU_MODEL}} resolves to "A100" for the DGX-A100 system type
+      expect(
+        screen.getByText("Bring four new A100 nodes into the fabric."),
+      ).toBeInTheDocument();
+    });
+    // The raw token must NOT leak through
+    expect(screen.queryByText(/\{\{GPU_MODEL\}\}/)).not.toBeInTheDocument();
   });
 });
