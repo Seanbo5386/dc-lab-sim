@@ -11,6 +11,7 @@ interface Step {
   id: string;
   situation: string;
   task: string;
+  hints?: string[];
   autoFaults?: Fault[];
   validation?: { pattern?: string };
 }
@@ -85,12 +86,14 @@ describe("specific fault↔narrative consistency", () => {
 
 describe("validation patterns are architecture-neutral", () => {
   const FORBIDDEN = /\b(A100|H100|H200|B200|GB200|VR200|R200|HDR|NDR|XDR)\b/;
-  it("no validation.pattern contains a hardcoded architecture/IB-generation token", () => {
+  // A bare IB link rate as an alternation arm is architecture-specific (HDR=200, NDR=400, XDR=800, XDR2=1600 Gb/s).
+  const FORBIDDEN_RATE = /(?:^|\|)(200|400|800|1600)(?:\||$)/;
+  it("no validation.pattern hardcodes an architecture/IB token or bare IB rate", () => {
     const offenders: string[] = [];
     for (const s of scenarios) {
       for (const step of s.steps) {
         const p = step.validation?.pattern;
-        if (p && FORBIDDEN.test(p))
+        if (p && (FORBIDDEN.test(p) || FORBIDDEN_RATE.test(p)))
           offenders.push(`${s.id}/${step.id}: "${p}"`);
       }
     }
@@ -104,7 +107,7 @@ describe("narrative cluster sizes fit each scenario's topology", () => {
       s.narrative?.hook,
       s.narrative?.setting,
       s.narrative?.resolution,
-      ...s.steps.flatMap((st) => [st.situation, st.task]),
+      ...s.steps.flatMap((st) => [st.situation, st.task, ...(st.hints ?? [])]),
     ]
       .filter(Boolean)
       .join(" ");
@@ -121,7 +124,7 @@ describe("narrative cluster sizes fit each scenario's topology", () => {
       const maxNodes = maxNodesFor(s);
       const maxGpus = maxNodes * 8;
       const t = text(s);
-      for (const m of t.matchAll(/\b(\d{1,3})[- ]node/gi))
+      for (const m of t.matchAll(/\b(\d{1,3})[- ]nodes?\b/gi))
         if (Number(m[1]) > maxNodes)
           offenders.push(`${s.id}: "${m[0]}" (>${maxNodes} nodes)`);
       for (const m of t.matchAll(

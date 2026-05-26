@@ -1041,7 +1041,7 @@
           "validation": {
             "type": "command",
             "command": "nvidia-smi",
-            "pattern": "535|GPU"
+            "pattern": "Driver|GPU"
           },
           "quiz": {
             "question": "After a driver rollback, what should you verify first?",
@@ -1965,7 +1965,7 @@
           "validation": {
             "type": "command",
             "command": "ibstat",
-            "pattern": "Rate|400"
+            "pattern": "Rate|Active"
           }
         },
         {
@@ -3786,7 +3786,7 @@
           "expectedCommands": ["nvidia-smi"],
           "hints": [
             "nvidia-smi across all nodes",
-            "Verify 128 total GPUs",
+            "Verify 64 total GPUs (8 nodes x 8 each)",
             "Check clocks and memory"
           ],
           "validation": {
@@ -6464,7 +6464,7 @@
           "expectedCommands": ["ibhosts"],
           "hints": [
             "ibhosts lists all HCA nodes",
-            "Should show all 32 nodes",
+            "Should show all 8 nodes",
             "Check for missing entries"
           ],
           "validation": {
