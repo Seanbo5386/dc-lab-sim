@@ -2985,7 +2985,7 @@
       "title": "The Silent Cluster",
       "narrative": {
         "hook": "Production cluster showing intermittent NCCL timeouts during distributed training.",
-        "setting": "You're the on-call engineer for a 32-node {{SYSTEM_NAME}} cluster experiencing random training hangs.",
+        "setting": "You're the on-call engineer for a 8-node {{SYSTEM_NAME}} cluster experiencing random training hangs.",
         "resolution": "Identify ECC errors on GPU 3 causing NVLink degradation and intermittent communication failures."
       },
       "commandFamilies": [
@@ -3036,36 +3036,36 @@
               }
             },
             {
-              "nodeId": "dgx-08",
+              "nodeId": "dgx-05",
               "type": "allocate-job",
               "severity": "warning",
               "parameters": {
                 "jobName": "resnet-bench",
-                "nodeIds": ["dgx-08"],
+                "nodeIds": ["dgx-05"],
                 "gpusPerNode": 8,
                 "runtime": "0:45:12",
                 "user": "benchuser"
               }
             },
             {
-              "nodeId": "dgx-09",
+              "nodeId": "dgx-06",
               "type": "allocate-job",
               "severity": "warning",
               "parameters": {
                 "jobName": "vae-training",
-                "nodeIds": ["dgx-09"],
+                "nodeIds": ["dgx-06"],
                 "gpusPerNode": 8,
                 "runtime": "5:10:30",
                 "user": "genai_lab"
               }
             },
             {
-              "nodeId": "dgx-09",
+              "nodeId": "dgx-07",
               "type": "allocate-job",
               "severity": "warning",
               "parameters": {
                 "jobName": "data-preproc",
-                "nodeIds": ["dgx-09"],
+                "nodeIds": ["dgx-07"],
                 "gpusPerNode": 4,
                 "runtime": "0:15:45",
                 "user": "dataeng",
@@ -3077,7 +3077,7 @@
         },
         {
           "id": "step-2",
-          "situation": "You see 4 multi-node jobs running. The user's job uses dgx-01 through dgx-08.",
+          "situation": "You see 4 multi-node jobs running. The user's job uses dgx-01 through dgx-07.",
           "task": "Check overall GPU health across the cluster using nvidia-smi.",
           "expectedCommands": ["nvidia-smi"],
           "hints": [
