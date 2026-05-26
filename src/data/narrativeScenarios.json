@@ -613,7 +613,7 @@
       "domain": 1,
       "title": "The Firmware Emergency",
       "narrative": {
-        "hook": "Security bulletin requires immediate firmware updates across 16 production nodes.",
+        "hook": "Security bulletin requires immediate firmware updates across 8 production nodes.",
         "setting": "A critical security vulnerability has been disclosed in the BMC firmware. You have a 4-hour maintenance window to update all systems.",
         "resolution": "Successfully update BMC firmware, verify GPU firmware compatibility, and bring nodes back online."
       },
@@ -628,7 +628,7 @@
       "steps": [
         {
           "id": "step-1",
-          "situation": "The security team has flagged 16 nodes for immediate BMC firmware update. Downtime approved.",
+          "situation": "The security team has flagged 8 nodes for immediate BMC firmware update. Downtime approved.",
           "task": "Use sinfo to check which nodes are currently running jobs before starting updates.",
           "expectedCommands": ["sinfo"],
           "hints": [
@@ -694,7 +694,7 @@
         },
         {
           "id": "step-2",
-          "situation": "8 nodes are running jobs. You need to gracefully drain them for maintenance.",
+          "situation": "4 of the 8 nodes are running jobs. You need to gracefully drain them for maintenance.",
           "task": "Use scontrol to drain nodes with a maintenance reason before starting firmware updates.",
           "expectedCommands": [
             "scontrol update nodename=dgx-01 state=drain reason='BMC firmware update'"
@@ -1336,7 +1336,7 @@
         {
           "id": "step-12",
           "situation": "New nodes added to Slurm. Final validation required.",
-          "task": "Use sinfo to verify all 12 nodes (8 original + 4 new) are visible and idle.",
+          "task": "Use sinfo to verify all nodes (8 original + 4 new) are visible and idle.",
           "expectedCommands": ["sinfo -N -l"],
           "hints": [
             "sinfo -N -l for detailed view",
@@ -2216,7 +2216,7 @@
       "title": "The Slurm Setup",
       "narrative": {
         "hook": "New AI research team needs their GPU cluster integrated with the shared HPC environment.",
-        "setting": "A 12-node DGX cluster must be configured with Slurm for GPU job scheduling with proper resource allocation.",
+        "setting": "A 8-node DGX cluster must be configured with Slurm for GPU job scheduling with proper resource allocation.",
         "resolution": "Configure Slurm GRES for GPUs, set up partitions, and validate job submission."
       },
       "commandFamilies": [
@@ -2262,7 +2262,7 @@
         },
         {
           "id": "step-3",
-          "situation": "Fresh 12-node {{SYSTEM_NAME}} cluster with Slurm installed but not configured for GPUs.",
+          "situation": "Fresh 8-node {{SYSTEM_NAME}} cluster with Slurm installed but not configured for GPUs.",
           "task": "Check the current Slurm configuration to understand what's already set up.",
           "expectedCommands": ["scontrol show config"],
           "hints": [
@@ -2364,7 +2364,7 @@
         },
         {
           "id": "step-8",
-          "situation": "GPU partition shows 96 total GPUs (12 nodes x 8 GPUs). Ready for testing.",
+          "situation": "GPU partition shows 64 total GPUs (8 nodes x 8 GPUs). Ready for testing.",
           "task": "Check squeue to see current job activity on the cluster.",
           "expectedCommands": ["squeue"],
           "hints": [
@@ -2830,7 +2830,7 @@
         },
         {
           "id": "step-3",
-          "situation": "45 jobs running across 12 nodes, all showing low GPU utilization.",
+          "situation": "45 jobs running across 8 nodes, all showing low GPU utilization.",
           "task": "Check system I/O statistics to confirm the storage bottleneck.",
           "expectedCommands": ["iostat -x 1 3"],
           "hints": [
@@ -3781,7 +3781,7 @@
       "steps": [
         {
           "id": "step-1",
-          "situation": "HPL benchmark on 16-node {{SYSTEM_NAME}} cluster achieves 23.4 PFLOPS instead of expected 39 PFLOPS.",
+          "situation": "HPL benchmark on 8-node {{SYSTEM_NAME}} cluster achieves 11.7 PFLOPS instead of expected 19.5 PFLOPS.",
           "task": "Verify basic GPU configuration and availability using nvidia-smi.",
           "expectedCommands": ["nvidia-smi"],
           "hints": [
@@ -3797,7 +3797,7 @@
         },
         {
           "id": "step-2",
-          "situation": "All 128 {{GPU_MODEL}} GPUs detected. Clocks show max frequency. Memory available.",
+          "situation": "All 64 {{GPU_MODEL}} GPUs detected. Clocks show max frequency. Memory available.",
           "task": "Check GPU topology to verify optimal NVLink connectivity.",
           "expectedCommands": ["nvidia-smi topo -m"],
           "hints": [
@@ -5829,7 +5829,7 @@
       "title": "The NCCL Championship",
       "difficulty": "advanced",
       "narrative": {
-        "hook": "The new 16-node {{SYSTEM_NAME}} cluster needs to pass NCCL all-reduce benchmarks before production sign-off.",
+        "hook": "The new 8-node {{SYSTEM_NAME}} cluster needs to pass NCCL all-reduce benchmarks before production sign-off.",
         "setting": "You are the validation engineer responsible for running and optimizing NCCL collective communication benchmarks across the entire cluster. The acceptance criteria require 90% of theoretical bandwidth.",
         "resolution": "Tune NCCL environment variables, optimize transport selection, and achieve target bandwidth across all nodes."
       },
@@ -5953,11 +5953,13 @@
         {
           "id": "step-7",
           "situation": "Environment is configured. Time for the full multi-node NCCL benchmark.",
-          "task": "Run the multi-node all-reduce benchmark across all 16 nodes using MPI.",
-          "expectedCommands": ["mpirun -np 16 -H node1,node2 all_reduce_perf"],
+          "task": "Run the multi-node all-reduce benchmark across all 8 nodes using MPI.",
+          "expectedCommands": [
+            "mpirun -np 64 -H dgx-00,dgx-01,dgx-02,dgx-03,dgx-04,dgx-05,dgx-06,dgx-07 all_reduce_perf"
+          ],
           "hints": [
             "mpirun launches across nodes",
-            "-np for number of processes",
+            "-np 64 for 8 nodes x 8 GPUs each",
             "-H specifies hosts"
           ],
           "validation": {
@@ -6448,7 +6450,7 @@
       "title": "Fabric Under Pressure",
       "difficulty": "advanced",
       "narrative": {
-        "hook": "The InfiniBand fabric validation tests are failing intermittently on the new 32-node cluster, blocking production deployment.",
+        "hook": "The InfiniBand fabric validation tests are failing intermittently on the new 8-node cluster, blocking production deployment.",
         "setting": "You are the fabric validation engineer for a large cluster deployment. The InfiniBand fabric must pass comprehensive tests including bandwidth, latency, and error-free operation before the cluster can go live.",
         "resolution": "Identify and resolve cable errors, validate full fabric bandwidth, and certify the InfiniBand fabric for production use."
       },
@@ -6457,7 +6459,7 @@
       "steps": [
         {
           "id": "step-1",
-          "situation": "New 32-node cluster with {{NET_PROTOCOL}} InfiniBand fabric needs validation before going live.",
+          "situation": "New 8-node cluster with {{NET_PROTOCOL}} InfiniBand fabric needs validation before going live.",
           "task": "Discover all hosts connected to the InfiniBand fabric.",
           "expectedCommands": ["ibhosts"],
           "hints": [
@@ -6473,7 +6475,7 @@
         },
         {
           "id": "step-2",
-          "situation": "ibhosts shows all 32 nodes. Verify the switch infrastructure next.",
+          "situation": "ibhosts shows all 8 nodes. Verify the switch infrastructure next.",
           "task": "Discover all InfiniBand switches in the fabric topology.",
           "expectedCommands": ["ibswitches"],
           "hints": [

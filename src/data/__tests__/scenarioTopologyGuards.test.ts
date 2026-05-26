@@ -97,3 +97,28 @@ describe("validation patterns are architecture-neutral", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe("narrative cluster sizes fit the 8-node/64-GPU topology", () => {
+  const text = (s: Scenario) =>
+    [
+      s.narrative?.hook,
+      s.narrative?.setting,
+      s.narrative?.resolution,
+      ...s.steps.flatMap((st) => [st.situation, st.task]),
+    ]
+      .filter(Boolean)
+      .join(" ");
+  it("no scenario prose claims more than 8 nodes or 64 GPUs", () => {
+    const offenders: string[] = [];
+    for (const s of scenarios) {
+      const t = text(s);
+      for (const m of t.matchAll(/\b(\d{1,3})[- ]node/gi))
+        if (Number(m[1]) > 8) offenders.push(`${s.id}: "${m[0]}"`);
+      for (const m of t.matchAll(
+        /\b(\d{2,4})\s+(?:total\s+)?(?:\{\{[^}]+\}\}\s+)?GPUs?\b/gi,
+      ))
+        if (Number(m[1]) > 64) offenders.push(`${s.id}: "${m[0]}"`);
+    }
+    expect(offenders).toEqual([]);
+  });
+});
