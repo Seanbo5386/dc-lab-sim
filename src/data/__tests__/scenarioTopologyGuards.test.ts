@@ -12,6 +12,7 @@ interface Step {
   situation: string;
   task: string;
   autoFaults?: Fault[];
+  validation?: { pattern?: string };
 }
 interface Scenario {
   id: string;
@@ -79,5 +80,20 @@ describe("specific fault↔narrative consistency", () => {
     const m = step4!.situation.match(/(\d+)\s+ECC\s+single-bit/i);
     expect(m).not.toBeNull();
     expect(Number(m![1])).toBe(eccFault!.parameters!.singleBit);
+  });
+});
+
+describe("validation patterns are architecture-neutral", () => {
+  const FORBIDDEN = /\b(A100|H100|H200|B200|GB200|VR200|R200|HDR|NDR|XDR)\b/;
+  it("no validation.pattern contains a hardcoded architecture/IB-generation token", () => {
+    const offenders: string[] = [];
+    for (const s of scenarios) {
+      for (const step of s.steps) {
+        const p = step.validation?.pattern;
+        if (p && FORBIDDEN.test(p))
+          offenders.push(`${s.id}/${step.id}: "${p}"`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

@@ -461,7 +461,7 @@
           "validation": {
             "type": "command",
             "command": "nvidia-smi",
-            "pattern": "H100|GPU"
+            "pattern": "GPU|MiB"
           }
         },
         {
@@ -1191,7 +1191,7 @@
           "validation": {
             "type": "command",
             "command": "nvidia-smi",
-            "pattern": "A100|GPU"
+            "pattern": "GPU|MiB"
           }
         },
         {
@@ -2289,7 +2289,7 @@
           "validation": {
             "type": "command",
             "command": "nvidia-smi",
-            "pattern": "GPU|A100"
+            "pattern": "GPU|MiB"
           },
           "quiz": {
             "question": "Why verify GPU inventory before Slurm GRES configuration?",
@@ -3792,7 +3792,7 @@
           "validation": {
             "type": "command",
             "command": "nvidia-smi",
-            "pattern": "GPU|H100|Memory"
+            "pattern": "GPU|Memory"
           }
         },
         {
@@ -3835,7 +3835,7 @@
           "validation": {
             "type": "command",
             "command": "ibstat",
-            "pattern": "Rate|NDR|Active"
+            "pattern": "Rate|Active"
           }
         },
         {
@@ -4792,7 +4792,7 @@
           "validation": {
             "type": "command",
             "command": "nvidia-smi",
-            "pattern": "GPU|H100"
+            "pattern": "GPU"
           }
         },
         {
