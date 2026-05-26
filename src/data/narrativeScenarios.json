@@ -4055,7 +4055,7 @@
           "autoFaults": [
             {
               "nodeId": "dgx-05",
-              "gpuId": 2,
+              "gpuId": 5,
               "type": "xid-error",
               "severity": "critical",
               "parameters": {
