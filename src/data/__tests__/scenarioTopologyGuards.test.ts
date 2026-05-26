@@ -12,7 +12,6 @@ interface Step {
   situation: string;
   task: string;
   autoFaults?: Fault[];
-  validation?: { pattern?: string };
 }
 interface Scenario {
   id: string;
@@ -53,21 +52,32 @@ describe("scenario node references stay within the live topology", () => {
 
 describe("specific fault↔narrative consistency", () => {
   it("domain5-xid-investigation XID 79 fault targets the GPU the narrative names (GPU 5)", () => {
-    const s = scenarios.find((x) => x.id === "domain5-xid-investigation")!;
-    const fault = s.steps
+    const s = scenarios.find((x) => x.id === "domain5-xid-investigation");
+    expect(s, "domain5-xid-investigation not found in scenarios").toBeDefined();
+    const fault = s!.steps
       .flatMap((st) => st.autoFaults ?? [])
-      .find((f) => f.parameters?.xid === 79)!;
-    expect(fault.gpuId).toBe(5);
+      .find((f) => f.parameters?.xid === 79);
+    expect(
+      fault,
+      "XID 79 fault not found in domain5-xid-investigation",
+    ).toBeDefined();
+    expect(fault!.gpuId).toBe(5);
   });
 
   it("domain4-silent-cluster step-4 narrative ECC count matches the injected singleBit (150)", () => {
-    const s = scenarios.find((x) => x.id === "domain4-silent-cluster")!;
-    const eccFault = s.steps
+    const s = scenarios.find((x) => x.id === "domain4-silent-cluster");
+    expect(s, "domain4-silent-cluster not found in scenarios").toBeDefined();
+    const eccFault = s!.steps
       .flatMap((st) => st.autoFaults ?? [])
-      .find((f) => f.type === "ecc-error")!;
-    const step4 = s.steps.find((st) => st.id === "step-4")!;
-    const m = step4.situation.match(/(\d+)\s+ECC\s+single-bit/i);
+      .find((f) => f.type === "ecc-error");
+    expect(
+      eccFault,
+      "ecc-error fault not found in domain4-silent-cluster",
+    ).toBeDefined();
+    const step4 = s!.steps.find((st) => st.id === "step-4");
+    expect(step4, "step-4 not found in domain4-silent-cluster").toBeDefined();
+    const m = step4!.situation.match(/(\d+)\s+ECC\s+single-bit/i);
     expect(m).not.toBeNull();
-    expect(Number(m![1])).toBe(eccFault.parameters!.singleBit);
+    expect(Number(m![1])).toBe(eccFault!.parameters!.singleBit);
   });
 });

@@ -2985,7 +2985,7 @@
       "title": "The Silent Cluster",
       "narrative": {
         "hook": "Production cluster showing intermittent NCCL timeouts during distributed training.",
-        "setting": "You're the on-call engineer for a 8-node {{SYSTEM_NAME}} cluster experiencing random training hangs.",
+        "setting": "You're the on-call engineer for an 8-node {{SYSTEM_NAME}} cluster experiencing random training hangs.",
         "resolution": "Identify ECC errors on GPU 3 causing NVLink degradation and intermittent communication failures."
       },
       "commandFamilies": [
