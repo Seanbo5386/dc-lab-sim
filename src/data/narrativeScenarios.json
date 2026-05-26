@@ -7345,7 +7345,7 @@
               "The GPU automatically downclocks to a compatible mode"
             ],
             "correctIndex": 1,
-            "explanation": "NVIDIA's CUDA compatibility guarantee is forward (a newer driver runs older CUDA apps), not backward. A driver that only supports up to CUDA 12.2 cannot run a binary compiled for 12.4 features — the runtime will report a version mismatch error at launch."
+            "explanation": "NVIDIA's CUDA compatibility guarantee is forward (a newer driver runs older CUDA apps), not backward. A driver that only supports up to CUDA 12.2 cannot run a binary compiled for 12.4 features — the runtime will report a version mismatch error at launch. (NVIDIA's CUDA forward-compatibility package can be an exception, but the default expectation is driver CUDA version >= toolkit version.)"
           }
         },
         {
@@ -7385,9 +7385,9 @@
           "type": "command",
           "situation": "Check for any PCIe link width or speed degradation — a GPU training at x8 instead of x16 cuts PCIe bandwidth roughly in half.",
           "task": "Inspect per-GPU PCIe link width and generation.",
-          "expectedCommands": ["nvidia-smi -q -d PCIE"],
+          "expectedCommands": ["nvidia-smi -q"],
           "hints": [
-            "Look for 'Link Width' and 'Link Gen' in the output.",
+            "Look for the PCI section — 'Link Width' and 'PCIe Generation' in the verbose output.",
             "All GPUs should run at x16 Gen4 or Gen5 depending on the system type."
           ],
           "validation": {
@@ -7450,7 +7450,7 @@
           "situation": "Confirm the adapter firmware and key configuration (link type set to InfiniBand, not Ethernet) before bringing links up.",
           "task": "Query a Mellanox adapter's configuration.",
           "expectedCommands": [
-            "mlxconfig -d /dev/mst/mt4129_pciconf0 q",
+            "mlxconfig -d /dev/mst/mt41692_pciconf0 q",
             "mlxconfig"
           ],
           "hints": [
@@ -7666,7 +7666,7 @@
           "type": "command",
           "situation": "Confirm the Fabric Manager actually configured the NVSwitches.",
           "task": "Query Fabric Manager / NVSwitch state.",
-          "expectedCommands": ["nv-fabricmanager --status", "nv-fabricmanager"],
+          "expectedCommands": ["nv-fabricmanager status", "nv-fabricmanager"],
           "hints": [
             "nv-fabricmanager reports NVSwitch configuration state.",
             "All switches should report configured/healthy."
@@ -7728,15 +7728,15 @@
           "type": "command",
           "situation": "Verify the Fabric Manager is set to start automatically on reboot so the node doesn't come up with NVLink dead after a restart.",
           "task": "Enable the Fabric Manager service to start on boot.",
-          "expectedCommands": ["systemctl enable nvidia-fabricmanager"],
+          "expectedCommands": ["systemctl start nvidia-fabricmanager"],
           "hints": [
-            "'systemctl enable' creates the boot-time symlink.",
-            "Without this, a reboot will leave the NVSwitch un-programmed until someone manually starts FM."
+            "'systemctl start' brings the service up immediately.",
+            "Without the Fabric Manager running, NVSwitch NVLink connections will not be programmed."
           ],
           "validation": {
             "type": "command",
             "command": "systemctl",
-            "pattern": "enable|nvidia-fabricmanager|symlink|Created"
+            "pattern": "start|nvidia-fabricmanager|active|running"
           }
         },
         {
@@ -7970,10 +7970,10 @@
           "type": "command",
           "situation": "Production images come from NGC (NVIDIA GPU Cloud). Confirm the NGC CLI is configured and can see the registry.",
           "task": "List available NGC container images.",
-          "expectedCommands": ["ngc registry image list", "ngc"],
+          "expectedCommands": ["ngc config set", "ngc registry image list"],
           "hints": [
-            "The NGC CLI talks to nvcr.io.",
-            "You're confirming auth/connectivity before pulling."
+            "Run 'ngc config set' first to configure the API key, then 'ngc registry image list' to verify connectivity.",
+            "The NGC CLI talks to nvcr.io."
           ],
           "validation": {
             "type": "command",
@@ -8303,7 +8303,7 @@
         {
           "id": "step-1",
           "type": "concept",
-          "situation": "DCGM's `diag -r` levels trade runtime for coverage. Knowing what each level actually exercises tells you which to run when.",
+          "situation": "DCGM's diag -r levels trade runtime for coverage. Knowing what each level actually exercises tells you which to run when.",
           "task": "Understand the three diagnostic run levels.",
           "expectedCommands": [],
           "hints": [
@@ -8410,11 +8410,11 @@
           "situation": "Finally, register a health policy so the cluster auto-flags future ECC/thermal/XID regressions.",
           "task": "Set a DCGM health/policy watch.",
           "expectedCommands": [
-            "dcgmi policy --set 1,1 -e",
+            "dcgmi policy --set --condition ecc --action log",
             "dcgmi policy --get"
           ],
           "hints": [
-            "dcgmi policy registers conditions (ECC, thermal, XID).",
+            "dcgmi policy --set requires --condition (ecc, thermal, power, pcie, nvlink, xid) and optionally --action.",
             "A registered watch turns silent regressions into alerts."
           ],
           "validation": {
