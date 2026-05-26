@@ -7728,15 +7728,15 @@
           "type": "command",
           "situation": "Verify the Fabric Manager is set to start automatically on reboot so the node doesn't come up with NVLink dead after a restart.",
           "task": "Enable the Fabric Manager service to start on boot.",
-          "expectedCommands": ["systemctl start nvidia-fabricmanager"],
+          "expectedCommands": ["systemctl enable nvidia-fabricmanager"],
           "hints": [
-            "'systemctl start' brings the service up immediately.",
-            "Without the Fabric Manager running, NVSwitch NVLink connections will not be programmed."
+            "'systemctl enable' creates the systemd symlink so the service starts at every boot.",
+            "Without this, a node reboot will leave NVSwitch uninitialized and NVLink bandwidth will be unavailable until someone manually starts FM."
           ],
           "validation": {
             "type": "command",
             "command": "systemctl",
-            "pattern": "start|nvidia-fabricmanager|active|running"
+            "pattern": "enable|symlink|nvidia-fabricmanager"
           }
         },
         {
