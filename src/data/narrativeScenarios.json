@@ -1336,7 +1336,7 @@
         {
           "id": "step-12",
           "situation": "New nodes added to Slurm. Final validation required.",
-          "task": "Use sinfo to verify all nodes (8 original + 4 new) are visible and idle.",
+          "task": "Use sinfo to verify all 12 nodes (8 original + 4 new) are visible and idle.",
           "expectedCommands": ["sinfo -N -l"],
           "hints": [
             "sinfo -N -l for detailed view",
@@ -2216,7 +2216,7 @@
       "title": "The Slurm Setup",
       "narrative": {
         "hook": "New AI research team needs their GPU cluster integrated with the shared HPC environment.",
-        "setting": "A 8-node DGX cluster must be configured with Slurm for GPU job scheduling with proper resource allocation.",
+        "setting": "An 8-node DGX cluster must be configured with Slurm for GPU job scheduling with proper resource allocation.",
         "resolution": "Configure Slurm GRES for GPUs, set up partitions, and validate job submission."
       },
       "commandFamilies": [

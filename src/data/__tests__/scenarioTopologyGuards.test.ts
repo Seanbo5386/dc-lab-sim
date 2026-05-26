@@ -98,7 +98,7 @@ describe("validation patterns are architecture-neutral", () => {
   });
 });
 
-describe("narrative cluster sizes fit the 8-node/64-GPU topology", () => {
+describe("narrative cluster sizes fit each scenario's topology", () => {
   const text = (s: Scenario) =>
     [
       s.narrative?.hook,
@@ -108,16 +108,27 @@ describe("narrative cluster sizes fit the 8-node/64-GPU topology", () => {
     ]
       .filter(Boolean)
       .join(" ");
-  it("no scenario prose claims more than 8 nodes or 64 GPUs", () => {
+  const maxNodesFor = (s: Scenario) => {
+    const added = new Set<string>();
+    for (const step of s.steps)
+      for (const f of step.autoFaults ?? [])
+        if (f.type === "add-node") added.add(f.nodeId);
+    return 8 + added.size;
+  };
+  it("no scenario prose claims more nodes/GPUs than its topology (base 8, plus any add-node growth)", () => {
     const offenders: string[] = [];
     for (const s of scenarios) {
+      const maxNodes = maxNodesFor(s);
+      const maxGpus = maxNodes * 8;
       const t = text(s);
       for (const m of t.matchAll(/\b(\d{1,3})[- ]node/gi))
-        if (Number(m[1]) > 8) offenders.push(`${s.id}: "${m[0]}"`);
+        if (Number(m[1]) > maxNodes)
+          offenders.push(`${s.id}: "${m[0]}" (>${maxNodes} nodes)`);
       for (const m of t.matchAll(
         /\b(\d{2,4})\s+(?:total\s+)?(?:\{\{[^}]+\}\}\s+)?GPUs?\b/gi,
       ))
-        if (Number(m[1]) > 64) offenders.push(`${s.id}: "${m[0]}"`);
+        if (Number(m[1]) > maxGpus)
+          offenders.push(`${s.id}: "${m[0]}" (>${maxGpus} GPUs)`);
     }
     expect(offenders).toEqual([]);
   });
