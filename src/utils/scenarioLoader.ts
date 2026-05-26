@@ -80,6 +80,7 @@ export async function getScenarioMetadata(scenarioId: string): Promise<{
   title: string;
   difficulty: string;
   estimatedTime: number;
+  description: string;
 } | null> {
   const narratives = await ensureNarratives();
   const scenario = narratives.find((s) => s.id === scenarioId);
@@ -90,6 +91,7 @@ export async function getScenarioMetadata(scenarioId: string): Promise<{
     title: scenario.title,
     difficulty: scenario.difficulty || "intermediate",
     estimatedTime: scenario.estimatedMinutes,
+    description: scenario.narrative?.hook ?? "",
   };
 }
 
@@ -366,7 +368,9 @@ export function applyFaultsToContext(
         const serviceName = parameters?.service as string | undefined;
         const rawState = parameters?.state as string | undefined;
         if (!serviceName) {
-          logger.warn("service-state fault missing required 'service' parameter");
+          logger.warn(
+            "service-state fault missing required 'service' parameter",
+          );
           break;
         }
         if (!nodeId) {
