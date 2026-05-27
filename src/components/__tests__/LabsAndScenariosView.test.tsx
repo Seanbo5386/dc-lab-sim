@@ -22,6 +22,9 @@ vi.mock("lucide-react", () => ({
   Crosshair: (props: Record<string, unknown>) => (
     <svg data-testid="icon-Crosshair" {...props} />
   ),
+  ChevronRight: (props: Record<string, unknown>) => (
+    <svg data-testid="icon-ChevronRight" {...props} />
+  ),
 }));
 
 // Mock FaultInjection to isolate LabsAndScenariosView testing
@@ -42,17 +45,25 @@ const mockScenariosByDomain: Record<string, string[]> = {
 
 const mockMetadata: Record<
   string,
-  { title: string; difficulty: string; estimatedTime: number }
+  {
+    title: string;
+    difficulty: string;
+    estimatedTime: number;
+    description?: string;
+  }
 > = {
   "domain1-midnight-deployment": {
     title: "The Midnight Deployment",
     difficulty: "intermediate",
     estimatedTime: 25,
+    description:
+      "Four pristine nodes need to be online before the morning run.",
   },
   "domain1-rack-expansion": {
     title: "The Rack Expansion",
     difficulty: "beginner",
     estimatedTime: 28,
+    description: "Bring four new {{GPU_MODEL}} nodes into the fabric.",
   },
   "domain2-nvlink-mystery": {
     title: "The NVLink Mystery",
@@ -87,12 +98,16 @@ vi.mock("@/utils/scenarioLoader", () => ({
     Promise.resolve(mockMetadata[id] || null),
 }));
 
-// Mock simulationStore for completedScenarios
+// Mock simulationStore for completedScenarios + systemType (drives placeholder
+// substitution). DGX-A100 makes {{GPU_MODEL}} resolve to "A100".
 let mockCompletedScenarios: string[] = [];
 vi.mock("@/store/simulationStore", () => ({
   useSimulationStore: vi.fn(
     (selector?: (s: Record<string, unknown>) => unknown) => {
-      const state = { completedScenarios: mockCompletedScenarios };
+      const state = {
+        completedScenarios: mockCompletedScenarios,
+        systemType: "DGX-A100",
+      };
       return selector ? selector(state) : state;
     },
   ),
@@ -373,5 +388,67 @@ describe("LabsAndScenariosView", () => {
       const d2 = screen.getByTestId("domain-2-completion");
       expect(d2).toHaveTextContent("0/1 completed");
     });
+  });
+
+  // --------------------------------------------------------------------------
+  // 25. Each domain renders a labeled horizontal scroll region
+  // --------------------------------------------------------------------------
+
+  it("renders a labeled horizontal track per domain", async () => {
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+    await waitFor(() => {
+      expect(
+        screen.getByRole("region", { name: "Domain 1 missions" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("region", { name: "Domain 4 missions" }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 26. Exam-weight badge per domain ("Foundational" for domain 0)
+  // --------------------------------------------------------------------------
+
+  it("shows the exam-weight badge per domain (and 'Foundational' for domain 0)", () => {
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+    expect(screen.getByText("31% of exam")).toBeInTheDocument();
+    expect(screen.getByText("33% of exam")).toBeInTheDocument();
+    expect(screen.getByText("Foundational")).toBeInTheDocument();
+  });
+
+  // --------------------------------------------------------------------------
+  // 27. Scenario description renders when metadata provides one
+  // --------------------------------------------------------------------------
+
+  it("renders a scenario description when metadata provides one", async () => {
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Four pristine nodes need to be online before the morning run.",
+        ),
+      ).toBeInTheDocument();
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // 28. Hardware placeholders in descriptions are substituted (not raw tokens)
+  // --------------------------------------------------------------------------
+
+  it("substitutes {{PLACEHOLDER}} tokens in descriptions with hardware values", async () => {
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+    await waitFor(() => {
+      // {{GPU_MODEL}} resolves to "A100" for the DGX-A100 system type
+      expect(
+        screen.getByText("Bring four new A100 nodes into the fabric."),
+      ).toBeInTheDocument();
+    });
+    // The raw token must NOT leak through
+    expect(screen.queryByText(/\{\{GPU_MODEL\}\}/)).not.toBeInTheDocument();
   });
 });

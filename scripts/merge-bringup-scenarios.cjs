@@ -1,0 +1,905 @@
+#!/usr/bin/env node
+/**
+ * merge-bringup-scenarios.cjs
+ * Builds the 8 bring-up scenario objects with all required fixes and merges
+ * them into src/data/narrativeScenarios.json.
+ *
+ * Fixes applied vs. docs/proposed-bringup-scenarios.json:
+ *  - All scenarios: 6 steps → 8 steps (examScenarios need >= 8)
+ *  - All scenarios: commandFamilies >= 3 (was 2 for 6 of 8)
+ *  - 7 scenarios: add a 2nd quiz (bmc-discovery already has 2)
+ */
+
+const fs = require("fs");
+const path = require("path");
+
+const TARGET = path.join(__dirname, "../src/data/narrativeScenarios.json");
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper: validate a scenario before inserting it
+// ─────────────────────────────────────────────────────────────────────────────
+function validate(s) {
+  const errs = [];
+  if (s.commandFamilies.length < 3)
+    errs.push(`commandFamilies < 3: ${s.commandFamilies}`);
+  if (s.steps.length < 8) errs.push(`steps < 8: ${s.steps.length}`);
+  const quizCount = s.steps.filter((st) => st.quiz).length;
+  if (quizCount < 2) errs.push(`quiz count < 2: ${quizCount}`);
+  if (quizCount > 4) errs.push(`quiz count > 4: ${quizCount}`);
+  if (errs.length) throw new Error(`Scenario ${s.id} invalid:\n  ${errs.join("\n  ")}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The 8 scenarios — fully expanded with 8 steps each, >= 3 commandFamilies,
+// and 2 quizzes each.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const scenarios = [
+
+  // ── 1. domain1-bringup-bmc-discovery ─────────────────────────────────────
+  // commandFamilies already 3; steps 6 → 8; quizzes already 2 (steps 3 & 6)
+  {
+    "id": "domain1-bringup-bmc-discovery",
+    "domain": 1,
+    "title": "First Light: Bringing a DGX Node Online",
+    "difficulty": "beginner",
+    "narrative": {
+      "hook": "A brand-new {{SYSTEM_NAME}} node just landed in the rack. Nothing is configured yet — your job is to bring it from cold metal to GPU-ready.",
+      "setting": "You have out-of-band access to dgx-00 through its BMC. Walk the standard bring-up checklist in order: verify the BMC, confirm a clean POST, then validate that the OS enumerates all 8 {{GPU_MODEL}} GPUs on the PCIe bus.",
+      "resolution": "You confirmed the BMC is healthy, the System Event Log is clean, and all 8 GPUs enumerate with {{GPU_MEMORY_GB}}GB each. The node is ready for driver validation."
+    },
+    "commandFamilies": ["bmc-hardware", "gpu-monitoring", "diagnostics"],
+    "estimatedMinutes": 20,
+    "tier": 1,
+    "steps": [
+      {
+        "id": "step-1",
+        "type": "concept",
+        "situation": "Every DGX bring-up starts at the BMC — the out-of-band controller that runs before the host OS. It exposes sensors, the System Event Log (SEL), and power control over IPMI.",
+        "task": "Internalize the bring-up dependency order before touching the hardware.",
+        "expectedCommands": [],
+        "hints": ["The BMC is reachable even when the host OS is down.", "Each layer depends on the one beneath it."],
+        "validation": { "type": "none" },
+        "conceptContent": "Bring-up sequence:\n1. BMC / IPMI online (out-of-band)\n2. POST + BIOS/firmware checks\n3. OS boot + PCIe enumeration\n4. GPU driver + CUDA validation\n5. NVLink / Fabric Manager\n6. Network / InfiniBand fabric\nIf GPUs don't appear in the OS, suspect POST/PCIe before blaming the driver.",
+        "tips": ["A clean SEL at bring-up gives you a known-good baseline to compare against later."]
+      },
+      {
+        "id": "step-2",
+        "type": "command",
+        "situation": "First, confirm the BMC's view of the chassis is healthy and the event log is clean before the OS even boots.",
+        "task": "Read the BMC System Event Log to establish a clean baseline.",
+        "expectedCommands": ["ipmitool sel list", "ipmitool sel elist"],
+        "hints": ["The SEL records hardware events the OS never sees.", "An empty or 'No entries' SEL is what you want on a fresh node."],
+        "validation": { "type": "command", "command": "ipmitool", "pattern": "sel|SEL|event|No entries" }
+      },
+      {
+        "id": "step-3",
+        "type": "command",
+        "situation": "Power and thermal sensors must read sane values before you trust anything downstream.",
+        "task": "List the BMC sensor readings and confirm inlet temp and PSU voltages are nominal.",
+        "expectedCommands": ["ipmitool sensor list"],
+        "hints": ["'ipmitool sensor list' dumps every analog sensor.", "Look for Inlet Temp, PSU rails, and fan RPMs in range."],
+        "validation": { "type": "command", "command": "ipmitool", "pattern": "Temp|Volt|Fan|degrees" },
+        "quiz": {
+          "question": "On a freshly-racked node with the host OS not yet booted, which interface can still report chassis temperature and power state?",
+          "options": ["nvidia-smi", "The BMC over IPMI", "dcgmi", "lspci"],
+          "correctIndex": 1,
+          "explanation": "The BMC runs independently of the host OS, so IPMI sensor/power queries work even before (or without) an OS. nvidia-smi, dcgmi and lspci all require a booted OS with the driver/PCIe stack up."
+        }
+      },
+      {
+        "id": "step-4",
+        "type": "command",
+        "situation": "The OS has booted. Before checking the NVIDIA driver, confirm the hardware itself enumerated on the PCIe bus — driver problems and POST problems look identical from nvidia-smi alone.",
+        "task": "Confirm all 8 GPUs appear as PCIe devices.",
+        "expectedCommands": ["lspci | grep -i nvidia", "lspci"],
+        "hints": ["lspci lists raw PCIe devices independent of the driver.", "You should count 8 GPU entries plus NVSwitch/bridge devices."],
+        "validation": { "type": "command", "command": "lspci", "pattern": "NVIDIA|3D controller|VGA" }
+      },
+      {
+        "id": "step-5",
+        "type": "command",
+        "situation": "PCIe enumeration looks good. Now verify the kernel logged a clean GPU initialization with no fall-off-the-bus or RmInit errors.",
+        "task": "Scan the kernel ring buffer for NVIDIA driver initialization messages.",
+        "expectedCommands": ["dmesg | grep -i nvrm", "dmesg"],
+        "hints": ["'dmesg | grep -i nvrm' filters NVIDIA kernel messages.", "No 'Xid' or 'RmInitAdapter failed' lines is the goal."],
+        "validation": { "type": "command", "command": "dmesg", "pattern": "NVRM|nvidia|GPU" }
+      },
+      {
+        "id": "step-6",
+        "type": "command",
+        "situation": "Final gate: the user-space tool should now agree with the hardware — 8 healthy GPUs, correct model, correct memory.",
+        "task": "Run nvidia-smi and confirm 8 {{GPU_MODEL}} GPUs each report {{GPU_MEMORY_GB}}GB.",
+        "expectedCommands": ["nvidia-smi"],
+        "hints": ["The header shows the driver/CUDA version; the table lists each GPU.", "All 8 should be present with matching memory totals."],
+        "validation": { "type": "command", "command": "nvidia-smi", "pattern": "GPU|MiB|Driver Version" },
+        "quiz": {
+          "question": "lspci shows 8 GPUs but nvidia-smi reports only 7. What is the most likely layer at fault?",
+          "options": ["BMC firmware", "PCIe enumeration / POST", "The driver or a single GPU's RmInit (one GPU failed to initialize)", "The InfiniBand fabric"],
+          "correctIndex": 2,
+          "explanation": "If lspci sees all 8 but nvidia-smi sees 7, the hardware enumerated correctly — so the gap is at the driver/init layer for that one GPU (often an RmInitAdapter failure or an Xid at load). Check dmesg for the specific GPU."
+        }
+      },
+      {
+        "id": "step-7",
+        "type": "command",
+        "situation": "Verify the GPU persistence mode is enabled so the driver stays loaded between queries and jobs, preventing cold-start latency.",
+        "task": "Enable GPU persistence mode.",
+        "expectedCommands": ["nvidia-smi -pm 1"],
+        "hints": ["'-pm 1' sets persistent mode on for all GPUs.", "Persistent mode keeps the driver kernel context warm, reducing initialization overhead for the first job."],
+        "validation": { "type": "command", "command": "nvidia-smi", "pattern": "Enabled|persistence|pm" }
+      },
+      {
+        "id": "step-8",
+        "type": "command",
+        "situation": "Establish a full GPU health baseline by running the quick DCGM deployment check on the newly-validated node.",
+        "task": "Run DCGM Level 1 diagnostic to confirm the software stack is healthy.",
+        "expectedCommands": ["dcgmi diag -r 1"],
+        "hints": ["Level 1 is fast (seconds) and validates driver, NVML, and persistence.", "All checks should pass on a fresh node before handing it to the scheduler."],
+        "validation": { "type": "command", "command": "dcgmi", "pattern": "diag|Pass|Deployment|Software" }
+      }
+    ]
+  },
+
+  // ── 2. domain1-bringup-driver-validation ────────────────────────────────
+  // commandFamilies already 3; steps 6 → 8; add 2nd quiz on nvcc step
+  {
+    "id": "domain1-bringup-driver-validation",
+    "domain": 1,
+    "title": "Driver & Firmware Validation",
+    "difficulty": "beginner",
+    "narrative": {
+      "hook": "The node powers on cleanly, but 'powers on' is not 'production-ready.' You need to prove the firmware and software stack are the versions this cluster is standardized on.",
+      "setting": "On dgx-00, validate BIOS/baseboard info, the loaded NVIDIA kernel module, the driver/CUDA versions, and that the GPU VBIOS matches the fleet standard.",
+      "resolution": "BIOS, driver, CUDA toolkit, and kernel module all match the fleet baseline. The node is approved for fabric and scheduler onboarding."
+    },
+    "commandFamilies": ["bmc-hardware", "gpu-monitoring", "diagnostics"],
+    "estimatedMinutes": 20,
+    "tier": 1,
+    "steps": [
+      {
+        "id": "step-1",
+        "type": "command",
+        "situation": "Firmware validation starts with the baseboard. The DMI tables expose BIOS vendor/version and system serials.",
+        "task": "Read the BIOS and system information from the DMI tables.",
+        "expectedCommands": ["dmidecode -t bios", "dmidecode"],
+        "hints": ["'dmidecode -t bios' isolates the BIOS section.", "Record the BIOS version to compare against the fleet standard."],
+        "validation": { "type": "command", "command": "dmidecode", "pattern": "BIOS|Version|Vendor" }
+      },
+      {
+        "id": "step-2",
+        "type": "command",
+        "situation": "The NVIDIA kernel module must be loaded before the driver can talk to the GPUs.",
+        "task": "Confirm the nvidia kernel modules are loaded.",
+        "expectedCommands": ["lsmod | grep nvidia", "lsmod"],
+        "hints": ["'lsmod | grep nvidia' shows nvidia, nvidia_uvm, nvidia_drm.", "If nothing returns, the driver isn't loaded — stop and investigate."],
+        "validation": { "type": "command", "command": "lsmod", "pattern": "nvidia" }
+      },
+      {
+        "id": "step-3",
+        "type": "command",
+        "situation": "Now pin down the exact driver version the kernel is running.",
+        "task": "Read the running driver version from the proc interface.",
+        "expectedCommands": ["cat /proc/driver/nvidia/version"],
+        "hints": ["This proc file is the authoritative running-driver version.", "It should match the {{SYSTEM_NAME}} fleet baseline."],
+        "validation": { "type": "command", "command": "cat", "pattern": "NVRM|Kernel Module|[0-9]+\\.[0-9]+" },
+        "quiz": {
+          "question": "Why prefer /proc/driver/nvidia/version over the version printed in the nvidia-smi header?",
+          "options": ["They can never differ", "The proc file reflects the kernel module actually loaded right now, which is the source of truth", "nvidia-smi is always wrong", "The proc file shows the CUDA toolkit version"],
+          "correctIndex": 1,
+          "explanation": "Both usually agree, but /proc/driver/nvidia/version is reported directly by the loaded kernel module. After a driver upgrade without reboot, the on-disk userspace and the running module can diverge — the proc file tells you what's truly loaded."
+        }
+      },
+      {
+        "id": "step-4",
+        "type": "command",
+        "situation": "GPU compute work needs a matching CUDA toolkit. Validate the compiler/runtime version.",
+        "task": "Check the installed CUDA toolkit version.",
+        "expectedCommands": ["nvcc --version"],
+        "hints": ["'nvcc --version' prints the toolkit release.", "The driver must support a CUDA version >= the toolkit's."],
+        "validation": { "type": "command", "command": "nvcc", "pattern": "release|Cuda|V[0-9]" },
+        "quiz": {
+          "question": "If nvcc reports CUDA toolkit 12.4 but the installed driver only supports up to CUDA 12.2, what happens when you run a CUDA 12.4 app?",
+          "options": ["It runs fine — CUDA is backward-compatible", "It fails — the driver must support a CUDA version >= the toolkit's", "Only a warning is printed; execution proceeds", "The GPU automatically downclocks to a compatible mode"],
+          "correctIndex": 1,
+          "explanation": "NVIDIA's CUDA compatibility guarantee is forward (a newer driver runs older CUDA apps), not backward. A driver that only supports up to CUDA 12.2 cannot run a binary compiled for 12.4 features — the runtime will report a version mismatch error at launch."
+        }
+      },
+      {
+        "id": "step-5",
+        "type": "command",
+        "situation": "Cross-check the driver/CUDA pairing and per-GPU detail from the GPU's own perspective.",
+        "task": "Use nvidia-smi -q to inspect driver, CUDA, and VBIOS per GPU.",
+        "expectedCommands": ["nvidia-smi -q", "nvidia-smi -q -d ECC"],
+        "hints": ["'nvidia-smi -q' dumps verbose per-GPU detail.", "Confirm VBIOS and product name are consistent across all 8 GPUs."],
+        "validation": { "type": "command", "command": "nvidia-smi", "pattern": "VBIOS|Driver Version|CUDA Version|Product Name" }
+      },
+      {
+        "id": "step-6",
+        "type": "command",
+        "situation": "Establish a clean ECC baseline now, while the node is idle, so future error counts are meaningful.",
+        "task": "Record the current ECC error counts (should be zero on a healthy fresh node).",
+        "expectedCommands": ["nvidia-smi -q -d ECC"],
+        "hints": ["Look at Aggregate and Volatile, single-bit and double-bit.", "All zeros is the baseline you want before handing the node to the scheduler."],
+        "validation": { "type": "command", "command": "nvidia-smi", "pattern": "ECC|Single Bit|Double Bit|Aggregate" }
+      },
+      {
+        "id": "step-7",
+        "type": "command",
+        "situation": "Check for any PCIe link width or speed degradation — a GPU training at x8 instead of x16 cuts PCIe bandwidth roughly in half.",
+        "task": "Inspect per-GPU PCIe link width and generation.",
+        "expectedCommands": ["nvidia-smi -q -d PCIE"],
+        "hints": ["Look for 'Link Width' and 'Link Gen' in the output.", "All GPUs should run at x16 Gen4 or Gen5 depending on the system type."],
+        "validation": { "type": "command", "command": "nvidia-smi", "pattern": "Link Width|Link Gen|PCIe|x16" }
+      },
+      {
+        "id": "step-8",
+        "type": "command",
+        "situation": "Run a final comprehensive health snapshot to confirm the validated node is ready for production.",
+        "task": "Run DCGM Level 1 diagnostic.",
+        "expectedCommands": ["dcgmi diag -r 1"],
+        "hints": ["dcgmi diag -r 1 is the fast software/config health gate.", "All tests should pass before the node is added to the scheduler."],
+        "validation": { "type": "command", "command": "dcgmi", "pattern": "diag|Pass|Deployment|Software" }
+      }
+    ]
+  },
+
+  // ── 3. domain1-bringup-ib-fabric-init ────────────────────────────────────
+  // commandFamilies 2 → 3 (add diagnostics); steps 6 → 8; add 2nd quiz
+  {
+    "id": "domain1-bringup-ib-fabric-init",
+    "domain": 1,
+    "title": "Wiring the Fabric: InfiniBand Initialization",
+    "difficulty": "intermediate",
+    "narrative": {
+      "hook": "Compute is up, but an isolated node is useless for distributed training. Time to bring the high-speed fabric online.",
+      "setting": "dgx-00 has 8 {{NET_PROTOCOL}} HCAs. Verify the Mellanox adapters' firmware/config, bring the links up, and confirm every port reaches {{NET_RATE_GBS}} Gb/s Active before fabric-wide diagnostics.",
+      "resolution": "All HCAs report the correct firmware, every port is LinkUp/Active at {{NET_RATE_GBS}} Gb/s, and ibdiagnet finds no fabric errors. The node is fabric-ready."
+    },
+    "commandFamilies": ["infiniband-tools", "diagnostics", "bmc-hardware"],
+    "estimatedMinutes": 20,
+    "tier": 2,
+    "steps": [
+      {
+        "id": "step-1",
+        "type": "command",
+        "situation": "Mellanox adapters are managed through the MST (Mellanox Software Tools) device layer. Enumerate them first.",
+        "task": "Start MST and list the discovered Mellanox devices.",
+        "expectedCommands": ["mst status", "mst start"],
+        "hints": ["'mst start' loads the MST kernel module.", "'mst status' lists the /dev/mst/* device paths you'll use with mlxconfig."],
+        "validation": { "type": "command", "command": "mst", "pattern": "mst|MST|/dev/mst|devices" }
+      },
+      {
+        "id": "step-2",
+        "type": "command",
+        "situation": "Confirm the adapter firmware and key configuration (link type set to InfiniBand, not Ethernet) before bringing links up.",
+        "task": "Query a Mellanox adapter's configuration.",
+        "expectedCommands": ["mlxconfig -d /dev/mst/mt41692_pciconf0 q", "mlxconfig"],
+        "hints": ["'mlxconfig -d <device> q' queries current config.", "LINK_TYPE_P1 should be IB for an InfiniBand fabric."],
+        "validation": { "type": "command", "command": "mlxconfig", "pattern": "LINK_TYPE|config|Device" }
+      },
+      {
+        "id": "step-3",
+        "type": "command",
+        "situation": "Now verify each HCA port at the link layer.",
+        "task": "Check InfiniBand adapter status and confirm ports are Active.",
+        "expectedCommands": ["ibstat"],
+        "hints": ["'ibstat' shows per-HCA, per-port State and Rate.", "State should be Active and Physical state LinkUp."],
+        "validation": { "type": "command", "command": "ibstat", "pattern": "State|Active|Rate|LinkUp" },
+        "quiz": {
+          "question": "ibstat shows a port as 'Initializing' rather than 'Active.' What does that usually indicate?",
+          "options": ["The cable is unplugged", "The physical link is up but the Subnet Manager hasn't assigned the port a LID yet", "The GPU is overheating", "The driver is not loaded"],
+          "correctIndex": 1,
+          "explanation": "'Initializing' means the physical link trained (LinkUp) but the Subnet Manager hasn't yet brought the port to Active by programming its LID/routing. A missing or unreachable SM is the classic cause of ports stuck in Initializing."
+        }
+      },
+      {
+        "id": "step-4",
+        "type": "command",
+        "situation": "Confirm the link width and speed are what the {{NET_PROTOCOL}} standard expects — a port can be Active but degraded to a narrower width.",
+        "task": "Inspect link info to confirm full width and {{NET_RATE_GBS}} Gb/s rate.",
+        "expectedCommands": ["iblinkinfo"],
+        "hints": ["'iblinkinfo' shows width (e.g. 4X) and speed per link.", "A 1X width at full speed is still a degraded link — watch for it."],
+        "validation": { "type": "command", "command": "iblinkinfo", "pattern": "Width|Active|Switch|[0-9]+X" },
+        "quiz": {
+          "question": "iblinkinfo shows a port Active at full speed but width 1X instead of 4X. What is the impact?",
+          "options": ["None — the port is Active so bandwidth is full", "Severely degraded bandwidth (~75% loss) — it is a degraded link even though it is Active", "The port is considered down by the Subnet Manager", "Bandwidth doubles because fewer lanes carry more data per lane"],
+          "correctIndex": 1,
+          "explanation": "4X means four data lanes in parallel. A 1X link uses only one lane, so bandwidth is roughly 25% of nominal — a ~75% reduction. The port still shows Active because the physical and SM states are fine, but throughput is severely impacted. Always check both state AND width."
+        }
+      },
+      {
+        "id": "step-5",
+        "type": "command",
+        "situation": "With local ports healthy, run a fabric-wide diagnostic sweep to catch errors anywhere in the topology.",
+        "task": "Run ibdiagnet and confirm a clean fabric report.",
+        "expectedCommands": ["ibdiagnet"],
+        "hints": ["'ibdiagnet' walks the whole fabric and summarizes errors.", "Zero symbol errors and a consistent SM is the pass condition."],
+        "validation": { "type": "command", "command": "ibdiagnet", "pattern": "fabric|errors|Summary|SM" }
+      },
+      {
+        "id": "step-6",
+        "type": "command",
+        "situation": "Finally, establish a port-error baseline so future stress tests have something to compare against.",
+        "task": "Read performance counters to record a zero-error baseline.",
+        "expectedCommands": ["perfquery"],
+        "hints": ["'perfquery' dumps port error/data counters.", "Note SymbolErrors and LinkErrorRecovery are 0 before load."],
+        "validation": { "type": "command", "command": "perfquery", "pattern": "Error|Symbol|Xmt|Rcv" }
+      },
+      {
+        "id": "step-7",
+        "type": "command",
+        "situation": "Verify the OFED stack version — driver, HCA firmware, and OFED must all be compatible versions for the fabric to operate correctly.",
+        "task": "Check the OFED version installed on the node.",
+        "expectedCommands": ["ofed_info -s"],
+        "hints": ["'ofed_info -s' prints the short OFED version string.", "Mismatched OFED and firmware versions are a common source of port flaps after bring-up."],
+        "validation": { "type": "command", "command": "ofed_info", "pattern": "OFED|version|[0-9]+\\.[0-9]+" }
+      },
+      {
+        "id": "step-8",
+        "type": "command",
+        "situation": "Confirm the subnet manager sees this node by listing all known InfiniBand hosts in the fabric.",
+        "task": "List all InfiniBand hosts visible in the fabric.",
+        "expectedCommands": ["ibhosts"],
+        "hints": ["'ibhosts' queries the fabric and prints every end-node.", "dgx-00 should appear; if not, the SM hasn't enumerated this node yet."],
+        "validation": { "type": "command", "command": "ibhosts", "pattern": "Host|dgx|node|guid" }
+      }
+    ]
+  },
+
+  // ── 4. domain1-bringup-fabric-manager ────────────────────────────────────
+  // commandFamilies 2 → 3 (add diagnostics); steps 6 → 8; add 2nd quiz
+  {
+    "id": "domain1-bringup-fabric-manager",
+    "domain": 1,
+    "title": "NVLink & Fabric Manager Activation",
+    "difficulty": "intermediate",
+    "narrative": {
+      "hook": "Eight GPUs in one node only reach full bandwidth if the NVSwitch fabric is initialized. That's the Fabric Manager's job.",
+      "setting": "On dgx-00, start and verify the NVIDIA Fabric Manager service, confirm it programmed the NVSwitches, and validate the NVLink topology shows full GPU-to-GPU connectivity.",
+      "resolution": "Fabric Manager is active, all NVSwitches are configured, and the NVLink topology matrix shows every GPU connected to every other GPU at {{NVLINK_BW_GBS}} GB/s. Intra-node collectives can now hit full NVLink bandwidth."
+    },
+    "commandFamilies": ["gpu-monitoring", "diagnostics", "bmc-hardware"],
+    "estimatedMinutes": 20,
+    "tier": 2,
+    "steps": [
+      {
+        "id": "step-1",
+        "type": "concept",
+        "situation": "On NVSwitch-based DGX systems, GPUs can't reach each other over NVLink until the Fabric Manager programs the switch routing. Without it, NVLink falls back to degraded or disabled paths.",
+        "task": "Understand why Fabric Manager is mandatory before NVLink collectives.",
+        "expectedCommands": [],
+        "hints": ["NVSwitch is a hardware crossbar; FM is the software that configures it.", "No FM → no full all-to-all NVLink bandwidth."],
+        "validation": { "type": "none" },
+        "conceptContent": "Fabric Manager (nvidia-fabricmanager):\n- Runs as a systemd service on the head GPU node.\n- Discovers NVSwitches and GPUs, then programs switch routing tables.\n- Must be Active before NCCL/CUDA can use full NVLink all-to-all paths.\nIf FM is stopped, nvidia-smi nvlink may show links down and collective bandwidth collapses to PCIe levels.",
+        "tips": ["FM failing to start is often a GPU/NVSwitch mismatch or a driver/FM version skew."]
+      },
+      {
+        "id": "step-2",
+        "type": "command",
+        "situation": "Check whether the Fabric Manager service is running.",
+        "task": "Query the nvidia-fabricmanager service status.",
+        "expectedCommands": ["systemctl status nvidia-fabricmanager"],
+        "hints": ["'systemctl status nvidia-fabricmanager' shows active/inactive.", "You want 'active (running)'."],
+        "validation": { "type": "command", "command": "systemctl", "pattern": "nvidia-fabricmanager|active|running|inactive" }
+      },
+      {
+        "id": "step-3",
+        "type": "command",
+        "situation": "If it isn't running, start it; if it is, you'll confirm idempotently.",
+        "task": "Start (or confirm) the Fabric Manager service.",
+        "expectedCommands": ["systemctl start nvidia-fabricmanager", "systemctl status nvidia-fabricmanager"],
+        "hints": ["Start the service, then re-check status.", "FM must initialize before NVLink queries are meaningful."],
+        "validation": { "type": "command", "command": "systemctl", "pattern": "nvidia-fabricmanager|active|running" },
+        "quiz": {
+          "question": "If the Fabric Manager service is stopped on an NVSwitch system, what happens to intra-node NVLink collective bandwidth?",
+          "options": ["It is unchanged — NVLink is a hardware feature and does not need software", "It collapses toward PCIe levels because the NVSwitch routing tables are not programmed", "Bandwidth doubles because PCIe uses fewer hops", "Only multi-node communication is affected"],
+          "correctIndex": 1,
+          "explanation": "NVSwitch is a hardware crossbar, but the Fabric Manager programs its routing tables. Without FM, the NVSwitch doesn't know how to route GPU-to-GPU traffic, so NCCL falls back to PCIe paths that are far narrower than NVLink — you'll see collective bandwidth collapse immediately."
+        }
+      },
+      {
+        "id": "step-4",
+        "type": "command",
+        "situation": "Confirm the Fabric Manager actually configured the NVSwitches.",
+        "task": "Query Fabric Manager / NVSwitch state.",
+        "expectedCommands": ["nv-fabricmanager status", "nv-fabricmanager"],
+        "hints": ["nv-fabricmanager reports NVSwitch configuration state.", "All switches should report configured/healthy."],
+        "validation": { "type": "command", "command": "nv-fabricmanager", "pattern": "NVSwitch|fabric|status|configured" }
+      },
+      {
+        "id": "step-5",
+        "type": "command",
+        "situation": "Verify the NVLink topology matrix — every GPU should reach every other GPU over NVLink (NV# links), not PCIe (PIX/SYS).",
+        "task": "Print the GPU topology matrix.",
+        "expectedCommands": ["nvidia-smi topo -m"],
+        "hints": ["'nvidia-smi topo -m' prints the GPU-to-GPU link matrix.", "Off-diagonal cells should show NV# (NVLink), not SYS/PHB."],
+        "validation": { "type": "command", "command": "nvidia-smi", "pattern": "NV[0-9]|GPU0|Legend|topo" },
+        "quiz": {
+          "question": "In 'nvidia-smi topo -m', a GPU-to-GPU cell reads 'SYS' instead of 'NV8'. What does that tell you on an NVSwitch system with Fabric Manager supposedly running?",
+          "options": ["Everything is optimal", "Those GPUs are communicating over the system/PCIe path instead of NVLink — likely an NVLink or Fabric Manager problem", "The GPUs are in different nodes", "It means 8 NVLinks are active"],
+          "correctIndex": 1,
+          "explanation": "SYS means traffic traverses the CPU/PCIe path between sockets — far slower than NVLink. On an NVSwitch box that should show NV#, a SYS cell signals downed NVLinks or a Fabric Manager that didn't program the switches."
+        }
+      },
+      {
+        "id": "step-6",
+        "type": "command",
+        "situation": "Confirm individual NVLink status and that no links report errors.",
+        "task": "Check NVLink link status.",
+        "expectedCommands": ["nvidia-smi nvlink --status", "nvidia-smi nvlink -s"],
+        "hints": ["'nvidia-smi nvlink -s' lists per-link state and speed.", "All {{NVLINK_LINKS_PER_GPU}} links per GPU should be active."],
+        "validation": { "type": "command", "command": "nvidia-smi", "pattern": "Link|NVLink|GB/s|Active" }
+      },
+      {
+        "id": "step-7",
+        "type": "command",
+        "situation": "Verify the Fabric Manager is set to start automatically on reboot so the node doesn't come up with NVLink dead after a restart.",
+        "task": "Enable the Fabric Manager service to start on boot.",
+        "expectedCommands": ["systemctl enable nvidia-fabricmanager"],
+        "hints": ["'systemctl enable' creates the boot-time symlink.", "Without this, a reboot will leave the NVSwitch un-programmed until someone manually starts FM."],
+        "validation": { "type": "command", "command": "systemctl", "pattern": "enable|nvidia-fabricmanager|symlink|Created" }
+      },
+      {
+        "id": "step-8",
+        "type": "command",
+        "situation": "Run a quick DCGM diagnostic to confirm the full GPU + NVLink stack is healthy after Fabric Manager activation.",
+        "task": "Run DCGM Level 1 diagnostic.",
+        "expectedCommands": ["dcgmi diag -r 1"],
+        "hints": ["This fast check exercises driver, NVML, and persistence mode.", "Passing after FM activation confirms the GPU stack is coherent."],
+        "validation": { "type": "command", "command": "dcgmi", "pattern": "diag|Pass|Deployment|Software" }
+      }
+    ]
+  },
+
+  // ── 5. domain3-bringup-slurm-config ──────────────────────────────────────
+  // commandFamilies 2 → 3 (add diagnostics); steps 6 → 8; add 2nd quiz
+  {
+    "id": "domain3-bringup-slurm-config",
+    "domain": 3,
+    "title": "Standing Up the Scheduler: Slurm Partitions & Health",
+    "difficulty": "intermediate",
+    "narrative": {
+      "hook": "The cluster has compute and fabric — now it needs a scheduler so users can actually request GPUs.",
+      "setting": "Bring the 8-node cluster (dgx-00..dgx-07, 64 GPUs) under Slurm: confirm node registration, inspect the GPU partition, run a node health check, and submit a trivial GPU job to prove the GRES wiring works.",
+      "resolution": "All 8 nodes register idle, the gpu partition exposes 64 GPUs via GRES, a health check passes, and a test job lands on a node and returns. The scheduler is production-ready."
+    },
+    "commandFamilies": ["cluster-tools", "gpu-monitoring", "diagnostics"],
+    "estimatedMinutes": 20,
+    "tier": 2,
+    "steps": [
+      {
+        "id": "step-1",
+        "type": "command",
+        "situation": "Start by confirming Slurm sees every node and what state they're in.",
+        "task": "List the cluster's nodes and partitions.",
+        "expectedCommands": ["sinfo", "sinfo -N -l"],
+        "hints": ["'sinfo' summarizes partitions and node states.", "All 8 nodes should be 'idle' on a fresh bring-up."],
+        "validation": { "type": "command", "command": "sinfo", "pattern": "PARTITION|idle|gpu|dgx" }
+      },
+      {
+        "id": "step-2",
+        "type": "command",
+        "situation": "Inspect a node's registered resources to confirm Slurm knows it has 8 GPUs (GRES).",
+        "task": "Show the detailed configuration for dgx-00.",
+        "expectedCommands": ["scontrol show node dgx-00", "scontrol show node"],
+        "hints": ["'scontrol show node dgx-00' prints CfgTRES/Gres.", "Look for gpu:8 in the GRES line."],
+        "validation": { "type": "command", "command": "scontrol", "pattern": "Gres|gpu|CfgTRES|State" },
+        "quiz": {
+          "question": "A node is physically healthy with 8 GPUs, but 'scontrol show node' lists Gres=gpu:0. What is the consequence?",
+          "options": ["Jobs requesting --gres=gpu will never schedule on that node", "The GPUs will overheat", "NVLink will fail", "Nothing — GRES is cosmetic"],
+          "correctIndex": 0,
+          "explanation": "Slurm only allocates resources it knows about. If GRES is misconfigured to gpu:0, the scheduler believes the node has no GPUs, so any --gres=gpu request will skip it — a classic bring-up misconfiguration."
+        }
+      },
+      {
+        "id": "step-3",
+        "type": "command",
+        "situation": "Before opening the cluster to users, run a health check sweep across the nodes.",
+        "task": "Run a GPU diagnostic to confirm node health.",
+        "expectedCommands": ["dcgmi diag -r 1"],
+        "hints": ["'dcgmi diag -r 1' is the fast pass/fail health check.", "All checks should pass on a clean node."],
+        "validation": { "type": "command", "command": "dcgmi", "pattern": "diag|Pass|health|Deployment" }
+      },
+      {
+        "id": "step-4",
+        "type": "command",
+        "situation": "Now prove the GRES plumbing end-to-end by submitting a trivial GPU job.",
+        "task": "Submit a batch job that requests one GPU.",
+        "expectedCommands": ["sbatch --gres=gpu:1 --wrap=\"nvidia-smi -L\"", "sbatch"],
+        "hints": ["A --gres=gpu:1 request exercises the scheduler's GPU binding.", "sbatch returns a job ID on success."],
+        "validation": { "type": "command", "command": "sbatch", "pattern": "Submitted|batch job|[0-9]+" }
+      },
+      {
+        "id": "step-5",
+        "type": "command",
+        "situation": "Watch the job move through the queue.",
+        "task": "Check the job queue.",
+        "expectedCommands": ["squeue"],
+        "hints": ["'squeue' shows pending/running jobs.", "Your job should be R (running) or quickly complete."],
+        "validation": { "type": "command", "command": "squeue", "pattern": "JOBID|USER|PARTITION|ST" }
+      },
+      {
+        "id": "step-6",
+        "type": "command",
+        "situation": "Finally, confirm the job's accounting record shows it consumed a GPU.",
+        "task": "Inspect completed-job accounting.",
+        "expectedCommands": ["sacct -j 1 --format=JobID,State,AllocTRES", "sacct"],
+        "hints": ["'sacct' reads the accounting database.", "AllocTRES should include gres/gpu=1 for the job."],
+        "validation": { "type": "command", "command": "sacct", "pattern": "JobID|State|TRES|COMPLETED" }
+      },
+      {
+        "id": "step-7",
+        "type": "command",
+        "situation": "Confirm the GPU-aware partition limits are correct so users can't accidentally request more GPUs than a node has.",
+        "task": "Inspect the partition's TRES limits.",
+        "expectedCommands": ["scontrol show partition gpu"],
+        "hints": ["'scontrol show partition <name>' shows TRESBillingWeights and limits.", "TotalCPUs and Gres should reflect 8 nodes * 8 GPUs = 64 GPUs."],
+        "validation": { "type": "command", "command": "scontrol", "pattern": "Partition|TRES|gpu|State" },
+        "quiz": {
+          "question": "A node shows state 'drain' in sinfo. Can new jobs be scheduled on it?",
+          "options": ["Yes — drained nodes still accept new jobs normally", "No — drained nodes accept no new jobs until resumed with scontrol update", "Yes, but only if --force is passed to sbatch", "Only GPU jobs are blocked; CPU-only jobs still schedule"],
+          "correctIndex": 1,
+          "explanation": "'drain' means the node is marked to wind down gracefully — it will finish running jobs but accept no new allocations until an admin resumes it with 'scontrol update NodeName=<n> State=resume'. It's the correct state when you need to take a node offline without killing active jobs."
+        }
+      },
+      {
+        "id": "step-8",
+        "type": "command",
+        "situation": "Verify the GPU topology as seen from inside a Slurm allocation to ensure GRES binding works correctly.",
+        "task": "Use srun to run nvidia-smi inside a single-node GPU allocation.",
+        "expectedCommands": ["srun --gres=gpu:1 nvidia-smi -L"],
+        "hints": ["srun allocates interactively and runs the command inside the allocation.", "nvidia-smi should see exactly 1 GPU if Slurm GRES binding is correct."],
+        "validation": { "type": "command", "command": "srun", "pattern": "GPU|nvidia|smi|GRES" }
+      }
+    ]
+  },
+
+  // ── 6. domain3-bringup-container-runtime ─────────────────────────────────
+  // commandFamilies 2 → 3 (add gpu-monitoring); steps 6 → 8; add 2nd quiz
+  {
+    "id": "domain3-bringup-container-runtime",
+    "domain": 3,
+    "title": "Container Runtime: Docker, Enroot & Pyxis with NGC",
+    "difficulty": "intermediate",
+    "narrative": {
+      "hook": "Researchers want to run NGC containers under Slurm. You need the GPU-aware container stack wired up.",
+      "setting": "On the cluster, validate Docker GPU access, pull an NGC image, convert it for unprivileged use with Enroot, and launch it through Slurm via Pyxis.",
+      "resolution": "Docker sees the GPUs, an NGC image is cached, Enroot produced a squashfs, and a Pyxis srun launched the container with GPU access. The container workflow is ready for users."
+    },
+    "commandFamilies": ["container-tools", "cluster-tools", "gpu-monitoring"],
+    "estimatedMinutes": 22,
+    "tier": 2,
+    "steps": [
+      {
+        "id": "step-1",
+        "type": "command",
+        "situation": "First confirm the Docker runtime can expose GPUs to containers.",
+        "task": "Run a container with GPU access and list the GPUs from inside it.",
+        "expectedCommands": ["docker run --rm --gpus all nvidia/cuda:12.2.0-base nvidia-smi -L", "docker run --rm --gpus all"],
+        "hints": ["'--gpus all' hands every GPU to the container.", "nvidia-smi -L inside the container should list all 8 GPUs."],
+        "validation": { "type": "command", "command": "docker", "pattern": "run|gpus|GPU|nvidia" }
+      },
+      {
+        "id": "step-2",
+        "type": "command",
+        "situation": "Production images come from NGC (NVIDIA GPU Cloud). Confirm the NGC CLI is configured and can see the registry.",
+        "task": "List available NGC container images.",
+        "expectedCommands": ["ngc config set", "ngc registry image list"],
+        "hints": ["Run 'ngc config set' first to configure the API key, then 'ngc registry image list' to verify connectivity.", "The NGC CLI talks to nvcr.io."],
+        "validation": { "type": "command", "command": "ngc", "pattern": "registry|image|nvcr|NGC" },
+        "quiz": {
+          "question": "Why is Enroot preferred over Docker for launching containers on a shared Slurm/HPC login?",
+          "options": ["Enroot is faster at compiling code", "Enroot runs containers unprivileged (no root daemon), which fits multi-tenant HPC security and Slurm integration via Pyxis", "Docker can't use GPUs", "Enroot images are smaller"],
+          "correctIndex": 1,
+          "explanation": "Docker requires a privileged daemon, which is undesirable on shared HPC login/compute nodes. Enroot runs rootless and integrates with Slurm through the Pyxis SPANK plugin, so users launch containers as themselves under the scheduler."
+        }
+      },
+      {
+        "id": "step-3",
+        "type": "command",
+        "situation": "Convert an NGC image into an Enroot squashfs for unprivileged execution.",
+        "task": "Import an NGC image with Enroot.",
+        "expectedCommands": ["enroot import docker://nvcr.io#nvidia/pytorch:24.01-py3", "enroot import"],
+        "hints": ["'enroot import docker://...' pulls and converts to a .sqsh.", "The docker://nvcr.io# prefix targets the NGC registry."],
+        "validation": { "type": "command", "command": "enroot", "pattern": "import|sqsh|nvcr|Fetching" }
+      },
+      {
+        "id": "step-4",
+        "type": "command",
+        "situation": "Create a writable container root from the imported image.",
+        "task": "Create an Enroot container.",
+        "expectedCommands": ["enroot create --name pytorch pytorch.sqsh", "enroot create"],
+        "hints": ["'enroot create' unpacks the squashfs into a container.", "Name it so you can start it by name."],
+        "validation": { "type": "command", "command": "enroot", "pattern": "create|container|pytorch" }
+      },
+      {
+        "id": "step-5",
+        "type": "command",
+        "situation": "Confirm the container exists in the local list.",
+        "task": "List Enroot containers.",
+        "expectedCommands": ["enroot list"],
+        "hints": ["'enroot list' shows created containers.", "Your named container should appear."],
+        "validation": { "type": "command", "command": "enroot", "pattern": "list|pytorch|container" }
+      },
+      {
+        "id": "step-6",
+        "type": "command",
+        "situation": "Now the payoff: launch the container through Slurm with Pyxis so it runs on a compute node with GPUs.",
+        "task": "Use srun with the Pyxis --container-image flag to run a GPU container.",
+        "expectedCommands": ["srun --gres=gpu:1 --container-image=nvcr.io#nvidia/pytorch:24.01-py3 nvidia-smi", "srun --container-image"],
+        "hints": ["Pyxis adds --container-image to srun.", "Combine with --gres=gpu:1 to get a GPU inside the container."],
+        "validation": { "type": "command", "command": "srun", "pattern": "container|pyxis|GPU|nvidia" },
+        "quiz": {
+          "question": "What does 'srun --container-image=...' (Pyxis) add over a plain 'srun'?",
+          "options": ["Nothing — it is identical to a plain srun", "It launches the job step inside the specified container image, rootless, on the compute node", "It only pulls the image; execution still happens on bare metal", "It requires the Docker daemon to be running on the compute node"],
+          "correctIndex": 1,
+          "explanation": "Pyxis is a SPANK plugin that intercepts the srun launch and wraps the process inside the container image via Enroot, all without a privileged daemon. The job runs rootless inside the container on the compute node, with access to Slurm-allocated GPUs through the GRES binding."
+        }
+      },
+      {
+        "id": "step-7",
+        "type": "command",
+        "situation": "Confirm that the container can access all GPUs visible inside the Slurm allocation.",
+        "task": "Run nvidia-smi inside a multi-GPU Pyxis container allocation.",
+        "expectedCommands": ["srun --gres=gpu:8 --container-image=nvcr.io#nvidia/pytorch:24.01-py3 nvidia-smi -L"],
+        "hints": ["Request all 8 GPUs on one node to confirm full GRES binding inside the container.", "nvidia-smi -L should list 8 GPU UUIDs, not just 1."],
+        "validation": { "type": "command", "command": "srun", "pattern": "GPU|nvidia|container|gres" }
+      },
+      {
+        "id": "step-8",
+        "type": "command",
+        "situation": "Verify the container runtime versions are consistent across the cluster by checking the Docker and nvidia-container-cli versions.",
+        "task": "Check the nvidia-container-cli version to confirm the container runtime is correctly installed.",
+        "expectedCommands": ["nvidia-container-cli --version"],
+        "hints": ["nvidia-container-cli is the low-level GPU container runtime hook.", "The version should match the fleet standard alongside the driver version."],
+        "validation": { "type": "command", "command": "nvidia-container-cli", "pattern": "version|cli|[0-9]+\\.[0-9]+" }
+      }
+    ]
+  },
+
+  // ── 7. domain4-verify-nccl-allreduce ─────────────────────────────────────
+  // commandFamilies 2 → 3 (add cluster-tools, gpu-monitoring); steps 5 → 8; add 2nd quiz
+  {
+    "id": "domain4-verify-nccl-allreduce",
+    "domain": 4,
+    "title": "Validation: Multi-Node NCCL All-Reduce",
+    "difficulty": "advanced",
+    "narrative": {
+      "hook": "The cluster is built. Before it certifies for training, you must prove the GPUs can actually talk to each other at full bandwidth.",
+      "setting": "Run the NCCL all-reduce bandwidth test across the 8-node / 64-GPU cluster, interpret the bus-bandwidth curve, and confirm it approaches the expected {{NVLINK_BW_GBS}} GB/s intra-node and {{NET_RATE_GBS}} Gb/s inter-node ceilings.",
+      "resolution": "The all-reduce bus bandwidth plateaus near the hardware ceiling at large message sizes, with no stragglers. The interconnect is validated for distributed training."
+    },
+    "commandFamilies": ["diagnostics", "cluster-tools", "gpu-monitoring"],
+    "estimatedMinutes": 25,
+    "tier": 3,
+    "steps": [
+      {
+        "id": "step-1",
+        "type": "concept",
+        "situation": "NCCL all-reduce is the canonical collective in data-parallel training. Its bus bandwidth at large messages is the truest single measure of interconnect health.",
+        "task": "Understand algorithm vs. bus bandwidth before running the test.",
+        "expectedCommands": [],
+        "hints": ["Small messages are latency-bound; large messages are bandwidth-bound.", "Bus bandwidth normalizes for the all-reduce data-movement factor."],
+        "validation": { "type": "none" },
+        "conceptContent": "NCCL test output columns:\n- size (bytes), count, type\n- time (us), algbw (GB/s), busbw (GB/s)\nbusbw accounts for the 2(N-1)/N data movement of ring all-reduce, so it's comparable to the hardware link bandwidth. Read the busbw at the largest message size and compare it to your NVLink/IB ceiling. A low plateau or a single slow rank points at a degraded link.",
+        "tips": ["Always sweep a wide size range (-b small -e large); a single size hides the latency-vs-bandwidth transition."]
+      },
+      {
+        "id": "step-2",
+        "type": "command",
+        "situation": "Start with a single-node, 8-GPU run to validate intra-node NVLink before adding the network.",
+        "task": "Run all-reduce across 8 GPUs on one node, sweeping message sizes.",
+        "expectedCommands": ["all_reduce_perf -b 8 -e 256M -f 2 -g 8", "nccl-test -b 8 -e 256M -g 8"],
+        "hints": ["-b/-e set the begin/end message sizes; -g sets GPU count.", "Intra-node busbw should approach the NVLink ceiling."],
+        "validation": { "type": "command", "command": "all_reduce_perf", "pattern": "busbw|algbw|size|GB/s" },
+        "quiz": {
+          "question": "Why is bus bandwidth (busbw), not algorithm bandwidth (algbw), the right metric to compare against the hardware link bandwidth?",
+          "options": ["busbw is always a larger number so it looks better", "busbw accounts for the 2(N-1)/N data-movement factor of ring all-reduce, making it comparable to link bandwidth", "algbw includes latency so it is more accurate", "They are always identical — the distinction does not matter"],
+          "correctIndex": 1,
+          "explanation": "Ring all-reduce moves 2(N-1)/N bytes per byte of user data. algbw is user-data / time and understates the actual link utilization. busbw multiplies algbw by 2(N-1)/N, giving the actual bytes crossing each link per second — the number you should compare to your NVLink or IB spec."
+        }
+      },
+      {
+        "id": "step-3",
+        "type": "command",
+        "situation": "Now scale across nodes. Multi-node collectives go over InfiniBand, so this validates the fabric end-to-end.",
+        "task": "Launch a multi-node all-reduce via mpirun across the cluster.",
+        "expectedCommands": ["mpirun -np 64 all_reduce_perf -b 8 -e 1G -f 2 -g 1", "mpirun"],
+        "hints": ["-np 64 spans all 64 ranks; -g 1 = one GPU per rank.", "Inter-node busbw is bounded by {{NET_RATE_GBS}} Gb/s per HCA."],
+        "validation": { "type": "command", "command": "mpirun", "pattern": "busbw|all_reduce|GB/s|rank" },
+        "quiz": {
+          "question": "Single-node busbw is excellent, but multi-node busbw is ~1/10th of it. Where do you look first?",
+          "options": ["The GPU ECC counters", "The InfiniBand fabric — link rate/width, SM, and whether NCCL is actually using IB vs falling back to TCP", "The BIOS version", "The Slurm partition config"],
+          "correctIndex": 1,
+          "explanation": "A large single-node vs multi-node gap isolates the problem to the inter-node path: degraded IB links, a missing/over-subscribed Subnet Manager, or NCCL silently falling back to sockets (NCCL_IB_DISABLE / no GPUDirect). Intra-node NVLink is clearly fine."
+        }
+      },
+      {
+        "id": "step-4",
+        "type": "command",
+        "situation": "If bandwidth looks low, confirm NCCL chose the InfiniBand transport and the links are clean.",
+        "task": "Re-check IB port counters for errors accumulated during the run.",
+        "expectedCommands": ["perfquery"],
+        "hints": ["Compare error counters to the bring-up baseline.", "Rising SymbolErrors during the test indicate a marginal link/cable."],
+        "validation": { "type": "command", "command": "perfquery", "pattern": "Error|Symbol|Xmt|Rcv" }
+      },
+      {
+        "id": "step-5",
+        "type": "command",
+        "situation": "Cross-check that no GPU was thermally throttling during the collective, which would cap bandwidth.",
+        "task": "Inspect GPU clocks/temps for throttle during load.",
+        "expectedCommands": ["nvidia-smi -q -d TEMPERATURE", "nvidia-smi"],
+        "hints": ["A throttled GPU lowers SM clocks and drags the slowest rank.", "Temps should be well under the thermal limit."],
+        "validation": { "type": "command", "command": "nvidia-smi", "pattern": "Temperature|Throttle|MHz|GPU" }
+      },
+      {
+        "id": "step-6",
+        "type": "command",
+        "situation": "Check the IB link status after the multi-node run to confirm no ports flapped during the stress.",
+        "task": "Verify IB port states are all still Active after the NCCL run.",
+        "expectedCommands": ["ibstat"],
+        "hints": ["A port that flapped Active→Down→Active may not increment error counters but will show in ibstat's 'Down' history.", "All ports should be Active after the run."],
+        "validation": { "type": "command", "command": "ibstat", "pattern": "State|Active|Rate|LinkUp" }
+      },
+      {
+        "id": "step-7",
+        "type": "command",
+        "situation": "Confirm GPU health is intact after the all-reduce stress test.",
+        "task": "Run DCGM Level 1 diagnostic post-test.",
+        "expectedCommands": ["dcgmi diag -r 1"],
+        "hints": ["Level 1 is fast and will flag any driver or NVML degradation caused by the test.", "Pass on Level 1 after stress is a required sign-off criterion."],
+        "validation": { "type": "command", "command": "dcgmi", "pattern": "diag|Pass|Deployment|Software" }
+      },
+      {
+        "id": "step-8",
+        "type": "command",
+        "situation": "Verify the NCCL test ran on the expected queue by reviewing its Slurm accounting record.",
+        "task": "Check the accounting record for the NCCL test job.",
+        "expectedCommands": ["sacct --format=JobID,State,AllocTRES,Elapsed"],
+        "hints": ["sacct shows what TRES were allocated, confirming all 64 GPUs were consumed.", "Elapsed time and allocated TRES are the key fields for sign-off."],
+        "validation": { "type": "command", "command": "sacct", "pattern": "JobID|State|TRES|COMPLETED|Elapsed" }
+      }
+    ]
+  },
+
+  // ── 8. domain4-verify-dcgm-diagnostics ───────────────────────────────────
+  // commandFamilies 2 → 3 (add cluster-tools); steps 6 → 8; add 2nd quiz
+  {
+    "id": "domain4-verify-dcgm-diagnostics",
+    "domain": 4,
+    "title": "Validation: DCGM Diagnostic Levels & ECC Baseline",
+    "difficulty": "advanced",
+    "narrative": {
+      "hook": "Acceptance testing time. The cluster must pass a structured GPU diagnostic before it certifies for production.",
+      "setting": "Use DCGM's three diagnostic levels on the cluster: a fast deployment check, a medium stress pass, and the full hardware/stress suite — then establish the ECC error baseline and a health-watch policy.",
+      "resolution": "All three DCGM levels pass, ECC counts are zero across the fleet, and a health policy is registered to flag future regressions. The cluster is certified."
+    },
+    "commandFamilies": ["diagnostics", "gpu-monitoring", "cluster-tools"],
+    "estimatedMinutes": 25,
+    "tier": 3,
+    "steps": [
+      {
+        "id": "step-1",
+        "type": "concept",
+        "situation": "DCGM's `diag -r` levels trade runtime for coverage. Knowing what each level actually exercises tells you which to run when.",
+        "task": "Understand the three diagnostic run levels.",
+        "expectedCommands": [],
+        "hints": ["Level 1 ≈ seconds; Level 3 ≈ many minutes of stress.", "Use 1 for quick gating, 3 for acceptance."],
+        "validation": { "type": "none" },
+        "conceptContent": "DCGM diagnostic levels:\n- -r 1 (Quick/Deployment): software/config sanity — driver, NVML, persistence, page-retirement. Seconds.\n- -r 2 (Medium): adds integration + light stress (PCIe, memory bandwidth). Minutes.\n- -r 3 (Long): full stress — SM stress, targeted power/thermal, memory stress, NVLink. Tens of minutes; surfaces marginal hardware.\nRun 1 at every bring-up; run 3 for acceptance and after hardware changes.",
+        "tips": ["A node that passes -r 1 but fails -r 3 usually has marginal hardware that only shows under sustained load."]
+      },
+      {
+        "id": "step-2",
+        "type": "command",
+        "situation": "Start with the fast deployment check.",
+        "task": "Run the DCGM Level 1 diagnostic.",
+        "expectedCommands": ["dcgmi diag -r 1"],
+        "hints": ["This validates the software/config layer quickly.", "Every row should report Pass."],
+        "validation": { "type": "command", "command": "dcgmi", "pattern": "diag|Pass|Deployment|Software" },
+        "quiz": {
+          "question": "You need a fast pre-job health gate that completes in seconds, not minutes. Which DCGM diagnostic level should you use?",
+          "options": ["dcgmi diag -r 3 (Long/Hardware)", "dcgmi diag -r 2 (Medium/Integration)", "dcgmi diag -r 1 (Quick/Deployment)", "No level — DCGM diagnostics always take many minutes"],
+          "correctIndex": 2,
+          "explanation": "-r 1 (Quick/Deployment) runs in seconds: it checks driver, NVML, persistence mode, and page-retirement counts without any stress exercise. It is the correct level for a fast pre-job or post-bring-up gate. -r 2 and -r 3 take minutes to hours respectively."
+        }
+      },
+      {
+        "id": "step-3",
+        "type": "command",
+        "situation": "Escalate to the medium suite to exercise PCIe and memory bandwidth.",
+        "task": "Run the DCGM Level 2 diagnostic.",
+        "expectedCommands": ["dcgmi diag -r 2"],
+        "hints": ["Level 2 adds integration + light stress.", "Watch for PCIe or memory-bandwidth warnings."],
+        "validation": { "type": "command", "command": "dcgmi", "pattern": "diag|Pass|Integration|PCIe" }
+      },
+      {
+        "id": "step-4",
+        "type": "command",
+        "situation": "Run the full stress suite for acceptance certification.",
+        "task": "Run the DCGM Level 3 diagnostic.",
+        "expectedCommands": ["dcgmi diag -r 3"],
+        "hints": ["Level 3 is the long, full-stress pass.", "This is the one that catches marginal silicon and NVLink issues."],
+        "validation": { "type": "command", "command": "dcgmi", "pattern": "diag|Pass|Stress|Hardware|Memory" },
+        "quiz": {
+          "question": "DCGM -r 3 reports a 'Memory Bandwidth' subtest failure on one GPU while -r 1 passed. What's the right interpretation?",
+          "options": ["The driver is the wrong version", "A marginal hardware fault on that GPU that only manifests under sustained stress — quarantine/RMA candidate", "The whole cluster is fine; ignore it", "Slurm is misconfigured"],
+          "correctIndex": 1,
+          "explanation": "Level 1 only checks software/config, which passed — so the stack is fine. A Level 3 stress subtest failure isolates a load-dependent hardware fault on that specific GPU. Drain the node and treat the GPU as a quarantine/RMA candidate."
+        }
+      },
+      {
+        "id": "step-5",
+        "type": "command",
+        "situation": "Confirm the ECC baseline is clean after stress — stress testing can surface latent memory faults.",
+        "task": "Read aggregate ECC counts across the GPUs.",
+        "expectedCommands": ["nvidia-smi -q -d ECC", "dcgmi health -c"],
+        "hints": ["Post-stress ECC should still be zero double-bit.", "Single-bit errors are corrected but worth trending."],
+        "validation": { "type": "command", "command": "nvidia-smi", "pattern": "ECC|Double Bit|Single Bit|Aggregate" }
+      },
+      {
+        "id": "step-6",
+        "type": "command",
+        "situation": "Finally, register a health policy so the cluster auto-flags future ECC/thermal/XID regressions.",
+        "task": "Set a DCGM health/policy watch.",
+        "expectedCommands": ["dcgmi policy --set --condition ecc --action log", "dcgmi policy --get"],
+        "hints": ["dcgmi policy --set requires --condition (ecc, thermal, power, pcie, nvlink, xid) and optionally --action.", "A registered watch turns silent regressions into alerts."],
+        "validation": { "type": "command", "command": "dcgmi", "pattern": "policy|ECC|condition|set" }
+      },
+      {
+        "id": "step-7",
+        "type": "command",
+        "situation": "With DCGM healthy, confirm that Slurm reports all cluster nodes as idle and ready to accept jobs.",
+        "task": "Verify the full cluster is idle in Slurm.",
+        "expectedCommands": ["sinfo -N -l"],
+        "hints": ["All 8 nodes should be 'idle' in the gpu partition.", "Any 'drain' or 'down' state must be investigated before sign-off."],
+        "validation": { "type": "command", "command": "sinfo", "pattern": "idle|NODELIST|gpu|STATE" }
+      },
+      {
+        "id": "step-8",
+        "type": "command",
+        "situation": "Generate a full GPU bug report to archive as baseline documentation for future regression comparison.",
+        "task": "Collect the NVIDIA bug report for the cluster record.",
+        "expectedCommands": ["nvidia-bug-report.sh"],
+        "hints": ["nvidia-bug-report.sh collects driver, dmesg, topology, and health data into a single archive.", "Store the output as the baseline artifact — compare future reports when issues arise."],
+        "validation": { "type": "command", "command": "nvidia-bug-report.sh", "pattern": "report|log|tar|gz" }
+      }
+    ]
+  }
+
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Validate all 8 scenarios
+// ─────────────────────────────────────────────────────────────────────────────
+console.log("Validating 8 scenarios...");
+for (const s of scenarios) {
+  validate(s);
+  console.log(`  ✓ ${s.id}: ${s.steps.length} steps, ${s.steps.filter(st => st.quiz).length} quizzes, ${s.commandFamilies.length} families`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Load target and merge
+// ─────────────────────────────────────────────────────────────────────────────
+console.log(`\nLoading ${TARGET}...`);
+const target = JSON.parse(fs.readFileSync(TARGET, "utf8"));
+const before = target.scenarios.length;
+
+// Check for duplicate IDs
+const existingIds = new Set(target.scenarios.map(s => s.id));
+for (const s of scenarios) {
+  if (existingIds.has(s.id)) {
+    throw new Error(`Duplicate scenario ID: ${s.id} already exists in target`);
+  }
+}
+
+target.scenarios.push(...scenarios);
+const after = target.scenarios.length;
+
+console.log(`Merged: ${before} → ${after} scenarios`);
+
+// Write back with 2-space indentation
+fs.writeFileSync(TARGET, JSON.stringify(target, null, 2) + "\n", "utf8");
+console.log(`Written to ${TARGET}`);
+console.log("Done.");

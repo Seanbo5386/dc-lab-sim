@@ -81,6 +81,8 @@ export class BasicSystemSimulator extends BaseSimulator {
             "systemctl status nvsm-core",
             "systemctl start nvsm-core",
             "systemctl restart nvsm-core",
+            "systemctl enable nvidia-fabricmanager",
+            "systemctl disable nvidia-fabricmanager",
           ],
         },
         {
@@ -784,7 +786,7 @@ ${formatTimestamp(3.789012)} ACPI Warning: SystemIO range conflicts with OpRegio
 
   /**
    * Handle systemctl command
-   * Service management: status, start, stop, restart
+   * Service management: status, start, stop, restart, enable, disable
    * Special handling for nvsm-core service per spec Section 2.1
    */
   private handleSystemctl(
@@ -803,7 +805,8 @@ ${formatTimestamp(3.789012)} ACPI Warning: SystemIO range conflicts with OpRegio
         return this.createError("Usage: systemctl status <service>");
       }
 
-      const state = scenarioCtx?.getServiceState(currentNode, service) ?? "active";
+      const state =
+        scenarioCtx?.getServiceState(currentNode, service) ?? "active";
 
       if (state === "inactive") {
         const output = `● ${service}.service - ${service}
@@ -852,8 +855,27 @@ ${currentNode} systemd[1]: ${service}.service: Unit not started.`;
       return this.createSuccess("");
     }
 
+    if (action === "enable") {
+      if (!service) {
+        return this.createError("Usage: systemctl enable <service>");
+      }
+      const unitFile = `/lib/systemd/system/${service}.service`;
+      const symlinkTarget = `/etc/systemd/system/multi-user.target.wants/${service}.service`;
+      return this.createSuccess(
+        `Created symlink ${symlinkTarget} → ${unitFile}.`,
+      );
+    }
+
+    if (action === "disable") {
+      if (!service) {
+        return this.createError("Usage: systemctl disable <service>");
+      }
+      const symlinkTarget = `/etc/systemd/system/multi-user.target.wants/${service}.service`;
+      return this.createSuccess(`Removed ${symlinkTarget}.`);
+    }
+
     return this.createError(
-      "Usage: systemctl [status|start|stop|restart] <service>",
+      "Usage: systemctl [status|start|stop|restart|enable|disable] <service>",
     );
   }
 

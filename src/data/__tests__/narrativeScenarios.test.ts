@@ -70,12 +70,12 @@ describe("narrativeScenarios.json", () => {
     expect(Array.isArray(scenarios)).toBe(true);
   });
 
-  it("should have 32 total narrative scenarios", () => {
-    expect(scenarios.length).toBe(32);
+  it("should have 40 total narrative scenarios", () => {
+    expect(scenarios.length).toBe(40);
   });
 
-  it("should have 30 exam-domain scenarios (domains 1-5)", () => {
-    expect(examScenarios.length).toBe(30);
+  it("should have 38 exam-domain scenarios (domains 1-5)", () => {
+    expect(examScenarios.length).toBe(38);
   });
 
   it("should have 2 foundational scenarios (domain 0)", () => {
@@ -91,9 +91,9 @@ describe("narrativeScenarios.json", () => {
   });
 
   describe("domain distribution", () => {
-    it("should have 7 scenarios for Domain 1 (Systems & Bring-Up, 31%)", () => {
+    it("should have 11 scenarios for Domain 1 (Systems & Bring-Up, 31%)", () => {
       const domain1 = scenarios.filter((s) => s.domain === 1);
-      expect(domain1.length).toBe(7);
+      expect(domain1.length).toBe(11);
     });
 
     it("should have 4 scenarios for Domain 2 (Physical Layer, 5%)", () => {
@@ -101,14 +101,14 @@ describe("narrativeScenarios.json", () => {
       expect(domain2.length).toBe(4);
     });
 
-    it("should have 6 scenarios for Domain 3 (Control Plane, 19%)", () => {
+    it("should have 8 scenarios for Domain 3 (Control Plane, 19%)", () => {
       const domain3 = scenarios.filter((s) => s.domain === 3);
-      expect(domain3.length).toBe(6);
+      expect(domain3.length).toBe(8);
     });
 
-    it("should have 9 scenarios for Domain 4 (Cluster Test, 33%)", () => {
+    it("should have 11 scenarios for Domain 4 (Cluster Test, 33%)", () => {
       const domain4 = scenarios.filter((s) => s.domain === 4);
-      expect(domain4.length).toBe(9);
+      expect(domain4.length).toBe(11);
     });
 
     it("should have 4 scenarios for Domain 5 (Troubleshooting, 12%)", () => {
@@ -399,8 +399,8 @@ describe("narrativeScenarios.json", () => {
   });
 
   describe("scenario coverage and completeness", () => {
-    it("should have all 32 scenarios present with at least 2 steps each", () => {
-      expect(scenarios.length).toBe(32);
+    it("should have all 40 scenarios present with at least 2 steps each", () => {
+      expect(scenarios.length).toBe(40);
       scenarios.forEach((s) => {
         expect(s.steps.length).toBeGreaterThanOrEqual(2);
       });
@@ -461,8 +461,10 @@ describe("narrativeScenarios.json", () => {
         "srun",
         "docker",
         "enroot",
+        "ngc",
         "nvidia-container-cli",
         "gpu-burn",
+        "nccl-test",
         "all_reduce_perf",
         "ib_write_bw",
         "ib_read_bw",
@@ -495,6 +497,7 @@ describe("narrativeScenarios.json", () => {
         "mlxlink",
         "mlxcables",
         "mst",
+        "nv-fabricmanager",
         "sminfo",
         "smpquery",
         "env",
