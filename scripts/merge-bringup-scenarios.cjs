@@ -274,7 +274,7 @@ const scenarios = [
         "type": "command",
         "situation": "Confirm the adapter firmware and key configuration (link type set to InfiniBand, not Ethernet) before bringing links up.",
         "task": "Query a Mellanox adapter's configuration.",
-        "expectedCommands": ["mlxconfig -d /dev/mst/mt4129_pciconf0 q", "mlxconfig"],
+        "expectedCommands": ["mlxconfig -d /dev/mst/mt41692_pciconf0 q", "mlxconfig"],
         "hints": ["'mlxconfig -d <device> q' queries current config.", "LINK_TYPE_P1 should be IB for an InfiniBand fabric."],
         "validation": { "type": "command", "command": "mlxconfig", "pattern": "LINK_TYPE|config|Device" }
       },
@@ -403,7 +403,7 @@ const scenarios = [
         "type": "command",
         "situation": "Confirm the Fabric Manager actually configured the NVSwitches.",
         "task": "Query Fabric Manager / NVSwitch state.",
-        "expectedCommands": ["nv-fabricmanager --status", "nv-fabricmanager"],
+        "expectedCommands": ["nv-fabricmanager status", "nv-fabricmanager"],
         "hints": ["nv-fabricmanager reports NVSwitch configuration state.", "All switches should report configured/healthy."],
         "validation": { "type": "command", "command": "nv-fabricmanager", "pattern": "NVSwitch|fabric|status|configured" }
       },
@@ -585,8 +585,8 @@ const scenarios = [
         "type": "command",
         "situation": "Production images come from NGC (NVIDIA GPU Cloud). Confirm the NGC CLI is configured and can see the registry.",
         "task": "List available NGC container images.",
-        "expectedCommands": ["ngc registry image list", "ngc"],
-        "hints": ["The NGC CLI talks to nvcr.io.", "You're confirming auth/connectivity before pulling."],
+        "expectedCommands": ["ngc config set", "ngc registry image list"],
+        "hints": ["Run 'ngc config set' first to configure the API key, then 'ngc registry image list' to verify connectivity.", "The NGC CLI talks to nvcr.io."],
         "validation": { "type": "command", "command": "ngc", "pattern": "registry|image|nvcr|NGC" },
         "quiz": {
           "question": "Why is Enroot preferred over Docker for launching containers on a shared Slurm/HPC login?",
@@ -843,8 +843,8 @@ const scenarios = [
         "type": "command",
         "situation": "Finally, register a health policy so the cluster auto-flags future ECC/thermal/XID regressions.",
         "task": "Set a DCGM health/policy watch.",
-        "expectedCommands": ["dcgmi policy --set 1,1 -e", "dcgmi policy --get"],
-        "hints": ["dcgmi policy registers conditions (ECC, thermal, XID).", "A registered watch turns silent regressions into alerts."],
+        "expectedCommands": ["dcgmi policy --set --condition ecc --action log", "dcgmi policy --get"],
+        "hints": ["dcgmi policy --set requires --condition (ecc, thermal, power, pcie, nvlink, xid) and optionally --action.", "A registered watch turns silent regressions into alerts."],
         "validation": { "type": "command", "command": "dcgmi", "pattern": "policy|ECC|condition|set" }
       },
       {
