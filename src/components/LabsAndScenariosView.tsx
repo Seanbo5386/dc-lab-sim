@@ -184,10 +184,10 @@ export function LabsAndScenariosView({
                               style={{ scrollSnapAlign: "start" }}
                               className={`flex w-64 flex-shrink-0 self-stretch flex-col text-left p-3 rounded-lg bg-gray-900 hover:bg-gray-700 transition-colors group ${done ? "ring-1 ring-nvidia-green" : ""}`}
                             >
-                              <div className="flex items-start gap-2 flex-1">
+                              <span className="flex items-start gap-2 flex-1">
                                 <Crosshair className="w-4 h-4 text-nvidia-green mt-0.5 flex-shrink-0" />
-                                <div className="flex-1 min-w-0 flex flex-col self-stretch">
-                                  <div className="flex items-start gap-1.5">
+                                <span className="flex-1 min-w-0 flex flex-col self-stretch">
+                                  <span className="flex items-start gap-1.5">
                                     <span className="text-sm font-medium text-gray-200 group-hover:text-white line-clamp-2">
                                       {substituteText(scenario.title)}
                                     </span>
@@ -197,13 +197,13 @@ export function LabsAndScenariosView({
                                         className="w-4 h-4 text-nvidia-green flex-shrink-0 mt-0.5"
                                       />
                                     )}
-                                  </div>
+                                  </span>
                                   {scenario.description && (
-                                    <p className="text-xs text-gray-400 mt-1">
+                                    <span className="block text-xs text-gray-400 mt-1">
                                       {substituteText(scenario.description)}
-                                    </p>
+                                    </span>
                                   )}
-                                  <div className="flex items-center gap-2 mt-auto pt-2">
+                                  <span className="flex items-center gap-2 mt-auto pt-2">
                                     <span
                                       {...(domainIndex === 0 &&
                                       scenarioIndex === 0
@@ -217,9 +217,9 @@ export function LabsAndScenariosView({
                                       <Clock className="w-3 h-3" />
                                       {scenario.estimatedTime}m
                                     </span>
-                                  </div>
-                                </div>
-                              </div>
+                                  </span>
+                                </span>
+                              </span>
                             </button>
                             {scenarioIndex < scenarios.length - 1 && (
                               <ChevronRight
