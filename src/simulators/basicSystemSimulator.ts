@@ -871,7 +871,7 @@ ${currentNode} systemd[1]: ${service}.service: Unit not started.`;
         return this.createError("Usage: systemctl disable <service>");
       }
       const symlinkTarget = `/etc/systemd/system/multi-user.target.wants/${service}.service`;
-      return this.createSuccess(`Removed "${symlinkTarget}".`);
+      return this.createSuccess(`Removed ${symlinkTarget}.`);
     }
 
     return this.createError(

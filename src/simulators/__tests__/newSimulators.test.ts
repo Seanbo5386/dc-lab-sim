@@ -271,6 +271,7 @@ describe("BasicSystemSimulator - New Commands", () => {
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain("nvidia-fabricmanager");
       expect(result.output).toMatch(/Removed/);
+      expect(result.output).not.toMatch(/"[^"]+"/); // real systemctl has no quotes
     });
 
     it("should error when enable is called without a service name", () => {
