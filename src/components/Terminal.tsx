@@ -642,6 +642,30 @@ export const Terminal: React.FC<TerminalProps> = ({
     router.register("ofed_info", (cl, ctx) =>
       infinibandSimulator.current.executeOfedInfo(parseCommand(cl), ctx),
     );
+    router.register("ibstatus", (cl, ctx) =>
+      infinibandSimulator.current.executeIbstatus(parseCommand(cl), ctx),
+    );
+    router.register("ibv_devinfo", (cl, ctx) =>
+      infinibandSimulator.current.executeIbvDevinfo(parseCommand(cl), ctx),
+    );
+    router.register("show_gids", (cl, ctx) =>
+      infinibandSimulator.current.executeShowGids(parseCommand(cl), ctx),
+    );
+    router.register("rdma", (cl, ctx) =>
+      infinibandSimulator.current.executeRdma(parseCommand(cl), ctx),
+    );
+    router.register("ib_write_lat", (cl, ctx) =>
+      infinibandSimulator.current.executeIbWriteLat(parseCommand(cl), ctx),
+    );
+    router.register("ib_read_lat", (cl, ctx) =>
+      infinibandSimulator.current.executeIbReadLat(parseCommand(cl), ctx),
+    );
+    router.register("ib_send_bw", (cl, ctx) =>
+      infinibandSimulator.current.executeIbSendBw(parseCommand(cl), ctx),
+    );
+    router.register("ib_send_lat", (cl, ctx) =>
+      infinibandSimulator.current.executeIbSendLat(parseCommand(cl), ctx),
+    );
 
     // Slurm tools
     router.register("sinfo", (cl, ctx) =>
@@ -706,6 +730,7 @@ export const Terminal: React.FC<TerminalProps> = ({
         "uname",
         "hostname",
         "sensors",
+        "nvidia-persistenced",
       ],
       simHandler(basicSystemSimulator.current),
     );
@@ -727,7 +752,22 @@ export const Terminal: React.FC<TerminalProps> = ({
       simHandler(nvidiaBugReportSimulator.current),
     );
     router.registerMany(
-      ["hpl", "nccl-test", "gpu-burn", "all_reduce_perf", "mpirun"],
+      [
+        "hpl",
+        "nccl-test",
+        "gpu-burn",
+        "all_reduce_perf",
+        "mpirun",
+        "nvbandwidth",
+        "p2pBandwidthLatencyTest",
+        "reduce_perf",
+        "broadcast_perf",
+        "all_gather_perf",
+        "reduce_scatter_perf",
+        "sendrecv_perf",
+        "scatter_perf",
+        "gather_perf",
+      ],
       simHandler(benchmarkSimulator.current),
     );
     router.registerMany(
@@ -758,6 +798,11 @@ export const Terminal: React.FC<TerminalProps> = ({
         "nfsstat",
         "ldconfig",
         "taskset",
+        "ethtool",
+        "netstat",
+        "ping",
+        "ss",
+        "traceroute",
       ],
       simHandler(linuxUtilsSimulator.current),
     );

@@ -232,6 +232,8 @@ export class BasicSystemSimulator extends BaseSimulator {
       case "fw-check":
       case "firmware":
         return this.handleFirmwareCheck(parsed, context);
+      case "nvidia-persistenced":
+        return this.handleNvidiaPersistenced(parsed, context);
       default:
         return this.createError(
           `Unknown system command: ${parsed.baseCommand}`,
@@ -803,7 +805,8 @@ ${formatTimestamp(3.789012)} ACPI Warning: SystemIO range conflicts with OpRegio
         return this.createError("Usage: systemctl status <service>");
       }
 
-      const state = scenarioCtx?.getServiceState(currentNode, service) ?? "active";
+      const state =
+        scenarioCtx?.getServiceState(currentNode, service) ?? "active";
 
       if (state === "inactive") {
         const output = `● ${service}.service - ${service}
@@ -2150,5 +2153,33 @@ Options:
     }
 
     return this.createSuccess(output.trimEnd());
+  }
+
+  private handleNvidiaPersistenced(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      const node = this.resolveNode(context);
+      const driverVersion = node?.nvidiaDriverVersion || "535.129.03";
+      return this.createSuccess(`nvidia-persistenced:  ${driverVersion}`);
+    }
+
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      const lines = [
+        "Usage: nvidia-persistenced [options]",
+        "  -V, --version        Print version and exit",
+        "  -v, --verbose        Print verbose messages",
+        "  -u, --user <user>    Run as specified user",
+        "  --persistence-mode   Enable persistence mode on all GPUs",
+        "  --no-persistence-mode  Disable persistence mode",
+      ];
+      return this.createSuccess(lines.join("\n"));
+    }
+
+    return this.createSuccess(
+      "nvidia-persistenced is already running (pid 1234)\n" +
+        "Persistence mode is enabled for all GPUs.",
+    );
   }
 }

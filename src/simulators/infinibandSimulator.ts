@@ -989,4 +989,322 @@ Options:
 
     return this.createSuccess(output);
   }
+
+  executeIbstatus(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    parsed = this.parseWithSchema(parsed.raw);
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.getHelpFromRegistry("ibstatus", parsed) || this.handleHelp();
+    }
+
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("ibstatus 5.9-0");
+    }
+
+    const node = this.getNode(context);
+    if (!node) {
+      return this.createError("Error: Unable to determine current node");
+    }
+
+    if (node.hcas.length === 0) {
+      return this.createError("No InfiniBand HCAs found");
+    }
+
+    const lines: string[] = [];
+    for (const hca of node.hcas) {
+      for (const port of hca.ports) {
+        lines.push(
+          `Infiniband device '${hca.caType}' port ${port.portNumber} status:`,
+        );
+        lines.push(`\tdefault gid:\t ${port.guid}`);
+        lines.push(`\tbase lid:\t ${port.lid}`);
+        lines.push(`\tsm lid:\t\t 1`);
+        lines.push(`\tstate:\t\t 4: ACTIVE`);
+        lines.push(`\tphys state:\t 5: LinkUp`);
+        lines.push(
+          `\trate:\t\t ${port.rate} Gb/sec (4X ${getIBStandardName(port.rate)})`,
+        );
+        lines.push(``);
+      }
+    }
+
+    return this.createSuccess(lines.join("\n").trimEnd());
+  }
+
+  executeIbvDevinfo(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    parsed = this.parseWithSchema(parsed.raw);
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return (
+        this.getHelpFromRegistry("ibv_devinfo", parsed) || this.handleHelp()
+      );
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("No RDMA devices found");
+    }
+
+    if (this.hasAnyFlag(parsed, ["list", "l"])) {
+      const lines: string[] = [];
+      for (const [idx, hca] of node.hcas.entries()) {
+        lines.push(`    ${idx}: ${hca.caType}`);
+      }
+      return this.createSuccess(lines.join("\n"));
+    }
+
+    const lines: string[] = [];
+    for (const [idx, hca] of node.hcas.entries()) {
+      if (idx > 0) lines.push("");
+      const vendorPartId = hca.caType.includes("ConnectX-7") ? "4129" : "4123";
+      lines.push(`hca_id:\t${hca.caType}`);
+      lines.push(`\ttransport:\t\t\tInfiniBand (0)`);
+      lines.push(`\tfw_ver:\t\t\t\t${hca.firmwareVersion}`);
+      lines.push(`\tnode_guid:\t\t\t${hca.ports[0]?.guid}`);
+      lines.push(`\tsys_image_guid:\t\t\t${hca.ports[0]?.guid}`);
+      lines.push(`\tvendor_id:\t\t\t0x02c9`);
+      lines.push(`\tvendor_part_id:\t\t\t${vendorPartId}`);
+      lines.push(`\thw_ver:\t\t\t\t0x0`);
+      lines.push(`\tphys_port_cnt:\t\t\t${hca.ports.length}`);
+
+      for (const port of hca.ports) {
+        lines.push(`\t\tport:\t${port.portNumber}`);
+        lines.push(`\t\t\tstate:\t\t\tPORT_ACTIVE (4)`);
+        lines.push(`\t\t\tmax_mtu:\t\t4096 (5)`);
+        lines.push(`\t\t\tactive_mtu:\t\t4096 (5)`);
+        lines.push(`\t\t\tsm_lid:\t\t\t1`);
+        lines.push(`\t\t\tport_lid:\t\t${port.lid}`);
+        lines.push(`\t\t\tport_lmc:\t\t0x00`);
+        lines.push(`\t\t\tlink_layer:\t\t${port.linkLayer}`);
+      }
+    }
+
+    return this.createSuccess(lines.join("\n"));
+  }
+
+  executeShowGids(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    parsed = this.parseWithSchema(parsed.raw);
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.getHelpFromRegistry("show_gids", parsed) || this.handleHelp();
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("No RDMA devices found");
+    }
+
+    const lines: string[] = [
+      "DEV     PORT  INDEX  GID                                      IPv4            VER   DEV",
+      "---     ----  -----  ---                                      ------------    ---   ---",
+    ];
+
+    for (const hca of node.hcas) {
+      for (const port of hca.ports) {
+        const guidCompact = (port.guid || "").replace(/:/g, "");
+        lines.push(
+          `mlx5_0  ${port.portNumber}     0      fe80:0000:0000:0000:${guidCompact}                 v2    ndev`,
+        );
+        lines.push(
+          `mlx5_0  ${port.portNumber}     1      0000:0000:0000:0000:0000:ffff:c0a8:0${port.portNumber}01  192.168.${port.portNumber}.1   v1    ndev`,
+        );
+      }
+    }
+
+    return this.createSuccess(lines.join("\n"));
+  }
+
+  executeRdma(parsed: ParsedCommand, context: CommandContext): CommandResult {
+    parsed = this.parseWithSchema(parsed.raw);
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.getHelpFromRegistry("rdma", parsed) || this.handleHelp();
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("Error: No RDMA devices found");
+    }
+
+    const subcommand = parsed.positionalArgs[0];
+
+    if (subcommand === "dev" || subcommand === "device") {
+      const lines: string[] = [];
+      for (const [idx, hca] of node.hcas.entries()) {
+        lines.push(
+          `${idx + 1}: ${hca.caType}: node_type ca fw ${hca.firmwareVersion} node_guid ${hca.ports[0]?.guid} sys_image_guid ${hca.ports[0]?.guid}`,
+        );
+      }
+      return this.createSuccess(lines.join("\n"));
+    }
+
+    if (subcommand === "link") {
+      const lines: string[] = [];
+      for (const hca of node.hcas) {
+        for (const port of hca.ports) {
+          lines.push(
+            `link ${hca.caType}/${port.portNumber} state ACTIVE physical_state LINK_UP netdev eth${port.portNumber}`,
+          );
+        }
+      }
+      return this.createSuccess(lines.join("\n"));
+    }
+
+    if (subcommand === "res" || subcommand === "resource") {
+      const lines: string[] = [];
+      for (const hca of node.hcas) {
+        lines.push(`${hca.caType}: qp 4 cq 8 mr 16 pd 4`);
+      }
+      return this.createSuccess(lines.join("\n"));
+    }
+
+    return this.createSuccess(
+      "Usage: rdma [ OPTIONS ] OBJECT { COMMAND | help }\n" +
+        "where  OBJECT := { dev | link | resource | statistic }",
+    );
+  }
+
+  executeIbWriteLat(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    return this.executeLatencyTest(parsed, context, "ib_write_lat", "Write", [
+      { bytes: 2, min: 1.12, max: 5.43, avg: 1.28, median: 1.21 },
+      { bytes: 64, min: 1.15, max: 5.67, avg: 1.31, median: 1.24 },
+      { bytes: 512, min: 1.24, max: 6.12, avg: 1.42, median: 1.33 },
+    ]);
+  }
+
+  executeIbReadLat(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    return this.executeLatencyTest(parsed, context, "ib_read_lat", "Read", [
+      { bytes: 2, min: 1.35, max: 6.21, avg: 1.52, median: 1.42 },
+      { bytes: 64, min: 1.38, max: 6.45, avg: 1.56, median: 1.46 },
+      { bytes: 512, min: 1.48, max: 7.02, avg: 1.68, median: 1.55 },
+    ]);
+  }
+
+  executeIbSendLat(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    return this.executeLatencyTest(parsed, context, "ib_send_lat", "Send", [
+      { bytes: 2, min: 0.95, max: 4.87, avg: 1.08, median: 1.02 },
+      { bytes: 64, min: 0.98, max: 5.12, avg: 1.12, median: 1.05 },
+      { bytes: 512, min: 1.08, max: 5.89, avg: 1.24, median: 1.15 },
+    ]);
+  }
+
+  executeIbSendBw(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    return this.executeBandwidthTest(
+      parsed,
+      context,
+      "ib_send_bw",
+      "Send",
+      0.93,
+    );
+  }
+
+  private executeLatencyTest(
+    parsed: ParsedCommand,
+    context: CommandContext,
+    registryKey: string,
+    testName: string,
+    samples: {
+      bytes: number;
+      min: number;
+      max: number;
+      avg: number;
+      median: number;
+    }[],
+  ): CommandResult {
+    parsed = this.parseWithSchema(parsed.raw);
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.getHelpFromRegistry(registryKey, parsed) || this.handleHelp();
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("Error: No HCA found");
+    }
+
+    const portRate = node.hcas[0].ports[0]?.rate || 400;
+    const lines = [
+      `************************************`,
+      `* InfiniBand ${testName} Latency Test`,
+      `************************************`,
+      ``,
+      ` Dual-port       : OFF`,
+      ` Number of qps   : 1`,
+      ` Connection type  : RC`,
+      ` Link type        : ${getIBStandardName(portRate)}`,
+      ``,
+      ` local address: LID ${node.hcas[0].ports[0].lid}`,
+      ``,
+      ` #bytes  #iterations  t_min[usec]  t_max[usec]  t_avg[usec]  t_median[usec]`,
+    ];
+
+    for (const s of samples) {
+      lines.push(
+        ` ${s.bytes.toString().padEnd(8)} 1000         ${s.min.toFixed(2).padEnd(12)} ${s.max.toFixed(2).padEnd(12)} ${s.avg.toFixed(2).padEnd(12)} ${s.median.toFixed(2)}`,
+      );
+    }
+
+    return this.createSuccess(lines.join("\n"));
+  }
+
+  private executeBandwidthTest(
+    parsed: ParsedCommand,
+    context: CommandContext,
+    registryKey: string,
+    testName: string,
+    efficiencyFactor: number,
+  ): CommandResult {
+    parsed = this.parseWithSchema(parsed.raw);
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.getHelpFromRegistry(registryKey, parsed) || this.handleHelp();
+    }
+
+    const node = this.getNode(context);
+    if (!node || node.hcas.length === 0) {
+      return this.createError("Error: No HCA found");
+    }
+
+    const portRate = node.hcas[0].ports[0]?.rate || 400;
+    const maxBwGbps = portRate * efficiencyFactor;
+    const maxBwMBps = ((maxBwGbps * 1000) / 8).toFixed(2);
+    const avgBwMBps = (parseFloat(maxBwMBps) * 0.96).toFixed(2);
+    const msgRate = (parseFloat(maxBwMBps) / 65.536).toFixed(2);
+
+    const lines = [
+      `************************************`,
+      `* InfiniBand ${testName} BW Test`,
+      `************************************`,
+      ``,
+      ` Dual-port       : OFF`,
+      ` Number of qps   : 1`,
+      ` Connection type  : RC`,
+      ` TX depth         : 128`,
+      ` Link type        : ${getIBStandardName(portRate)}`,
+      ``,
+      ` local address: LID ${node.hcas[0].ports[0].lid}`,
+      ``,
+      ` #bytes  #iterations  BW peak[MB/sec]  BW average[MB/sec]  MsgRate[Mpps]`,
+      ` 65536   1000         ${maxBwMBps}         ${avgBwMBps}            ${msgRate}`,
+      ``,
+      ` ${testName} bandwidth: ${maxBwGbps.toFixed(2)} Gb/s (${portRate} Gb/s ${getIBStandardName(portRate)} link)`,
+    ];
+
+    return this.createSuccess(lines.join("\n"));
+  }
 }
