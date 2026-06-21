@@ -758,6 +758,87 @@ describe("LinuxUtilsSimulator", () => {
   });
 
   // ============================================
+  // New networking commands (PR #77)
+  // ============================================
+  describe("New networking commands (PR #77)", () => {
+    it("ethtool should show interface settings for the given device", () => {
+      const result = simulator.execute(parse("ethtool eth0"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Settings for eth0:");
+      expect(result.output).toContain("Speed: 100000Mb/s");
+      expect(result.output).toContain("Link detected: yes");
+    });
+
+    it("ethtool should default to eth0 when no device is given", () => {
+      const result = simulator.execute(parse("ethtool"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Settings for eth0:");
+    });
+
+    it("netstat -l should list listening sockets", () => {
+      const result = simulator.execute(parse("netstat -l"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("servers and established");
+      expect(result.output).toContain("LISTEN");
+    });
+
+    it("netstat with no flags should show the w/o-servers header", () => {
+      const result = simulator.execute(parse("netstat"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("w/o servers");
+    });
+
+    it("ping should report round-trip stats for a host", () => {
+      const result = simulator.execute(parse("ping 10.0.0.5"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("PING 10.0.0.5");
+      expect(result.output).toContain("packets transmitted");
+    });
+
+    it("ping should error when no host is given", () => {
+      const result = simulator.execute(parse("ping"), context);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("Destination address required");
+    });
+
+    it("ss -l should list listening sockets", () => {
+      const result = simulator.execute(parse("ss -l"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("LISTEN");
+    });
+
+    it("ss -n should show numeric addresses for established sockets", () => {
+      const result = simulator.execute(parse("ss -n"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ESTAB");
+      expect(result.output).toContain("10.0.0.1:22");
+    });
+
+    it("traceroute should print a hop list to the given host", () => {
+      const result = simulator.execute(parse("traceroute 10.0.0.1"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("traceroute to 10.0.0.1");
+      expect(result.output).toContain("gateway");
+    });
+
+    it("traceroute should error when no host is given", () => {
+      const result = simulator.execute(parse("traceroute"), context);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("Usage: traceroute host");
+    });
+  });
+
+  // ============================================
   // Virtual filesystem - log files
   // ============================================
   describe("Virtual filesystem - log files", () => {
