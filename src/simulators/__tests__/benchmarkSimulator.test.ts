@@ -536,4 +536,43 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).toContain("maxBytes 134217728");
     });
   });
+
+  describe("nvbandwidth and p2pBandwidthLatencyTest (PR #77)", () => {
+    it("nvbandwidth should default to device_to_device", () => {
+      const result = simulator.execute(parse("nvbandwidth"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("nvbandwidth Version: 0.4");
+      expect(result.output).toContain("Running device_to_device...");
+      expect(result.output).toContain("Peak bandwidth:");
+    });
+
+    it("nvbandwidth should honor --testcase host_to_device", () => {
+      const result = simulator.execute(
+        parse("nvbandwidth --testcase host_to_device"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Running host_to_device...");
+      expect(result.output).toContain("Host->GPU");
+    });
+
+    it("p2pBandwidthLatencyTest should print a bandwidth and latency matrix", () => {
+      const result = simulator.execute(
+        parse("p2pBandwidthLatencyTest"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain(
+        "P2P (Peer-to-Peer) GPU Bandwidth Latency Test",
+      );
+      expect(result.output).toContain("Device count: 2");
+      expect(result.output).toContain(
+        "Unidirectional P2P=Enabled Bandwidth (GB/s)",
+      );
+      expect(result.output).toContain("P2P=Enabled Latency (us)");
+    });
+  });
 });
