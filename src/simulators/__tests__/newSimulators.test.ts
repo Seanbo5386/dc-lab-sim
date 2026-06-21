@@ -299,6 +299,37 @@ describe("BasicSystemSimulator - New Commands", () => {
       expect(result.output).toMatch(/Created symlink/);
     });
   });
+
+  describe("nvidia-persistenced (PR #77)", () => {
+    it("should report running status by default", () => {
+      const result = simulator.execute(parse("nvidia-persistenced"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("nvidia-persistenced is already running");
+      expect(result.output).toContain("Persistence mode is enabled");
+    });
+
+    it("should report the driver version with -V", () => {
+      const result = simulator.execute(
+        parse("nvidia-persistenced -V"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("nvidia-persistenced:  535.129.03");
+    });
+
+    it("should print usage with --help", () => {
+      const result = simulator.execute(
+        parse("nvidia-persistenced --help"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage: nvidia-persistenced [options]");
+      expect(result.output).toContain("--persistence-mode");
+    });
+  });
 });
 
 describe("MellanoxSimulator - mlxfwmanager", () => {
