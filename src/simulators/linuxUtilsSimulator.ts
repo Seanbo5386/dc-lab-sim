@@ -112,6 +112,16 @@ export class LinuxUtilsSimulator extends BaseSimulator {
         return this.handleLdconfig(parsed, context);
       case "taskset":
         return this.handleTaskset(parsed, context);
+      case "ethtool":
+        return this.handleEthtool(parsed, context);
+      case "netstat":
+        return this.handleNetstat(parsed, context);
+      case "ping":
+        return this.handlePing(parsed, context);
+      case "ss":
+        return this.handleSs(parsed, context);
+      case "traceroute":
+        return this.handleTraceroute(parsed, context);
       default:
         return this.createError(`Unknown command: ${parsed.baseCommand}`);
     }
@@ -1647,5 +1657,134 @@ null         read         write        commit       open
     return this.createError(
       `taskset: missing arguments\nUsage: taskset [options] [mask | cpu-list] [pid | cmd [args...]]`,
     );
+  }
+
+  private handleEthtool(
+    parsed: ParsedCommand,
+    _context: CommandContext,
+  ): CommandResult {
+    const device = parsed.positionalArgs[0] || "eth0";
+
+    const lines = [
+      `Settings for ${device}:`,
+      `\tSupported ports: [ FIBRE ]`,
+      `\tSupported link modes:   100000baseSR4/Full`,
+      `\tSupported pause frame use: Symmetric`,
+      `\tSupports auto-negotiation: No`,
+      `\tSupported FEC modes: Not reported`,
+      `\tAdvertised link modes:  100000baseSR4/Full`,
+      `\tAdvertised pause frame use: Symmetric`,
+      `\tAdvertised auto-negotiation: No`,
+      `\tAdvertised FEC modes: Not reported`,
+      `\tSpeed: 100000Mb/s`,
+      `\tDuplex: Full`,
+      `\tAuto-negotiation: off`,
+      `\tPort: FIBRE`,
+      `\tPHYAD: 0`,
+      `\tTransceiver: internal`,
+      `\tLink detected: yes`,
+    ];
+
+    return this.createSuccess(lines.join("\n"));
+  }
+
+  private handleNetstat(
+    parsed: ParsedCommand,
+    _context: CommandContext,
+  ): CommandResult {
+    const showListening =
+      this.hasAnyFlag(parsed, ["l", "listening"]) ||
+      this.hasAnyFlag(parsed, ["a", "all"]);
+
+    const lines = [
+      `Active Internet connections (${showListening ? "servers and established" : "w/o servers"})`,
+      `Proto Recv-Q Send-Q Local Address           Foreign Address         State`,
+      `tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN`,
+      `tcp        0      0 0.0.0.0:6817            0.0.0.0:*               LISTEN`,
+      `tcp        0      0 0.0.0.0:6818            0.0.0.0:*               LISTEN`,
+      `tcp        0      0 10.0.0.1:22             10.0.0.100:54322        ESTABLISHED`,
+      `tcp        0      0 10.0.0.1:6817           10.0.0.2:48912          ESTABLISHED`,
+      `udp        0      0 0.0.0.0:123             0.0.0.0:*`,
+      `udp        0      0 0.0.0.0:161             0.0.0.0:*`,
+    ];
+
+    return this.createSuccess(lines.join("\n"));
+  }
+
+  private handlePing(
+    parsed: ParsedCommand,
+    _context: CommandContext,
+  ): CommandResult {
+    const host = parsed.positionalArgs[0];
+    if (!host) {
+      return this.createError(
+        "ping: usage error: Destination address required",
+      );
+    }
+
+    const lines = [
+      `PING ${host} (10.0.0.1) 56(84) bytes of data.`,
+      `64 bytes from ${host} (10.0.0.1): icmp_seq=1 ttl=64 time=0.042 ms`,
+      `64 bytes from ${host} (10.0.0.1): icmp_seq=2 ttl=64 time=0.038 ms`,
+      `64 bytes from ${host} (10.0.0.1): icmp_seq=3 ttl=64 time=0.041 ms`,
+      ``,
+      `--- ${host} ping statistics ---`,
+      `3 packets transmitted, 3 received, 0% packet loss, time 2004ms`,
+      `rtt min/avg/max/mdev = 0.038/0.040/0.042/0.002 ms`,
+    ];
+
+    return this.createSuccess(lines.join("\n"));
+  }
+
+  private handleSs(
+    parsed: ParsedCommand,
+    _context: CommandContext,
+  ): CommandResult {
+    const showListening = this.hasAnyFlag(parsed, ["l", "listening"]);
+    const showTcp = this.hasAnyFlag(parsed, ["t", "tcp"]);
+    const showNumeric = this.hasAnyFlag(parsed, ["n", "numeric"]);
+
+    const stateLabel = showListening ? "LISTEN" : "ESTAB";
+    const addrFormat = showNumeric ? "10.0.0.1" : "dgx-00";
+
+    const lines = [
+      `State    Recv-Q  Send-Q  Local Address:Port   Peer Address:Port  Process`,
+    ];
+
+    if (showListening || !showTcp) {
+      lines.push(`LISTEN   0       128     0.0.0.0:22            0.0.0.0:*`);
+      lines.push(`LISTEN   0       128     0.0.0.0:6817          0.0.0.0:*`);
+      lines.push(`LISTEN   0       128     0.0.0.0:6818          0.0.0.0:*`);
+    }
+
+    if (!showListening) {
+      lines.push(
+        `${stateLabel}    0       0       ${addrFormat}:22            10.0.0.100:54322`,
+      );
+      lines.push(
+        `${stateLabel}    0       0       ${addrFormat}:6817          10.0.0.2:48912`,
+      );
+    }
+
+    return this.createSuccess(lines.join("\n"));
+  }
+
+  private handleTraceroute(
+    parsed: ParsedCommand,
+    _context: CommandContext,
+  ): CommandResult {
+    const host = parsed.positionalArgs[0];
+    if (!host) {
+      return this.createError("Usage: traceroute host");
+    }
+
+    const lines = [
+      `traceroute to ${host} (10.0.0.1), 30 hops max, 60 byte packets`,
+      ` 1  gateway (10.0.0.254)  0.312 ms  0.287 ms  0.271 ms`,
+      ` 2  core-sw1 (10.1.0.1)  0.524 ms  0.498 ms  0.483 ms`,
+      ` 3  ${host} (10.0.0.1)  0.689 ms  0.654 ms  0.641 ms`,
+    ];
+
+    return this.createSuccess(lines.join("\n"));
   }
 }
