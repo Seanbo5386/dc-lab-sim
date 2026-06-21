@@ -319,6 +319,16 @@ describe("BasicSystemSimulator - New Commands", () => {
       expect(result.output).toContain("nvidia-persistenced:  535.129.03");
     });
 
+    it("should report the driver version with --version (long form)", () => {
+      const result = simulator.execute(
+        parse("nvidia-persistenced --version"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("nvidia-persistenced:  535.129.03");
+    });
+
     it("should print usage with --help", () => {
       const result = simulator.execute(
         parse("nvidia-persistenced --help"),

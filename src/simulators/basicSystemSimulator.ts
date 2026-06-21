@@ -175,8 +175,14 @@ export class BasicSystemSimulator extends BaseSimulator {
       return this.createSuccess("");
     }
 
+    // Commands that handle their own help and version flags
+    const commandsWithOwnHelp = new Set(["nvidia-persistenced"]);
+
     // Handle --version flag (global)
-    if (this.hasAnyFlag(parsed, ["version", "v"])) {
+    if (
+      this.hasAnyFlag(parsed, ["version", "v"]) &&
+      !commandsWithOwnHelp.has(parsed.baseCommand)
+    ) {
       return this.handleVersion();
     }
 
@@ -185,9 +191,6 @@ export class BasicSystemSimulator extends BaseSimulator {
     // Commands that handle their own help (like nvidia-persistenced) should not be intercepted
     const hasHelpFlag = parsed.flags.has("help");
     const hasShortH = parsed.flags.has("h");
-
-    // Commands that handle their own help flags
-    const commandsWithOwnHelp = new Set(["nvidia-persistenced"]);
 
     // For lscpu, dmidecode, dmesg, systemctl: -h means help
     // For free: -h means human-readable
