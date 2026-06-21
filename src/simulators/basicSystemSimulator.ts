@@ -872,11 +872,8 @@ ${currentNode} systemd[1]: ${service}.service: Unit not started.`;
       if (!service) {
         return this.createError("Usage: systemctl enable <service>");
       }
-      const serviceName = service.endsWith(".service")
-        ? service
-        : `${service}.service`;
-      const unitFile = `/lib/systemd/system/${serviceName}`;
-      const symlinkTarget = `/etc/systemd/system/multi-user.target.wants/${serviceName}`;
+      const unitFile = `/lib/systemd/system/${service}.service`;
+      const symlinkTarget = `/etc/systemd/system/multi-user.target.wants/${service}.service`;
       return this.createSuccess(
         `Created symlink ${symlinkTarget} → ${unitFile}.`,
       );
@@ -886,10 +883,7 @@ ${currentNode} systemd[1]: ${service}.service: Unit not started.`;
       if (!service) {
         return this.createError("Usage: systemctl disable <service>");
       }
-      const serviceName = service.endsWith(".service")
-        ? service
-        : `${service}.service`;
-      const symlinkTarget = `/etc/systemd/system/multi-user.target.wants/${serviceName}`;
+      const symlinkTarget = `/etc/systemd/system/multi-user.target.wants/${service}.service`;
       return this.createSuccess(`Removed ${symlinkTarget}.`);
     }
 
