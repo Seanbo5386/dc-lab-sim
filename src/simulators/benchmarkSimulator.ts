@@ -337,12 +337,13 @@ export class BenchmarkSimulator extends BaseSimulator {
     if (this.hasAnyFlag(parsed, ["version", "v"])) {
       return this.handleVersion();
     }
-    if (this.hasAnyFlag(parsed, ["help", "h"])) {
-      return this.handleHelp();
-    }
 
     const handler = this.getCommand(parsed.baseCommand);
     if (!handler) {
+      // Only show global help if no base command specified
+      if (!parsed.baseCommand && this.hasAnyFlag(parsed, ["help", "h"])) {
+        return this.handleHelp();
+      }
       return this.createError(`Unknown benchmark: ${parsed.baseCommand}`);
     }
 
@@ -1066,9 +1067,22 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     parsed: ParsedCommand,
     context: CommandContext,
   ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.createSuccess(
+        "Usage: nvbandwidth [options]\n" +
+          "Options:\n" +
+          "  -h, --help           Print this help message\n" +
+          "  --testcase <name>    Run specific testcase",
+      );
+    }
+
     const node = this.getNode(context);
     if (!node) {
       return this.createError("No node selected");
+    }
+
+    if (!node.gpus || node.gpus.length === 0) {
+      return this.createError("No GPUs found on this node");
     }
 
     const testcase =
@@ -1077,8 +1091,8 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         : "device_to_device";
 
     const gpuName = node.gpus[0]?.name || "NVIDIA A100-SXM4-80GB";
-    const memTotal = node.gpus[0]?.memoryTotal || 81920;
-    const hbmBwGBs = memTotal > 140000 ? 3350 : 2039;
+    const bwSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
+    const hbmBwGBs = Math.round(bwSpecs.gpu.memoryBandwidthTBs * 1000);
 
     const lines = [
       `nvbandwidth Version: 0.4`,
@@ -1102,12 +1116,24 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
   }
 
   private handleP2pBandwidth(
-    _parsed: ParsedCommand,
+    parsed: ParsedCommand,
     context: CommandContext,
   ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.createSuccess(
+        "Usage: p2pBandwidthLatencyTest [options]\n" +
+          "Options:\n" +
+          "  -h, --help           Print this help message",
+      );
+    }
+
     const node = this.getNode(context);
     if (!node) {
       return this.createError("No node selected");
+    }
+
+    if (!node.gpus || node.gpus.length === 0) {
+      return this.createError("No GPUs found on this node");
     }
 
     const gpuCount = Math.min(node.gpus.length, 8);

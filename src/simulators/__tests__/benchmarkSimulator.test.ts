@@ -558,6 +558,35 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).toContain("Host->GPU");
     });
 
+    it("nvbandwidth --help should print usage and not run a test", () => {
+      const result = simulator.execute(parse("nvbandwidth --help"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage: nvbandwidth");
+      expect(result.output).not.toContain("Running");
+    });
+
+    it("nvbandwidth should report H100's real 3.35 TB/s HBM ceiling, not the A100 value", () => {
+      const result = simulator.execute(parse("nvbandwidth"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("HBM theoretical: 3350 GB/s");
+    });
+
+    it("nvbandwidth should error when the node has no GPUs", () => {
+      vi.mocked(useSimulationStore.getState).mockReturnValueOnce({
+        cluster: {
+          nodes: [{ id: "dgx-00", systemType: "DGX-H100", gpus: [] }],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      const result = simulator.execute(parse("nvbandwidth"), context);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("No GPUs found on this node");
+    });
+
     it("p2pBandwidthLatencyTest should print a bandwidth and latency matrix", () => {
       const result = simulator.execute(
         parse("p2pBandwidthLatencyTest"),
@@ -573,6 +602,34 @@ describe("BenchmarkSimulator", () => {
         "Unidirectional P2P=Enabled Bandwidth (GB/s)",
       );
       expect(result.output).toContain("P2P=Enabled Latency (us)");
+    });
+
+    it("p2pBandwidthLatencyTest --help should print usage and not run a test", () => {
+      const result = simulator.execute(
+        parse("p2pBandwidthLatencyTest --help"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage: p2pBandwidthLatencyTest");
+      expect(result.output).not.toContain("Device count");
+    });
+
+    it("p2pBandwidthLatencyTest should error when the node has no GPUs", () => {
+      vi.mocked(useSimulationStore.getState).mockReturnValueOnce({
+        cluster: {
+          nodes: [{ id: "dgx-00", systemType: "DGX-H100", gpus: [] }],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      const result = simulator.execute(
+        parse("p2pBandwidthLatencyTest"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("No GPUs found on this node");
     });
   });
 });
