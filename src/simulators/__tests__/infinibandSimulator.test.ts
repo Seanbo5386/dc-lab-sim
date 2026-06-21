@@ -994,5 +994,106 @@ describe("InfiniBandSimulator", () => {
       expect(result.output).toContain("InfiniBand Send BW Test");
       expect(result.output).toContain("Send bandwidth:");
     });
+
+    describe("dynamic state resolution (review fixes)", () => {
+      beforeEach(() => {
+        vi.mocked(useSimulationStore.getState).mockReturnValue({
+          cluster: {
+            nodes: [
+              {
+                id: "dgx-00",
+                hostname: "dgx-node01",
+                systemType: "H100",
+                healthStatus: "Degraded",
+                nvidiaDriverVersion: "535.129.03",
+                cudaVersion: "12.2",
+                gpus: [],
+                hcas: [
+                  {
+                    caType: "mlx5_1",
+                    firmwareVersion: "20.35.1012",
+                    ports: [
+                      {
+                        portNumber: 1,
+                        state: "Down",
+                        physicalState: "LinkDown",
+                        rate: 400,
+                        lid: 123,
+                        guid: "0x506b4b0300ab1234",
+                        linkLayer: "InfiniBand",
+                        errors: {
+                          symbolErrors: 0,
+                          linkDowned: 1,
+                          portRcvErrors: 0,
+                          portXmitDiscards: 0,
+                          portXmitWait: 0,
+                        },
+                      },
+                    ],
+                  },
+                ],
+                bmc: {
+                  sensors: [],
+                  systemPower: "on",
+                  chassisStatus: {
+                    powerOn: true,
+                    powerFault: false,
+                    interlock: false,
+                    overload: false,
+                    cooling: "ok",
+                  },
+                  sel: [],
+                  fru: {
+                    chassisType: "Rack Mount Chassis",
+                    chassisSerial: "DGX-001",
+                    boardMfg: "NVIDIA",
+                    boardProduct: "DGX H100",
+                    boardSerial: "PGX001234",
+                    productMfg: "NVIDIA",
+                    productName: "DGX H100",
+                    productSerial: "DGX-H100-001",
+                  },
+                },
+              },
+            ],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
+        });
+      });
+
+      it("ibstatus should report DOWN/Disabled for a non-active port", () => {
+        const result = simulator.executeIbstatus(parse("ibstatus"), context);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("state:\t\t 1: DOWN");
+        expect(result.output).toContain("phys state:\t 3: Disabled");
+      });
+
+      it("ibv_devinfo should report PORT_DOWN for a non-active port", () => {
+        const result = simulator.executeIbvDevinfo(
+          parse("ibv_devinfo"),
+          context,
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("state:\t\t\tPORT_DOWN (1)");
+      });
+
+      it("rdma link should report DOWN/LINK_DOWN for a non-active port", () => {
+        const result = simulator.executeRdma(parse("rdma link"), context);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("state DOWN");
+        expect(result.output).toContain("physical_state LINK_DOWN");
+      });
+
+      it("show_gids should use the HCA's actual device name, not a hardcoded one", () => {
+        const result = simulator.executeShowGids(parse("show_gids"), context);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("mlx5_1");
+        expect(result.output).not.toContain("mlx5_0");
+      });
+    });
   });
 });

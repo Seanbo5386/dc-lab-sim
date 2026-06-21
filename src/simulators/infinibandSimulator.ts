@@ -1021,8 +1021,11 @@ Options:
         lines.push(`\tdefault gid:\t ${port.guid}`);
         lines.push(`\tbase lid:\t ${port.lid}`);
         lines.push(`\tsm lid:\t\t 1`);
-        lines.push(`\tstate:\t\t 4: ACTIVE`);
-        lines.push(`\tphys state:\t 5: LinkUp`);
+        const stateLabel = port.state === "Active" ? "4: ACTIVE" : "1: DOWN";
+        const physStateLabel =
+          port.physicalState === "LinkUp" ? "5: LinkUp" : "3: Disabled";
+        lines.push(`\tstate:\t\t ${stateLabel}`);
+        lines.push(`\tphys state:\t ${physStateLabel}`);
         lines.push(
           `\trate:\t\t ${port.rate} Gb/sec (4X ${getIBStandardName(port.rate)})`,
         );
@@ -1073,7 +1076,9 @@ Options:
 
       for (const port of hca.ports) {
         lines.push(`\t\tport:\t${port.portNumber}`);
-        lines.push(`\t\t\tstate:\t\t\tPORT_ACTIVE (4)`);
+        const portStateLabel =
+          port.state === "Active" ? "PORT_ACTIVE (4)" : "PORT_DOWN (1)";
+        lines.push(`\t\t\tstate:\t\t\t${portStateLabel}`);
         lines.push(`\t\t\tmax_mtu:\t\t4096 (5)`);
         lines.push(`\t\t\tactive_mtu:\t\t4096 (5)`);
         lines.push(`\t\t\tsm_lid:\t\t\t1`);
@@ -1109,10 +1114,10 @@ Options:
       for (const port of hca.ports) {
         const guidCompact = (port.guid || "").replace(/:/g, "");
         lines.push(
-          `mlx5_0  ${port.portNumber}     0      fe80:0000:0000:0000:${guidCompact}                 v2    ndev`,
+          `${hca.caType}  ${port.portNumber}     0      fe80:0000:0000:0000:${guidCompact}                 v2    ndev`,
         );
         lines.push(
-          `mlx5_0  ${port.portNumber}     1      0000:0000:0000:0000:0000:ffff:c0a8:0${port.portNumber}01  192.168.${port.portNumber}.1   v1    ndev`,
+          `${hca.caType}  ${port.portNumber}     1      0000:0000:0000:0000:0000:ffff:c0a8:0${port.portNumber}01  192.168.${port.portNumber}.1   v1    ndev`,
         );
       }
     }
@@ -1147,8 +1152,11 @@ Options:
       const lines: string[] = [];
       for (const hca of node.hcas) {
         for (const port of hca.ports) {
+          const stateLabel = port.state === "Active" ? "ACTIVE" : "DOWN";
+          const physStateLabel =
+            port.physicalState === "LinkUp" ? "LINK_UP" : "LINK_DOWN";
           lines.push(
-            `link ${hca.caType}/${port.portNumber} state ACTIVE physical_state LINK_UP netdev eth${port.portNumber}`,
+            `link ${hca.caType}/${port.portNumber} state ${stateLabel} physical_state ${physStateLabel} netdev eth${port.portNumber}`,
           );
         }
       }
