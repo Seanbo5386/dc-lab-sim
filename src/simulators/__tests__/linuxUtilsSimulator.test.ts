@@ -808,6 +808,14 @@ describe("LinuxUtilsSimulator", () => {
       expect(result.output).toContain("packets transmitted");
     });
 
+    it("ping should echo the actual target host as the resolved address", () => {
+      const result = simulator.execute(parse("ping 10.0.0.5"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("PING 10.0.0.5 (10.0.0.5)");
+      expect(result.output).not.toContain("(10.0.0.1)");
+    });
+
     it("ping should error when no host is given", () => {
       const result = simulator.execute(parse("ping"), context);
 
@@ -836,6 +844,14 @@ describe("LinuxUtilsSimulator", () => {
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain("traceroute to 10.0.0.1");
       expect(result.output).toContain("gateway");
+    });
+
+    it("traceroute should echo the actual target host as the resolved address", () => {
+      const result = simulator.execute(parse("traceroute 10.0.0.9"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("traceroute to 10.0.0.9 (10.0.0.9)");
+      expect(result.output).not.toContain("(10.0.0.1)");
     });
 
     it("traceroute should error when no host is given", () => {

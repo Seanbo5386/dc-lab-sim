@@ -1723,10 +1723,10 @@ null         read         write        commit       open
     }
 
     const lines = [
-      `PING ${host} (10.0.0.1) 56(84) bytes of data.`,
-      `64 bytes from ${host} (10.0.0.1): icmp_seq=1 ttl=64 time=0.042 ms`,
-      `64 bytes from ${host} (10.0.0.1): icmp_seq=2 ttl=64 time=0.038 ms`,
-      `64 bytes from ${host} (10.0.0.1): icmp_seq=3 ttl=64 time=0.041 ms`,
+      `PING ${host} (${host}) 56(84) bytes of data.`,
+      `64 bytes from ${host} (${host}): icmp_seq=1 ttl=64 time=0.042 ms`,
+      `64 bytes from ${host} (${host}): icmp_seq=2 ttl=64 time=0.038 ms`,
+      `64 bytes from ${host} (${host}): icmp_seq=3 ttl=64 time=0.041 ms`,
       ``,
       `--- ${host} ping statistics ---`,
       `3 packets transmitted, 3 received, 0% packet loss, time 2004ms`,
@@ -1779,10 +1779,10 @@ null         read         write        commit       open
     }
 
     const lines = [
-      `traceroute to ${host} (10.0.0.1), 30 hops max, 60 byte packets`,
+      `traceroute to ${host} (${host}), 30 hops max, 60 byte packets`,
       ` 1  gateway (10.0.0.254)  0.312 ms  0.287 ms  0.271 ms`,
       ` 2  core-sw1 (10.1.0.1)  0.524 ms  0.498 ms  0.483 ms`,
-      ` 3  ${host} (10.0.0.1)  0.689 ms  0.654 ms  0.641 ms`,
+      ` 3  ${host} (${host})  0.689 ms  0.654 ms  0.641 ms`,
     ];
 
     return this.createSuccess(lines.join("\n"));
