@@ -5028,7 +5028,7 @@
           "id": "step-7",
           "situation": "MST shows two ConnectX-7 HCA devices. Need to verify firmware configuration.",
           "task": "Query the HCA firmware configuration using mlxconfig.",
-          "expectedCommands": ["mlxconfig -d /dev/mst/mt41692_pciconf0 q"],
+          "expectedCommands": ["mlxconfig -d /dev/mst/mt4129_pciconf0 q"],
           "hints": [
             "mlxconfig -d <device> q queries config",
             "Check link type settings",
@@ -7353,7 +7353,7 @@
           "type": "command",
           "situation": "Cross-check the driver/CUDA pairing and per-GPU detail from the GPU's own perspective.",
           "task": "Use nvidia-smi -q to inspect driver, CUDA, and VBIOS per GPU.",
-          "expectedCommands": ["nvidia-smi -q", "nvidia-smi -q -d ECC"],
+          "expectedCommands": ["nvidia-smi -q"],
           "hints": [
             "'nvidia-smi -q' dumps verbose per-GPU detail.",
             "Confirm VBIOS and product name are consistent across all 8 GPUs."
@@ -7450,7 +7450,7 @@
           "situation": "Confirm the adapter firmware and key configuration (link type set to InfiniBand, not Ethernet) before bringing links up.",
           "task": "Query a Mellanox adapter's configuration.",
           "expectedCommands": [
-            "mlxconfig -d /dev/mst/mt41692_pciconf0 q",
+            "mlxconfig -d /dev/mst/mt4129_pciconf0 q",
             "mlxconfig"
           ],
           "hints": [

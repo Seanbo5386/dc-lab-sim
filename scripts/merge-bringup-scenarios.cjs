@@ -274,7 +274,7 @@ const scenarios = [
         "type": "command",
         "situation": "Confirm the adapter firmware and key configuration (link type set to InfiniBand, not Ethernet) before bringing links up.",
         "task": "Query a Mellanox adapter's configuration.",
-        "expectedCommands": ["mlxconfig -d /dev/mst/mt41692_pciconf0 q", "mlxconfig"],
+        "expectedCommands": ["mlxconfig -d /dev/mst/mt4129_pciconf0 q", "mlxconfig"],
         "hints": ["'mlxconfig -d <device> q' queries current config.", "LINK_TYPE_P1 should be IB for an InfiniBand fabric."],
         "validation": { "type": "command", "command": "mlxconfig", "pattern": "LINK_TYPE|config|Device" }
       },
