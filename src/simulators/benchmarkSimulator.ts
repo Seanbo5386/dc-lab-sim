@@ -574,6 +574,9 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       "broadcast",
       "reduce",
       "alltoall",
+      "sendrecv",
+      "scatter",
+      "gather",
     ];
     if (operationStr !== undefined) {
       const opValue =
@@ -619,6 +622,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     let output = `# nccl-tests: ${operation}\n`;
     output += `#\n`;
     output += `# nNodes ${numNodes} nGpus ${ngpus} totalGpus ${totalGPUs}\n`;
+    output += `# minBytes ${minBytes} maxBytes ${maxBytes}\n`;
     output += `#\n`;
 
     if (isMultiNode) {

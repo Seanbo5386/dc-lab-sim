@@ -508,4 +508,32 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).toMatch(/HPL|Gflops/);
     });
   });
+
+  describe("NCCL collective commands (PR #77)", () => {
+    it.each([
+      ["reduce_perf", "reduce"],
+      ["broadcast_perf", "broadcast"],
+      ["all_gather_perf", "all_gather"],
+      ["reduce_scatter_perf", "reduce_scatter"],
+      ["sendrecv_perf", "sendrecv"],
+      ["scatter_perf", "scatter"],
+      ["gather_perf", "gather"],
+    ])("%s should run successfully with the default operation", (command) => {
+      const result = simulator.execute(parse(command), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("nccl-tests");
+    });
+
+    it("scatter_perf should respect an explicit -b/-e size range", () => {
+      const result = simulator.execute(
+        parse("scatter_perf -b 8 -e 128M"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("minBytes 8");
+      expect(result.output).toContain("maxBytes 134217728");
+    });
+  });
 });
