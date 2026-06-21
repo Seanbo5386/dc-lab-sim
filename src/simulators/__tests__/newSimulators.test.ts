@@ -298,6 +298,24 @@ describe("BasicSystemSimulator - New Commands", () => {
       expect(result.output).toContain("nvsm-core");
       expect(result.output).toMatch(/Created symlink/);
     });
+
+    it("should not duplicate the .service suffix when it is already present", () => {
+      const parsed = parse("systemctl enable nvsm-core.service");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("nvsm-core.service");
+      expect(result.output).not.toContain("nvsm-core.service.service");
+    });
+
+    it("should not duplicate the .service suffix when disabling", () => {
+      const parsed = parse("systemctl disable nvsm-core.service");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("nvsm-core.service");
+      expect(result.output).not.toContain("nvsm-core.service.service");
+    });
   });
 
   describe("nvidia-persistenced (PR #77)", () => {
