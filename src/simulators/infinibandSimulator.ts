@@ -1131,7 +1131,7 @@ Options:
       return this.createError("Error: No RDMA devices found");
     }
 
-    const subcommand = parsed.positionalArgs[0];
+    const subcommand = parsed.subcommands[0] || parsed.positionalArgs[0];
 
     if (subcommand === "dev" || subcommand === "device") {
       const lines: string[] = [];
