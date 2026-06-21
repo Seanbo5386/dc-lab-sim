@@ -337,13 +337,15 @@ export class BenchmarkSimulator extends BaseSimulator {
     if (this.hasAnyFlag(parsed, ["version", "v"])) {
       return this.handleVersion();
     }
+    if (
+      this.hasAnyFlag(parsed, ["help", "h"]) &&
+      !["nvbandwidth", "p2pBandwidthLatencyTest"].includes(parsed.baseCommand)
+    ) {
+      return this.handleHelp();
+    }
 
     const handler = this.getCommand(parsed.baseCommand);
     if (!handler) {
-      // Only show global help if no base command specified
-      if (!parsed.baseCommand && this.hasAnyFlag(parsed, ["help", "h"])) {
-        return this.handleHelp();
-      }
       return this.createError(`Unknown benchmark: ${parsed.baseCommand}`);
     }
 

@@ -238,6 +238,17 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).toContain("RESULTS");
     });
 
+    it("hpl --help should print global usage and not run a benchmark", () => {
+      const result = simulator.execute(parse("hpl --help"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage: benchmark-tools");
+      expect(result.output).not.toContain(
+        "HPL - High-Performance Linpack Benchmark",
+      );
+      expect(result.output).not.toContain("RESULTS");
+    });
+
     it("should run burn-in test with --burn-in flag", () => {
       const parsed = parse("hpl --burn-in");
       const result = simulator.execute(parsed, context);
