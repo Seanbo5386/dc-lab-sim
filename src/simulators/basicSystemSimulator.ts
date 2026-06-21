@@ -182,17 +182,25 @@ export class BasicSystemSimulator extends BaseSimulator {
 
     // Handle --help flag (only long form is global, -h may have command-specific meaning)
     // Commands like 'free' use -h for human-readable, so only intercept --help for those
+    // Commands that handle their own help (like nvidia-persistenced) should not be intercepted
     const hasHelpFlag = parsed.flags.has("help");
     const hasShortH = parsed.flags.has("h");
 
+    // Commands that handle their own help flags
+    const commandsWithOwnHelp = new Set(["nvidia-persistenced"]);
+
     // For lscpu, dmidecode, dmesg, systemctl: -h means help
     // For free: -h means human-readable
-    if (hasHelpFlag) {
+    if (hasHelpFlag && !commandsWithOwnHelp.has(parsed.baseCommand)) {
       return this.handleHelp();
     }
 
     // Route -h to help ONLY for commands where -h doesn't have another meaning
-    if (hasShortH && parsed.baseCommand !== "free") {
+    if (
+      hasShortH &&
+      parsed.baseCommand !== "free" &&
+      !commandsWithOwnHelp.has(parsed.baseCommand)
+    ) {
       return this.handleHelp();
     }
 
