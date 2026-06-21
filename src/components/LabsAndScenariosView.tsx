@@ -178,10 +178,10 @@ export function LabsAndScenariosView({
                           <div
                             key={scenario.id}
                             className="flex items-center gap-3 flex-shrink-0"
+                            style={{ scrollSnapAlign: "start" }}
                           >
                             <button
                               onClick={() => onStartScenario(scenario.id)}
-                              style={{ scrollSnapAlign: "start" }}
                               className={`flex w-64 flex-shrink-0 self-stretch flex-col text-left p-3 rounded-lg bg-gray-900 hover:bg-gray-700 transition-colors group ${done ? "ring-1 ring-nvidia-green" : ""}`}
                             >
                               <span className="flex items-start gap-2 flex-1">

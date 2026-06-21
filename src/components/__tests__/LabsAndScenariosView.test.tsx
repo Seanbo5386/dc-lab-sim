@@ -451,4 +451,23 @@ describe("LabsAndScenariosView", () => {
     // The raw token must NOT leak through
     expect(screen.queryByText(/\{\{GPU_MODEL\}\}/)).not.toBeInTheDocument();
   });
+
+  // --------------------------------------------------------------------------
+  // 29. scrollSnapAlign applies to scenario wrapper, not button
+  // --------------------------------------------------------------------------
+
+  it("applies scrollSnapAlign to the scenario wrapper, not the button", async () => {
+    const props = defaultProps();
+    render(<LabsAndScenariosView {...props} />);
+    await waitFor(() => {
+      expect(screen.getByText("The Midnight Deployment")).toBeInTheDocument();
+    });
+
+    const title = screen.getByText("The Midnight Deployment");
+    const button = title.closest("button");
+    const wrapper = button?.parentElement;
+
+    expect(wrapper).toHaveStyle({ scrollSnapAlign: "start" });
+    expect(button).not.toHaveStyle({ scrollSnapAlign: "start" });
+  });
 });
