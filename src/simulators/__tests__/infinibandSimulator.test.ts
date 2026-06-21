@@ -778,4 +778,322 @@ describe("InfiniBandSimulator", () => {
       expect(result.output).toBe("MLNX_OFED_LINUX");
     });
   });
+
+  describe("IB/RDMA commands (PR #77)", () => {
+    beforeEach(() => {
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "H100",
+              healthStatus: "OK",
+              nvidiaDriverVersion: "535.129.03",
+              cudaVersion: "12.2",
+              gpus: [],
+              hcas: [
+                {
+                  caType: "mlx5_0",
+                  firmwareVersion: "20.35.1012",
+                  ports: [
+                    {
+                      portNumber: 1,
+                      state: "Active",
+                      physicalState: "LinkUp",
+                      rate: 400,
+                      lid: 123,
+                      guid: "0x506b4b0300ab1234",
+                      linkLayer: "InfiniBand",
+                      errors: {
+                        symbolErrors: 0,
+                        linkDowned: 0,
+                        portRcvErrors: 0,
+                        portXmitDiscards: 0,
+                        portXmitWait: 0,
+                      },
+                    },
+                  ],
+                },
+              ],
+              bmc: {
+                sensors: [],
+                systemPower: "on",
+                chassisStatus: {
+                  powerOn: true,
+                  powerFault: false,
+                  interlock: false,
+                  overload: false,
+                  cooling: "ok",
+                },
+                sel: [],
+                fru: {
+                  chassisType: "Rack Mount Chassis",
+                  chassisSerial: "DGX-001",
+                  boardMfg: "NVIDIA",
+                  boardProduct: "DGX H100",
+                  boardSerial: "PGX001234",
+                  productMfg: "NVIDIA",
+                  productName: "DGX H100",
+                  productSerial: "DGX-H100-001",
+                },
+              },
+            },
+          ],
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+      });
+    });
+
+    it("ibstatus should report active port status", () => {
+      const result = simulator.executeIbstatus(parse("ibstatus"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain(
+        "Infiniband device 'mlx5_0' port 1 status:",
+      );
+      expect(result.output).toContain("state:\t\t 4: ACTIVE");
+      expect(result.output).toContain("rate:\t\t 400 Gb/sec (4X NDR)");
+    });
+
+    it("ibstatus --version should report the tool version", () => {
+      const result = simulator.executeIbstatus(
+        parse("ibstatus --version"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toBe("ibstatus 5.9-0");
+    });
+
+    it("ibstatus should error when no HCAs are present", () => {
+      vi.mocked(useSimulationStore.getState).mockReturnValueOnce({
+        cluster: { nodes: [{ id: "dgx-00", hcas: [] }] },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      const result = simulator.executeIbstatus(parse("ibstatus"), context);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("No InfiniBand HCAs found");
+    });
+
+    it("ibv_devinfo should report HCA details by default", () => {
+      const result = simulator.executeIbvDevinfo(parse("ibv_devinfo"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("hca_id:\tmlx5_0");
+      expect(result.output).toContain("fw_ver:\t\t\t\t20.35.1012");
+      expect(result.output).toContain("vendor_part_id:\t\t\t4123");
+    });
+
+    it("ibv_devinfo -l should list device names only", () => {
+      const result = simulator.executeIbvDevinfo(
+        parse("ibv_devinfo -l"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("0: mlx5_0");
+    });
+
+    it("ibv_devinfo should error when no RDMA devices are present", () => {
+      vi.mocked(useSimulationStore.getState).mockReturnValueOnce({
+        cluster: { nodes: [{ id: "dgx-00", hcas: [] }] },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      const result = simulator.executeIbvDevinfo(parse("ibv_devinfo"), context);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("No RDMA devices found");
+    });
+
+    it("show_gids should list GIDs for each HCA port", () => {
+      const result = simulator.executeShowGids(parse("show_gids"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("DEV     PORT  INDEX  GID");
+      expect(result.output).toContain("mlx5_0");
+      expect(result.output).toContain("192.168.1.1");
+    });
+
+    it("rdma dev should list RDMA devices", () => {
+      const result = simulator.executeRdma(parse("rdma dev"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_0");
+      expect(result.output).toContain("fw 20.35.1012");
+    });
+
+    it("rdma link should list link state", () => {
+      const result = simulator.executeRdma(parse("rdma link"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("state ACTIVE");
+      expect(result.output).toContain("netdev eth1");
+    });
+
+    it("rdma resource should list per-HCA resource counts", () => {
+      const result = simulator.executeRdma(parse("rdma resource"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_0: qp 4 cq 8 mr 16 pd 4");
+    });
+
+    it("rdma with no object should print usage", () => {
+      const result = simulator.executeRdma(parse("rdma"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain(
+        "Usage: rdma [ OPTIONS ] OBJECT { COMMAND | help }",
+      );
+    });
+
+    it("rdma should error when no RDMA devices are present", () => {
+      vi.mocked(useSimulationStore.getState).mockReturnValueOnce({
+        cluster: { nodes: [{ id: "dgx-00", hcas: [] }] },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      const result = simulator.executeRdma(parse("rdma dev"), context);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("No RDMA devices found");
+    });
+
+    it("ib_write_lat should print a write latency report", () => {
+      const result = simulator.executeIbWriteLat(
+        parse("ib_write_lat"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("InfiniBand Write Latency Test");
+      expect(result.output).toContain("local address: LID 123");
+    });
+
+    it("ib_read_lat should print a read latency report", () => {
+      const result = simulator.executeIbReadLat(parse("ib_read_lat"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("InfiniBand Read Latency Test");
+    });
+
+    it("ib_send_lat should print a send latency report", () => {
+      const result = simulator.executeIbSendLat(parse("ib_send_lat"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("InfiniBand Send Latency Test");
+    });
+
+    it("ib_send_bw should print a send bandwidth report", () => {
+      const result = simulator.executeIbSendBw(parse("ib_send_bw"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("InfiniBand Send BW Test");
+      expect(result.output).toContain("Send bandwidth:");
+    });
+
+    describe("dynamic state resolution (review fixes)", () => {
+      beforeEach(() => {
+        vi.mocked(useSimulationStore.getState).mockReturnValue({
+          cluster: {
+            nodes: [
+              {
+                id: "dgx-00",
+                hostname: "dgx-node01",
+                systemType: "H100",
+                healthStatus: "Degraded",
+                nvidiaDriverVersion: "535.129.03",
+                cudaVersion: "12.2",
+                gpus: [],
+                hcas: [
+                  {
+                    caType: "mlx5_1",
+                    firmwareVersion: "20.35.1012",
+                    ports: [
+                      {
+                        portNumber: 1,
+                        state: "Down",
+                        physicalState: "LinkDown",
+                        rate: 400,
+                        lid: 123,
+                        guid: "0x506b4b0300ab1234",
+                        linkLayer: "InfiniBand",
+                        errors: {
+                          symbolErrors: 0,
+                          linkDowned: 1,
+                          portRcvErrors: 0,
+                          portXmitDiscards: 0,
+                          portXmitWait: 0,
+                        },
+                      },
+                    ],
+                  },
+                ],
+                bmc: {
+                  sensors: [],
+                  systemPower: "on",
+                  chassisStatus: {
+                    powerOn: true,
+                    powerFault: false,
+                    interlock: false,
+                    overload: false,
+                    cooling: "ok",
+                  },
+                  sel: [],
+                  fru: {
+                    chassisType: "Rack Mount Chassis",
+                    chassisSerial: "DGX-001",
+                    boardMfg: "NVIDIA",
+                    boardProduct: "DGX H100",
+                    boardSerial: "PGX001234",
+                    productMfg: "NVIDIA",
+                    productName: "DGX H100",
+                    productSerial: "DGX-H100-001",
+                  },
+                },
+              },
+            ],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any,
+        });
+      });
+
+      it("ibstatus should report DOWN/Disabled for a non-active port", () => {
+        const result = simulator.executeIbstatus(parse("ibstatus"), context);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("state:\t\t 1: DOWN");
+        expect(result.output).toContain("phys state:\t 3: Disabled");
+      });
+
+      it("ibv_devinfo should report PORT_DOWN for a non-active port", () => {
+        const result = simulator.executeIbvDevinfo(
+          parse("ibv_devinfo"),
+          context,
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("state:\t\t\tPORT_DOWN (1)");
+      });
+
+      it("rdma link should report DOWN/LINK_DOWN for a non-active port", () => {
+        const result = simulator.executeRdma(parse("rdma link"), context);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("state DOWN");
+        expect(result.output).toContain("physical_state LINK_DOWN");
+      });
+
+      it("show_gids should use the HCA's actual device name, not a hardcoded one", () => {
+        const result = simulator.executeShowGids(parse("show_gids"), context);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("mlx5_1");
+        expect(result.output).not.toContain("mlx5_0");
+      });
+    });
+  });
 });

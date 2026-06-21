@@ -81,6 +81,8 @@ export class BasicSystemSimulator extends BaseSimulator {
             "systemctl status nvsm-core",
             "systemctl start nvsm-core",
             "systemctl restart nvsm-core",
+            "systemctl enable nvidia-fabricmanager",
+            "systemctl disable nvidia-fabricmanager",
           ],
         },
         {
@@ -173,24 +175,35 @@ export class BasicSystemSimulator extends BaseSimulator {
       return this.createSuccess("");
     }
 
+    // Commands that handle their own help and version flags
+    const commandsWithOwnHelp = new Set(["nvidia-persistenced"]);
+
     // Handle --version flag (global)
-    if (this.hasAnyFlag(parsed, ["version", "v"])) {
+    if (
+      this.hasAnyFlag(parsed, ["version", "v"]) &&
+      !commandsWithOwnHelp.has(parsed.baseCommand)
+    ) {
       return this.handleVersion();
     }
 
     // Handle --help flag (only long form is global, -h may have command-specific meaning)
     // Commands like 'free' use -h for human-readable, so only intercept --help for those
+    // Commands that handle their own help (like nvidia-persistenced) should not be intercepted
     const hasHelpFlag = parsed.flags.has("help");
     const hasShortH = parsed.flags.has("h");
 
     // For lscpu, dmidecode, dmesg, systemctl: -h means help
     // For free: -h means human-readable
-    if (hasHelpFlag) {
+    if (hasHelpFlag && !commandsWithOwnHelp.has(parsed.baseCommand)) {
       return this.handleHelp();
     }
 
     // Route -h to help ONLY for commands where -h doesn't have another meaning
-    if (hasShortH && parsed.baseCommand !== "free") {
+    if (
+      hasShortH &&
+      parsed.baseCommand !== "free" &&
+      !commandsWithOwnHelp.has(parsed.baseCommand)
+    ) {
       return this.handleHelp();
     }
 
@@ -232,6 +245,8 @@ export class BasicSystemSimulator extends BaseSimulator {
       case "fw-check":
       case "firmware":
         return this.handleFirmwareCheck(parsed, context);
+      case "nvidia-persistenced":
+        return this.handleNvidiaPersistenced(parsed, context);
       default:
         return this.createError(
           `Unknown system command: ${parsed.baseCommand}`,
@@ -784,7 +799,7 @@ ${formatTimestamp(3.789012)} ACPI Warning: SystemIO range conflicts with OpRegio
 
   /**
    * Handle systemctl command
-   * Service management: status, start, stop, restart
+   * Service management: status, start, stop, restart, enable, disable
    * Special handling for nvsm-core service per spec Section 2.1
    */
   private handleSystemctl(
@@ -803,7 +818,8 @@ ${formatTimestamp(3.789012)} ACPI Warning: SystemIO range conflicts with OpRegio
         return this.createError("Usage: systemctl status <service>");
       }
 
-      const state = scenarioCtx?.getServiceState(currentNode, service) ?? "active";
+      const state =
+        scenarioCtx?.getServiceState(currentNode, service) ?? "active";
 
       if (state === "inactive") {
         const output = `● ${service}.service - ${service}
@@ -852,8 +868,27 @@ ${currentNode} systemd[1]: ${service}.service: Unit not started.`;
       return this.createSuccess("");
     }
 
+    if (action === "enable") {
+      if (!service) {
+        return this.createError("Usage: systemctl enable <service>");
+      }
+      const unitFile = `/lib/systemd/system/${service}.service`;
+      const symlinkTarget = `/etc/systemd/system/multi-user.target.wants/${service}.service`;
+      return this.createSuccess(
+        `Created symlink ${symlinkTarget} → ${unitFile}.`,
+      );
+    }
+
+    if (action === "disable") {
+      if (!service) {
+        return this.createError("Usage: systemctl disable <service>");
+      }
+      const symlinkTarget = `/etc/systemd/system/multi-user.target.wants/${service}.service`;
+      return this.createSuccess(`Removed ${symlinkTarget}.`);
+    }
+
     return this.createError(
-      "Usage: systemctl [status|start|stop|restart] <service>",
+      "Usage: systemctl [status|start|stop|restart|enable|disable] <service>",
     );
   }
 
@@ -2150,5 +2185,33 @@ Options:
     }
 
     return this.createSuccess(output.trimEnd());
+  }
+
+  private handleNvidiaPersistenced(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      const node = this.resolveNode(context);
+      const driverVersion = node?.nvidiaDriverVersion || "535.129.03";
+      return this.createSuccess(`nvidia-persistenced:  ${driverVersion}`);
+    }
+
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      const lines = [
+        "Usage: nvidia-persistenced [options]",
+        "  -V, --version        Print version and exit",
+        "  -v, --verbose        Print verbose messages",
+        "  -u, --user <user>    Run as specified user",
+        "  --persistence-mode   Enable persistence mode on all GPUs",
+        "  --no-persistence-mode  Disable persistence mode",
+      ];
+      return this.createSuccess(lines.join("\n"));
+    }
+
+    return this.createSuccess(
+      "nvidia-persistenced is already running (pid 1234)\n" +
+        "Persistence mode is enabled for all GPUs.",
+    );
   }
 }

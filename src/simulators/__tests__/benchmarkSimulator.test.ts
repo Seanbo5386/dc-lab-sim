@@ -238,6 +238,17 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).toContain("RESULTS");
     });
 
+    it("hpl --help should print global usage and not run a benchmark", () => {
+      const result = simulator.execute(parse("hpl --help"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage: benchmark-tools");
+      expect(result.output).not.toContain(
+        "HPL - High-Performance Linpack Benchmark",
+      );
+      expect(result.output).not.toContain("RESULTS");
+    });
+
     it("should run burn-in test with --burn-in flag", () => {
       const parsed = parse("hpl --burn-in");
       const result = simulator.execute(parsed, context);
@@ -506,6 +517,130 @@ describe("BenchmarkSimulator", () => {
       expect(result.exitCode).toBe(0);
       // Validation pattern: "HPL|Gflops"
       expect(result.output).toMatch(/HPL|Gflops/);
+    });
+  });
+
+  describe("NCCL collective commands (PR #77)", () => {
+    it.each([
+      ["reduce_perf", "reduce"],
+      ["broadcast_perf", "broadcast"],
+      ["all_gather_perf", "all_gather"],
+      ["reduce_scatter_perf", "reduce_scatter"],
+      ["sendrecv_perf", "sendrecv"],
+      ["scatter_perf", "scatter"],
+      ["gather_perf", "gather"],
+    ])("%s should run successfully with the default operation", (command) => {
+      const result = simulator.execute(parse(command), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("nccl-tests");
+    });
+
+    it("scatter_perf should respect an explicit -b/-e size range", () => {
+      const result = simulator.execute(
+        parse("scatter_perf -b 8 -e 128M"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("minBytes 8");
+      expect(result.output).toContain("maxBytes 134217728");
+    });
+  });
+
+  describe("nvbandwidth and p2pBandwidthLatencyTest (PR #77)", () => {
+    it("nvbandwidth should default to device_to_device", () => {
+      const result = simulator.execute(parse("nvbandwidth"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("nvbandwidth Version: 0.4");
+      expect(result.output).toContain("Running device_to_device...");
+      expect(result.output).toContain("Peak bandwidth:");
+    });
+
+    it("nvbandwidth should honor --testcase host_to_device", () => {
+      const result = simulator.execute(
+        parse("nvbandwidth --testcase host_to_device"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Running host_to_device...");
+      expect(result.output).toContain("Host->GPU");
+    });
+
+    it("nvbandwidth --help should print usage and not run a test", () => {
+      const result = simulator.execute(parse("nvbandwidth --help"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage: nvbandwidth");
+      expect(result.output).not.toContain("Running");
+    });
+
+    it("nvbandwidth should report H100's real 3.35 TB/s HBM ceiling, not the A100 value", () => {
+      const result = simulator.execute(parse("nvbandwidth"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("HBM theoretical: 3350 GB/s");
+    });
+
+    it("nvbandwidth should error when the node has no GPUs", () => {
+      vi.mocked(useSimulationStore.getState).mockReturnValueOnce({
+        cluster: {
+          nodes: [{ id: "dgx-00", systemType: "DGX-H100", gpus: [] }],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      const result = simulator.execute(parse("nvbandwidth"), context);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("No GPUs found on this node");
+    });
+
+    it("p2pBandwidthLatencyTest should print a bandwidth and latency matrix", () => {
+      const result = simulator.execute(
+        parse("p2pBandwidthLatencyTest"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain(
+        "P2P (Peer-to-Peer) GPU Bandwidth Latency Test",
+      );
+      expect(result.output).toContain("Device count: 2");
+      expect(result.output).toContain(
+        "Unidirectional P2P=Enabled Bandwidth (GB/s)",
+      );
+      expect(result.output).toContain("P2P=Enabled Latency (us)");
+    });
+
+    it("p2pBandwidthLatencyTest --help should print usage and not run a test", () => {
+      const result = simulator.execute(
+        parse("p2pBandwidthLatencyTest --help"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage: p2pBandwidthLatencyTest");
+      expect(result.output).not.toContain("Device count");
+    });
+
+    it("p2pBandwidthLatencyTest should error when the node has no GPUs", () => {
+      vi.mocked(useSimulationStore.getState).mockReturnValueOnce({
+        cluster: {
+          nodes: [{ id: "dgx-00", systemType: "DGX-H100", gpus: [] }],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      const result = simulator.execute(
+        parse("p2pBandwidthLatencyTest"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("No GPUs found on this node");
     });
   });
 });

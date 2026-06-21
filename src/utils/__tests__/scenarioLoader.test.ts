@@ -237,6 +237,9 @@ describe("scenarioLoader", () => {
       expect(meta!.title).toBe("The Midnight Deployment");
       expect(meta!.difficulty).toBe("intermediate");
       expect(meta!.estimatedTime).toBe(25);
+      // description is sourced from the scenario's narrative hook
+      expect(typeof meta!.description).toBe("string");
+      expect(meta!.description.length).toBeGreaterThan(0);
     });
 
     it("returns null for an invalid ID", async () => {

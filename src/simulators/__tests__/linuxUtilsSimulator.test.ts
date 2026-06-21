@@ -758,6 +758,157 @@ describe("LinuxUtilsSimulator", () => {
   });
 
   // ============================================
+  // New networking commands (PR #77)
+  // ============================================
+  describe("New networking commands (PR #77)", () => {
+    it("ethtool should show interface settings for the given device", () => {
+      const result = simulator.execute(parse("ethtool eth0"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Settings for eth0:");
+      expect(result.output).toContain("Speed: 100000Mb/s");
+      expect(result.output).toContain("Link detected: yes");
+    });
+
+    it("ethtool should default to eth0 when no device is given", () => {
+      const result = simulator.execute(parse("ethtool"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Settings for eth0:");
+    });
+
+    it("ethtool should respect the device argument instead of always defaulting to eth0", () => {
+      const result = simulator.execute(parse("ethtool eth1"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Settings for eth1:");
+      expect(result.output).not.toContain("Settings for eth0:");
+    });
+
+    it("ethtool --help should print usage and not interface settings", () => {
+      const result = simulator.execute(parse("ethtool --help"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage:");
+      expect(result.output).toContain("ethtool DEVNAME");
+      expect(result.output).not.toContain("Settings for");
+    });
+
+    it("ethtool --version should print the tool version", () => {
+      const result = simulator.execute(parse("ethtool --version"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ethtool version");
+    });
+
+    it("netstat -l should list listening sockets", () => {
+      const result = simulator.execute(parse("netstat -l"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("servers and established");
+      expect(result.output).toContain("LISTEN");
+    });
+
+    it("netstat with no flags should show the w/o-servers header", () => {
+      const result = simulator.execute(parse("netstat"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("w/o servers");
+    });
+
+    it("ping should report round-trip stats for a host", () => {
+      const result = simulator.execute(parse("ping 10.0.0.5"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("PING 10.0.0.5");
+      expect(result.output).toContain("packets transmitted");
+    });
+
+    it("ping should echo the actual target host as the resolved address", () => {
+      const result = simulator.execute(parse("ping 10.0.0.5"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("PING 10.0.0.5 (10.0.0.5)");
+      expect(result.output).not.toContain("(10.0.0.1)");
+    });
+
+    it("ping should error when no host is given", () => {
+      const result = simulator.execute(parse("ping"), context);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("Destination address required");
+    });
+
+    it("ping --help should print usage and not attempt to ping", () => {
+      const result = simulator.execute(parse("ping --help"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage:");
+      expect(result.output).not.toContain("Destination address required");
+    });
+
+    it("ping --version should print the tool version", () => {
+      const result = simulator.execute(parse("ping --version"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ping from iputils");
+    });
+
+    it("ss -l should list listening sockets", () => {
+      const result = simulator.execute(parse("ss -l"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("LISTEN");
+    });
+
+    it("ss -n should show numeric addresses for established sockets", () => {
+      const result = simulator.execute(parse("ss -n"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ESTAB");
+      expect(result.output).toContain("10.0.0.1:22");
+    });
+
+    it("traceroute should print a hop list to the given host", () => {
+      const result = simulator.execute(parse("traceroute 10.0.0.1"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("traceroute to 10.0.0.1");
+      expect(result.output).toContain("gateway");
+    });
+
+    it("traceroute should echo the actual target host as the resolved address", () => {
+      const result = simulator.execute(parse("traceroute 10.0.0.9"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("traceroute to 10.0.0.9 (10.0.0.9)");
+      expect(result.output).not.toContain("(10.0.0.1)");
+    });
+
+    it("traceroute should error when no host is given", () => {
+      const result = simulator.execute(parse("traceroute"), context);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.output).toContain("Usage: traceroute host");
+    });
+
+    it("traceroute --help should print usage and not attempt a trace", () => {
+      const result = simulator.execute(parse("traceroute --help"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage:");
+      expect(result.output).not.toContain("hops max");
+    });
+
+    it("traceroute --version should print the tool version", () => {
+      const result = simulator.execute(parse("traceroute --version"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("traceroute for Linux, version");
+    });
+  });
+
+  // ============================================
   // Virtual filesystem - log files
   // ============================================
   describe("Virtual filesystem - log files", () => {

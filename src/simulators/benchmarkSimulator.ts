@@ -245,6 +245,82 @@ export class BenchmarkSimulator extends BaseSimulator {
       ],
       examples: ["gpu-burn 300", "gpu-burn -d 60 -g 0"],
     });
+
+    this.registerCommand("nvbandwidth", this.handleNvbandwidth.bind(this), {
+      name: "nvbandwidth",
+      description: "NVIDIA GPU memory bandwidth measurement tool",
+      usage: "nvbandwidth [--testcase <name>]",
+      flags: [
+        {
+          long: "testcase",
+          description:
+            "Test case (host_to_device, device_to_host, device_to_device)",
+          takesValue: true,
+        },
+      ],
+      examples: ["nvbandwidth", "nvbandwidth --testcase device_to_device"],
+    });
+
+    this.registerCommand(
+      "p2pBandwidthLatencyTest",
+      this.handleP2pBandwidth.bind(this),
+      {
+        name: "p2pBandwidthLatencyTest",
+        description: "CUDA P2P bandwidth and latency test between GPU pairs",
+        usage: "p2pBandwidthLatencyTest",
+        flags: [],
+        examples: ["p2pBandwidthLatencyTest"],
+      },
+    );
+
+    const ncclCollectives = [
+      "reduce_perf",
+      "broadcast_perf",
+      "all_gather_perf",
+      "reduce_scatter_perf",
+      "sendrecv_perf",
+      "scatter_perf",
+      "gather_perf",
+    ] as const;
+
+    for (const name of ncclCollectives) {
+      const operation = name.replace("_perf", "");
+      this.registerCommand(
+        name,
+        (p: ParsedCommand, c: CommandContext) => {
+          if (!p.flags.has("t") && !p.flags.has("operation")) {
+            p.flags.set("t", operation);
+          }
+          return this.handleRegularTest(p, c);
+        },
+        {
+          name,
+          description: `NCCL ${operation} performance benchmark`,
+          usage: `${name} [-b minbytes] [-e maxbytes] [-g ngpus]`,
+          flags: [
+            {
+              short: "b",
+              long: "minbytes",
+              description: "Minimum message size",
+              takesValue: true,
+            },
+            {
+              short: "e",
+              long: "maxbytes",
+              description: "Maximum message size",
+              takesValue: true,
+            },
+            {
+              short: "g",
+              long: "ngpus",
+              description: "Number of GPUs per node",
+              takesValue: true,
+            },
+          ],
+          examples: [`${name} -b 8 -e 128M -g 8`],
+        },
+      );
+    }
   }
 
   getMetadata() {
@@ -261,7 +337,10 @@ export class BenchmarkSimulator extends BaseSimulator {
     if (this.hasAnyFlag(parsed, ["version", "v"])) {
       return this.handleVersion();
     }
-    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+    if (
+      this.hasAnyFlag(parsed, ["help", "h"]) &&
+      !["nvbandwidth", "p2pBandwidthLatencyTest"].includes(parsed.baseCommand)
+    ) {
       return this.handleHelp();
     }
 
@@ -498,6 +577,9 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       "broadcast",
       "reduce",
       "alltoall",
+      "sendrecv",
+      "scatter",
+      "gather",
     ];
     if (operationStr !== undefined) {
       const opValue =
@@ -543,6 +625,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     let output = `# nccl-tests: ${operation}\n`;
     output += `#\n`;
     output += `# nNodes ${numNodes} nGpus ${ngpus} totalGpus ${totalGPUs}\n`;
+    output += `# minBytes ${minBytes} maxBytes ${maxBytes}\n`;
     output += `#\n`;
 
     if (isMultiNode) {
@@ -980,6 +1063,130 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     output += `--------------------------------------------------------------------------\n`;
 
     return this.createSuccess(output);
+  }
+
+  private handleNvbandwidth(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.createSuccess(
+        "Usage: nvbandwidth [options]\n" +
+          "Options:\n" +
+          "  -h, --help           Print this help message\n" +
+          "  --testcase <name>    Run specific testcase",
+      );
+    }
+
+    const node = this.getNode(context);
+    if (!node) {
+      return this.createError("No node selected");
+    }
+
+    if (!node.gpus || node.gpus.length === 0) {
+      return this.createError("No GPUs found on this node");
+    }
+
+    const testcase =
+      typeof parsed.flags.get("testcase") === "string"
+        ? parsed.flags.get("testcase")
+        : "device_to_device";
+
+    const gpuName = node.gpus[0]?.name || "NVIDIA A100-SXM4-80GB";
+    const bwSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
+    const hbmBwGBs = Math.round(bwSpecs.gpu.memoryBandwidthTBs * 1000);
+
+    const lines = [
+      `nvbandwidth Version: 0.4`,
+      `Built from revision: v0.4`,
+      ``,
+      `NOTE: This tool reports PEAK bandwidth, not sustained.`,
+      ``,
+      `Running ${testcase}...`,
+      ``,
+      `Device ${gpuName}:`,
+      `  memcpy CE GPU${testcase === "device_to_host" ? "->Host" : testcase === "host_to_device" ? "Host->GPU" : "->GPU"}:`,
+      `    Bandwidth (GB/s): ${(hbmBwGBs * 0.92).toFixed(2)}`,
+      ``,
+      `Summary:`,
+      `  Peak bandwidth: ${(hbmBwGBs * 0.92).toFixed(2)} GB/s`,
+      `  HBM theoretical: ${hbmBwGBs} GB/s`,
+      `  Efficiency: ${(0.92 * 100).toFixed(1)}%`,
+    ];
+
+    return this.createSuccess(lines.join("\n"));
+  }
+
+  private handleP2pBandwidth(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.createSuccess(
+        "Usage: p2pBandwidthLatencyTest [options]\n" +
+          "Options:\n" +
+          "  -h, --help           Print this help message",
+      );
+    }
+
+    const node = this.getNode(context);
+    if (!node) {
+      return this.createError("No node selected");
+    }
+
+    if (!node.gpus || node.gpus.length === 0) {
+      return this.createError("No GPUs found on this node");
+    }
+
+    const gpuCount = Math.min(node.gpus.length, 8);
+    const gpuName = node.gpus[0]?.name || "NVIDIA A100-SXM4-80GB";
+
+    const lines = [
+      `[P2P (Peer-to-Peer) GPU Bandwidth Latency Test]`,
+      ``,
+      `Device count: ${gpuCount}`,
+      ``,
+    ];
+
+    for (let i = 0; i < gpuCount; i++) {
+      lines.push(`Device ${i}: ${gpuName}`);
+    }
+
+    lines.push(``);
+    lines.push(`Unidirectional P2P=Enabled Bandwidth (GB/s)`);
+
+    const header =
+      `   D\\D` +
+      Array.from({ length: gpuCount }, (_, i) => `     ${i}`).join("");
+    lines.push(header);
+
+    for (let i = 0; i < gpuCount; i++) {
+      let row = `     ${i}`;
+      for (let j = 0; j < gpuCount; j++) {
+        const bw = i === j ? 1555.2 : 252.3 + (i + j) * 0.5;
+        row += `  ${bw.toFixed(1).padStart(5)}`;
+      }
+      lines.push(row);
+    }
+
+    lines.push(``);
+    lines.push(`P2P=Enabled Latency (us)`);
+
+    const latHeader =
+      `   D\\D` +
+      Array.from({ length: gpuCount }, (_, i) => `     ${i}`).join("");
+    lines.push(latHeader);
+
+    for (let i = 0; i < gpuCount; i++) {
+      let row = `     ${i}`;
+      for (let j = 0; j < gpuCount; j++) {
+        const lat = i === j ? 1.02 : 2.15 + (Math.abs(i - j) - 1) * 0.1;
+        row += `  ${lat.toFixed(2).padStart(5)}`;
+      }
+      lines.push(row);
+    }
+
+    return this.createSuccess(lines.join("\n"));
   }
 
   private getNode(context: CommandContext): DGXNode | undefined {
