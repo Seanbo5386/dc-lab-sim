@@ -33,6 +33,14 @@ export const TERMINAL_COMMANDS = new Set<string>([
   "sminfo",
   "smpquery",
   "ofed_info",
+  "ibstatus",
+  "ibv_devinfo",
+  "show_gids",
+  "rdma",
+  "ib_write_lat",
+  "ib_read_lat",
+  "ib_send_bw",
+  "ib_send_lat",
 
   // Slurm cluster tools
   "sinfo",
@@ -80,6 +88,7 @@ export const TERMINAL_COMMANDS = new Set<string>([
   "uname",
   "hostname",
   "sensors",
+  "nvidia-persistenced",
 
   // PCI tools
   "lspci",
@@ -94,6 +103,15 @@ export const TERMINAL_COMMANDS = new Set<string>([
   "gpu-burn",
   "all_reduce_perf",
   "mpirun",
+  "nvbandwidth",
+  "p2pBandwidthLatencyTest",
+  "reduce_perf",
+  "broadcast_perf",
+  "all_gather_perf",
+  "reduce_scatter_perf",
+  "sendrecv_perf",
+  "scatter_perf",
+  "gather_perf",
 
   // Storage
   "df",
@@ -127,6 +145,11 @@ export const TERMINAL_COMMANDS = new Set<string>([
   "nfsstat",
   "ldconfig",
   "taskset",
+  "ethtool",
+  "netstat",
+  "ping",
+  "ss",
+  "traceroute",
 
   // Shell built-ins (router.register() in Terminal.tsx)
   "unset", // ~895
