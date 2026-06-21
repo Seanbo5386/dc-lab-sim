@@ -18,15 +18,6 @@ const commandNames = Object.keys(defs)
 // decision that the command is docs-only (has a JSON definition file but no
 // router.register() handler in src/components/Terminal.tsx).
 const ALLOWLIST_DOCS_ONLY = new Set<string>([
-  // ── NCCL collective tests (only all_reduce_perf is registered) ──────────
-  "all_gather_perf",
-  "broadcast_perf",
-  "gather_perf",
-  "reduce_perf",
-  "reduce_scatter_perf",
-  "scatter_perf",
-  "sendrecv_perf",
-
   // ── CUDA tools & samples ────────────────────────────────────────────────
   "bandwidthTest",
   "compute-sanitizer",
@@ -43,20 +34,9 @@ const ALLOWLIST_DOCS_ONLY = new Set<string>([
   // ── GPU fabric / bandwidth ───────────────────────────────────────────────
   "gdrcopy_copybw",
   "gdrcopy_copylat",
-  "nvbandwidth",
-  "p2pBandwidthLatencyTest",
-
-  // ── RDMA perf (lat variants; bw variants are registered) ────────────────
-  "ib_read_lat",
-  "ib_send_bw",
-  "ib_send_lat",
-  "ib_write_lat",
 
   // ── InfiniBand extras ────────────────────────────────────────────────────
-  "ibstatus",
-  "ibv_devinfo",
   "saquery",
-  "show_gids",
 
   // ── Mellanox / firmware extras ───────────────────────────────────────────
   "flint",
@@ -69,7 +49,6 @@ const ALLOWLIST_DOCS_ONLY = new Set<string>([
   "gpustat",
   "nvidia-bug-report", // registered as nvidia-bug-report.sh; this name is unregistered
   "nvidia-cuda-mps-control",
-  "nvidia-persistenced",
   "nvitop",
   "nvme",
   "nvtop",
@@ -106,12 +85,6 @@ const ALLOWLIST_DOCS_ONLY = new Set<string>([
   "ompi_info",
 
   // ── Networking extras ────────────────────────────────────────────────────
-  "ethtool",
-  "netstat",
-  "ping",
-  "rdma",
-  "ss",
-  "traceroute",
   "ucx_info",
 
   // ── Monitoring tools ────────────────────────────────────────────────────
