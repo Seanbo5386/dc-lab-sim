@@ -225,23 +225,16 @@ export class MellanoxSimulator extends BaseSimulator {
       return this.createMissingArgumentError("mlxconfig", "-d <device>"); // Exit 1
     }
 
-    // Check if device exists in node (check DPUs first as they are the main target for mlxconfig)
+    // Resolve by exact device path. DPU and HCA paths use distinct mst device
+    // ID prefixes (mt41692/mt41686 vs mt4123/mt4129/...), so an exact match
+    // never collides between the two -- every real invocation passes a full
+    // /dev/mst/... path, never a bare numeric id.
     let device: BlueFieldDPU | HCA | undefined = node.dpus.find(
       (d) => d.devicePath === deviceName,
     );
 
     if (!device) {
-      // Search by ID or other identifiers if full path not given
-      device = node.dpus.find((d) => deviceName.includes(String(d.id)));
-    }
-
-    if (!device) {
-      // Also check standard HCAs just in case, though mlxconfig mainly targets configurable devices
-      device = node.hcas.find(
-        (h) =>
-          deviceName.includes(String(h.id)) ||
-          (h.pciAddress && deviceName.includes(h.pciAddress)),
-      );
+      device = node.hcas.find((h) => h.devicePath === deviceName);
     }
 
     if (!device) {
