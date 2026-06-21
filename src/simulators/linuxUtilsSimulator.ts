@@ -1663,7 +1663,7 @@ null         read         write        commit       open
     parsed: ParsedCommand,
     _context: CommandContext,
   ): CommandResult {
-    const device = parsed.positionalArgs[0] || "eth0";
+    const device = parsed.subcommands[0] || parsed.positionalArgs[0] || "eth0";
 
     const lines = [
       `Settings for ${device}:`,

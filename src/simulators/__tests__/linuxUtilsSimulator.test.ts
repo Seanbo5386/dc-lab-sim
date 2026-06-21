@@ -777,6 +777,14 @@ describe("LinuxUtilsSimulator", () => {
       expect(result.output).toContain("Settings for eth0:");
     });
 
+    it("ethtool should respect the device argument instead of always defaulting to eth0", () => {
+      const result = simulator.execute(parse("ethtool eth1"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Settings for eth1:");
+      expect(result.output).not.toContain("Settings for eth0:");
+    });
+
     it("netstat -l should list listening sockets", () => {
       const result = simulator.execute(parse("netstat -l"), context);
 
