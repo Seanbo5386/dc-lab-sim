@@ -1715,7 +1715,7 @@ null         read         write        commit       open
     parsed: ParsedCommand,
     _context: CommandContext,
   ): CommandResult {
-    const host = parsed.positionalArgs[0];
+    const host = parsed.subcommands[0] || parsed.positionalArgs[0];
     if (!host) {
       return this.createError(
         "ping: usage error: Destination address required",
@@ -1773,7 +1773,7 @@ null         read         write        commit       open
     parsed: ParsedCommand,
     _context: CommandContext,
   ): CommandResult {
-    const host = parsed.positionalArgs[0];
+    const host = parsed.subcommands[0] || parsed.positionalArgs[0];
     if (!host) {
       return this.createError("Usage: traceroute host");
     }
