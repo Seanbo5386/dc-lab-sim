@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.3.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.5.0-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Tests](https://img.shields.io/badge/tests-3631_unit_|_307_E2E-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-3751_unit_|_453_E2E-brightgreen?style=for-the-badge)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
 ![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
@@ -27,7 +27,7 @@ The NCP-AII certification exam tests hands-on datacenter skills — but most peo
 
 **What makes it different:**
 
-- **It feels real** — `nvidia-smi`, `ipmitool`, `dcgmi`, `ibstat`, and 60+ other commands produce output modeled after actual DGX hardware
+- **It feels real** — `nvidia-smi`, `ipmitool`, `dcgmi`, `ibstat`, and 140+ other commands produce output modeled after actual DGX hardware
 - **Scenarios tell a story** — You're not just running commands; you're responding to a 2AM GPU failure or debugging NCCL performance before a deadline
 - **Faults inject automatically** — When a scenario says "GPU 3 has an XID 48 error," the simulated cluster actually shows it in every tool
 - **Six DGX architectures** — Switch between A100, H100, H200, B200, GB200, and Vera Rubin VR200 and watch every metric, topology, and output adapt
@@ -38,13 +38,13 @@ The NCP-AII certification exam tests hands-on datacenter skills — but most peo
 
 |                   |                                                                              |
 | ----------------- | ---------------------------------------------------------------------------- |
-| **Commands**      | 20 simulators, 229 CLI definitions across 18 categories                      |
-| **Scenarios**     | 32 story-driven labs across all 5 exam domains                               |
-| **Exam Prep**     | 199 practice questions + 60 tool selection + 150 deep mastery quizzes        |
+| **Commands**      | 20 simulators, 229 CLI definitions across 17 categories                      |
+| **Scenarios**     | 40 story-driven labs across all 5 exam domains                               |
+| **Exam Prep**     | 199 practice questions + 65 tool selection + 175 deep mastery quizzes        |
 | **Architectures** | DGX A100, H100, H200, B200, GB200, VR200 (switchable from dashboard)         |
 | **Learning**      | 3-tier progression (Guided > Choice > Realistic) with SM-2 spaced repetition |
 | **Cloud Sync**    | Optional sign-in to save progress across devices (AWS Cognito)               |
-| **Tests**         | 3,510 unit + 307 E2E tests, 0 TypeScript errors, 0 lint warnings             |
+| **Tests**         | 3,751 unit + 453 E2E tests, 0 TypeScript errors, 0 lint warnings             |
 
 ---
 
@@ -69,7 +69,7 @@ $ nvidia-smi
 
 ### Narrative Scenarios
 
-32 scenarios put you in the role of a datacenter engineer. Each one has a story hook, automatic fault injection, inline quizzes, and a debrief:
+40 scenarios put you in the role of a datacenter engineer. Each one has a story hook, automatic fault injection, inline quizzes, and a debrief:
 
 > **The Midnight Deployment** — It's 2AM and the training job crashed. Nodes are reporting XID errors, NCCL allreduce is hanging, and the team lead wants answers by morning. You have ibstat, dcgmi, and nvidia-smi. Go.
 
@@ -96,8 +96,8 @@ Switch architectures from the dashboard dropdown. Everything adapts — GPU spec
 
 - **199 questions** weighted by the NCP-AII blueprint across all 5 domains
 - **5 exam modes**: Full Practice (90 min), Quick Quiz, Gauntlet, Weak Area Focus, Review Mistakes
-- **Tool Selection Quizzes**: 60 "which tool do you use?" questions (10 per session)
-- **Deep Mastery Quizzes**: 150 questions on flags, output interpretation, and edge cases (25 per session)
+- **Tool Selection Quizzes**: 65 "which tool do you use?" questions (10 per session)
+- **Deep Mastery Quizzes**: 175 questions on flags, output interpretation, and edge cases (25 per session)
 - Readiness score, domain performance heatmap, and full exam history
 
 ### Learning System
@@ -233,7 +233,7 @@ npm run preview   # Preview locally
 </details>
 
 <details>
-<summary><strong>Additional Tools</strong> — 50+ more commands</summary>
+<summary><strong>Additional Tools</strong> — 100+ more commands</summary>
 
 | Command                      | Description                     |
 | ---------------------------- | ------------------------------- |
@@ -255,7 +255,7 @@ npm run preview   # Preview locally
 
 ## Narrative Scenarios
 
-32 scenarios across all 5 NCP-AII domains, weighted to match the exam blueprint:
+40 scenarios across all 5 NCP-AII domains, weighted to match the exam blueprint:
 
 ### Domain 1: Systems and Server Bring-Up (31%)
 
@@ -351,10 +351,10 @@ aws dynamodb scan --table-name Feedback-<your-stack-id> --region us-east-1
 
 ```bash
 npm run test           # Watch mode
-npm run test:run       # Single run (3,510 unit tests)
+npm run test:run       # Single run (3,751 unit tests)
 npm run test:coverage  # With coverage report
 npm run lint           # ESLint (0 errors, 0 warnings)
-npx playwright test    # 307 E2E tests (commands, scenarios, visual regression)
+npx playwright test    # 453 E2E tests (commands, scenarios, visual regression)
 ```
 
 CI/CD via GitHub Actions runs lint, tests, and production build on every push.
@@ -380,12 +380,12 @@ CI/CD via GitHub Actions runs lint, tests, and production build on every push.
 
 ```
 src/
-├── components/       # 116 React components
+├── components/       # 80 React components
 ├── simulators/       # 20 command simulators + BaseSimulator
 ├── cli/              # Data-driven CLI framework (229 JSON definitions)
 ├── data/             # Scenarios, exam questions, hardware specs
 ├── store/            # Zustand stores + sandbox context
-├── utils/            # 67 utility modules
+├── utils/            # 39 utility modules
 ├── types/            # TypeScript definitions
 └── App.tsx           # 5-tab layout (Simulator, Labs, Exams, Docs, About)
 ```
@@ -393,6 +393,14 @@ src/
 ---
 
 ## Roadmap
+
+### Completed (v1.5.0)
+
+- [x] Horizontal mission track layout for browsing scenarios by domain
+- [x] 8 new narrative scenarios (32 → 40 total)
+- [x] 23 new terminal commands: IB/RDMA diagnostics, NCCL collective benchmarks, nvidia-persistenced, and networking tools
+- [x] Fixed argument-parsing and help/version bugs in newly wired commands
+- [x] Regression test coverage for all 23 new commands
 
 ### Completed (v1.2.2)
 

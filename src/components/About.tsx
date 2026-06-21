@@ -15,9 +15,20 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v1.5.0",
+    title: "Mission Tracks & Networking Commands",
+    current: true,
+    highlights: [
+      "Horizontal mission track layout for browsing scenarios by domain",
+      "8 new narrative scenarios (32 → 40 total)",
+      "23 new terminal commands: IB/RDMA diagnostics (ibstatus, ibv_devinfo, show_gids, rdma, ib_write_lat, ib_read_lat, ib_send_bw, ib_send_lat), NCCL collective benchmarks (nvbandwidth, p2pBandwidthLatencyTest, and 7 more *_perf tests), nvidia-persistenced, and networking tools (ethtool, netstat, ping, ss, traceroute)",
+      "Fixed argument-parsing and help/version bugs surfaced while wiring up the new commands (rdma, ping, traceroute, ethtool, nvidia-persistenced)",
+      "Regression test coverage added for all 23 new commands",
+    ],
+  },
+  {
     version: "v1.4.0",
     title: "Realism Audit",
-    current: true,
     highlights: [
       "GPU UUID v4 format compliant with RFC 4122",
       "Per-model thermal thresholds (A100: 92/89/85°C, H100+: 95/90/83°C)",
@@ -280,7 +291,7 @@ export function About() {
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
               {[
-                { label: "Scenarios", value: "32" },
+                { label: "Scenarios", value: "40" },
                 { label: "Domains", value: "5" },
                 { label: "Exam Questions", value: "199" },
                 { label: "Command Families", value: "7" },
@@ -537,7 +548,7 @@ export function About() {
               },
               {
                 q: "What commands does the simulator cover?",
-                a: "229 commands across 7 families: GPU monitoring (nvidia-smi, dcgmi, nvsm), InfiniBand tools (ibstat, iblinkinfo, perfquery), BMC/hardware (ipmitool, sensors, dmidecode), cluster tools (sinfo, squeue, scontrol), containers (docker, enroot, pyxis), diagnostics (dcgmi diag, gpu-burn), and XID diagnostics.",
+                a: "145 live terminal commands across 7 families: GPU monitoring (nvidia-smi, dcgmi, nvsm), InfiniBand tools (ibstat, iblinkinfo, perfquery), BMC/hardware (ipmitool, sensors, dmidecode), cluster tools (sinfo, squeue, scontrol), containers (docker, enroot, nvidia-container-cli), diagnostics (dcgmi diag, gpu-burn), and XID diagnostics. Reference docs cover 229 commands total, including additional ones you can look up but can't yet run interactively.",
               },
             ].map(({ q, a }) => (
               <details key={q} className="group">

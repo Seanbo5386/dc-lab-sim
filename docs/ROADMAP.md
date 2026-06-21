@@ -1,6 +1,6 @@
 # Data Center Lab Simulator — Roadmap
 
-_Last updated: February 2026 (v1.2.0)_
+_Last updated: June 2026 (v1.5.0)_
 
 ## Current State
 
@@ -8,13 +8,13 @@ The simulator is feature-complete for its core mission: browser-based NCP-AII ce
 
 | Metric              | Value                                                   |
 | ------------------- | ------------------------------------------------------- |
-| Version             | 1.2.0                                                   |
+| Version             | 1.5.0                                                   |
 | Command simulators  | 20 (229 CLI definitions across 17 categories)           |
-| Narrative scenarios | 32 story-driven labs across all 5 exam domains          |
-| Exam questions      | 199 practice + 60 tool selection + 150 deep mastery     |
+| Narrative scenarios | 40 story-driven labs across all 5 exam domains          |
+| Exam questions      | 199 practice + 65 tool selection + 175 deep mastery     |
 | Architectures       | DGX A100, H100, H200, B200, GB200, VR200                |
-| Unit tests          | 3,510 (0 TypeScript errors, 0 lint warnings)            |
-| E2E tests           | 307 Playwright tests across 3 viewports                  |
+| Unit tests          | 3,751 (0 TypeScript errors, 0 lint warnings)            |
+| E2E tests           | 453 Playwright tests across 3 viewports                 |
 | Authentication      | AWS Cognito (sign up, sign in, email verification)      |
 | Cloud sync          | Progress, quiz scores, and learning data across devices |
 | CI/CD               | GitHub Actions (lint, test, build)                      |
@@ -25,12 +25,12 @@ The simulator is feature-complete for its core mission: browser-based NCP-AII ce
 
 **Goal:** Make authentication work for all visitors and reduce initial load time.
 
-| Task                                 | Priority | Effort | Description                                                                                                    |
-| ------------------------------------ | -------- | ------ | -------------------------------------------------------------------------------------------------------------- |
-| ~~Deploy Amplify backend to production~~ | ~~High~~ | ~~Low~~ | ✅ Done — Cognito auth and DynamoDB cloud sync live on dclabsim.com |
-| ~~Bundle splitting~~                 | ~~High~~ | ~~Medium~~ | ✅ Done — main chunk reduced from 2,304 kB to 1,077 kB via vendor chunks, React.lazy(), and dynamic JSON imports |
-| ~~DGX GB200 & VR200 architectures~~  | ~~Medium~~ | ~~Medium~~ | ✅ Done — GB200 (Blackwell Ultra) and VR200 (Vera Rubin) added to spec registry, factory, simulators, and UI |
-| Dependency updates                   | Medium   | Low    | Migrate `xterm` to `@xterm/xterm`, clear deprecated packages (90 npm audit findings, mostly transitive)        |
+| Task                                     | Priority   | Effort     | Description                                                                                                      |
+| ---------------------------------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| ~~Deploy Amplify backend to production~~ | ~~High~~   | ~~Low~~    | ✅ Done — Cognito auth and DynamoDB cloud sync live on dclabsim.com                                              |
+| ~~Bundle splitting~~                     | ~~High~~   | ~~Medium~~ | ✅ Done — main chunk reduced from 2,304 kB to 1,077 kB via vendor chunks, React.lazy(), and dynamic JSON imports |
+| ~~DGX GB200 & VR200 architectures~~      | ~~Medium~~ | ~~Medium~~ | ✅ Done — GB200 (Blackwell Ultra) and VR200 (Vera Rubin) added to spec registry, factory, simulators, and UI     |
+| Dependency updates                       | Medium     | Low        | Migrate `xterm` to `@xterm/xterm`, clear deprecated packages (90 npm audit findings, mostly transitive)          |
 
 ---
 
@@ -38,11 +38,11 @@ The simulator is feature-complete for its core mission: browser-based NCP-AII ce
 
 **Goal:** Catch regressions before they reach production.
 
-| Task                        | Priority | Effort | Description                                                                            |
-| --------------------------- | -------- | ------ | -------------------------------------------------------------------------------------- |
-| ~~E2E smoke tests~~        | ~~High~~ | ~~Medium~~ | ✅ Done — 307 Playwright tests across 7 spec files (commands, scenarios, visual regression, missions) |
-| Error boundary improvements | Medium   | Low    | Graceful fallbacks for cloud sync failures, network issues                             |
-| Lighthouse CI               | Low      | Low    | Automated performance/accessibility scoring in CI pipeline                             |
+| Task                        | Priority | Effort     | Description                                                                                           |
+| --------------------------- | -------- | ---------- | ----------------------------------------------------------------------------------------------------- |
+| ~~E2E smoke tests~~         | ~~High~~ | ~~Medium~~ | ✅ Done — 307 Playwright tests across 7 spec files (commands, scenarios, visual regression, missions) |
+| Error boundary improvements | Medium   | Low        | Graceful fallbacks for cloud sync failures, network issues                                            |
+| Lighthouse CI               | Low      | Low        | Automated performance/accessibility scoring in CI pipeline                                            |
 
 ---
 
@@ -64,7 +64,7 @@ These are ideas that may or may not happen. They're listed for reference, not co
 
 ### Content
 
-- More scenarios beyond 32 (community contributions welcome)
+- More scenarios beyond 40 (community contributions welcome)
 - Scenario-based exam questions with simulated terminal output
 - Video walkthrough integration for complex labs
 
