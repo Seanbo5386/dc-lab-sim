@@ -71,7 +71,11 @@ export class LinuxUtilsSimulator extends BaseSimulator {
       return this.createSuccess("");
     }
 
-    if (this.hasAnyFlag(parsed, ["help"])) {
+    // Let ethtool, ping, traceroute handle their own help/version text
+    if (
+      this.hasAnyFlag(parsed, ["help"]) &&
+      !["ethtool", "ping", "traceroute"].includes(parsed.baseCommand)
+    ) {
       return this.handleHelp();
     }
 
@@ -1663,6 +1667,18 @@ null         read         write        commit       open
     parsed: ParsedCommand,
     _context: CommandContext,
   ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.createSuccess(
+        "Usage:\n" +
+          "        ethtool DEVNAME\n" +
+          "        ethtool -h|--help\n" +
+          "        ethtool --version",
+      );
+    }
+    if (this.hasAnyFlag(parsed, ["version"])) {
+      return this.createSuccess("ethtool version 5.16");
+    }
+
     const device = parsed.subcommands[0] || parsed.positionalArgs[0] || "eth0";
 
     const lines = [
@@ -1715,6 +1731,20 @@ null         read         write        commit       open
     parsed: ParsedCommand,
     _context: CommandContext,
   ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.createSuccess(
+        "Usage:\n" +
+          "  ping [options] <destination>\n" +
+          "\n" +
+          "Options:\n" +
+          "  -h                 print help and exit\n" +
+          "  -V                 print version and exit",
+      );
+    }
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("ping from iputils s20211215");
+    }
+
     const host = parsed.subcommands[0] || parsed.positionalArgs[0];
     if (!host) {
       return this.createError(
@@ -1773,6 +1803,20 @@ null         read         write        commit       open
     parsed: ParsedCommand,
     _context: CommandContext,
   ): CommandResult {
+    if (this.hasAnyFlag(parsed, ["help", "h"])) {
+      return this.createSuccess(
+        "Usage:\n" +
+          "  traceroute [options] host\n" +
+          "\n" +
+          "Options:\n" +
+          "  --help             print help and exit\n" +
+          "  -V, --version      print version and exit",
+      );
+    }
+    if (this.hasAnyFlag(parsed, ["version", "V"])) {
+      return this.createSuccess("Modern traceroute for Linux, version 2.1.0");
+    }
+
     const host = parsed.subcommands[0] || parsed.positionalArgs[0];
     if (!host) {
       return this.createError("Usage: traceroute host");

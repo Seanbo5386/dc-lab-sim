@@ -785,6 +785,22 @@ describe("LinuxUtilsSimulator", () => {
       expect(result.output).not.toContain("Settings for eth0:");
     });
 
+    it("ethtool --help should print usage and not interface settings", () => {
+      const result = simulator.execute(parse("ethtool --help"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage:");
+      expect(result.output).toContain("ethtool DEVNAME");
+      expect(result.output).not.toContain("Settings for");
+    });
+
+    it("ethtool --version should print the tool version", () => {
+      const result = simulator.execute(parse("ethtool --version"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ethtool version");
+    });
+
     it("netstat -l should list listening sockets", () => {
       const result = simulator.execute(parse("netstat -l"), context);
 
@@ -823,6 +839,21 @@ describe("LinuxUtilsSimulator", () => {
       expect(result.output).toContain("Destination address required");
     });
 
+    it("ping --help should print usage and not attempt to ping", () => {
+      const result = simulator.execute(parse("ping --help"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage:");
+      expect(result.output).not.toContain("Destination address required");
+    });
+
+    it("ping --version should print the tool version", () => {
+      const result = simulator.execute(parse("ping --version"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("ping from iputils");
+    });
+
     it("ss -l should list listening sockets", () => {
       const result = simulator.execute(parse("ss -l"), context);
 
@@ -859,6 +890,21 @@ describe("LinuxUtilsSimulator", () => {
 
       expect(result.exitCode).toBe(1);
       expect(result.output).toContain("Usage: traceroute host");
+    });
+
+    it("traceroute --help should print usage and not attempt a trace", () => {
+      const result = simulator.execute(parse("traceroute --help"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Usage:");
+      expect(result.output).not.toContain("hops max");
+    });
+
+    it("traceroute --version should print the tool version", () => {
+      const result = simulator.execute(parse("traceroute --version"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("traceroute for Linux, version");
     });
   });
 
