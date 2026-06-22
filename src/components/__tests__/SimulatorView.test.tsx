@@ -63,9 +63,20 @@ vi.mock("../../store/simulationStore", () => ({
 
 describe("SimulatorView", () => {
   it("should render both dashboard and terminal panels", () => {
-    render(<SimulatorView />);
-    expect(screen.getByTestId("dashboard")).toBeInTheDocument();
-    expect(screen.getByTestId("terminal")).toBeInTheDocument();
+    // The live Terminal mounts only once the container width is measured
+    // (the containerWidth === 0 fallback renders a static placeholder, not a
+    // Terminal, to avoid double-mounting xterm). Stub clientWidth so the
+    // measured split-pane layout renders.
+    const clientWidthSpy = vi
+      .spyOn(HTMLElement.prototype, "clientWidth", "get")
+      .mockReturnValue(1200);
+    try {
+      render(<SimulatorView />);
+      expect(screen.getByTestId("dashboard")).toBeInTheDocument();
+      expect(screen.getByTestId("terminal")).toBeInTheDocument();
+    } finally {
+      clientWidthSpy.mockRestore();
+    }
   });
 
   it("should render with custom className", () => {
