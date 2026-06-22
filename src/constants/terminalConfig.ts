@@ -1,3 +1,9 @@
+import {
+  getHardwareSpecs,
+  getSystemDisplayName,
+  type SystemType,
+} from "@/data/hardwareSpecs";
+
 /**
  * Terminal Theme Configuration
  * NVIDIA-themed color scheme for XTerm
@@ -86,30 +92,34 @@ const COMMAND_LIST = [
   "  \x1b[36mclear\x1b[0m           - Clear terminal",
 ].join("\n");
 
+export type WelcomeVariant = "full" | "compact" | "mission" | "architecture";
+
+export interface WelcomeMessageOptions {
+  variant?: WelcomeVariant;
+  scenarioTitle?: string | null;
+  systemType?: SystemType;
+}
+
 /**
  * Generate welcome message sized to terminal width.
  */
-export function generateWelcomeMessage(cols: number): string {
+export function generateWelcomeMessage(
+  cols: number,
+  options: WelcomeMessageOptions = {},
+): string {
+  const variant = options.variant ?? "full";
+
   // Usable width (leave 1-col safety margin)
   const w = Math.max(30, cols - 1);
 
   // Box: adapt inner width to terminal, min 30
   const boxInner = Math.min(48, w - 2); // 2 for ║…║
   const rule = "═".repeat(boxInner);
-  const line1 = "Data Center Lab Simulator";
-  const line2 = `NCP-AII Certification Practice v${import.meta.env.VITE_APP_VERSION}`;
 
   const boxLine = (text: string) => {
     const t = text.length > boxInner - 2 ? text.slice(0, boxInner - 2) : text;
     return `║  ${t.padEnd(boxInner - 2)}║`;
   };
-
-  const box = [
-    `\x1b[1;32m╔${rule}╗`,
-    boxLine(line1),
-    boxLine(line2),
-    `╚${rule}╝\x1b[0m`,
-  ].join("\n");
 
   // Command table: pad command to align descriptions
   const cmdPad = 16;
@@ -120,6 +130,55 @@ export function generateWelcomeMessage(cols: number): string {
     }
     return `    \x1b[36m${cmd.padEnd(cmdPad)}\x1b[0m${desc}`;
   };
+
+  if (variant === "compact") {
+    return `\x1b[1;32mTerminal ready.\x1b[0m  Type \x1b[36mhelp\x1b[0m for commands or \x1b[36mhint\x1b[0m for guidance.\n`;
+  }
+
+  if (variant === "mission") {
+    const title = options.scenarioTitle ?? "Mission";
+    const box = [
+      `\x1b[1;32m╔${rule}╗`,
+      boxLine("MISSION BRIEFING"),
+      boxLine(title),
+      `╚${rule}╝\x1b[0m`,
+    ].join("\n");
+    return `${box}
+
+\x1b[1;33mObjective active.\x1b[0m Use \x1b[36mobjective\x1b[0m to recall the task, \x1b[36mhint\x1b[0m for guidance.
+`;
+  }
+
+  if (variant === "architecture") {
+    const systemType = options.systemType ?? "DGX-A100";
+    const specs = getHardwareSpecs(systemType);
+    const displayName = getSystemDisplayName(systemType);
+    const specLine = `${specs.gpu.count}x ${specs.gpu.model} · ${specs.gpu.memoryType} · NVLink ${specs.nvlink.version} · ${specs.network.protocol} ${specs.network.portRateGbs}Gb/s`;
+    const box = [
+      `\x1b[1;32m╔${rule}╗`,
+      boxLine(`Switched to ${displayName}`),
+      `╚${rule}╝\x1b[0m`,
+    ].join("\n");
+    return `${box}
+
+  ${specLine}
+
+\x1b[1;33mNeed help?\x1b[0m
+${cmdRow("help", "Browse all 60+ commands")}
+${cmdRow("hint", "Guidance during labs")}
+`;
+  }
+
+  // variant === "full" (default)
+  const line1 = "Data Center Lab Simulator";
+  const line2 = `NCP-AII Certification Practice v${import.meta.env.VITE_APP_VERSION}`;
+
+  const box = [
+    `\x1b[1;32m╔${rule}╗`,
+    boxLine(line1),
+    boxLine(line2),
+    `╚${rule}╝\x1b[0m`,
+  ].join("\n");
 
   // Description: visible "  Simulated DGX cluster for NCP-AII exam prep." = 48 cols
   const desc =
