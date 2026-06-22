@@ -116,7 +116,6 @@ vi.mock("../../utils/interactiveShellHandler", () => ({
 vi.mock("../../constants/terminalConfig", () => ({
   TERMINAL_OPTIONS: {},
   generateWelcomeMessage: vi.fn(() => "Welcome"),
-  selectMountVariant: vi.fn(() => "full"),
 }));
 
 vi.mock("../../utils/terminalKeyboardHandler", () => ({
@@ -279,16 +278,12 @@ vi.mock("../../simulators/linuxUtilsSimulator", () => ({
 }));
 
 import { Terminal } from "../Terminal";
-import {
-  generateWelcomeMessage,
-  selectMountVariant,
-} from "../../constants/terminalConfig";
+import { generateWelcomeMessage } from "../../constants/terminalConfig";
 
 describe("Terminal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSimulationState.activeScenario = null;
-    vi.mocked(selectMountVariant).mockReturnValue("full");
   });
 
   it("renders the terminal container", () => {
@@ -306,32 +301,27 @@ describe("Terminal", () => {
     });
   });
 
-  it("selects the mount variant from the active scenario id and passes it to generateWelcomeMessage", async () => {
+  it("writes the full welcome banner when no scenario is active", async () => {
     render(<Terminal />);
     await waitFor(() => {
-      expect(selectMountVariant).toHaveBeenCalledWith(null);
       expect(generateWelcomeMessage).toHaveBeenCalledWith(80, {
         variant: "full",
-        scenarioTitle: null,
       });
     });
   });
 
-  it("passes the active scenario id and title when a mission is in progress", async () => {
+  it("does not write a welcome banner while a mission is in progress", async () => {
     mockSimulationState.activeScenario = {
       id: "domain1-midnight-deployment",
       title: "Midnight Deployment",
     };
-    vi.mocked(selectMountVariant).mockReturnValue("mission");
-    render(<Terminal />);
+    const onReady = vi.fn();
+    render(<Terminal onReady={onReady} />);
+    // onReady fires at the end of the same init frame that would write the
+    // banner, so once it has run we can assert the banner was skipped.
     await waitFor(() => {
-      expect(selectMountVariant).toHaveBeenCalledWith(
-        "domain1-midnight-deployment",
-      );
-      expect(generateWelcomeMessage).toHaveBeenCalledWith(80, {
-        variant: "mission",
-        scenarioTitle: "Midnight Deployment",
-      });
+      expect(onReady).toHaveBeenCalled();
     });
+    expect(generateWelcomeMessage).not.toHaveBeenCalled();
   });
 });

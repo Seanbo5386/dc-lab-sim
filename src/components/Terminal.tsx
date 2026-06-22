@@ -37,7 +37,6 @@ import {
 import {
   TERMINAL_OPTIONS,
   generateWelcomeMessage,
-  selectMountVariant,
 } from "@/constants/terminalConfig";
 import { handleKeyboardInput } from "@/utils/terminalKeyboardHandler";
 import { useLabFeedback } from "@/hooks/useLabFeedback";
@@ -125,9 +124,6 @@ export const Terminal: React.FC<TerminalProps> = ({
   const systemType = useSimulationStore((state) => state.systemType);
   const activeScenarioId = useSimulationStore(
     (state) => state.activeScenario?.id ?? null,
-  );
-  const activeScenarioTitle = useSimulationStore(
-    (state) => state.activeScenario?.title ?? null,
   );
   const initialNode = selectedNode || cluster.nodes[0]?.id || "dgx-00";
   const [connectedNode, setConnectedNode] = useState<string>(initialNode);
@@ -326,13 +322,12 @@ export const Terminal: React.FC<TerminalProps> = ({
         resizeObserver.observe(container);
         xtermRef.current = term;
         setIsTerminalReady(true);
-        const mountVariant = selectMountVariant(activeScenarioId);
-        term.write(
-          generateWelcomeMessage(term.cols, {
-            variant: mountVariant,
-            scenarioTitle: activeScenarioTitle,
-          }),
-        );
+        // Show the full welcome banner only outside of an active scenario.
+        // During a mission the lab-feedback "STARTING LAB" box and the side
+        // panel introduce the task, so a banner here would be redundant.
+        if (!activeScenarioId) {
+          term.write(generateWelcomeMessage(term.cols, { variant: "full" }));
+        }
         prompt();
 
         term.onData((data) => {

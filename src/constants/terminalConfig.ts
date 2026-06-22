@@ -92,11 +92,10 @@ const COMMAND_LIST = [
   "  \x1b[36mclear\x1b[0m           - Clear terminal",
 ].join("\n");
 
-export type WelcomeVariant = "full" | "compact" | "mission" | "architecture";
+export type WelcomeVariant = "full" | "architecture";
 
 export interface WelcomeMessageOptions {
   variant?: WelcomeVariant;
-  scenarioTitle?: string | null;
   systemType?: SystemType;
 }
 
@@ -131,23 +130,19 @@ export function generateWelcomeMessage(
     return `    \x1b[36m${cmd.padEnd(cmdPad)}\x1b[0m${desc}`;
   };
 
-  if (variant === "compact") {
-    return `\x1b[1;32mTerminal ready.\x1b[0m  Type \x1b[36mhelp\x1b[0m for commands or \x1b[36mhint\x1b[0m for guidance.\n`;
-  }
-
-  if (variant === "mission") {
-    const title = options.scenarioTitle ?? "Mission";
-    const box = [
-      `\x1b[1;32m╔${rule}╗`,
-      boxLine("MISSION BRIEFING"),
-      boxLine(title),
-      `╚${rule}╝\x1b[0m`,
-    ].join("\n");
-    return `${box}
-
-\x1b[1;33mObjective active.\x1b[0m Use \x1b[36mobjective\x1b[0m to recall the task, \x1b[36mhint\x1b[0m for guidance.
-`;
-  }
+  // Shared "get started" guidance, shown outside of an active scenario.
+  // No "hint" line here — hint only does something during a lab/scenario.
+  const guidance = [
+    "",
+    "\x1b[1;33mGet started:\x1b[0m",
+    cmdRow("nvidia-smi", "Check GPU status"),
+    cmdRow("ibstat", "InfiniBand adapter status"),
+    cmdRow("sinfo", "Slurm cluster info"),
+    "",
+    "\x1b[1;33mNeed help?\x1b[0m",
+    cmdRow("help", "Browse all 60+ commands"),
+    cmdRow("help <command>", "Detailed docs & examples"),
+  ].join("\n");
 
   if (variant === "architecture") {
     const systemType = options.systemType ?? "DGX-A100";
@@ -162,10 +157,7 @@ export function generateWelcomeMessage(
     return `${box}
 
   ${specLine}
-
-\x1b[1;33mNeed help?\x1b[0m
-${cmdRow("help", "Browse all 60+ commands")}
-${cmdRow("hint", "Guidance during labs")}
+${guidance}
 `;
   }
 
@@ -189,43 +181,8 @@ ${cmdRow("hint", "Guidance during labs")}
   return `${box}
 
 ${desc}
-
-\x1b[1;33mGet started:\x1b[0m
-${cmdRow("nvidia-smi", "Check GPU status")}
-${cmdRow("ibstat", "InfiniBand adapter status")}
-${cmdRow("sinfo", "Slurm cluster info")}
-
-\x1b[1;33mNeed help?\x1b[0m
-${cmdRow("help", "Browse all 60+ commands")}
-${cmdRow("help <command>", "Detailed docs & examples")}
-${cmdRow("hint", "Guidance during labs")}
+${guidance}
 `;
-}
-
-let fullBannerShownThisPageLoad = false;
-
-/**
- * Select which welcome banner variant to render for a Terminal mount.
- * A scenario in progress always takes priority. Otherwise, the full
- * banner is shown once per page load; later mounts in the same page
- * load (tab returns, mission exits) get the compact banner.
- */
-export function selectMountVariant(
-  activeScenarioId: string | null,
-): WelcomeVariant {
-  if (activeScenarioId) {
-    return "mission";
-  }
-  if (!fullBannerShownThisPageLoad) {
-    fullBannerShownThisPageLoad = true;
-    return "full";
-  }
-  return "compact";
-}
-
-/** Test-only: reset the page-load-scoped banner state between test cases. */
-export function __resetWelcomeBannerStateForTests(): void {
-  fullBannerShownThisPageLoad = false;
 }
 
 /**
