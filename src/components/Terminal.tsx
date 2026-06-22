@@ -323,12 +323,14 @@ export const Terminal: React.FC<TerminalProps> = ({
         xtermRef.current = term;
         setIsTerminalReady(true);
         // Show the full welcome banner only outside of an active scenario.
-        // During a mission the lab-feedback "STARTING LAB" box and the side
-        // panel introduce the task, so a banner here would be redundant.
+        // During a mission the lab-feedback "STARTING LAB" box introduces the
+        // task and writes its own trailing prompt, so writing a banner and an
+        // initial prompt here would be redundant (and leave an orphan prompt
+        // above the lab intro).
         if (!activeScenarioId) {
           term.write(generateWelcomeMessage(term.cols, { variant: "full" }));
+          prompt();
         }
-        prompt();
 
         term.onData((data) => {
           const result = handleKeyboardInput(data, {
