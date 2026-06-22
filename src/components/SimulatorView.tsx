@@ -506,7 +506,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 here would mount it, then immediately unmount and remount it
                 when containerWidth flips from 0, double-initializing xterm and
                 letting the throwaway mount consume the one-time welcome banner. */}
-            <div className="flex-1 overflow-hidden bg-nvidia-black" />
+            <div className="flex-1 overflow-hidden bg-black" />
           </div>
         </div>
       ) : (

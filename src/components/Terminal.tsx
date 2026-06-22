@@ -326,8 +326,10 @@ export const Terminal: React.FC<TerminalProps> = ({
         // During a mission the lab-feedback "STARTING LAB" box introduces the
         // task and writes its own trailing prompt, so writing a banner and an
         // initial prompt here would be redundant (and leave an orphan prompt
-        // above the lab intro).
-        if (!activeScenarioId) {
+        // above the lab intro). Read the scenario from the store at write time
+        // (openAndInit runs async, after this []-deps effect closed over its
+        // initial render values) to avoid a stale-closure mismatch.
+        if (!useSimulationStore.getState().activeScenario) {
           term.write(generateWelcomeMessage(term.cols, { variant: "full" }));
           prompt();
         }
