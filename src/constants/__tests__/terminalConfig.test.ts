@@ -1,5 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { generateWelcomeMessage } from "../terminalConfig";
+import { describe, it, expect, beforeEach } from "vitest";
+import {
+  generateWelcomeMessage,
+  selectMountVariant,
+  __resetWelcomeBannerStateForTests,
+} from "../terminalConfig";
 
 describe("generateWelcomeMessage", () => {
   it("renders the full variant by default", () => {
@@ -66,5 +70,35 @@ describe("generateWelcomeMessage", () => {
   it("defaults the architecture variant to DGX-A100 when no system type is given", () => {
     const result = generateWelcomeMessage(80, { variant: "architecture" });
     expect(result).toContain("Switched to DGX A100");
+  });
+});
+
+describe("selectMountVariant", () => {
+  beforeEach(() => {
+    __resetWelcomeBannerStateForTests();
+  });
+
+  it("returns mission when a scenario is active, even on the first call", () => {
+    expect(selectMountVariant("domain1-midnight-deployment")).toBe("mission");
+  });
+
+  it("returns full the first time it is called with no active scenario", () => {
+    expect(selectMountVariant(null)).toBe("full");
+  });
+
+  it("returns compact on later calls with no active scenario", () => {
+    selectMountVariant(null);
+    expect(selectMountVariant(null)).toBe("compact");
+  });
+
+  it("returns mission for a scenario even after the full banner has already been shown", () => {
+    selectMountVariant(null);
+    expect(selectMountVariant("domain2-fabric-outage")).toBe("mission");
+  });
+
+  it("shows the full banner again after __resetWelcomeBannerStateForTests", () => {
+    selectMountVariant(null);
+    __resetWelcomeBannerStateForTests();
+    expect(selectMountVariant(null)).toBe("full");
   });
 });

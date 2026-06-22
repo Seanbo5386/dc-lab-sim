@@ -202,6 +202,32 @@ ${cmdRow("hint", "Guidance during labs")}
 `;
 }
 
+let fullBannerShownThisPageLoad = false;
+
+/**
+ * Select which welcome banner variant to render for a Terminal mount.
+ * A scenario in progress always takes priority. Otherwise, the full
+ * banner is shown once per page load; later mounts in the same page
+ * load (tab returns, mission exits) get the compact banner.
+ */
+export function selectMountVariant(
+  activeScenarioId: string | null,
+): WelcomeVariant {
+  if (activeScenarioId) {
+    return "mission";
+  }
+  if (!fullBannerShownThisPageLoad) {
+    fullBannerShownThisPageLoad = true;
+    return "full";
+  }
+  return "compact";
+}
+
+/** Test-only: reset the page-load-scoped banner state between test cases. */
+export function __resetWelcomeBannerStateForTests(): void {
+  fullBannerShownThisPageLoad = false;
+}
+
 /**
  * Help Text
  * Displayed when user types 'help' command
