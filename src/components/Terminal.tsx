@@ -37,6 +37,7 @@ import {
 import {
   TERMINAL_OPTIONS,
   generateWelcomeMessage,
+  selectMountVariant,
 } from "@/constants/terminalConfig";
 import { handleKeyboardInput } from "@/utils/terminalKeyboardHandler";
 import { useLabFeedback } from "@/hooks/useLabFeedback";
@@ -124,6 +125,9 @@ export const Terminal: React.FC<TerminalProps> = ({
   const systemType = useSimulationStore((state) => state.systemType);
   const activeScenarioId = useSimulationStore(
     (state) => state.activeScenario?.id ?? null,
+  );
+  const activeScenarioTitle = useSimulationStore(
+    (state) => state.activeScenario?.title ?? null,
   );
   const initialNode = selectedNode || cluster.nodes[0]?.id || "dgx-00";
   const [connectedNode, setConnectedNode] = useState<string>(initialNode);
@@ -322,7 +326,13 @@ export const Terminal: React.FC<TerminalProps> = ({
         resizeObserver.observe(container);
         xtermRef.current = term;
         setIsTerminalReady(true);
-        term.write(generateWelcomeMessage(term.cols));
+        const mountVariant = selectMountVariant(activeScenarioId);
+        term.write(
+          generateWelcomeMessage(term.cols, {
+            variant: mountVariant,
+            scenarioTitle: activeScenarioTitle,
+          }),
+        );
         prompt();
 
         term.onData((data) => {
@@ -1397,7 +1407,8 @@ export const Terminal: React.FC<TerminalProps> = ({
 
     // Expose reset callback for architecture changes
     resetTerminalRef.current = () => {
-      const { cluster: newCluster } = useSimulationStore.getState();
+      const { cluster: newCluster, systemType: newSystemType } =
+        useSimulationStore.getState();
       const newNode = newCluster.nodes[0]?.id || "dgx-00";
       term.reset();
       currentLine = "";
@@ -1409,7 +1420,12 @@ export const Terminal: React.FC<TerminalProps> = ({
       currentContext.current.history = [];
       currentContext.current.scenarioContext = undefined;
       currentContext.current.cluster = newCluster;
-      term.write(generateWelcomeMessage(term.cols));
+      term.write(
+        generateWelcomeMessage(term.cols, {
+          variant: "architecture",
+          systemType: newSystemType,
+        }),
+      );
       prompt();
     };
 

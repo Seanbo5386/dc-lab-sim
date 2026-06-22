@@ -62,19 +62,22 @@ vi.mock("@xterm/addon-web-links", () => ({
 }));
 
 // Mock stores
-vi.mock("../../store/simulationStore", () => {
-  const mockState = {
+const { mockSimulationState } = vi.hoisted(() => ({
+  mockSimulationState: {
     selectedNode: "dgx-00",
     cluster: {
       nodes: [{ id: "dgx-00", hostname: "dgx-00", systemType: "DGX-A100" }],
     },
-    activeScenario: null,
-  };
+    activeScenario: null as { id: string; title: string } | null,
+  },
+}));
+
+vi.mock("../../store/simulationStore", () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const hook: any = vi.fn((selector?: any) =>
-    selector ? selector(mockState) : mockState,
+    selector ? selector(mockSimulationState) : mockSimulationState,
   );
-  hook.getState = vi.fn(() => mockState);
+  hook.getState = vi.fn(() => mockSimulationState);
   hook.subscribe = vi.fn(() => vi.fn());
   return { useSimulationStore: hook };
 });
@@ -113,6 +116,7 @@ vi.mock("../../utils/interactiveShellHandler", () => ({
 vi.mock("../../constants/terminalConfig", () => ({
   TERMINAL_OPTIONS: {},
   generateWelcomeMessage: vi.fn(() => "Welcome"),
+  selectMountVariant: vi.fn(() => "full"),
 }));
 
 vi.mock("../../utils/terminalKeyboardHandler", () => ({
@@ -275,10 +279,16 @@ vi.mock("../../simulators/linuxUtilsSimulator", () => ({
 }));
 
 import { Terminal } from "../Terminal";
+import {
+  generateWelcomeMessage,
+  selectMountVariant,
+} from "../../constants/terminalConfig";
 
 describe("Terminal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSimulationState.activeScenario = null;
+    vi.mocked(selectMountVariant).mockReturnValue("full");
   });
 
   it("renders the terminal container", () => {
@@ -293,6 +303,35 @@ describe("Terminal", () => {
     render(<Terminal onReady={onReady} />);
     await waitFor(() => {
       expect(onReady).toHaveBeenCalledWith(expect.any(Function));
+    });
+  });
+
+  it("selects the mount variant from the active scenario id and passes it to generateWelcomeMessage", async () => {
+    render(<Terminal />);
+    await waitFor(() => {
+      expect(selectMountVariant).toHaveBeenCalledWith(null);
+      expect(generateWelcomeMessage).toHaveBeenCalledWith(80, {
+        variant: "full",
+        scenarioTitle: null,
+      });
+    });
+  });
+
+  it("passes the active scenario id and title when a mission is in progress", async () => {
+    mockSimulationState.activeScenario = {
+      id: "domain1-midnight-deployment",
+      title: "Midnight Deployment",
+    };
+    vi.mocked(selectMountVariant).mockReturnValue("mission");
+    render(<Terminal />);
+    await waitFor(() => {
+      expect(selectMountVariant).toHaveBeenCalledWith(
+        "domain1-midnight-deployment",
+      );
+      expect(generateWelcomeMessage).toHaveBeenCalledWith(80, {
+        variant: "mission",
+        scenarioTitle: "Midnight Deployment",
+      });
     });
   });
 });
