@@ -63,11 +63,13 @@ const {
     currentCluster: unknown;
     selectedNode: string | null;
     sandboxIntroSeen: boolean;
+    activeScenario: { id: string } | null;
   } = {
     activeContextReturn: undefined,
     currentCluster: null, // will be set after createMockNode is defined
     selectedNode: "dgx-00",
     sandboxIntroSeen: false,
+    activeScenario: null,
   };
 
   const mockActiveContext = {
@@ -109,6 +111,7 @@ vi.mock("@/store/simulationStore", () => ({
       const state = {
         cluster: shared.currentCluster,
         selectedNode: shared.selectedNode,
+        activeScenario: shared.activeScenario,
         updateGPU: mockUpdateGPU,
         addXIDError: mockAddXIDError,
         updateNodeHealth: mockUpdateNodeHealth,
@@ -121,6 +124,7 @@ vi.mock("@/store/simulationStore", () => ({
       getState: vi.fn(() => ({
         cluster: shared.currentCluster,
         selectedNode: shared.selectedNode,
+        activeScenario: shared.activeScenario,
         updateGPU: mockUpdateGPU,
         addXIDError: mockAddXIDError,
         updateNodeHealth: mockUpdateNodeHealth,
@@ -321,6 +325,7 @@ describe("FaultInjection", () => {
     shared.currentCluster = mockCluster;
     shared.selectedNode = "dgx-00";
     shared.sandboxIntroSeen = false;
+    shared.activeScenario = null;
     // Re-set mockActiveContext.getCluster default
     mockActiveContext.getCluster.mockReturnValue(mockCluster);
   });
@@ -1005,6 +1010,31 @@ describe("FaultInjection", () => {
 
       expect(screen.getByText("scenario-node.local")).toBeInTheDocument();
     });
+
+    it("recomputes effectiveCluster when a scenario starts even if the global cluster ref is unchanged", () => {
+      // No active context to begin with: the global cluster is shown.
+      shared.activeContextReturn = undefined;
+      shared.activeScenario = null;
+      const { rerender } = render(<FaultInjection />);
+      expect(screen.getByText("dgx-00.local")).toBeInTheDocument();
+
+      // Scenario starts: the active context exposes a different cluster while
+      // the global `cluster` reference stays the same. With activeScenario in
+      // the memo deps, effectiveCluster must recompute and show the new node.
+      const scenarioCluster = {
+        ...mockCluster,
+        nodes: [createMockNode("scenario-node", "scenario-node.local", 1)],
+      };
+      mockActiveContext.getCluster.mockReturnValue(scenarioCluster);
+      shared.activeContextReturn = mockActiveContext;
+      shared.activeScenario = { id: "s1" };
+
+      act(() => {
+        rerender(<FaultInjection />);
+      });
+
+      expect(screen.getByText("scenario-node.local")).toBeInTheDocument();
+    });
   });
 
   // =========================================================================
@@ -1088,6 +1118,64 @@ describe("FaultInjection", () => {
       shared.sandboxIntroSeen = true;
       render(<FaultInjection />);
       expect(screen.queryByTestId("sandbox-intro")).not.toBeInTheDocument();
+    });
+
+    it("lets the user collapse Quick Reference on first run without it reopening on re-render", () => {
+      // First run → intro shown, Quick Reference defaults open.
+      shared.sandboxIntroSeen = false;
+      render(<FaultInjection />);
+      const details = screen.getByTestId(
+        "quick-reference",
+      ) as HTMLDetailsElement;
+      expect(details.open).toBe(true);
+
+      // User collapses it (native <details> toggle).
+      act(() => {
+        details.open = false;
+        fireEvent(details, new Event("toggle"));
+      });
+      expect(details.open).toBe(false);
+
+      // Toggling a fault re-renders the component; the section must stay closed
+      // (the bug was that a controlled `open` forced it back open).
+      fireEvent.click(screen.getByText("XID Error"));
+      expect(details.open).toBe(false);
+    });
+
+    it("clamps the GPU selection when the cluster rebuilds with fewer GPUs", async () => {
+      shared.currentCluster = mockCluster; // dgx-01 has 4 GPUs
+      const { rerender } = render(<FaultInjection />);
+
+      // Target dgx-01 and pick GPU 3 (valid for a 4-GPU node).
+      fireEvent.change(screen.getByLabelText("Sandbox target node"), {
+        target: { value: "dgx-01" },
+      });
+      fireEvent.change(screen.getByLabelText("Sandbox target GPU"), {
+        target: { value: "3" },
+      });
+      expect(
+        (screen.getByLabelText("Sandbox target GPU") as HTMLSelectElement)
+          .value,
+      ).toBe("3");
+
+      // Rebuild the cluster so dgx-01 now has only 2 GPUs (GPU 3 is gone).
+      const rebuilt = {
+        ...mockCluster,
+        nodes: [
+          createMockNode("dgx-00", "dgx-00.local", 2),
+          createMockNode("dgx-01", "dgx-01.local", 2),
+        ],
+      };
+      await act(async () => {
+        shared.currentCluster = rebuilt;
+        rerender(<FaultInjection />);
+      });
+
+      // The out-of-range GPU selection is clamped back to 0.
+      expect(
+        (screen.getByLabelText("Sandbox target GPU") as HTMLSelectElement)
+          .value,
+      ).toBe("0");
     });
 
     it("Quick Reference command click switches to terminal and pastes the command", () => {

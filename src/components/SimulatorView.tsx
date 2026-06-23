@@ -104,14 +104,31 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   const pasteCommandRef = useRef<
     ((cmd: string, targetNode?: string) => void) | null
   >(null);
+  // A paste requested before the terminal is ready is queued here. On mobile
+  // the Terminal lives under a hidden tab with zero dimensions, so it defers
+  // onReady; without this queue a Quick Reference / Diagnose command fired from
+  // the Sandbox tab (before Terminal was ever shown) would be silently dropped.
+  const pendingPasteRef = useRef<{ cmd: string; targetNode?: string } | null>(
+    null,
+  );
   const handleTerminalReady = useCallback(
     (pasteFn: (cmd: string, targetNode?: string) => void) => {
       pasteCommandRef.current = pasteFn;
+      const pending = pendingPasteRef.current;
+      if (pending) {
+        pendingPasteRef.current = null;
+        pasteFn(pending.cmd, pending.targetNode);
+      }
     },
     [],
   );
   const handlePasteCommand = useCallback((cmd: string, targetNode?: string) => {
-    pasteCommandRef.current?.(cmd, targetNode);
+    if (pasteCommandRef.current) {
+      pasteCommandRef.current(cmd, targetNode);
+    } else {
+      // Terminal not ready yet — queue and flush from onReady.
+      pendingPasteRef.current = { cmd, targetNode };
+    }
   }, []);
 
   // Register fault toast run-command handler so toast buttons route to terminal

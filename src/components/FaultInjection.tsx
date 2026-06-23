@@ -99,12 +99,20 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
   onSwitchToTerminal,
 }) => {
   const cluster = useSimulationStore((state) => state.cluster);
+  const activeScenario = useSimulationStore((state) => state.activeScenario);
 
-  // Read from active context's cluster when available, otherwise global
+  // Read from active context's cluster when available, otherwise global.
+  // Depends on activeScenario so the source flips when a scenario starts or
+  // stops — the active context can change while the global cluster reference
+  // stays the same, which would otherwise leave effectiveCluster stale.
   const effectiveCluster = useMemo(() => {
     const activeContext = scenarioContextManager.getActiveContext();
     return activeContext ? activeContext.getCluster() : cluster;
-  }, [cluster]);
+    // activeScenario is an intentional recompute trigger: the active context is
+    // read from scenarioContextManager (external to React) and changes when a
+    // scenario starts or stops, which the exhaustive-deps rule cannot see.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cluster, activeScenario]);
 
   const [selectedNode, setSelectedNode] = useState<string>(
     () => effectiveCluster.nodes[0]?.id ?? "",
@@ -126,6 +134,18 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
     setSelectedGPU(0);
   }, [selectedNode]);
 
+  // Clamp the GPU selection if the selected node's GPU count shrinks (e.g. a
+  // system-type switch rebuilds the cluster with fewer GPUs). Guarded so it
+  // only resets when actually out of range — it never clobbers a valid
+  // selection on routine cluster updates (every fault injection produces a new
+  // cluster reference).
+  useEffect(() => {
+    const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
+    if (node && selectedGPU >= node.gpus.length) {
+      setSelectedGPU(0);
+    }
+  }, [effectiveCluster, selectedNode, selectedGPU]);
+
   // Derive current GPU health for active-fault indicators
   const currentGPU = useMemo(() => {
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
@@ -138,6 +158,11 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
   );
   const [introDismissed, setIntroDismissed] = useState(false);
   const showIntro = !sandboxIntroSeen && !introDismissed;
+
+  // Quick Reference open state. Defaults open on first run (when the intro is
+  // shown) but is then user-controlled — a synced onToggle keeps React from
+  // forcing the <details> back open/closed on unrelated re-renders.
+  const [quickRefOpen, setQuickRefOpen] = useState(() => showIntro);
 
   const handleDismissIntro = () => {
     setIntroDismissed(true);
@@ -783,7 +808,10 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
         {/* Quick Reference - collapsible */}
         <details
           className="group mt-6 pt-6 border-t border-gray-700"
-          open={showIntro}
+          open={quickRefOpen}
+          onToggle={(e) =>
+            setQuickRefOpen((e.target as HTMLDetailsElement).open)
+          }
           data-testid="quick-reference"
         >
           <summary className="flex items-center gap-2 text-sm cursor-pointer hover:text-gray-300 select-none list-none [&::-webkit-details-marker]:hidden">
