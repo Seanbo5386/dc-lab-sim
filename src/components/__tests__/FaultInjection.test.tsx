@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 
 // ---------------------------------------------------------------------------
 // Hoisted mock setup - these are available to vi.mock factories
@@ -296,11 +296,9 @@ describe("FaultInjection", () => {
       expect(screen.getByText("Sandbox")).toBeInTheDocument();
     });
 
-    it("should render the description text with Dashboard hint", () => {
+    it("should render the node dropdown with Sandbox label", () => {
       render(<FaultInjection />);
-      expect(
-        screen.getByText("Select target on Dashboard"),
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText("Sandbox target node")).toBeInTheDocument();
     });
 
     it("should render all basic fault injection buttons", () => {
@@ -372,25 +370,29 @@ describe("FaultInjection", () => {
   // =========================================================================
 
   describe("Node Selection", () => {
-    it("should display the selected node hostname from the store", () => {
+    it("should display the node dropdown with the first node selected by default", () => {
       render(<FaultInjection />);
 
       expect(screen.getByText("Node:")).toBeInTheDocument();
-      expect(screen.getByText("dgx-00.local")).toBeInTheDocument();
+      const nodeSelect = screen.getByLabelText("Sandbox target node");
+      expect((nodeSelect as HTMLSelectElement).value).toBe("dgx-00");
     });
 
-    it("should display a different node when store selectedNode changes", () => {
-      shared.selectedNode = "dgx-01";
+    it("should list all cluster nodes as dropdown options", () => {
       render(<FaultInjection />);
 
+      const nodeSelect = screen.getByLabelText("Sandbox target node");
+      const options = nodeSelect.querySelectorAll("option");
+      expect(options).toHaveLength(2);
+      expect((options[0] as HTMLOptionElement).value).toBe("dgx-00");
+      expect((options[1] as HTMLOptionElement).value).toBe("dgx-01");
+    });
+
+    it("should show node hostname in dropdown options", () => {
+      render(<FaultInjection />);
+
+      expect(screen.getByText("dgx-00.local")).toBeInTheDocument();
       expect(screen.getByText("dgx-01.local")).toBeInTheDocument();
-    });
-
-    it("should fall back to first node when store selectedNode is null", () => {
-      shared.selectedNode = null;
-      render(<FaultInjection />);
-
-      expect(screen.getByText("dgx-00.local")).toBeInTheDocument();
     });
   });
 
@@ -415,12 +417,14 @@ describe("FaultInjection", () => {
       expect(options).toHaveLength(2);
     });
 
-    it("should show GPU list for the store-selected node", () => {
-      // dgx-01 has 4 GPUs
-      shared.selectedNode = "dgx-01";
+    it("should show GPU list for the sandbox-selected node", () => {
+      // dgx-01 has 4 GPUs; select it via the sandbox node dropdown
       render(<FaultInjection />);
 
-      const gpuSelect = screen.getByDisplayValue("GPU 0");
+      const nodeSelect = screen.getByLabelText("Sandbox target node");
+      fireEvent.change(nodeSelect, { target: { value: "dgx-01" } });
+
+      const gpuSelect = screen.getByLabelText("Sandbox target GPU");
       const options = gpuSelect.querySelectorAll("option");
       expect(options).toHaveLength(4);
     });
@@ -845,6 +849,33 @@ describe("FaultInjection", () => {
       render(<FaultInjection />);
 
       expect(screen.getByText("scenario-node.local")).toBeInTheDocument();
+    });
+  });
+
+  // =========================================================================
+  // Independent Node Selection
+  // =========================================================================
+
+  describe("Independent Node Selection", () => {
+    it("injects on the node chosen in the Sandbox node dropdown, not the store node", () => {
+      render(<FaultInjection />);
+
+      // The Sandbox now has its own node dropdown (independent of the Dashboard).
+      const nodeSelect = screen.getByLabelText("Sandbox target node");
+      // Pick a node that is NOT the store's selectedNode ("dgx-00").
+      const options = within(nodeSelect as HTMLSelectElement)
+        .getAllByRole("option")
+        .map((o) => (o as HTMLOptionElement).value);
+      const otherNode = options.find((v) => v !== "dgx-00") ?? options[0];
+
+      fireEvent.change(nodeSelect, { target: { value: otherNode } });
+      fireEvent.click(screen.getByText("XID Error"));
+
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        otherNode,
+        expect.any(Number),
+        expect.anything(),
+      );
     });
   });
 

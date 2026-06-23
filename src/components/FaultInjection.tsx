@@ -74,7 +74,6 @@ function getMutator(): StateMutator {
 
 export const FaultInjection: React.FC = () => {
   const cluster = useSimulationStore((state) => state.cluster);
-  const storeSelectedNode = useSimulationStore((state) => state.selectedNode);
 
   // Read from active context's cluster when available, otherwise global
   const effectiveCluster = useMemo(() => {
@@ -82,16 +81,19 @@ export const FaultInjection: React.FC = () => {
     return activeContext ? activeContext.getCluster() : cluster;
   }, [cluster]);
 
-  // Use the store's selected node (shared with Dashboard), fall back to first node.
-  // When a scenario context is active, the effective cluster may have different nodes
-  // than the store's selectedNode, so verify the node exists in the effective cluster.
-  const storeNodeExists = effectiveCluster.nodes.some(
-    (n) => n.id === storeSelectedNode,
+  const [selectedNode, setSelectedNode] = useState<string>(
+    () => effectiveCluster.nodes[0]?.id ?? "",
   );
-  const selectedNode =
-    storeNodeExists && storeSelectedNode
-      ? storeSelectedNode
-      : effectiveCluster.nodes[0]?.id || "";
+
+  // If the selected node disappears (e.g. cluster rebuilt on a system-type
+  // switch), fall back to the first available node.
+  useEffect(() => {
+    const exists = effectiveCluster.nodes.some((n) => n.id === selectedNode);
+    if (!exists && effectiveCluster.nodes.length > 0) {
+      setSelectedNode(effectiveCluster.nodes[0].id);
+    }
+  }, [effectiveCluster, selectedNode]);
+
   const [selectedGPU, setSelectedGPU] = useState(0);
 
   // Reset GPU selection when node changes
@@ -304,28 +306,30 @@ export const FaultInjection: React.FC = () => {
       <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-nvidia-green">Sandbox</h2>
-          <span className="text-xs text-gray-500">
-            Select target on Dashboard
-          </span>
         </div>
 
         {/* Target Node + GPU Selection */}
         <div className="flex items-center gap-4 mb-6 p-3 bg-gray-900/50 rounded-lg border border-gray-700">
           <div className="flex items-center gap-2 text-sm min-w-0">
-            <span className="text-gray-400 shrink-0">Node:</span>
-            <span
-              className="text-nvidia-green font-medium font-mono truncate"
-              title={
-                effectiveCluster.nodes.find((n) => n.id === selectedNode)
-                  ?.hostname || selectedNode
-              }
+            <label
+              className="text-gray-400 shrink-0"
+              htmlFor="sandbox-node-select"
             >
-              <span className="sm:hidden">{selectedNode}</span>
-              <span className="hidden sm:inline">
-                {effectiveCluster.nodes.find((n) => n.id === selectedNode)
-                  ?.hostname || selectedNode}
-              </span>
-            </span>
+              Node:
+            </label>
+            <select
+              id="sandbox-node-select"
+              aria-label="Sandbox target node"
+              value={selectedNode}
+              onChange={(e) => setSelectedNode(e.target.value)}
+              className="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-nvidia-green font-mono focus:outline-none focus:border-nvidia-green"
+            >
+              {effectiveCluster.nodes.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.hostname || n.id}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="h-4 w-px bg-gray-700" />
           <div className="flex items-center gap-2 flex-1">
@@ -333,6 +337,7 @@ export const FaultInjection: React.FC = () => {
               GPU:
             </label>
             <select
+              aria-label="Sandbox target GPU"
               value={selectedGPU}
               onChange={(e) => setSelectedGPU(Number(e.target.value))}
               className="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-nvidia-green"
