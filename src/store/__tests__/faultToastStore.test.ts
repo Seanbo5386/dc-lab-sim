@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useFaultToastStore } from "../faultToastStore";
 
 describe("faultToastStore", () => {
@@ -104,5 +104,14 @@ describe("faultToastStore", () => {
     const { toasts } = useFaultToastStore.getState();
     expect(toasts).toHaveLength(1);
     expect(toasts[0].xidCode).toBeUndefined();
+  });
+
+  it("stores and clears the run-command handler", () => {
+    const handler = vi.fn();
+    useFaultToastStore.getState().setRunCommandHandler(handler);
+    expect(useFaultToastStore.getState().runCommandHandler).toBe(handler);
+
+    useFaultToastStore.getState().setRunCommandHandler(null);
+    expect(useFaultToastStore.getState().runCommandHandler).toBeNull();
   });
 });

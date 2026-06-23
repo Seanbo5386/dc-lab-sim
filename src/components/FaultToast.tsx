@@ -37,6 +37,7 @@ const FaultToastItem: React.FC<FaultToastItemProps> = ({
   onDismiss,
   onViewXID,
 }) => {
+  const runCommandHandler = useFaultToastStore((s) => s.runCommandHandler);
   const [isVisible, setIsVisible] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
 
@@ -126,9 +127,20 @@ const FaultToastItem: React.FC<FaultToastItemProps> = ({
       {/* Suggested command */}
       <div className="text-xs text-gray-400 mb-1">
         Try:{" "}
-        <code className="text-nvidia-green font-mono bg-gray-900/60 px-1.5 py-0.5 rounded">
-          {toast.suggestedCommand}
-        </code>
+        {runCommandHandler ? (
+          <button
+            type="button"
+            aria-label={`Run ${toast.suggestedCommand}`}
+            onClick={() => runCommandHandler(toast.suggestedCommand)}
+            className="text-nvidia-green font-mono bg-gray-900/60 px-1.5 py-0.5 rounded hover:bg-gray-900 hover:underline"
+          >
+            {toast.suggestedCommand}
+          </button>
+        ) : (
+          <code className="text-nvidia-green font-mono bg-gray-900/60 px-1.5 py-0.5 rounded">
+            {toast.suggestedCommand}
+          </code>
+        )}
       </div>
 
       {/* Dashboard hint */}

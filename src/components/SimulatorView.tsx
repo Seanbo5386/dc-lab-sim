@@ -5,6 +5,7 @@ import { FaultInjection } from "./FaultInjection";
 import { MissionCard } from "./MissionCard";
 import { MissionInstructionPanel } from "./MissionInstructionPanel";
 import { useSimulationStore } from "../store/simulationStore";
+import { useFaultToastStore } from "@/store/faultToastStore";
 import { HintManager } from "@/utils/hintManager";
 import {
   GripVertical,
@@ -106,6 +107,18 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
   const handlePasteCommand = useCallback((cmd: string) => {
     pasteCommandRef.current?.(cmd);
   }, []);
+
+  // Register fault toast run-command handler so toast buttons route to terminal
+  useEffect(() => {
+    const setRunCommandHandler =
+      useFaultToastStore.getState().setRunCommandHandler;
+    setRunCommandHandler((cmd: string) => {
+      setRightTab("terminal");
+      setMobileTab("terminal");
+      handlePasteCommand(cmd);
+    });
+    return () => setRunCommandHandler(null);
+  }, [handlePasteCommand]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 

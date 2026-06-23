@@ -20,6 +20,8 @@ interface FaultToastState {
   toasts: FaultToastData[];
   addToast: (data: Omit<FaultToastData, "id">) => void;
   removeToast: (id: string) => void;
+  runCommandHandler: ((cmd: string) => void) | null;
+  setRunCommandHandler: (fn: ((cmd: string) => void) | null) => void;
 }
 
 const MAX_TOASTS = 3;
@@ -52,4 +54,7 @@ export const useFaultToastStore = create<FaultToastState>()((set) => ({
       toasts: state.toasts.filter((t) => t.id !== id),
     }));
   },
+
+  runCommandHandler: null,
+  setRunCommandHandler: (fn) => set({ runCommandHandler: fn }),
 }));

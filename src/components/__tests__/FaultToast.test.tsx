@@ -5,7 +5,7 @@ import { useFaultToastStore } from "@/store/faultToastStore";
 
 describe("FaultToast", () => {
   beforeEach(() => {
-    useFaultToastStore.setState({ toasts: [] });
+    useFaultToastStore.setState({ toasts: [], runCommandHandler: null });
     vi.useFakeTimers();
   });
 
@@ -109,5 +109,20 @@ describe("FaultToast", () => {
     expect(
       screen.getByText("Check the Dashboard to see changes reflected live."),
     ).toBeInTheDocument();
+  });
+
+  it("runs the suggested command via the registered handler", () => {
+    const handler = vi.fn();
+    useFaultToastStore.getState().setRunCommandHandler(handler);
+    useFaultToastStore.getState().addToast({
+      title: "XID Error Injected",
+      message: "GPU fell off the bus",
+      suggestedCommand: "nvidia-smi",
+      severity: "critical",
+    });
+
+    render(<FaultToastContainer />);
+    fireEvent.click(screen.getByRole("button", { name: "Run nvidia-smi" }));
+    expect(handler).toHaveBeenCalledWith("nvidia-smi");
   });
 });
