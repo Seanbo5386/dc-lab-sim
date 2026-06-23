@@ -372,8 +372,11 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
   return (
     <div className="space-y-6">
       <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4">
           <h2 className="text-lg font-bold text-nvidia-green">Sandbox</h2>
+          <p data-testid="sandbox-subtitle" className="text-xs text-gray-500">
+            Free experimentation — inject faults and diagnose them. No scoring.
+          </p>
         </div>
 
         {showIntro && (

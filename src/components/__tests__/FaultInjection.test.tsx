@@ -1059,4 +1059,18 @@ describe("FaultInjection", () => {
       expect(mockUpdateGPU).toHaveBeenCalledTimes(1);
     });
   });
+
+  // =========================================================================
+  // Sandbox Subtitle
+  // =========================================================================
+
+  describe("Sandbox Subtitle", () => {
+    it("shows the Sandbox subtitle clarifying it is unscored free practice", () => {
+      shared.sandboxIntroSeen = true; // hide intro to isolate the subtitle
+      render(<FaultInjection />);
+      expect(screen.getByTestId("sandbox-subtitle")).toHaveTextContent(
+        /no scoring/i,
+      );
+    });
+  });
 });
