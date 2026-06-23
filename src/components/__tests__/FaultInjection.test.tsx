@@ -164,6 +164,7 @@ vi.mock("lucide-react", () => {
     ChevronUp: createIcon("ChevronUp"),
     X: createIcon("X"),
     Lightbulb: createIcon("Lightbulb"),
+    TerminalSquare: createIcon("TerminalSquare"),
   };
 });
 
@@ -958,6 +959,43 @@ describe("FaultInjection", () => {
       shared.sandboxIntroSeen = true;
       render(<FaultInjection />);
       expect(screen.queryByTestId("sandbox-intro")).not.toBeInTheDocument();
+    });
+
+    it("Quick Reference command click switches to terminal and pastes the command", () => {
+      shared.sandboxIntroSeen = true; // hide intro so "Quick Reference" is unambiguous
+      const onPaste = vi.fn();
+      const onSwitch = vi.fn();
+      render(
+        <FaultInjection
+          onPasteCommand={onPaste}
+          onSwitchToTerminal={onSwitch}
+        />,
+      );
+
+      // Open Quick Reference (it's a <details>); the summary toggles it.
+      fireEvent.click(screen.getByText("Quick Reference"));
+      fireEvent.click(screen.getByRole("button", { name: "Run nvidia-smi" }));
+
+      expect(onSwitch).toHaveBeenCalled();
+      expect(onPaste).toHaveBeenCalledWith("nvidia-smi");
+    });
+
+    it("shows a Diagnose-in-Terminal CTA after injecting a fault", () => {
+      const onPaste = vi.fn();
+      const onSwitch = vi.fn();
+      render(
+        <FaultInjection
+          onPasteCommand={onPaste}
+          onSwitchToTerminal={onSwitch}
+        />,
+      );
+
+      expect(screen.queryByTestId("diagnose-cta")).not.toBeInTheDocument();
+      fireEvent.click(screen.getByText("XID Error"));
+
+      fireEvent.click(screen.getByTestId("diagnose-cta"));
+      expect(onSwitch).toHaveBeenCalled();
+      expect(onPaste).toHaveBeenCalled();
     });
 
     it("guard effect: falls back to first node when selected node disappears after cluster rebuild", async () => {

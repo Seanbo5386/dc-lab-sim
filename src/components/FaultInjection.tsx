@@ -24,6 +24,7 @@ import {
   ChevronUp,
   X,
   Lightbulb,
+  TerminalSquare,
 } from "lucide-react";
 import { useLearningProgressStore } from "@/store/learningProgressStore";
 
@@ -75,7 +76,15 @@ function getMutator(): StateMutator {
   };
 }
 
-export const FaultInjection: React.FC = () => {
+interface FaultInjectionProps {
+  onPasteCommand?: (cmd: string) => void;
+  onSwitchToTerminal?: () => void;
+}
+
+export const FaultInjection: React.FC<FaultInjectionProps> = ({
+  onPasteCommand,
+  onSwitchToTerminal,
+}) => {
   const cluster = useSimulationStore((state) => state.cluster);
 
   // Read from active context's cluster when available, otherwise global
@@ -126,6 +135,15 @@ export const FaultInjection: React.FC = () => {
     "idle" | "training" | "inference" | "stress"
   >("idle");
 
+  const [lastInjectedCommand, setLastInjectedCommand] = useState<string | null>(
+    null,
+  );
+
+  const runInTerminal = (cmd: string) => {
+    onSwitchToTerminal?.();
+    onPasteCommand?.(cmd);
+  };
+
   // Collapsible info panel state
   const [showBasicInfo, setShowBasicInfo] = useState(false);
   const [showComplexInfo, setShowComplexInfo] = useState(false);
@@ -159,6 +177,7 @@ export const FaultInjection: React.FC = () => {
         xidCode: desc.relatedXIDCodes?.[0] || undefined,
       });
     }
+    setLastInjectedCommand(desc?.suggestedCommands[0] ?? "nvidia-smi");
   };
 
   const handleInjectScenario = (
@@ -249,6 +268,7 @@ export const FaultInjection: React.FC = () => {
         xidCode: desc.relatedXIDCodes?.[0] || undefined,
       });
     }
+    setLastInjectedCommand(desc?.suggestedCommands[0] ?? "nvidia-smi");
   };
 
   const handleSimulateWorkload = () => {
@@ -276,6 +296,7 @@ export const FaultInjection: React.FC = () => {
         severity: "info",
       });
     }
+    setLastInjectedCommand("nvidia-smi");
   };
 
   const handleClearFaults = () => {
@@ -310,6 +331,7 @@ export const FaultInjection: React.FC = () => {
       suggestedCommand: "nvidia-smi",
       severity: "info",
     });
+    setLastInjectedCommand(null);
   };
 
   const selectedWorkloadDesc = WORKLOAD_DESCRIPTIONS.find(
@@ -418,6 +440,20 @@ export const FaultInjection: React.FC = () => {
           </div>
         )}
 
+        {/* Post-inject Diagnose CTA */}
+        {lastInjectedCommand && (
+          <button
+            type="button"
+            data-testid="diagnose-cta"
+            onClick={() => runInTerminal(lastInjectedCommand)}
+            className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-xs font-medium bg-nvidia-green/10 text-nvidia-green border border-nvidia-green/30 hover:bg-nvidia-green/20 transition-colors"
+          >
+            <TerminalSquare className="w-3.5 h-3.5 shrink-0" />
+            Diagnose in Terminal — run{" "}
+            <code className="font-mono">{lastInjectedCommand}</code>
+          </button>
+        )}
+
         {/* Quick Reference - collapsible */}
         <details
           className="group mb-2"
@@ -433,41 +469,99 @@ export const FaultInjection: React.FC = () => {
           <div className="mt-2 p-3 bg-gray-900 rounded-lg">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 font-mono text-xs text-gray-400">
               <div>
-                • <span className="text-nvidia-green">nvidia-smi</span> — GPU
-                overview
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run nvidia-smi"
+                  onClick={() => runInTerminal("nvidia-smi")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  nvidia-smi
+                </button>{" "}
+                — GPU overview
               </div>
               <div>
                 •{" "}
-                <span className="text-nvidia-green">nvidia-smi -q -d ECC</span>{" "}
+                <button
+                  type="button"
+                  aria-label="Run nvidia-smi -q -d ECC"
+                  onClick={() => runInTerminal("nvidia-smi -q -d ECC")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  nvidia-smi -q -d ECC
+                </button>{" "}
                 — ECC errors
               </div>
               <div>
                 •{" "}
-                <span className="text-nvidia-green">
+                <button
+                  type="button"
+                  aria-label="Run nvidia-smi -q -d TEMPERATURE"
+                  onClick={() => runInTerminal("nvidia-smi -q -d TEMPERATURE")}
+                  className="text-nvidia-green hover:underline"
+                >
                   nvidia-smi -q -d TEMPERATURE
-                </span>{" "}
+                </button>{" "}
                 — Thermals
               </div>
               <div>
                 •{" "}
-                <span className="text-nvidia-green">nvidia-smi nvlink -s</span>{" "}
+                <button
+                  type="button"
+                  aria-label="Run nvidia-smi nvlink -s"
+                  onClick={() => runInTerminal("nvidia-smi nvlink -s")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  nvidia-smi nvlink -s
+                </button>{" "}
                 — NVLink status
               </div>
               <div>
-                • <span className="text-nvidia-green">nvsm show health</span> —
-                Health summary
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run nvsm show health"
+                  onClick={() => runInTerminal("nvsm show health")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  nvsm show health
+                </button>{" "}
+                — Health summary
               </div>
               <div>
-                • <span className="text-nvidia-green">dcgmi diag -r 1</span> —
-                Quick diagnostics
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run dcgmi diag -r 1"
+                  onClick={() => runInTerminal("dcgmi diag -r 1")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  dcgmi diag -r 1
+                </button>{" "}
+                — Quick diagnostics
               </div>
               <div>
-                • <span className="text-nvidia-green">dmesg | grep -i xid</span>{" "}
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run dmesg | grep -i xid"
+                  onClick={() => runInTerminal("dmesg | grep -i xid")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  dmesg | grep -i xid
+                </button>{" "}
                 — XID errors in logs
               </div>
               <div>
                 •{" "}
-                <span className="text-nvidia-green">ipmitool sensor list</span>{" "}
+                <button
+                  type="button"
+                  aria-label="Run ipmitool sensor list"
+                  onClick={() => runInTerminal("ipmitool sensor list")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  ipmitool sensor list
+                </button>{" "}
                 — BMC sensors
               </div>
             </div>

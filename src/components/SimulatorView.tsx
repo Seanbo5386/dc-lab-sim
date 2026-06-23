@@ -396,7 +396,10 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
           <div
             className={`h-full overflow-auto p-4 bg-gray-900 ${mobileTab !== "faults" ? "hidden" : ""}`}
           >
-            <FaultInjection />
+            <FaultInjection
+              onPasteCommand={handlePasteCommand}
+              onSwitchToTerminal={() => setMobileTab("terminal")}
+            />
           </div>
         </div>
       </div>
@@ -693,7 +696,10 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   <div
                     className={`h-full overflow-auto p-4 ${rightTab !== "faults" ? "hidden" : ""}`}
                   >
-                    <FaultInjection />
+                    <FaultInjection
+                      onPasteCommand={handlePasteCommand}
+                      onSwitchToTerminal={() => setRightTab("terminal")}
+                    />
                   </div>
                 </div>
               </>
