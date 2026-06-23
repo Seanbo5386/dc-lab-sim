@@ -419,7 +419,11 @@ export const FaultInjection: React.FC = () => {
         )}
 
         {/* Quick Reference - collapsible */}
-        <details className="group mb-2" open={showIntro}>
+        <details
+          className="group mb-2"
+          open={showIntro}
+          data-testid="quick-reference"
+        >
           <summary className="flex items-center gap-2 text-sm cursor-pointer hover:text-gray-300 select-none list-none [&::-webkit-details-marker]:hidden">
             <span className="text-nvidia-green font-medium">
               Quick Reference

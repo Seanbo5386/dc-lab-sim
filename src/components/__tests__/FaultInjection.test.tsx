@@ -377,15 +377,16 @@ describe("FaultInjection", () => {
     it("should render the diagnostic commands section with suggested commands", () => {
       render(<FaultInjection />);
 
-      // "Quick Reference" appears in both the intro banner and the <details> summary
-      expect(screen.getAllByText("Quick Reference").length).toBeGreaterThan(0);
+      // Scope assertions to the Quick Reference <details> element so they would
+      // fail if the QR command list were removed (even if the intro banner exists).
+      const qr = within(screen.getByTestId("quick-reference"));
+      expect(qr.getByText("Quick Reference")).toBeInTheDocument();
       expect(screen.getByText(/diagnostic commands/)).toBeInTheDocument();
-      // "nvidia-smi" appears in both the intro banner <code> and the Quick Reference list
-      expect(screen.getAllByText(/nvidia-smi$/).length).toBeGreaterThan(0);
-      expect(screen.getByText("nvsm show health")).toBeInTheDocument();
-      expect(screen.getByText("dcgmi diag -r 1")).toBeInTheDocument();
-      expect(screen.getByText("dmesg | grep -i xid")).toBeInTheDocument();
-      expect(screen.getByText("ipmitool sensor list")).toBeInTheDocument();
+      expect(qr.getByText(/nvidia-smi$/)).toBeInTheDocument();
+      expect(qr.getByText("nvsm show health")).toBeInTheDocument();
+      expect(qr.getByText("dcgmi diag -r 1")).toBeInTheDocument();
+      expect(qr.getByText("dmesg | grep -i xid")).toBeInTheDocument();
+      expect(qr.getByText("ipmitool sensor list")).toBeInTheDocument();
     });
   });
 
