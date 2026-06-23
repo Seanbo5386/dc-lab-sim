@@ -16,6 +16,7 @@ const {
   mockInjectFault,
   mockSimulateWorkload,
   mockActiveContext,
+  mockMarkSandboxIntroSeen,
   shared,
 } = vi.hoisted(() => {
   // -- store mocks --
@@ -47,15 +48,22 @@ const {
       })),
   );
 
+  // -- learningProgressStore mock fn --
+  const mockMarkSandboxIntroSeen = vi.fn(() => {
+    shared.sandboxIntroSeen = true;
+  });
+
   // -- shared mutable state --
   const shared: {
     activeContextReturn: unknown;
     currentCluster: unknown;
     selectedNode: string | null;
+    sandboxIntroSeen: boolean;
   } = {
     activeContextReturn: undefined,
     currentCluster: null, // will be set after createMockNode is defined
     selectedNode: "dgx-00",
+    sandboxIntroSeen: false,
   };
 
   const mockActiveContext = {
@@ -81,6 +89,7 @@ const {
     mockInjectFault,
     mockSimulateWorkload,
     mockActiveContext,
+    mockMarkSandboxIntroSeen,
     shared,
   };
 });
@@ -153,8 +162,20 @@ vi.mock("lucide-react", () => {
     Info: createIcon("Info"),
     ChevronDown: createIcon("ChevronDown"),
     ChevronUp: createIcon("ChevronUp"),
+    X: createIcon("X"),
+    Lightbulb: createIcon("Lightbulb"),
   };
 });
+
+vi.mock("@/store/learningProgressStore", () => ({
+  useLearningProgressStore: vi.fn((selector?: (s: unknown) => unknown) => {
+    const state = {
+      sandboxIntroSeen: shared.sandboxIntroSeen,
+      markSandboxIntroSeen: mockMarkSandboxIntroSeen,
+    };
+    return selector ? selector(state) : state;
+  }),
+}));
 
 vi.mock("@/store/faultToastStore", () => ({
   useFaultToastStore: Object.assign(vi.fn(), {
@@ -282,6 +303,7 @@ describe("FaultInjection", () => {
     shared.activeContextReturn = undefined;
     shared.currentCluster = mockCluster;
     shared.selectedNode = "dgx-00";
+    shared.sandboxIntroSeen = false;
     // Re-set mockActiveContext.getCluster default
     mockActiveContext.getCluster.mockReturnValue(mockCluster);
   });
@@ -355,9 +377,11 @@ describe("FaultInjection", () => {
     it("should render the diagnostic commands section with suggested commands", () => {
       render(<FaultInjection />);
 
-      expect(screen.getByText("Quick Reference")).toBeInTheDocument();
+      // "Quick Reference" appears in both the intro banner and the <details> summary
+      expect(screen.getAllByText("Quick Reference").length).toBeGreaterThan(0);
       expect(screen.getByText(/diagnostic commands/)).toBeInTheDocument();
-      expect(screen.getByText(/nvidia-smi$/)).toBeInTheDocument();
+      // "nvidia-smi" appears in both the intro banner <code> and the Quick Reference list
+      expect(screen.getAllByText(/nvidia-smi$/).length).toBeGreaterThan(0);
       expect(screen.getByText("nvsm show health")).toBeInTheDocument();
       expect(screen.getByText("dcgmi diag -r 1")).toBeInTheDocument();
       expect(screen.getByText("dmesg | grep -i xid")).toBeInTheDocument();
@@ -916,6 +940,23 @@ describe("FaultInjection", () => {
         screen.getByText("Complex Training Scenarios"),
       ).toBeInTheDocument();
       expect(screen.getByText("Simulate Workloads")).toBeInTheDocument();
+    });
+
+    it("shows the first-run intro when sandboxIntroSeen is false and dismisses it", () => {
+      shared.sandboxIntroSeen = false;
+      render(<FaultInjection />);
+
+      const intro = screen.getByTestId("sandbox-intro");
+      expect(intro).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId("sandbox-intro-dismiss"));
+      expect(mockMarkSandboxIntroSeen).toHaveBeenCalled();
+    });
+
+    it("hides the first-run intro when sandboxIntroSeen is true", () => {
+      shared.sandboxIntroSeen = true;
+      render(<FaultInjection />);
+      expect(screen.queryByTestId("sandbox-intro")).not.toBeInTheDocument();
     });
 
     it("guard effect: falls back to first node when selected node disappears after cluster rebuild", async () => {

@@ -22,7 +22,10 @@ import {
   AlertOctagon,
   Info,
   ChevronUp,
+  X,
+  Lightbulb,
 } from "lucide-react";
+import { useLearningProgressStore } from "@/store/learningProgressStore";
 
 const metricsSimulator = new MetricsSimulator();
 
@@ -106,6 +109,18 @@ export const FaultInjection: React.FC = () => {
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
     return node?.gpus[selectedGPU] || null;
   }, [effectiveCluster, selectedNode, selectedGPU]);
+
+  const sandboxIntroSeen = useLearningProgressStore((s) => s.sandboxIntroSeen);
+  const markSandboxIntroSeen = useLearningProgressStore(
+    (s) => s.markSandboxIntroSeen,
+  );
+  const [introDismissed, setIntroDismissed] = useState(false);
+  const showIntro = !sandboxIntroSeen && !introDismissed;
+
+  const handleDismissIntro = () => {
+    setIntroDismissed(true);
+    markSandboxIntroSeen();
+  };
 
   const [workloadPattern, setWorkloadPattern] = useState<
     "idle" | "training" | "inference" | "stress"
@@ -308,6 +323,37 @@ export const FaultInjection: React.FC = () => {
           <h2 className="text-lg font-bold text-nvidia-green">Sandbox</h2>
         </div>
 
+        {showIntro && (
+          <div
+            data-testid="sandbox-intro"
+            className="mb-4 p-4 bg-nvidia-green/5 border border-nvidia-green/30 rounded-lg relative"
+          >
+            <button
+              onClick={handleDismissIntro}
+              data-testid="sandbox-intro-dismiss"
+              aria-label="Dismiss Sandbox intro"
+              className="absolute top-2 right-2 p-1 text-gray-400 hover:text-white rounded"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2 mb-1">
+              <Lightbulb className="w-4 h-4 text-nvidia-green" />
+              <span className="font-semibold text-sm text-nvidia-green">
+                Welcome to the Sandbox
+              </span>
+            </div>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Free experimentation, no scoring. Pick a node and GPU, inject a
+              fault, then switch to the{" "}
+              <span className="text-nvidia-green">Terminal</span> tab and
+              diagnose it with real commands like{" "}
+              <code className="text-nvidia-green font-mono">nvidia-smi</code>.
+              Use <span className="text-nvidia-green">Quick Reference</span>{" "}
+              below for command ideas.
+            </p>
+          </div>
+        )}
+
         {/* Target Node + GPU Selection */}
         <div className="flex items-center gap-4 mb-6 p-3 bg-gray-900/50 rounded-lg border border-gray-700">
           <div className="flex items-center gap-2 text-sm min-w-0">
@@ -373,7 +419,7 @@ export const FaultInjection: React.FC = () => {
         )}
 
         {/* Quick Reference - collapsible */}
-        <details className="group mb-2">
+        <details className="group mb-2" open={showIntro}>
           <summary className="flex items-center gap-2 text-sm cursor-pointer hover:text-gray-300 select-none list-none [&::-webkit-details-marker]:hidden">
             <span className="text-nvidia-green font-medium">
               Quick Reference
