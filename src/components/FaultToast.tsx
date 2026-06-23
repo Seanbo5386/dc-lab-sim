@@ -131,7 +131,9 @@ const FaultToastItem: React.FC<FaultToastItemProps> = ({
           <button
             type="button"
             aria-label={`Run ${toast.suggestedCommand}`}
-            onClick={() => runCommandHandler(toast.suggestedCommand)}
+            onClick={() =>
+              runCommandHandler(toast.suggestedCommand, toast.targetNode)
+            }
             className="text-nvidia-green font-mono bg-gray-900/60 px-1.5 py-0.5 rounded hover:bg-gray-900 hover:underline"
           >
             {toast.suggestedCommand}

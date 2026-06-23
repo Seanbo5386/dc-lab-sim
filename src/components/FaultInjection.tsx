@@ -26,10 +26,13 @@ import {
   Lightbulb,
   TerminalSquare,
   Sparkles,
+  Send,
 } from "lucide-react";
 import { useLearningProgressStore } from "@/store/learningProgressStore";
 
 const metricsSimulator = new MetricsSimulator();
+
+type BasicFaultType = "xid" | "ecc" | "thermal" | "nvlink" | "power" | "pcie";
 
 const SURPRISE_TYPES = [
   "xid",
@@ -87,7 +90,7 @@ function getMutator(): StateMutator {
 }
 
 interface FaultInjectionProps {
-  onPasteCommand?: (cmd: string) => void;
+  onPasteCommand?: (cmd: string, targetNode?: string) => void;
   onSwitchToTerminal?: () => void;
 }
 
@@ -149,9 +152,28 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
     null,
   );
 
+  // Basic faults are staged via toggle buttons, then applied together on Submit.
+  const [selectedFaults, setSelectedFaults] = useState<Set<BasicFaultType>>(
+    () => new Set(),
+  );
+
+  const toggleFault = (faultType: BasicFaultType) => {
+    setSelectedFaults((prev) => {
+      const next = new Set(prev);
+      if (next.has(faultType)) {
+        next.delete(faultType);
+      } else {
+        next.add(faultType);
+      }
+      return next;
+    });
+  };
+
   const runInTerminal = (cmd: string) => {
     onSwitchToTerminal?.();
-    onPasteCommand?.(cmd);
+    // Pass the Sandbox's selected node so the terminal connects to the
+    // affected node before running the diagnostic command.
+    onPasteCommand?.(cmd, selectedNode);
   };
 
   // Collapsible info panel state
@@ -166,7 +188,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
   const [surpriseRevealed, setSurpriseRevealed] = useState(false);
 
   const handleInjectFault = (
-    faultType: "xid" | "ecc" | "thermal" | "nvlink" | "power" | "pcie",
+    faultType: BasicFaultType,
     options?: { surprise?: boolean },
   ) => {
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
@@ -186,6 +208,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
         message: "A fault has been injected. Diagnose it in the Terminal.",
         suggestedCommand: desc?.suggestedCommands[0] ?? "nvidia-smi",
         severity: "warning",
+        targetNode: selectedNode,
       });
     } else if (desc) {
       useFaultToastStore.getState().addToast({
@@ -199,6 +222,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
             ? "warning"
             : "critical",
         xidCode: desc.relatedXIDCodes?.[0] || undefined,
+        targetNode: selectedNode,
       });
     }
     setLastInjectedCommand(desc?.suggestedCommands[0] ?? "nvidia-smi");
@@ -210,6 +234,44 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
     setSurpriseFault(type);
     setSurpriseRevealed(false);
     handleInjectFault(type, { surprise: true });
+  };
+
+  const handleSubmitFaults = () => {
+    const types = Array.from(selectedFaults);
+    if (types.length === 0) return;
+
+    // A single selected fault reuses the descriptive single-fault path
+    // (per-fault toast + suggested command).
+    if (types.length === 1) {
+      handleInjectFault(types[0]);
+      setSelectedFaults(new Set());
+      return;
+    }
+
+    const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
+    if (!node) return;
+    const gpu = node.gpus[selectedGPU];
+    if (!gpu) return;
+
+    // Chain each selected fault so they accumulate on the same GPU.
+    let faulted = gpu;
+    for (const type of types) {
+      faulted = metricsSimulator.injectFault(faulted, type);
+    }
+    getMutator().updateGPU(selectedNode, selectedGPU, faulted);
+
+    const labels = types.map(
+      (t) => BASIC_FAULT_DESCRIPTIONS.find((d) => d.type === t)?.title ?? t,
+    );
+    useFaultToastStore.getState().addToast({
+      title: `${types.length} Faults Injected`,
+      message: `Injected ${labels.join(", ")} on GPU ${selectedGPU}. Diagnose in the Terminal.`,
+      suggestedCommand: "nvidia-smi",
+      severity: "critical",
+      targetNode: selectedNode,
+    });
+    setLastInjectedCommand("nvidia-smi");
+    setSelectedFaults(new Set());
   };
 
   const handleInjectScenario = (
@@ -298,6 +360,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
         suggestedCommand: desc.suggestedCommands[0],
         severity: scenarioType === "thermal-alert" ? "warning" : "critical",
         xidCode: desc.relatedXIDCodes?.[0] || undefined,
+        targetNode: selectedNode,
       });
     }
     setLastInjectedCommand(desc?.suggestedCommands[0] ?? "nvidia-smi");
@@ -326,6 +389,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
         message: desc.description,
         suggestedCommand: "nvidia-smi",
         severity: "info",
+        targetNode: selectedNode,
       });
     }
     setLastInjectedCommand("nvidia-smi");
@@ -362,6 +426,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
       message: "All GPUs on this node reset to healthy state.",
       suggestedCommand: "nvidia-smi",
       severity: "info",
+      targetNode: selectedNode,
     });
     setLastInjectedCommand(null);
   };
@@ -493,9 +558,231 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
           </button>
         )}
 
+        {/* Fault Injection Buttons */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-200">
+              Basic Fault Injection
+            </h3>
+            <button
+              onClick={() => setShowBasicInfo(!showBasicInfo)}
+              className="text-gray-400 hover:text-nvidia-green p-1 rounded transition-colors"
+              aria-label="Toggle fault descriptions"
+              aria-expanded={showBasicInfo}
+            >
+              {showBasicInfo ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <Info className="w-4 h-4" />
+              )}
+            </button>
+          </div>
+
+          {/* Collapsible Basic Fault Info Panel */}
+          {showBasicInfo && (
+            <div className="mt-1 p-4 bg-gray-900/50 rounded-lg border border-gray-700 space-y-3">
+              {BASIC_FAULT_DESCRIPTIONS.map((fault) => (
+                <div
+                  key={fault.type}
+                  className="pb-2 border-b border-gray-700/50 last:border-0 last:pb-0"
+                >
+                  <div className="font-medium text-sm text-gray-200">
+                    {fault.title}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {fault.whatHappens}
+                  </p>
+                  <p className="text-xs text-nvidia-green/80 mt-1">
+                    Exam: {fault.whyItMatters}
+                  </p>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Dashboard: {fault.dashboardIndicators.join(" \u00B7 ")}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <button
+              type="button"
+              aria-pressed={selectedFaults.has("xid")}
+              onClick={() => toggleFault("xid")}
+              className={`flex items-center gap-3 bg-red-500/10 hover:bg-red-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("xid")
+                  ? "border-red-400 ring-2 ring-red-400/50"
+                  : "border-red-500/30"
+              }`}
+            >
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+              <div>
+                <div className="font-medium text-red-400">XID Error</div>
+                <div className="text-xs text-gray-400">Critical GPU fault</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              aria-pressed={selectedFaults.has("ecc")}
+              onClick={() => toggleFault("ecc")}
+              className={`flex items-center gap-3 bg-orange-500/10 hover:bg-orange-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("ecc")
+                  ? "border-orange-400 ring-2 ring-orange-400/50"
+                  : "border-orange-500/30"
+              }`}
+            >
+              <Cpu className="w-5 h-5 text-orange-400" />
+              <div>
+                <div className="font-medium text-orange-400">ECC Error</div>
+                <div className="text-xs text-gray-400">Memory error</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              aria-pressed={selectedFaults.has("thermal")}
+              onClick={() => toggleFault("thermal")}
+              className={`flex items-center gap-3 bg-yellow-500/10 hover:bg-yellow-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("thermal")
+                  ? "border-yellow-400 ring-2 ring-yellow-400/50"
+                  : "border-yellow-500/30"
+              }`}
+            >
+              <Thermometer className="w-5 h-5 text-yellow-400" />
+              <div>
+                <div className="font-medium text-yellow-400">Thermal Issue</div>
+                <div className="text-xs text-gray-400">High temperature</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              aria-pressed={selectedFaults.has("nvlink")}
+              onClick={() => toggleFault("nvlink")}
+              className={`flex items-center gap-3 bg-purple-500/10 hover:bg-purple-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("nvlink")
+                  ? "border-purple-400 ring-2 ring-purple-400/50"
+                  : "border-purple-500/30"
+              }`}
+            >
+              <Link2 className="w-5 h-5 text-purple-400" />
+              <div>
+                <div className="font-medium text-purple-400">NVLink Down</div>
+                <div className="text-xs text-gray-400">Link degradation</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              aria-pressed={selectedFaults.has("power")}
+              onClick={() => toggleFault("power")}
+              className={`flex items-center gap-3 bg-blue-500/10 hover:bg-blue-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("power")
+                  ? "border-blue-400 ring-2 ring-blue-400/50"
+                  : "border-blue-500/30"
+              }`}
+            >
+              <Zap className="w-5 h-5 text-blue-400" />
+              <div>
+                <div className="font-medium text-blue-400">Power Issue</div>
+                <div className="text-xs text-gray-400">
+                  Power limit exceeded
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              aria-pressed={selectedFaults.has("pcie")}
+              onClick={() => toggleFault("pcie")}
+              className={`flex items-center gap-3 bg-cyan-500/10 hover:bg-cyan-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("pcie")
+                  ? "border-cyan-400 ring-2 ring-cyan-400/50"
+                  : "border-cyan-500/30"
+              }`}
+            >
+              <Radio className="w-5 h-5 text-cyan-400" />
+              <div>
+                <div className="font-medium text-cyan-400">PCIe Error</div>
+                <div className="text-xs text-gray-400">
+                  Bus communication fault
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSubmitFaults}
+              disabled={selectedFaults.size === 0}
+              aria-label="Submit selected faults"
+              className="flex items-center gap-3 bg-nvidia-green/20 hover:bg-nvidia-green/30 border border-nvidia-green rounded-lg px-4 py-3 text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-nvidia-green/20"
+            >
+              <Send className="w-5 h-5 text-nvidia-green" />
+              <div>
+                <div className="font-medium text-nvidia-green">Submit</div>
+                <div className="text-xs text-gray-400">
+                  {selectedFaults.size > 0
+                    ? `Apply ${selectedFaults.size} selected`
+                    : "Select faults above"}
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleClearFaults}
+              className="flex items-center gap-3 bg-nvidia-green/10 hover:bg-nvidia-green/20 border border-nvidia-green/30 rounded-lg px-4 py-3 text-left transition-colors"
+            >
+              <RotateCcw className="w-5 h-5 text-nvidia-green" />
+              <div>
+                <div className="font-medium text-nvidia-green">Clear All</div>
+                <div className="text-xs text-gray-400">Reset to healthy</div>
+              </div>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSurpriseMe}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            Surprise me
+          </button>
+
+          {surpriseFault && (
+            <div
+              data-testid="surprise-prompt"
+              className="p-3 bg-gray-900/50 rounded-lg border border-purple-500/30 text-sm text-gray-300"
+            >
+              Something&apos;s wrong with this node — can you find it? Switch to
+              the Terminal and investigate.
+              {surpriseRevealed ? (
+                <span
+                  data-testid="surprise-reveal-text"
+                  className="block mt-2 text-purple-300"
+                >
+                  Injected fault:{" "}
+                  {BASIC_FAULT_DESCRIPTIONS.find(
+                    (d) => d.type === surpriseFault,
+                  )?.title ?? surpriseFault}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSurpriseRevealed(true)}
+                  className="block mt-2 text-purple-300 hover:underline"
+                >
+                  Reveal
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Quick Reference - collapsible */}
         <details
-          className="group mb-2"
+          className="group mt-6 pt-6 border-t border-gray-700"
           open={showIntro}
           data-testid="quick-reference"
         >
@@ -606,173 +893,6 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
             </div>
           </div>
         </details>
-
-        {/* Fault Injection Buttons */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-200">
-              Basic Fault Injection
-            </h3>
-            <button
-              onClick={() => setShowBasicInfo(!showBasicInfo)}
-              className="text-gray-400 hover:text-nvidia-green p-1 rounded transition-colors"
-              aria-label="Toggle fault descriptions"
-              aria-expanded={showBasicInfo}
-            >
-              {showBasicInfo ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <Info className="w-4 h-4" />
-              )}
-            </button>
-          </div>
-
-          {/* Collapsible Basic Fault Info Panel */}
-          {showBasicInfo && (
-            <div className="mt-1 p-4 bg-gray-900/50 rounded-lg border border-gray-700 space-y-3">
-              {BASIC_FAULT_DESCRIPTIONS.map((fault) => (
-                <div
-                  key={fault.type}
-                  className="pb-2 border-b border-gray-700/50 last:border-0 last:pb-0"
-                >
-                  <div className="font-medium text-sm text-gray-200">
-                    {fault.title}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {fault.whatHappens}
-                  </p>
-                  <p className="text-xs text-nvidia-green/80 mt-1">
-                    Exam: {fault.whyItMatters}
-                  </p>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Dashboard: {fault.dashboardIndicators.join(" \u00B7 ")}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <button
-              onClick={() => handleInjectFault("xid")}
-              className="flex items-center gap-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg px-4 py-3 text-left transition-colors"
-            >
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-              <div>
-                <div className="font-medium text-red-400">XID Error</div>
-                <div className="text-xs text-gray-400">Critical GPU fault</div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleInjectFault("ecc")}
-              className="flex items-center gap-3 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg px-4 py-3 text-left transition-colors"
-            >
-              <Cpu className="w-5 h-5 text-orange-400" />
-              <div>
-                <div className="font-medium text-orange-400">ECC Error</div>
-                <div className="text-xs text-gray-400">Memory error</div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleInjectFault("thermal")}
-              className="flex items-center gap-3 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 rounded-lg px-4 py-3 text-left transition-colors"
-            >
-              <Thermometer className="w-5 h-5 text-yellow-400" />
-              <div>
-                <div className="font-medium text-yellow-400">Thermal Issue</div>
-                <div className="text-xs text-gray-400">High temperature</div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleInjectFault("nvlink")}
-              className="flex items-center gap-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg px-4 py-3 text-left transition-colors"
-            >
-              <Link2 className="w-5 h-5 text-purple-400" />
-              <div>
-                <div className="font-medium text-purple-400">NVLink Down</div>
-                <div className="text-xs text-gray-400">Link degradation</div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleInjectFault("power")}
-              className="flex items-center gap-3 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg px-4 py-3 text-left transition-colors"
-            >
-              <Zap className="w-5 h-5 text-blue-400" />
-              <div>
-                <div className="font-medium text-blue-400">Power Issue</div>
-                <div className="text-xs text-gray-400">
-                  Power limit exceeded
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleInjectFault("pcie")}
-              className="flex items-center gap-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-lg px-4 py-3 text-left transition-colors"
-            >
-              <Radio className="w-5 h-5 text-cyan-400" />
-              <div>
-                <div className="font-medium text-cyan-400">PCIe Error</div>
-                <div className="text-xs text-gray-400">
-                  Bus communication fault
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={handleClearFaults}
-              className="flex items-center gap-3 bg-nvidia-green/10 hover:bg-nvidia-green/20 border border-nvidia-green/30 rounded-lg px-4 py-3 text-left transition-colors"
-            >
-              <RotateCcw className="w-5 h-5 text-nvidia-green" />
-              <div>
-                <div className="font-medium text-nvidia-green">Clear All</div>
-                <div className="text-xs text-gray-400">Reset to healthy</div>
-              </div>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleSurpriseMe}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20 transition-colors"
-          >
-            <Sparkles className="w-4 h-4" />
-            Surprise me
-          </button>
-
-          {surpriseFault && (
-            <div
-              data-testid="surprise-prompt"
-              className="p-3 bg-gray-900/50 rounded-lg border border-purple-500/30 text-sm text-gray-300"
-            >
-              Something&apos;s wrong with this node — can you find it? Switch to
-              the Terminal and investigate.
-              {surpriseRevealed ? (
-                <span
-                  data-testid="surprise-reveal-text"
-                  className="block mt-2 text-purple-300"
-                >
-                  Injected fault:{" "}
-                  {BASIC_FAULT_DESCRIPTIONS.find(
-                    (d) => d.type === surpriseFault,
-                  )?.title ?? surpriseFault}
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setSurpriseRevealed(true)}
-                  className="block mt-2 text-purple-300 hover:underline"
-                >
-                  Reveal
-                </button>
-              )}
-            </div>
-          )}
-        </div>
 
         {/* Complex Training Scenarios */}
         <div className="mt-6 pt-6 border-t border-gray-700 space-y-4">

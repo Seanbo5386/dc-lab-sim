@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { render, waitFor } from "@testing-library/react";
+import { act } from "react";
 
 // Provide ResizeObserver that triggers callback with non-zero dimensions
 beforeAll(() => {
@@ -34,9 +35,9 @@ beforeAll(() => {
   });
 });
 
-// Mock @xterm/xterm – the Terminal constructor returns a lightweight stub
-vi.mock("@xterm/xterm", () => {
-  const mockTerminal = {
+// Hoisted xterm stub so tests can assert on what the terminal wrote.
+const { mockTerminal } = vi.hoisted(() => ({
+  mockTerminal: {
     open: vi.fn(),
     write: vi.fn(),
     writeln: vi.fn(),
@@ -45,13 +46,17 @@ vi.mock("@xterm/xterm", () => {
     input: vi.fn(),
     dispose: vi.fn(),
     loadAddon: vi.fn(),
+    focus: vi.fn(),
+    reset: vi.fn(),
     options: {},
     cols: 80,
     rows: 24,
     element: document.createElement("div"),
-  };
-  return { Terminal: vi.fn(() => mockTerminal) };
-});
+  },
+}));
+
+// Mock @xterm/xterm – the Terminal constructor returns a lightweight stub
+vi.mock("@xterm/xterm", () => ({ Terminal: vi.fn(() => mockTerminal) }));
 
 vi.mock("@xterm/addon-fit", () => ({
   FitAddon: vi.fn(() => ({ fit: vi.fn(), dispose: vi.fn() })),
@@ -66,9 +71,13 @@ const { mockSimulationState } = vi.hoisted(() => ({
   mockSimulationState: {
     selectedNode: "dgx-00",
     cluster: {
-      nodes: [{ id: "dgx-00", hostname: "dgx-00", systemType: "DGX-A100" }],
+      nodes: [
+        { id: "dgx-00", hostname: "dgx-00", systemType: "DGX-A100" },
+        { id: "dgx-01", hostname: "dgx-01", systemType: "DGX-A100" },
+      ],
     },
     activeScenario: null as { id: string; title: string } | null,
+    selectNode: vi.fn(),
   },
 }));
 
@@ -299,6 +308,57 @@ describe("Terminal", () => {
     await waitFor(() => {
       expect(onReady).toHaveBeenCalledWith(expect.any(Function));
     });
+  });
+
+  it("pastes a command directly when no target node is given", async () => {
+    let pasteCommand: (cmd: string, targetNode?: string) => void = () => {};
+    render(<Terminal onReady={(fn) => (pasteCommand = fn)} />);
+    await waitFor(() => expect(mockTerminal.onData).toHaveBeenCalled());
+
+    mockTerminal.write.mockClear();
+    act(() => pasteCommand("nvidia-smi"));
+
+    // Command is written straight to the input; no ssh connect is performed.
+    expect(mockTerminal.write).toHaveBeenCalledWith("nvidia-smi");
+    const sshWrites = mockTerminal.write.mock.calls.filter((c) =>
+      String(c[0]).startsWith("ssh "),
+    );
+    expect(sshWrites).toHaveLength(0);
+  });
+
+  it("pastes a command directly when the target node is the current node", async () => {
+    let pasteCommand: (cmd: string, targetNode?: string) => void = () => {};
+    render(<Terminal onReady={(fn) => (pasteCommand = fn)} />);
+    await waitFor(() => expect(mockTerminal.onData).toHaveBeenCalled());
+
+    mockTerminal.write.mockClear();
+    // The terminal initializes connected to dgx-00 (the selected node).
+    act(() => pasteCommand("nvidia-smi", "dgx-00"));
+
+    expect(mockTerminal.write).toHaveBeenCalledWith("nvidia-smi");
+    const sshWrites = mockTerminal.write.mock.calls.filter((c) =>
+      String(c[0]).startsWith("ssh "),
+    );
+    expect(sshWrites).toHaveLength(0);
+  });
+
+  it("connects to the target node before staging the command when it differs", async () => {
+    let pasteCommand: (cmd: string, targetNode?: string) => void = () => {};
+    render(<Terminal onReady={(fn) => (pasteCommand = fn)} />);
+    await waitFor(() => expect(mockTerminal.onData).toHaveBeenCalled());
+
+    mockTerminal.write.mockClear();
+    // Terminal is on dgx-00; ask to run on dgx-01.
+    await act(async () => {
+      pasteCommand("nvidia-smi", "dgx-01");
+    });
+
+    // The ssh connect is echoed immediately...
+    expect(mockTerminal.write).toHaveBeenCalledWith("ssh dgx-01");
+    // ...and the command is staged after the ssh resolves.
+    await waitFor(() =>
+      expect(mockTerminal.write).toHaveBeenCalledWith("nvidia-smi"),
+    );
   });
 
   it("writes the full welcome banner when no scenario is active", async () => {

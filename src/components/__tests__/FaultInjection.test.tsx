@@ -171,6 +171,7 @@ vi.mock("lucide-react", () => {
     Lightbulb: createIcon("Lightbulb"),
     TerminalSquare: createIcon("TerminalSquare"),
     Sparkles: createIcon("Sparkles"),
+    Send: createIcon("Send"),
   };
 });
 
@@ -299,6 +300,15 @@ const mockCluster = {
 
 // Set the initial cluster value
 shared.currentCluster = mockCluster;
+
+// Basic faults are now staged via toggle buttons and applied on Submit.
+// This helper selects a fault by its button label and clicks Submit.
+function selectAndSubmit(label: string) {
+  fireEvent.click(screen.getByText(label));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Submit selected faults" }),
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Test suite
@@ -475,10 +485,10 @@ describe("FaultInjection", () => {
   // =========================================================================
 
   describe("Basic Fault Injection", () => {
-    it("should call injectFault with 'xid' and updateGPU when XID Error clicked", () => {
+    it("should call injectFault with 'xid' and updateGPU when XID Error selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("XID Error"));
+      selectAndSubmit("XID Error");
 
       expect(mockInjectFault).toHaveBeenCalledTimes(1);
       expect(mockInjectFault).toHaveBeenCalledWith(
@@ -493,10 +503,10 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call injectFault with 'ecc' when ECC Error clicked", () => {
+    it("should call injectFault with 'ecc' when ECC Error selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("ECC Error"));
+      selectAndSubmit("ECC Error");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 0 }),
@@ -504,10 +514,10 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call injectFault with 'thermal' when Thermal Issue clicked", () => {
+    it("should call injectFault with 'thermal' when Thermal Issue selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("Thermal Issue"));
+      selectAndSubmit("Thermal Issue");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 0 }),
@@ -515,10 +525,10 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call injectFault with 'nvlink' when NVLink Down clicked", () => {
+    it("should call injectFault with 'nvlink' when NVLink Down selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("NVLink Down"));
+      selectAndSubmit("NVLink Down");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 0 }),
@@ -526,10 +536,10 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call injectFault with 'power' when Power Issue clicked", () => {
+    it("should call injectFault with 'power' when Power Issue selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("Power Issue"));
+      selectAndSubmit("Power Issue");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 0 }),
@@ -537,10 +547,10 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call injectFault with 'pcie' when PCIe Error clicked", () => {
+    it("should call injectFault with 'pcie' when PCIe Error selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("PCIe Error"));
+      selectAndSubmit("PCIe Error");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 0 }),
@@ -555,7 +565,7 @@ describe("FaultInjection", () => {
       const gpuSelect = screen.getByDisplayValue("GPU 0");
       fireEvent.change(gpuSelect, { target: { value: "1" } });
 
-      fireEvent.click(screen.getByText("XID Error"));
+      selectAndSubmit("XID Error");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 1 }),
@@ -566,6 +576,119 @@ describe("FaultInjection", () => {
         1,
         expect.anything(),
       );
+    });
+
+    it("does not inject until Submit is clicked", () => {
+      render(<FaultInjection />);
+
+      // Toggling a fault button only stages it; nothing is injected yet.
+      fireEvent.click(screen.getByText("XID Error"));
+      expect(mockInjectFault).not.toHaveBeenCalled();
+      expect(mockUpdateGPU).not.toHaveBeenCalled();
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      );
+      expect(mockInjectFault).toHaveBeenCalledTimes(1);
+      expect(mockUpdateGPU).toHaveBeenCalledTimes(1);
+    });
+
+    it("marks a toggled fault button as pressed", () => {
+      render(<FaultInjection />);
+
+      const xidButton = screen.getByText("XID Error").closest("button");
+      expect(xidButton).toHaveAttribute("aria-pressed", "false");
+
+      fireEvent.click(screen.getByText("XID Error"));
+      expect(xidButton).toHaveAttribute("aria-pressed", "true");
+
+      // Toggling again clears the selection.
+      fireEvent.click(screen.getByText("XID Error"));
+      expect(xidButton).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("applies multiple selected faults to the same GPU on a single Submit", () => {
+      render(<FaultInjection />);
+
+      // Stage two faults, then submit once.
+      fireEvent.click(screen.getByText("XID Error"));
+      fireEvent.click(screen.getByText("Thermal Issue"));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      );
+
+      // Both fault types are injected (chained onto the same GPU)...
+      expect(mockInjectFault).toHaveBeenCalledTimes(2);
+      expect(mockInjectFault).toHaveBeenCalledWith(expect.anything(), "xid");
+      expect(mockInjectFault).toHaveBeenCalledWith(
+        expect.anything(),
+        "thermal",
+      );
+      // ...and the GPU is updated exactly once with the accumulated result.
+      expect(mockUpdateGPU).toHaveBeenCalledTimes(1);
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        0,
+        expect.anything(),
+      );
+    });
+
+    it("fires a combined toast naming each fault when multiple are submitted", () => {
+      render(<FaultInjection />);
+
+      fireEvent.click(screen.getByText("XID Error"));
+      fireEvent.click(screen.getByText("ECC Error"));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      );
+
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "2 Faults Injected" }),
+      );
+    });
+
+    it("tags the fault toast with the affected node so its command can connect there", () => {
+      render(<FaultInjection />);
+
+      fireEvent.change(screen.getByLabelText("Sandbox target node"), {
+        target: { value: "dgx-01" },
+      });
+      selectAndSubmit("XID Error");
+
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.objectContaining({ targetNode: "dgx-01" }),
+      );
+    });
+
+    it("Submit is disabled and does nothing when no fault is selected", () => {
+      render(<FaultInjection />);
+
+      const submit = screen.getByRole("button", {
+        name: "Submit selected faults",
+      });
+      expect(submit).toBeDisabled();
+
+      fireEvent.click(submit);
+      expect(mockInjectFault).not.toHaveBeenCalled();
+      expect(mockUpdateGPU).not.toHaveBeenCalled();
+    });
+
+    it("clears the staged selection after a successful Submit", () => {
+      render(<FaultInjection />);
+
+      fireEvent.click(screen.getByText("XID Error"));
+      const xidButton = screen.getByText("XID Error").closest("button");
+      expect(xidButton).toHaveAttribute("aria-pressed", "true");
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      );
+
+      // Selection resets, so Submit is disabled again.
+      expect(xidButton).toHaveAttribute("aria-pressed", "false");
+      expect(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      ).toBeDisabled();
     });
   });
 
@@ -810,7 +933,7 @@ describe("FaultInjection", () => {
       shared.activeContextReturn = undefined;
 
       render(<FaultInjection />);
-      fireEvent.click(screen.getByText("XID Error"));
+      selectAndSubmit("XID Error");
 
       expect(mockUpdateGPU).toHaveBeenCalled();
       expect(mockContextUpdateGPU).not.toHaveBeenCalled();
@@ -820,7 +943,7 @@ describe("FaultInjection", () => {
       shared.activeContextReturn = mockActiveContext;
 
       render(<FaultInjection />);
-      fireEvent.click(screen.getByText("XID Error"));
+      selectAndSubmit("XID Error");
 
       expect(mockContextUpdateGPU).toHaveBeenCalledWith(
         "dgx-00",
@@ -901,7 +1024,7 @@ describe("FaultInjection", () => {
       const otherNode = options.find((v) => v !== "dgx-00") ?? options[0];
 
       fireEvent.change(nodeSelect, { target: { value: otherNode } });
-      fireEvent.click(screen.getByText("XID Error"));
+      selectAndSubmit("XID Error");
 
       expect(mockUpdateGPU).toHaveBeenCalledWith(
         otherNode,
@@ -924,8 +1047,8 @@ describe("FaultInjection", () => {
       const { container } = render(<FaultInjection />);
       expect(container).toBeInTheDocument();
 
-      // Should not crash when clicking inject with no nodes
-      fireEvent.click(screen.getByText("XID Error"));
+      // Should not crash when selecting + submitting a fault with no nodes
+      selectAndSubmit("XID Error");
       expect(mockInjectFault).not.toHaveBeenCalled();
     });
 
@@ -983,7 +1106,32 @@ describe("FaultInjection", () => {
       fireEvent.click(screen.getByRole("button", { name: "Run nvidia-smi" }));
 
       expect(onSwitch).toHaveBeenCalled();
-      expect(onPaste).toHaveBeenCalledWith("nvidia-smi");
+      // The command is paired with the Sandbox's selected node so the terminal
+      // connects to the affected node before running it.
+      expect(onPaste).toHaveBeenCalledWith("nvidia-smi", "dgx-00");
+    });
+
+    it("pastes the diagnostic command with the Sandbox-selected node, not the default", () => {
+      const onPaste = vi.fn();
+      const onSwitch = vi.fn();
+      render(
+        <FaultInjection
+          onPasteCommand={onPaste}
+          onSwitchToTerminal={onSwitch}
+        />,
+      );
+
+      // Choose a non-default node in the Sandbox.
+      fireEvent.change(screen.getByLabelText("Sandbox target node"), {
+        target: { value: "dgx-01" },
+      });
+
+      // Inject + diagnose via the post-inject CTA.
+      selectAndSubmit("XID Error");
+      fireEvent.click(screen.getByTestId("diagnose-cta"));
+
+      // The pasted command carries the affected node (dgx-01).
+      expect(onPaste).toHaveBeenCalledWith(expect.any(String), "dgx-01");
     });
 
     it("shows a Diagnose-in-Terminal CTA after injecting a fault", () => {
@@ -997,7 +1145,7 @@ describe("FaultInjection", () => {
       );
 
       expect(screen.queryByTestId("diagnose-cta")).not.toBeInTheDocument();
-      fireEvent.click(screen.getByText("XID Error"));
+      selectAndSubmit("XID Error");
 
       fireEvent.click(screen.getByTestId("diagnose-cta"));
       expect(onSwitch).toHaveBeenCalled();
@@ -1066,9 +1214,9 @@ describe("FaultInjection", () => {
       });
 
       // The guard effect must have reset selectedNode to "dgx-00".
-      // Verify via fault injection: clicking XID Error must target dgx-00, NOT the
-      // stale dgx-01 (which no longer exists in the cluster).
-      fireEvent.click(screen.getByText("XID Error"));
+      // Verify via fault injection: submitting an XID fault must target dgx-00,
+      // NOT the stale dgx-01 (which no longer exists in the cluster).
+      selectAndSubmit("XID Error");
       expect(mockUpdateGPU).toHaveBeenCalledWith(
         "dgx-00",
         expect.any(Number),

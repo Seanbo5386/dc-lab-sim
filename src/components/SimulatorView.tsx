@@ -99,23 +99,29 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
     };
   }, [activeScenario, updateValidationConfig]);
 
-  // Paste callback ref — set by Terminal's onReady
-  const pasteCommandRef = useRef<((cmd: string) => void) | null>(null);
-  const handleTerminalReady = useCallback((pasteFn: (cmd: string) => void) => {
-    pasteCommandRef.current = pasteFn;
-  }, []);
-  const handlePasteCommand = useCallback((cmd: string) => {
-    pasteCommandRef.current?.(cmd);
+  // Paste callback ref — set by Terminal's onReady. The optional node connects
+  // the terminal to that node (via ssh) before staging the command.
+  const pasteCommandRef = useRef<
+    ((cmd: string, targetNode?: string) => void) | null
+  >(null);
+  const handleTerminalReady = useCallback(
+    (pasteFn: (cmd: string, targetNode?: string) => void) => {
+      pasteCommandRef.current = pasteFn;
+    },
+    [],
+  );
+  const handlePasteCommand = useCallback((cmd: string, targetNode?: string) => {
+    pasteCommandRef.current?.(cmd, targetNode);
   }, []);
 
   // Register fault toast run-command handler so toast buttons route to terminal
   useEffect(() => {
     const setRunCommandHandler =
       useFaultToastStore.getState().setRunCommandHandler;
-    setRunCommandHandler((cmd: string) => {
+    setRunCommandHandler((cmd: string, targetNode?: string) => {
       setRightTab("terminal");
       setMobileTab("terminal");
-      handlePasteCommand(cmd);
+      handlePasteCommand(cmd, targetNode);
     });
     return () => setRunCommandHandler(null);
   }, [handlePasteCommand]);

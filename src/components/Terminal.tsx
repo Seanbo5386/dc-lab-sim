@@ -101,8 +101,13 @@ function formatPracticeExercises(
 
 interface TerminalProps {
   className?: string;
-  /** Called when terminal is ready, providing a function to paste text into the input buffer */
-  onReady?: (pasteCommand: (cmd: string) => void) => void;
+  /**
+   * Called when terminal is ready, providing a function to paste text into the
+   * input buffer. An optional `targetNode` connects the terminal to that node
+   * (via `ssh`) before staging the command, so a command runs against the
+   * intended node rather than whichever node the terminal is currently on.
+   */
+  onReady?: (pasteCommand: (cmd: string, targetNode?: string) => void) => void;
 }
 
 export const Terminal: React.FC<TerminalProps> = ({
@@ -355,7 +360,7 @@ export const Terminal: React.FC<TerminalProps> = ({
 
         // Notify parent that terminal is ready with paste capability
         // Must fire after onData is wired so pasteToInput keeps currentLine in sync
-        onReadyRef.current?.(pasteToInput);
+        onReadyRef.current?.(pasteCommandOnNode);
       });
     };
 
@@ -1384,6 +1389,34 @@ export const Terminal: React.FC<TerminalProps> = ({
       currentLine += text;
       setCurrentCommand(currentLine);
       term.focus();
+    };
+
+    // Paste a command, optionally connecting to a target node first.
+    // When `targetNode` differs from the node the terminal is currently on, we
+    // run `ssh <targetNode>` (the same flow as Dashboard-driven auto-SSH) and
+    // wait for it to finish before staging the command. This keeps the command
+    // pointed at the node where a Sandbox fault was injected. Awaiting the ssh
+    // avoids a race where the pasted text would land mid-connection-output.
+    const pasteCommandOnNode = (cmd: string, targetNode?: string) => {
+      if (!term || disposed) return;
+      const currentNode = currentContext.current.currentNode;
+      if (
+        targetNode &&
+        targetNode !== currentNode &&
+        executeCommandRef.current
+      ) {
+        const sshCommand = `ssh ${targetNode}`;
+        // executeCommand does not echo programmatic input, so echo it here to
+        // mirror what the user would see when typing the command themselves.
+        term.write(sshCommand);
+        term.write("\r\n");
+        void executeCommandRef.current(sshCommand).then(() => {
+          if (disposed) return;
+          pasteToInput(cmd);
+        });
+      } else {
+        pasteToInput(cmd);
+      }
     };
 
     // Defer term.open() until container has non-zero dimensions to prevent
