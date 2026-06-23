@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, within, act } from "@testing-library/react";
 
 // ---------------------------------------------------------------------------
 // Hoisted mock setup - these are available to vi.mock factories
@@ -916,6 +916,44 @@ describe("FaultInjection", () => {
         screen.getByText("Complex Training Scenarios"),
       ).toBeInTheDocument();
       expect(screen.getByText("Simulate Workloads")).toBeInTheDocument();
+    });
+
+    it("guard effect: falls back to first node when selected node disappears after cluster rebuild", async () => {
+      // Start with the full two-node cluster (dgx-00, dgx-01)
+      shared.currentCluster = mockCluster;
+      const { rerender } = render(<FaultInjection />);
+
+      // Select the second node (dgx-01), which is NOT the first node
+      const nodeSelect = screen.getByLabelText("Sandbox target node");
+      fireEvent.change(nodeSelect, { target: { value: "dgx-01" } });
+      expect((nodeSelect as HTMLSelectElement).value).toBe("dgx-01");
+
+      // Simulate a system-type switch that rebuilds the cluster with only dgx-00
+      // (dgx-01 is gone — the guard effect must detect this and reset selectedNode)
+      const rebuiltCluster = {
+        ...mockCluster,
+        nodes: [createMockNode("dgx-00", "dgx-00.local", 2)],
+      };
+
+      await act(async () => {
+        shared.currentCluster = rebuiltCluster;
+        // Rerender so useSimulationStore returns the new cluster value,
+        // triggering useMemo(effectiveCluster) change and then the guard useEffect
+        rerender(<FaultInjection />);
+      });
+
+      // The guard effect must have reset selectedNode to "dgx-00".
+      // Verify via fault injection: clicking XID Error must target dgx-00, NOT the
+      // stale dgx-01 (which no longer exists in the cluster).
+      fireEvent.click(screen.getByText("XID Error"));
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        expect.any(Number),
+        expect.anything(),
+      );
+      // Without the guard effect, handleInjectFault would find no node for "dgx-01"
+      // and return early without calling updateGPU at all.
+      expect(mockUpdateGPU).toHaveBeenCalledTimes(1);
     });
   });
 });
