@@ -4,7 +4,7 @@ import { useFaultToastStore } from "../faultToastStore";
 describe("faultToastStore", () => {
   beforeEach(() => {
     // Reset store between tests
-    useFaultToastStore.setState({ toasts: [] });
+    useFaultToastStore.setState({ toasts: [], runCommandHandler: null });
   });
 
   it("starts with empty toasts array", () => {
