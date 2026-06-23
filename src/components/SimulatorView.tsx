@@ -626,6 +626,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   </button>
                   <div className="relative group">
                     <button
+                      data-tour="sandbox-tab"
                       onClick={() => !activeScenario && setRightTab("faults")}
                       disabled={!!activeScenario}
                       className={`flex items-center gap-1.5 py-2 px-4 text-sm font-medium transition-colors ${

@@ -34,6 +34,13 @@ export const SIMULATOR_TOUR_STEPS: TourStep[] = [
     placement: "left",
   },
   {
+    selector: '[data-tour="sandbox-tab"]',
+    title: "Sandbox",
+    description:
+      "Switch here to break things on purpose. Inject GPU faults or simulate workloads, then return to the Terminal to diagnose them — free practice with no scoring.",
+    placement: "left",
+  },
+  {
     selector: '[data-tour="sim-controls"]',
     title: "Simulation Controls",
     description:
