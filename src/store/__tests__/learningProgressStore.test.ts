@@ -479,5 +479,32 @@ describe("Learning Progress Store", () => {
       useLearningProgressStore.getState().markSandboxIntroSeen();
       expect(useLearningProgressStore.getState().sandboxIntroSeen).toBe(true);
     });
+
+    it("persists sandboxIntroSeen to localStorage after markSandboxIntroSeen", async () => {
+      // The store's createJSONStorage(() => localStorage) writes to jsdom's built-in
+      // localStorage, not to the localStorageMock that replaced window.localStorage.
+      // We read the persisted blob back via the store's own persist storage adapter
+      // (useLearningProgressStore.persist.getOptions().storage) which correctly
+      // targets the same underlying storage and returns a pre-parsed object.
+      //
+      // Zustand persist (newImpl path) writes synchronously on every set() call.
+      // The persisted blob shape is: { state: <partializedState>, version: <number> }
+      //
+      // This assertion WILL FAIL if sandboxIntroSeen is removed from partialize,
+      // because the key will be absent from the persisted state blob.
+
+      const { storage, name } = useLearningProgressStore.persist.getOptions();
+      // Seed a clean slate in the persistence layer.
+      await storage!.removeItem(name);
+      useLearningProgressStore.getState().resetProgress();
+
+      useLearningProgressStore.getState().markSandboxIntroSeen();
+
+      const blob = (await storage!.getItem(name)) as {
+        state: Record<string, unknown>;
+      } | null;
+      expect(blob).not.toBeNull();
+      expect(blob!.state.sandboxIntroSeen).toBe(true);
+    });
   });
 });
