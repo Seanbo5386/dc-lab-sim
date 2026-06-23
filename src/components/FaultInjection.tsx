@@ -31,6 +31,15 @@ import { useLearningProgressStore } from "@/store/learningProgressStore";
 
 const metricsSimulator = new MetricsSimulator();
 
+const SURPRISE_TYPES = [
+  "xid",
+  "ecc",
+  "thermal",
+  "nvlink",
+  "power",
+  "pcie",
+] as const;
+
 /**
  * Get a mutator that routes to ScenarioContext when active, otherwise to global store.
  */
@@ -151,14 +160,6 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
   const [showWorkloadInfo, setShowWorkloadInfo] = useState(false);
 
   // Surprise me challenge mode
-  const SURPRISE_TYPES = [
-    "xid",
-    "ecc",
-    "thermal",
-    "nvlink",
-    "power",
-    "pcie",
-  ] as const;
   const [surpriseFault, setSurpriseFault] = useState<
     (typeof SURPRISE_TYPES)[number] | null
   >(null);
@@ -435,10 +436,14 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
           </div>
           <div className="h-4 w-px bg-gray-700" />
           <div className="flex items-center gap-2 flex-1">
-            <label className="text-sm text-gray-400 whitespace-nowrap">
+            <label
+              className="text-sm text-gray-400 whitespace-nowrap"
+              htmlFor="sandbox-gpu-select"
+            >
               GPU:
             </label>
             <select
+              id="sandbox-gpu-select"
               aria-label="Sandbox target GPU"
               value={selectedGPU}
               onChange={(e) => setSelectedGPU(Number(e.target.value))}

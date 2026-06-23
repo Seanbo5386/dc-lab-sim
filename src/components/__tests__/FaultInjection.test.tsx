@@ -17,6 +17,7 @@ const {
   mockSimulateWorkload,
   mockActiveContext,
   mockMarkSandboxIntroSeen,
+  mockAddToast,
   shared,
 } = vi.hoisted(() => {
   // -- store mocks --
@@ -47,6 +48,9 @@ const {
         utilization: 95,
       })),
   );
+
+  // -- faultToastStore mock fn --
+  const mockAddToast = vi.fn();
 
   // -- learningProgressStore mock fn --
   const mockMarkSandboxIntroSeen = vi.fn(() => {
@@ -90,6 +94,7 @@ const {
     mockSimulateWorkload,
     mockActiveContext,
     mockMarkSandboxIntroSeen,
+    mockAddToast,
     shared,
   };
 });
@@ -183,7 +188,7 @@ vi.mock("@/store/faultToastStore", () => ({
   useFaultToastStore: Object.assign(vi.fn(), {
     getState: vi.fn(() => ({
       toasts: [],
-      addToast: vi.fn(),
+      addToast: mockAddToast,
       removeToast: vi.fn(),
     })),
   }),
@@ -1019,6 +1024,21 @@ describe("FaultInjection", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /reveal/i }));
       expect(screen.getByTestId("surprise-reveal-text")).toBeInTheDocument();
+    });
+
+    it("Surprise me fires a generic toast title that does not leak the fault type", () => {
+      render(
+        <FaultInjection
+          onPasteCommand={vi.fn()}
+          onSwitchToTerminal={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /surprise me/i }));
+
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Something's wrong with this node" }),
+      );
     });
 
     it("guard effect: falls back to first node when selected node disappears after cluster rebuild", async () => {
