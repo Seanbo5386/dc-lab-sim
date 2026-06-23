@@ -113,6 +113,9 @@ export interface LearningProgressData {
   // Incident Difficulty Rating (ELO-like adaptive system)
   incidentRating: number;
   incidentHistory: IncidentHistoryEntry[];
+
+  // Sandbox onboarding
+  sandboxIntroSeen: boolean;
 }
 
 /**
@@ -154,6 +157,9 @@ export interface LearningProgressState extends LearningProgressData {
   // Incident difficulty
   recordIncidentResult: (templateId: string, score: number) => void;
 
+  // Sandbox onboarding
+  markSandboxIntroSeen: () => void;
+
   // Utility
   resetProgress: () => void;
 }
@@ -191,6 +197,7 @@ const initialState: LearningProgressData = {
   reviewSchedule: {},
   incidentRating: 1000,
   incidentHistory: [],
+  sandboxIntroSeen: false,
 };
 
 // ============================================================================
@@ -529,6 +536,13 @@ export const useLearningProgressStore = create<LearningProgressState>()(
       },
 
       /**
+       * Marks the Sandbox first-run intro as seen so it is not shown again.
+       */
+      markSandboxIntroSeen: (): void => {
+        set({ sandboxIntroSeen: true });
+      },
+
+      /**
        * Resets all learning progress to initial state
        */
       resetProgress: (): void => {
@@ -558,6 +572,7 @@ export const useLearningProgressStore = create<LearningProgressState>()(
         reviewSchedule: state.reviewSchedule,
         incidentRating: state.incidentRating,
         incidentHistory: state.incidentHistory,
+        sandboxIntroSeen: state.sandboxIntroSeen,
       }),
     },
   ),

@@ -470,4 +470,14 @@ describe("Learning Progress Store", () => {
       expect(state.toolsUsed["gpu-monitoring"]).toBeDefined();
     });
   });
+
+  describe("Sandbox Onboarding", () => {
+    it("defaults sandboxIntroSeen to false and marks it seen", () => {
+      useLearningProgressStore.getState().resetProgress();
+      expect(useLearningProgressStore.getState().sandboxIntroSeen).toBe(false);
+
+      useLearningProgressStore.getState().markSandboxIntroSeen();
+      expect(useLearningProgressStore.getState().sandboxIntroSeen).toBe(true);
+    });
+  });
 });
