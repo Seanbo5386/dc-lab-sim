@@ -25,6 +25,7 @@ import {
   X,
   Lightbulb,
   TerminalSquare,
+  Sparkles,
 } from "lucide-react";
 import { useLearningProgressStore } from "@/store/learningProgressStore";
 
@@ -149,8 +150,23 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
   const [showComplexInfo, setShowComplexInfo] = useState(false);
   const [showWorkloadInfo, setShowWorkloadInfo] = useState(false);
 
+  // Surprise me challenge mode
+  const SURPRISE_TYPES = [
+    "xid",
+    "ecc",
+    "thermal",
+    "nvlink",
+    "power",
+    "pcie",
+  ] as const;
+  const [surpriseFault, setSurpriseFault] = useState<
+    (typeof SURPRISE_TYPES)[number] | null
+  >(null);
+  const [surpriseRevealed, setSurpriseRevealed] = useState(false);
+
   const handleInjectFault = (
     faultType: "xid" | "ecc" | "thermal" | "nvlink" | "power" | "pcie",
+    options?: { surprise?: boolean },
   ) => {
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
     if (!node) return;
@@ -163,7 +179,14 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
 
     // Fire toast notification
     const desc = BASIC_FAULT_DESCRIPTIONS.find((d) => d.type === faultType);
-    if (desc) {
+    if (options?.surprise) {
+      useFaultToastStore.getState().addToast({
+        title: "Something's wrong with this node",
+        message: "A fault has been injected. Diagnose it in the Terminal.",
+        suggestedCommand: desc?.suggestedCommands[0] ?? "nvidia-smi",
+        severity: "warning",
+      });
+    } else if (desc) {
       useFaultToastStore.getState().addToast({
         title: `${desc.title} Injected`,
         message: desc.whatHappens,
@@ -178,6 +201,14 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
       });
     }
     setLastInjectedCommand(desc?.suggestedCommands[0] ?? "nvidia-smi");
+  };
+
+  const handleSurpriseMe = () => {
+    const type =
+      SURPRISE_TYPES[Math.floor(Math.random() * SURPRISE_TYPES.length)];
+    setSurpriseFault(type);
+    setSurpriseRevealed(false);
+    handleInjectFault(type, { surprise: true });
   };
 
   const handleInjectScenario = (
@@ -695,6 +726,44 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
               </div>
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={handleSurpriseMe}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            Surprise me
+          </button>
+
+          {surpriseFault && (
+            <div
+              data-testid="surprise-prompt"
+              className="p-3 bg-gray-900/50 rounded-lg border border-purple-500/30 text-sm text-gray-300"
+            >
+              Something&apos;s wrong with this node — can you find it? Switch to
+              the Terminal and investigate.
+              {surpriseRevealed ? (
+                <span
+                  data-testid="surprise-reveal-text"
+                  className="block mt-2 text-purple-300"
+                >
+                  Injected fault:{" "}
+                  {BASIC_FAULT_DESCRIPTIONS.find(
+                    (d) => d.type === surpriseFault,
+                  )?.title ?? surpriseFault}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSurpriseRevealed(true)}
+                  className="block mt-2 text-purple-300 hover:underline"
+                >
+                  Reveal
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Complex Training Scenarios */}

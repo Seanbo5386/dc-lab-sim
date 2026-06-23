@@ -165,6 +165,7 @@ vi.mock("lucide-react", () => {
     X: createIcon("X"),
     Lightbulb: createIcon("Lightbulb"),
     TerminalSquare: createIcon("TerminalSquare"),
+    Sparkles: createIcon("Sparkles"),
   };
 });
 
@@ -996,6 +997,28 @@ describe("FaultInjection", () => {
       fireEvent.click(screen.getByTestId("diagnose-cta"));
       expect(onSwitch).toHaveBeenCalled();
       expect(onPaste).toHaveBeenCalled();
+    });
+
+    it("Surprise me injects a hidden fault and Reveal shows what it was", () => {
+      render(
+        <FaultInjection
+          onPasteCommand={vi.fn()}
+          onSwitchToTerminal={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /surprise me/i }));
+
+      // A fault was injected on the cluster.
+      expect(mockUpdateGPU).toHaveBeenCalled();
+      // The challenge prompt appears, fault name hidden until revealed.
+      expect(screen.getByTestId("surprise-prompt")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("surprise-reveal-text"),
+      ).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /reveal/i }));
+      expect(screen.getByTestId("surprise-reveal-text")).toBeInTheDocument();
     });
 
     it("guard effect: falls back to first node when selected node disappears after cluster rebuild", async () => {
