@@ -91,3 +91,28 @@ describe("simulationStore.trackToolUsage - Multi-family mapping", () => {
     expect(markToolUsedSpy).not.toHaveBeenCalled();
   });
 });
+
+describe("setBugReportCollected", () => {
+  it("sets the bugReportCollected flag on the named node", () => {
+    const store = useSimulationStore.getState();
+    const nodeId = store.cluster.nodes[0].id;
+
+    store.setBugReportCollected(nodeId, true);
+    expect(
+      useSimulationStore.getState().cluster.nodes.find((n) => n.id === nodeId)
+        ?.bugReportCollected,
+    ).toBe(true);
+
+    store.setBugReportCollected(nodeId, false);
+    expect(
+      useSimulationStore.getState().cluster.nodes.find((n) => n.id === nodeId)
+        ?.bugReportCollected,
+    ).toBe(false);
+  });
+
+  it("ignores an unknown node id", () => {
+    expect(() =>
+      useSimulationStore.getState().setBugReportCollected("nope", true),
+    ).not.toThrow();
+  });
+});

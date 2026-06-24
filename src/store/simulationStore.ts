@@ -108,6 +108,7 @@ interface SimulationState {
   updateGPU: (nodeId: string, gpuId: number, updates: Partial<GPU>) => void;
   updateHCAs: (nodeId: string, hcas: InfiniBandHCA[]) => void;
   updateNodeHealth: (nodeId: string, health: HealthStatus) => void;
+  setBugReportCollected: (nodeId: string, value: boolean) => void;
   addXIDError: (nodeId: string, gpuId: number, error: XIDError) => void;
   setMIGMode: (nodeId: string, gpuId: number, enabled: boolean) => void;
   setSlurmState: (
@@ -284,6 +285,14 @@ export const useSimulationStore = create<SimulationState>()(
           const node = state.cluster.nodes.find((n) => n.id === nodeId);
           if (node) {
             node.healthStatus = health;
+          }
+        }),
+
+      setBugReportCollected: (nodeId, value) =>
+        set((state) => {
+          const node = state.cluster.nodes.find((n) => n.id === nodeId);
+          if (node) {
+            node.bugReportCollected = value;
           }
         }),
 
