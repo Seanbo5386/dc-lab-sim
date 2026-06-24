@@ -12,6 +12,7 @@ import {
   DISPLAY_FORMATTERS,
   getThermalThresholds,
 } from "@/simulators/nvidiaSmiFormatters";
+import { applyRemediation } from "@/utils/remediationEngine";
 
 function getArchitecture(systemType?: string): string {
   if (!systemType) return "Ampere";
@@ -245,6 +246,11 @@ export class NvidiaSmiSimulator extends BaseSimulator {
     // Handle power limit
     if (parsed.flags.has("pl")) {
       return this.handlePowerLimit(parsed, context);
+    }
+
+    // Handle ECC error reset
+    if (this.hasAnyFlag(parsed, ["reset-ecc-errors"])) {
+      return this.handleResetEcc(parsed, context);
     }
 
     // Handle persistence mode
@@ -880,10 +886,18 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       );
     }
 
-    this.resolveMutator(context).updateGPU(node.id, gpuId, { powerLimit });
+    const gpu = node.gpus[gpuId];
+    const result = applyRemediation(gpu, node, "set-power-limit");
+    const updates: Partial<GPU> = { powerLimit };
+    if (result.outcome === "fixed" && result.gpuUpdates) {
+      Object.assign(updates, result.gpuUpdates);
+    }
+    this.resolveMutator(context).updateGPU(node.id, gpuId, updates);
 
     return this.createSuccess(
-      `Power limit for GPU ${gpuId} set to ${powerLimit} W`,
+      result.outcome === "fixed"
+        ? `Power limit for GPU ${gpuId} set to ${powerLimit} W\n${result.message}`
+        : `Power limit for GPU ${gpuId} set to ${powerLimit} W`,
     );
   }
 
@@ -923,7 +937,6 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       return this.createError("Error: Unable to determine current node");
     }
 
-    // Check if -i flag is provided and validate it
     const gpuIdStr = this.getFlagString(parsed, ["i", "id"]);
     if (gpuIdStr === undefined) {
       return this.createError(
@@ -931,7 +944,6 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       );
     }
 
-    // Validate GPU ID using centralized validation
     const validationError = this.validateGpuIndexString(gpuIdStr, node);
     if (validationError) {
       return validationError;
@@ -943,50 +955,68 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       return this.createError(`Error: GPU ${gpuId} not found`);
     }
 
-    // Check if GPU has fallen off the bus (XID 79)
-    if (this.hasGPUFallenOffBus(gpu)) {
-      return this.createError(
-        `Unable to reset GPU ${gpuId}: GPU has fallen off the bus.\n` +
-          `XID 79 indicates a severe PCIe communication failure.\n` +
-          `GPU reset will not work in this state. System reboot or hardware intervention required.\n` +
-          `Check 'dmesg | grep -i xid' for details.`,
-      );
-    }
+    const result = applyRemediation(gpu, node, "gpu-reset");
 
-    // Check if GPU has other critical XID errors
-    const criticalXIDs = gpu.xidErrors.filter(
-      (xid) => xid.severity === "Critical" && xid.code !== 79,
-    );
-    if (criticalXIDs.length > 0) {
-      // GPU reset might work for other XIDs, but warn about it
-      const xidCodes = criticalXIDs.map((xid) => xid.code).join(", ");
-
-      // Clear XID errors after reset
-      this.resolveMutator(context).updateGPU(node.id, gpuId, {
-        xidErrors: [],
-        healthStatus: "OK",
-        temperature: 45,
-        utilization: 0,
-      });
-
+    if (result.outcome === "fixed" && result.gpuUpdates) {
+      this.resolveMutator(context).updateGPU(node.id, gpuId, result.gpuUpdates);
       return this.createSuccess(
         `GPU ${gpuId} reset successfully.\n` +
-          `Cleared critical XID error(s): ${xidCodes}\n` +
           `All compute applications using GPU ${gpuId} have been terminated.\n` +
           `Monitor 'dmesg' for XID recurrence. If errors persist, hardware RMA may be required.`,
       );
     }
 
-    // Normal GPU reset (no critical errors)
-    this.resolveMutator(context).updateGPU(node.id, gpuId, {
-      xidErrors: [],
-      healthStatus: "OK",
-      utilization: 0,
-    });
+    // No fault to clear -> a reset still "succeeds" as a no-op.
+    if (result.outcome === "not-applicable") {
+      return this.createSuccess(
+        `GPU ${gpuId} reset successfully.\n` +
+          `All compute applications using GPU ${gpuId} have been terminated.`,
+      );
+    }
 
-    return this.createSuccess(
-      `GPU ${gpuId} reset successfully.\n` +
-        `All compute applications using GPU ${gpuId} have been terminated.`,
+    // blocked (alloc) or insufficient (off-bus / nvlink / rma).
+    return this.createError(`Unable to reset GPU ${gpuId}: ${result.message}`);
+  }
+
+  /**
+   * Handle --reset-ecc-errors flag
+   */
+  private handleResetEcc(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    const node = this.getNode(context);
+    if (!node) {
+      return this.createError("Error: Unable to determine current node");
+    }
+    const gpuIdStr = this.getFlagString(parsed, ["i", "id"]);
+    if (gpuIdStr === undefined) {
+      return this.createError(
+        "Error: --reset-ecc-errors requires -i flag to specify GPU ID\nUsage: nvidia-smi -i <gpu_id> --reset-ecc-errors",
+      );
+    }
+    const validationError = this.validateGpuIndexString(gpuIdStr, node);
+    if (validationError) {
+      return validationError;
+    }
+    const gpuId = parseInt(gpuIdStr);
+    const gpu = node.gpus[gpuId];
+    if (!gpu) {
+      return this.createError(`Error: GPU ${gpuId} not found`);
+    }
+
+    const result = applyRemediation(gpu, node, "reset-ecc-errors");
+    if (result.outcome === "fixed" && result.gpuUpdates) {
+      this.resolveMutator(context).updateGPU(node.id, gpuId, result.gpuUpdates);
+      return this.createSuccess(
+        `Successfully reset ECC error counts for GPU ${gpuId}.`,
+      );
+    }
+    if (result.outcome === "not-applicable") {
+      return this.createSuccess(`No ECC errors to reset for GPU ${gpuId}.`);
+    }
+    return this.createError(
+      `Unable to reset ECC errors for GPU ${gpuId}: ${result.message}`,
     );
   }
 
