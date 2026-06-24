@@ -15,9 +15,21 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v1.6.0",
+    title: "Sandbox Remediation & Onboarding",
+    current: true,
+    highlights: [
+      "Sandbox remediation loop — fix injected GPU faults with real commands (nvidia-smi --gpu-reset / --reset-ecc-errors, systemctl restart nvidia-fabricmanager, ipmitool chassis power cycle) along a realistic escalation ladder",
+      "Physical-action panel: Reseat GPU, Reseat NVLink, and Mark for RMA — gated behind bug-report collection and a drained node, matching real datacenter procedure",
+      "Pure remediation engine models XID recoverability (reset-recoverable vs. power-cycle vs. RMA-only) and refuses shortcuts that would not work on real hardware",
+      "Sandbox onboarding: independent node selector, dismissible first-run intro, surprise-me random fault challenge, and clickable fault-toast commands that run in the terminal",
+      "Terminal welcome banners: variant-aware rendering (full vs. architecture) selected once per page load; mobile dynamic-viewport-height fix so the on-screen keyboard no longer covers the input",
+      "Simulator realism fixes (mlxconfig device resolution by exact path, ConnectX-7 MST path, benchmark --help scoping, nvbandwidth HBM ceiling from the hardware registry)",
+    ],
+  },
+  {
     version: "v1.5.0",
     title: "Mission Tracks & Networking Commands",
-    current: true,
     highlights: [
       "Horizontal mission track layout for browsing scenarios by domain",
       "8 new narrative scenarios (32 → 40 total)",

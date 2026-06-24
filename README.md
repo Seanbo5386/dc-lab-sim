@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.5.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.6.0-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Tests](https://img.shields.io/badge/tests-3751_unit_|_453_E2E-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-3851_unit_|_459_E2E-brightgreen?style=for-the-badge)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
 ![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
@@ -44,7 +44,7 @@ The NCP-AII certification exam tests hands-on datacenter skills — but most peo
 | **Architectures** | DGX A100, H100, H200, B200, GB200, VR200 (switchable from dashboard)         |
 | **Learning**      | 3-tier progression (Guided > Choice > Realistic) with SM-2 spaced repetition |
 | **Cloud Sync**    | Optional sign-in to save progress across devices (AWS Cognito)               |
-| **Tests**         | 3,751 unit + 453 E2E tests, 0 TypeScript errors, 0 lint warnings             |
+| **Tests**         | 3,851 unit + 459 E2E tests, 0 TypeScript errors, 0 lint warnings             |
 
 ---
 
@@ -351,10 +351,10 @@ aws dynamodb scan --table-name Feedback-<your-stack-id> --region us-east-1
 
 ```bash
 npm run test           # Watch mode
-npm run test:run       # Single run (3,751 unit tests)
+npm run test:run       # Single run (3,851 unit tests)
 npm run test:coverage  # With coverage report
 npm run lint           # ESLint (0 errors, 0 warnings)
-npx playwright test    # 453 E2E tests (commands, scenarios, visual regression)
+npx playwright test    # 459 E2E tests (commands, scenarios, visual regression)
 ```
 
 CI/CD via GitHub Actions runs lint, tests, and production build on every push.
@@ -393,6 +393,14 @@ src/
 ---
 
 ## Roadmap
+
+### Completed (v1.6.0)
+
+- [x] Sandbox remediation loop — fix injected GPU faults with real commands along a realistic escalation ladder
+- [x] Physical-action panel (Reseat GPU/NVLink, Mark for RMA) gated behind bug-report collection and node drain
+- [x] Pure remediation engine modeling XID recoverability (reset / power-cycle / RMA-only)
+- [x] Sandbox onboarding: independent node selector, first-run intro, surprise-me fault challenge, clickable fault-toast commands
+- [x] Variant-aware terminal welcome banners + mobile dynamic-viewport-height fix
 
 ### Completed (v1.5.0)
 
