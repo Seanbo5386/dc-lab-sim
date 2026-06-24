@@ -7,6 +7,7 @@ import type {
 import { BaseSimulator } from "./BaseSimulator";
 import type { GPU, InfiniBandHCA } from "@/types/hardware";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
+import { applyRemediation } from "@/utils/remediationEngine";
 
 /**
  * BasicSystemSimulator
@@ -863,6 +864,19 @@ ${currentNode} systemd[1]: ${service}.service: Unit not started.`;
           service,
           action === "stop" ? "inactive" : "active",
         );
+      }
+      // Restarting the fabric manager recovers downed NVLinks on this node.
+      if (action === "restart" && service === "nvidia-fabricmanager") {
+        const node = this.resolveNode(context);
+        if (node) {
+          const mutator = this.resolveMutator(context);
+          for (const gpu of node.gpus) {
+            const result = applyRemediation(gpu, node, "fabricmanager-restart");
+            if (result.outcome === "fixed" && result.gpuUpdates) {
+              mutator.updateGPU(node.id, gpu.id, result.gpuUpdates);
+            }
+          }
+        }
       }
       // Silent success for start/stop/restart
       return this.createSuccess("");
