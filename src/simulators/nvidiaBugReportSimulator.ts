@@ -5,6 +5,7 @@ import {
   type SimulatorMetadata,
 } from "@/simulators/BaseSimulator";
 import type { DGXNode, GPU } from "@/types/hardware";
+import { useSimulationStore } from "@/store/simulationStore";
 
 /**
  * NVIDIA Bug Report Simulator
@@ -305,6 +306,10 @@ export class NvidiaBugReportSimulator extends BaseSimulator {
     }
     output += `\n\x1b[32mnvidia-bug-report.sh completed successfully.\x1b[0m\n`;
     output += `\nPlease include this report when contacting NVIDIA support.\n`;
+
+    if (!context.scenarioContext) {
+      useSimulationStore.getState().setBugReportCollected(node.id, true);
+    }
 
     return this.createSuccess(output);
   }
