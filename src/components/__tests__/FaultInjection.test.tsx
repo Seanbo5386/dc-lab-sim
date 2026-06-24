@@ -1405,7 +1405,8 @@ describe("FaultInjection", () => {
       });
     });
 
-    it("Reseat NVLink bridge resolves a downed NVLink on the selected GPU", () => {
+    it("Reseat NVLink bridge dispatches reseat-nvlink to the engine and applies its updates", () => {
+      // applyRemediation is mocked here; this asserts dispatch + passthrough only. Real engine resolution is covered by remediationEngine.test.ts and the e2e suite.
       // Arrange: GPU 0 on dgx-00 has a downed NVLink (used by applyRemediation to classify)
       const nodeWithDownLink = {
         ...mockNode0,
