@@ -5,6 +5,7 @@ import {
   BaseSimulator,
   type SimulatorMetadata,
 } from "@/simulators/BaseSimulator";
+import { applyRemediation } from "@/utils/remediationEngine";
 
 export class IpmitoolSimulator extends BaseSimulator {
   /**
@@ -586,7 +587,29 @@ export class IpmitoolSimulator extends BaseSimulator {
         return this.createSuccess(
           `Chassis Power is ${node.bmc.powerState === "On" ? "on" : "off"}`,
         );
-      } else if (["on", "off", "cycle", "reset"].includes(action)) {
+      } else if (action === "cycle" || action === "reset") {
+        if (node.slurmState === "alloc") {
+          return this.createError(
+            `Node ${node.id} is running a job (alloc). Drain it first: scontrol update nodename=${node.id} state=drain`,
+          );
+        }
+        const mutator = this.resolveMutator(context);
+        let recovered = 0;
+        for (const gpu of node.gpus) {
+          const result = applyRemediation(gpu, node, "power-cycle");
+          if (result.outcome === "fixed" && result.gpuUpdates) {
+            mutator.updateGPU(node.id, gpu.id, result.gpuUpdates);
+            recovered++;
+          }
+        }
+        const label = action.charAt(0).toUpperCase() + action.slice(1);
+        return this.createSuccess(
+          `Chassis Power Control: ${label}` +
+            (recovered > 0
+              ? `\nRecovered ${recovered} GPU(s) after power cycle.`
+              : ""),
+        );
+      } else if (action === "on" || action === "off") {
         return this.createSuccess(
           `Chassis Power Control: ${action.charAt(0).toUpperCase() + action.slice(1)}`,
         );
@@ -1139,7 +1162,30 @@ export class IpmitoolSimulator extends BaseSimulator {
         `Chassis Power is ${node.bmc.powerState === "On" ? "on" : "off"}`,
       );
     }
-    if (["on", "off", "cycle", "reset"].includes(subArg)) {
+    if (subArg === "cycle" || subArg === "reset") {
+      if (node.slurmState === "alloc") {
+        return this.createError(
+          `Node ${node.id} is running a job (alloc). Drain it first: scontrol update nodename=${node.id} state=drain`,
+        );
+      }
+      const mutator = this.resolveMutator(context);
+      let recovered = 0;
+      for (const gpu of node.gpus) {
+        const result = applyRemediation(gpu, node, "power-cycle");
+        if (result.outcome === "fixed" && result.gpuUpdates) {
+          mutator.updateGPU(node.id, gpu.id, result.gpuUpdates);
+          recovered++;
+        }
+      }
+      const label = subArg.charAt(0).toUpperCase() + subArg.slice(1);
+      return this.createSuccess(
+        `Chassis Power Control: ${label}` +
+          (recovered > 0
+            ? `\nRecovered ${recovered} GPU(s) after power cycle.`
+            : ""),
+      );
+    }
+    if (subArg === "on" || subArg === "off") {
       return this.createSuccess(
         `Chassis Power Control: ${subArg.charAt(0).toUpperCase() + subArg.slice(1)}`,
       );
