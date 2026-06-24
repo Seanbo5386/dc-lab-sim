@@ -5,6 +5,10 @@ import type { StateMutator } from "@/simulators/BaseSimulator";
 import { MetricsSimulator } from "@/utils/metricsSimulator";
 import { useFaultToastStore } from "@/store/faultToastStore";
 import {
+  applyRemediation,
+  type RemediationAction,
+} from "@/utils/remediationEngine";
+import {
   BASIC_FAULT_DESCRIPTIONS,
   COMPLEX_SCENARIO_DESCRIPTIONS,
   WORKLOAD_DESCRIPTIONS,
@@ -443,8 +447,11 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
         temperature: 65,
         powerDraw: gpu.powerLimit * 0.3,
         utilization: 5,
+        rmaStatus: "none",
       });
     });
+
+    useSimulationStore.getState().setBugReportCollected(selectedNode, false);
 
     useFaultToastStore.getState().addToast({
       title: "All Faults Cleared",
@@ -454,6 +461,38 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
       targetNode: selectedNode,
     });
     setLastInjectedCommand(null);
+  };
+
+  const selectedNodeObj = effectiveCluster.nodes.find(
+    (n) => n.id === selectedNode,
+  );
+  const bugReportCollected = selectedNodeObj?.bugReportCollected ?? false;
+  const nodeDrained = selectedNodeObj?.slurmState !== "alloc";
+  const rmaReady = bugReportCollected && nodeDrained;
+
+  const handlePhysicalAction = (action: RemediationAction) => {
+    const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
+    if (!node) return;
+    const gpu = node.gpus[selectedGPU];
+    if (!gpu) return;
+    const result = applyRemediation(gpu, node, action);
+    if (result.outcome === "fixed" && result.gpuUpdates) {
+      getMutator().updateGPU(selectedNode, selectedGPU, result.gpuUpdates);
+    }
+    useFaultToastStore.getState().addToast({
+      title:
+        result.outcome === "fixed"
+          ? "Remediation applied"
+          : result.outcome === "blocked"
+            ? "Action blocked"
+            : result.outcome === "insufficient"
+              ? "Not enough — escalate"
+              : "No effect",
+      message: result.message,
+      suggestedCommand: "nvidia-smi -q -d ECC",
+      severity: result.outcome === "fixed" ? "info" : "warning",
+      targetNode: selectedNode,
+    });
   };
 
   const selectedWorkloadDesc = WORKLOAD_DESCRIPTIONS.find(
@@ -805,6 +844,66 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
           )}
         </div>
 
+        {/* Physical Actions panel */}
+        <div className="mt-6 pt-6 border-t border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-300 mb-1">
+            Physical Actions
+          </h3>
+          <p className="text-xs text-gray-500 mb-3">
+            Reseat or replace hardware when commands can&apos;t recover the GPU.
+          </p>
+
+          {currentGPU?.rmaStatus === "pending" ? (
+            <p className="text-xs text-red-400 mb-3" data-testid="gpu-status">
+              GPU {selectedGPU}: RMA pending
+            </p>
+          ) : currentGPU?.healthStatus === "OK" ? (
+            <p
+              className="text-xs text-nvidia-green mb-3"
+              data-testid="gpu-status"
+            >
+              GPU {selectedGPU}: ✓ Healthy
+            </p>
+          ) : (
+            <p
+              className="text-xs text-yellow-400 mb-3"
+              data-testid="gpu-status"
+            >
+              GPU {selectedGPU}: {currentGPU?.healthStatus ?? "Unknown"}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handlePhysicalAction("reseat-gpu")}
+              className="px-3 py-2 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+            >
+              Reseat GPU
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePhysicalAction("reseat-nvlink")}
+              className="px-3 py-2 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+            >
+              Reseat NVLink bridge
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePhysicalAction("rma")}
+              disabled={!rmaReady}
+              title={
+                rmaReady
+                  ? "Flag this GPU for replacement"
+                  : "Collect nvidia-bug-report.sh and drain the node first"
+              }
+              className="px-3 py-2 text-xs rounded bg-red-900/60 hover:bg-red-800 text-red-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Mark for RMA
+            </button>
+          </div>
+        </div>
+
         {/* Quick Reference - collapsible */}
         <details
           className="group mt-6 pt-6 border-t border-gray-700"
@@ -919,6 +1018,32 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
                 — BMC sensors
               </div>
             </div>
+          </div>
+        </details>
+
+        {/* Remediation commands reference */}
+        <details className="mt-4" data-testid="remediation-reference">
+          <summary className="text-sm font-semibold text-gray-300 cursor-pointer">
+            Remediation commands
+          </summary>
+          <div className="mt-2 flex flex-col gap-1">
+            {[
+              `nvidia-smi --gpu-reset -i ${selectedGPU}`,
+              `nvidia-smi -i ${selectedGPU} --reset-ecc-errors`,
+              `nvidia-smi -i ${selectedGPU} -pl 500`,
+              `systemctl restart nvidia-fabricmanager`,
+              `ipmitool chassis power cycle`,
+              `nvidia-bug-report.sh`,
+            ].map((cmd) => (
+              <button
+                key={cmd}
+                type="button"
+                onClick={() => runInTerminal(cmd)}
+                className="text-left text-xs font-mono text-nvidia-green hover:underline"
+              >
+                {cmd}
+              </button>
+            ))}
           </div>
         </details>
 

@@ -11,6 +11,7 @@ const {
   mockUpdateNodeHealth,
   mockSetMIGMode,
   mockSetSlurmState,
+  mockSetBugReportCollected,
   mockContextUpdateGPU,
   mockContextAddXIDError,
   mockInjectFault,
@@ -18,6 +19,7 @@ const {
   mockActiveContext,
   mockMarkSandboxIntroSeen,
   mockAddToast,
+  mockApplyRemediation,
   shared,
 } = vi.hoisted(() => {
   // -- store mocks --
@@ -26,6 +28,7 @@ const {
   const mockUpdateNodeHealth = vi.fn();
   const mockSetMIGMode = vi.fn();
   const mockSetSlurmState = vi.fn();
+  const mockSetBugReportCollected = vi.fn();
 
   // -- scenario context mocks --
   const mockContextUpdateGPU = vi.fn();
@@ -51,6 +54,34 @@ const {
 
   // -- faultToastStore mock fn --
   const mockAddToast = vi.fn();
+
+  // -- remediationEngine mock fn --
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mockApplyRemediation = vi.fn((_gpu: any, _node: any, _action: any) => ({
+    outcome: "fixed" as const,
+    message: "GPU 0 nvlink fault resolved.",
+    gpuUpdates: {
+      nvlinks: [
+        {
+          linkId: 0,
+          status: "Active",
+          speed: 600,
+          txErrors: 0,
+          rxErrors: 0,
+          replayErrors: 0,
+        },
+        {
+          linkId: 1,
+          status: "Active",
+          speed: 600,
+          txErrors: 0,
+          rxErrors: 0,
+          replayErrors: 0,
+        },
+      ],
+      healthStatus: "OK",
+    },
+  }));
 
   // -- learningProgressStore mock fn --
   const mockMarkSandboxIntroSeen = vi.fn(() => {
@@ -87,6 +118,7 @@ const {
     mockUpdateNodeHealth,
     mockSetMIGMode,
     mockSetSlurmState,
+    mockSetBugReportCollected,
     mockContextUpdateGPU,
     mockContextAddXIDError,
     mockContextUpdateNodeHealth,
@@ -97,6 +129,7 @@ const {
     mockActiveContext,
     mockMarkSandboxIntroSeen,
     mockAddToast,
+    mockApplyRemediation,
     shared,
   };
 });
@@ -117,6 +150,7 @@ vi.mock("@/store/simulationStore", () => ({
         updateNodeHealth: mockUpdateNodeHealth,
         setMIGMode: mockSetMIGMode,
         setSlurmState: mockSetSlurmState,
+        setBugReportCollected: mockSetBugReportCollected,
       };
       return selector ? selector(state) : state;
     }),
@@ -130,9 +164,16 @@ vi.mock("@/store/simulationStore", () => ({
         updateNodeHealth: mockUpdateNodeHealth,
         setMIGMode: mockSetMIGMode,
         setSlurmState: mockSetSlurmState,
+        setBugReportCollected: mockSetBugReportCollected,
       })),
     },
   ),
+}));
+
+vi.mock("@/utils/remediationEngine", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  applyRemediation: (gpu: any, node: any, action: any) =>
+    mockApplyRemediation(gpu, node, action),
 }));
 
 vi.mock("@/store/scenarioContext", () => ({
@@ -1327,6 +1368,197 @@ describe("FaultInjection", () => {
       expect(screen.getByTestId("sandbox-subtitle")).toHaveTextContent(
         /no scoring/i,
       );
+    });
+  });
+
+  // =========================================================================
+  // Remediation physical actions
+  // =========================================================================
+
+  describe("remediation physical actions", () => {
+    beforeEach(() => {
+      // Reset the mockApplyRemediation to the default "fixed" nvlink response
+      mockApplyRemediation.mockReturnValue({
+        outcome: "fixed" as const,
+        message: "GPU 0 nvlink fault resolved.",
+        gpuUpdates: {
+          nvlinks: [
+            {
+              linkId: 0,
+              status: "Active",
+              speed: 600,
+              txErrors: 0,
+              rxErrors: 0,
+              replayErrors: 0,
+            },
+            {
+              linkId: 1,
+              status: "Active",
+              speed: 600,
+              txErrors: 0,
+              rxErrors: 0,
+              replayErrors: 0,
+            },
+          ],
+          healthStatus: "OK",
+        },
+      });
+    });
+
+    it("Reseat NVLink bridge resolves a downed NVLink on the selected GPU", () => {
+      // Arrange: GPU 0 on dgx-00 has a downed NVLink (used by applyRemediation to classify)
+      const nodeWithDownLink = {
+        ...mockNode0,
+        gpus: [
+          createMockGPU(0, {
+            nvlinks: [
+              {
+                linkId: 0,
+                status: "Down",
+                speed: 0,
+                txErrors: 5,
+                rxErrors: 3,
+                replayErrors: 0,
+              },
+              {
+                linkId: 1,
+                status: "Active",
+                speed: 600,
+                txErrors: 0,
+                rxErrors: 0,
+                replayErrors: 0,
+              },
+            ],
+            healthStatus: "Warning",
+          }),
+          createMockGPU(1),
+        ],
+      };
+      shared.currentCluster = {
+        ...mockCluster,
+        nodes: [nodeWithDownLink, mockNode1],
+      };
+
+      render(<FaultInjection />);
+
+      // Click "Reseat NVLink bridge" button
+      fireEvent.click(
+        screen.getByRole("button", { name: "Reseat NVLink bridge" }),
+      );
+
+      // applyRemediation was called with the GPU, node, and action
+      expect(mockApplyRemediation).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 0 }),
+        expect.objectContaining({ id: "dgx-00" }),
+        "reseat-nvlink",
+      );
+
+      // Since outcome is "fixed", updateGPU should be called with NVLinks Active + healthStatus OK
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        0,
+        expect.objectContaining({
+          nvlinks: expect.arrayContaining([
+            expect.objectContaining({ status: "Active" }),
+          ]),
+          healthStatus: "OK",
+        }),
+      );
+    });
+
+    it("Mark for RMA is disabled until a bug report exists and the node is drained", () => {
+      // Arrange: node has bugReportCollected: false and slurmState "idle" (not alloc)
+      // nodeDrained = slurmState !== "alloc" → true; bugReportCollected = false → rmaReady = false
+      const nodeNotReady = {
+        ...mockNode0,
+        bugReportCollected: false,
+        slurmState: "idle",
+      };
+      shared.currentCluster = {
+        ...mockCluster,
+        nodes: [nodeNotReady, mockNode1],
+      };
+
+      const { rerender } = render(<FaultInjection />);
+
+      // Button should be disabled when bugReportCollected is false
+      const rmaButton = screen.getByRole("button", { name: "Mark for RMA" });
+      expect(rmaButton).toBeDisabled();
+
+      // Now update: bugReportCollected true + node drained
+      const nodeReady = {
+        ...mockNode0,
+        bugReportCollected: true,
+        slurmState: "drain",
+      };
+      shared.currentCluster = { ...mockCluster, nodes: [nodeReady, mockNode1] };
+
+      act(() => {
+        rerender(<FaultInjection />);
+      });
+
+      expect(
+        screen.getByRole("button", { name: "Mark for RMA" }),
+      ).not.toBeDisabled();
+    });
+
+    it("shows 'RMA pending' when the selected GPU has rmaStatus pending", () => {
+      // Arrange: GPU 0 has rmaStatus "pending"
+      const nodeWithRMA = {
+        ...mockNode0,
+        gpus: [createMockGPU(0, { rmaStatus: "pending" }), createMockGPU(1)],
+      };
+      shared.currentCluster = {
+        ...mockCluster,
+        nodes: [nodeWithRMA, mockNode1],
+      };
+
+      render(<FaultInjection />);
+
+      expect(screen.getByTestId("gpu-status")).toHaveTextContent(/RMA pending/);
+    });
+
+    it("a remediation command pastes ssh-aware to the affected node", () => {
+      const onPasteCommand = vi.fn();
+      const onSwitchToTerminal = vi.fn();
+      shared.sandboxIntroSeen = true;
+
+      render(
+        <FaultInjection
+          onPasteCommand={onPasteCommand}
+          onSwitchToTerminal={onSwitchToTerminal}
+        />,
+      );
+
+      // Open the Remediation commands <details> by clicking its summary
+      fireEvent.click(screen.getByText("Remediation commands"));
+
+      // Click the nvidia-smi --gpu-reset button (GPU 0 is selected by default)
+      fireEvent.click(
+        screen.getByRole("button", { name: "nvidia-smi --gpu-reset -i 0" }),
+      );
+
+      expect(onSwitchToTerminal).toHaveBeenCalled();
+      expect(onPasteCommand).toHaveBeenCalledWith(
+        expect.stringContaining("--gpu-reset"),
+        "dgx-00",
+      );
+    });
+
+    it("Clear All resets rmaStatus and bugReportCollected", () => {
+      render(<FaultInjection />);
+
+      fireEvent.click(screen.getByText("Clear All"));
+
+      // updateGPU should be called for each GPU on dgx-00 with rmaStatus: "none"
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        expect.any(Number),
+        expect.objectContaining({ rmaStatus: "none" }),
+      );
+
+      // setBugReportCollected should be called to reset the bug report flag
+      expect(mockSetBugReportCollected).toHaveBeenCalledWith("dgx-00", false);
     });
   });
 });
