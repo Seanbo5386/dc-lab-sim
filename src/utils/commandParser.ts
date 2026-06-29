@@ -50,7 +50,7 @@ enum ParserState {
  */
 function tokenize(cmdLine: string): string[] {
   const tokens: string[] = [];
-  let currentToken = '';
+  let currentToken = "";
   let state = ParserState.NORMAL;
 
   for (let i = 0; i < cmdLine.length; i++) {
@@ -59,16 +59,19 @@ function tokenize(cmdLine: string): string[] {
 
     switch (state) {
       case ParserState.NORMAL:
-        if (char === '\\' && (nextChar === '"' || nextChar === "'" || nextChar === '\\')) {
+        if (
+          char === "\\" &&
+          (nextChar === '"' || nextChar === "'" || nextChar === "\\")
+        ) {
           state = ParserState.ESCAPE;
         } else if (char === '"') {
           state = ParserState.IN_DOUBLE_QUOTE;
         } else if (char === "'") {
           state = ParserState.IN_SINGLE_QUOTE;
-        } else if (char === ' ' || char === '\t') {
+        } else if (char === " " || char === "\t") {
           if (currentToken) {
             tokens.push(currentToken);
-            currentToken = '';
+            currentToken = "";
           }
         } else {
           currentToken += char;
@@ -89,7 +92,7 @@ function tokenize(cmdLine: string): string[] {
         break;
 
       case ParserState.IN_DOUBLE_QUOTE:
-        if (char === '\\' && nextChar === '"') {
+        if (char === "\\" && nextChar === '"') {
           state = ParserState.ESCAPE;
         } else if (char === '"') {
           state = ParserState.NORMAL;
@@ -112,21 +115,41 @@ function tokenize(cmdLine: string): string[] {
  * Checks if a token is a flag (starts with - or --)
  */
 function isFlag(token: string): boolean {
-  return token.startsWith('-') && token.length > 1 && token !== '--';
+  return token.startsWith("-") && token.length > 1 && token !== "--";
+}
+
+/**
+ * A negative number (e.g. -5, -9999, -1.5). These are ambiguous: standalone they
+ * look like flags (and some commands use numeric shorthands like `tail -20`),
+ * but when they FOLLOW a value-expecting flag they are that flag's value
+ * (`nvidia-smi -i -5`). Used only at value-consumption sites, never to classify
+ * a standalone token, so numeric shorthands keep working.
+ */
+function isNegativeNumber(token: string): boolean {
+  return /^-\d+(\.\d+)?$/.test(token);
+}
+
+/**
+ * Whether `token` can serve as the value of a preceding value-flag. A non-flag
+ * token always can; a negative-number token can too (it is a value here, not a
+ * flag), which is what lets `-i -5` parse -5 as the value of -i.
+ */
+function canBeFlagValue(token: string): boolean {
+  return !isFlag(token) || isNegativeNumber(token);
 }
 
 /**
  * Checks if a token is a long flag (starts with --)
  */
 function isLongFlag(token: string): boolean {
-  return token.startsWith('--') && token.length > 2;
+  return token.startsWith("--") && token.length > 2;
 }
 
 /**
  * Checks if a token is a short flag (starts with single -)
  */
 function isShortFlag(token: string): boolean {
-  return token.startsWith('-') && !token.startsWith('--') && token.length > 1;
+  return token.startsWith("-") && !token.startsWith("--") && token.length > 1;
 }
 
 /**
@@ -137,13 +160,13 @@ function parseLongFlag(
   token: string,
   nextToken: string | undefined,
   stopFlagParsing: boolean,
-  flagSchema?: Map<string, boolean>
+  flagSchema?: Map<string, boolean>,
 ): [string, string | boolean, boolean] {
   // Remove leading --
   const flagPart = token.slice(2);
 
   // Check for --flag=value syntax
-  const equalsIndex = flagPart.indexOf('=');
+  const equalsIndex = flagPart.indexOf("=");
   if (equalsIndex !== -1) {
     const name = flagPart.slice(0, equalsIndex);
     const value = flagPart.slice(equalsIndex + 1);
@@ -158,7 +181,7 @@ function parseLongFlag(
     }
     if (flagSchema.get(flagPart) === true) {
       // Value flag: consume next token if available and it's not another flag
-      if (nextToken !== undefined && !isFlag(nextToken)) {
+      if (nextToken !== undefined && canBeFlagValue(nextToken)) {
         return [flagPart, nextToken, true];
       }
       return [flagPart, true, false];
@@ -166,7 +189,11 @@ function parseLongFlag(
   }
 
   // Heuristic fallback: check if next token is a value (not a flag)
-  if (!stopFlagParsing && nextToken !== undefined && !isFlag(nextToken)) {
+  if (
+    !stopFlagParsing &&
+    nextToken !== undefined &&
+    canBeFlagValue(nextToken)
+  ) {
     return [flagPart, nextToken, true];
   }
 
@@ -182,7 +209,7 @@ function parseShortFlags(
   token: string,
   nextToken: string | undefined,
   stopFlagParsing: boolean,
-  flagSchema?: Map<string, boolean>
+  flagSchema?: Map<string, boolean>,
 ): Array<[string, string | boolean, boolean]> {
   // Remove leading -
   const flagChars = token.slice(1);
@@ -206,7 +233,7 @@ function parseShortFlags(
       }
       if (flagSchema.get(flagChars) === true) {
         // Value flag: consume next token if available and it's not another flag
-        if (nextToken !== undefined && !isFlag(nextToken)) {
+        if (nextToken !== undefined && canBeFlagValue(nextToken)) {
           results.push([flagChars, nextToken, true]);
         } else {
           results.push([flagChars, true, false]);
@@ -216,7 +243,11 @@ function parseShortFlags(
     }
 
     // Heuristic fallback: check if next token could be a value
-    if (!stopFlagParsing && nextToken !== undefined && !isFlag(nextToken)) {
+    if (
+      !stopFlagParsing &&
+      nextToken !== undefined &&
+      canBeFlagValue(nextToken)
+    ) {
       results.push([flagChars, nextToken, true]);
     } else {
       results.push([flagChars, true, false]);
@@ -234,7 +265,7 @@ function parseShortFlags(
     }
     if (flagSchema.get(flagChars) === true) {
       // Value flag: consume next token if available and it's not another flag
-      if (nextToken !== undefined && !isFlag(nextToken)) {
+      if (nextToken !== undefined && canBeFlagValue(nextToken)) {
         results.push([flagChars, nextToken, true]);
       } else {
         results.push([flagChars, true, false]);
@@ -244,7 +275,12 @@ function parseShortFlags(
   }
 
   // Heuristic fallback: single character flag with potential value
-  if (flagChars.length === 1 && !stopFlagParsing && nextToken !== undefined && !isFlag(nextToken)) {
+  if (
+    flagChars.length === 1 &&
+    !stopFlagParsing &&
+    nextToken !== undefined &&
+    canBeFlagValue(nextToken)
+  ) {
     results.push([flagChars, nextToken, true]);
     return results;
   }
@@ -262,12 +298,15 @@ function parseShortFlags(
  *                     Flags not in the schema fall back to heuristic behavior.
  * @returns Parsed command object
  */
-export function parse(cmdLine: string, flagSchema?: Map<string, boolean>): ParsedCommand {
+export function parse(
+  cmdLine: string,
+  flagSchema?: Map<string, boolean>,
+): ParsedCommand {
   const trimmed = cmdLine.trim();
 
   if (!trimmed) {
     return {
-      baseCommand: '',
+      baseCommand: "",
       subcommands: [],
       flags: new Map(),
       positionalArgs: [],
@@ -280,7 +319,7 @@ export function parse(cmdLine: string, flagSchema?: Map<string, boolean>): Parse
 
   if (tokens.length === 0) {
     return {
-      baseCommand: '',
+      baseCommand: "",
       subcommands: [],
       flags: new Map(),
       positionalArgs: [],
@@ -303,14 +342,18 @@ export function parse(cmdLine: string, flagSchema?: Map<string, boolean>): Parse
     const nextToken = rawArgs[i + 1];
 
     // Handle -- (stop flag parsing)
-    if (token === '--') {
+    if (token === "--") {
       stopFlagParsing = true;
       continue;
     }
 
     // If we've stopped flag parsing or token doesn't look like a flag, treat as positional
     if (stopFlagParsing || !isFlag(token)) {
-      if (parsingSubcommands && !token.includes('=') && !token.match(/^-?\d+$/)) {
+      if (
+        parsingSubcommands &&
+        !token.includes("=") &&
+        !token.match(/^-?\d+$/)
+      ) {
         // Treat as subcommand if we haven't seen flags yet and it's not a number
         subcommands.push(token);
       } else {
@@ -329,7 +372,12 @@ export function parse(cmdLine: string, flagSchema?: Map<string, boolean>): Parse
 
     // Parse long flag
     if (isLongFlag(token)) {
-      const [name, value, consumedNext] = parseLongFlag(token, nextToken, stopFlagParsing, flagSchema);
+      const [name, value, consumedNext] = parseLongFlag(
+        token,
+        nextToken,
+        stopFlagParsing,
+        flagSchema,
+      );
       flags.set(name, value);
       if (consumedNext) {
         i++; // Skip next token as it was consumed
@@ -337,7 +385,12 @@ export function parse(cmdLine: string, flagSchema?: Map<string, boolean>): Parse
     }
     // Parse short flag(s)
     else if (isShortFlag(token)) {
-      const parsedFlags = parseShortFlags(token, nextToken, stopFlagParsing, flagSchema);
+      const parsedFlags = parseShortFlags(
+        token,
+        nextToken,
+        stopFlagParsing,
+        flagSchema,
+      );
       for (const [name, value, consumedNext] of parsedFlags) {
         flags.set(name, value);
         if (consumedNext) {
@@ -360,14 +413,20 @@ export function parse(cmdLine: string, flagSchema?: Map<string, boolean>): Parse
 /**
  * Helper function to check if a flag exists in parsed command
  */
-export function hasFlag(parsed: ParsedCommand, ...flagNames: string[]): boolean {
-  return flagNames.some(name => parsed.flags.has(name));
+export function hasFlag(
+  parsed: ParsedCommand,
+  ...flagNames: string[]
+): boolean {
+  return flagNames.some((name) => parsed.flags.has(name));
 }
 
 /**
  * Helper function to get flag value (returns undefined if not found)
  */
-export function getFlagValue(parsed: ParsedCommand, ...flagNames: string[]): string | boolean | undefined {
+export function getFlagValue(
+  parsed: ParsedCommand,
+  ...flagNames: string[]
+): string | boolean | undefined {
   for (const name of flagNames) {
     if (parsed.flags.has(name)) {
       return parsed.flags.get(name);
@@ -379,9 +438,13 @@ export function getFlagValue(parsed: ParsedCommand, ...flagNames: string[]): str
 /**
  * Helper function to get flag value as string (returns default if not found or boolean)
  */
-export function getFlagString(parsed: ParsedCommand, flagNames: string[], defaultValue = ''): string {
+export function getFlagString(
+  parsed: ParsedCommand,
+  flagNames: string[],
+  defaultValue = "",
+): string {
   const value = getFlagValue(parsed, ...flagNames);
-  return typeof value === 'string' ? value : defaultValue;
+  return typeof value === "string" ? value : defaultValue;
 }
 
 /**
@@ -396,24 +459,22 @@ export function toLegacyArgs(parsed: ParsedCommand): string[] {
  * Debug function to display parsed command structure
  */
 export function debugParsedCommand(parsed: ParsedCommand): string {
-  const parts: string[] = [
-    `Base command: ${parsed.baseCommand}`,
-  ];
+  const parts: string[] = [`Base command: ${parsed.baseCommand}`];
 
   if (parsed.subcommands.length > 0) {
-    parts.push(`Subcommands: ${parsed.subcommands.join(' → ')}`);
+    parts.push(`Subcommands: ${parsed.subcommands.join(" → ")}`);
   }
 
   if (parsed.flags.size > 0) {
     const flagStrings = Array.from(parsed.flags.entries()).map(([k, v]) =>
-      typeof v === 'boolean' ? `--${k}` : `--${k}=${v}`
+      typeof v === "boolean" ? `--${k}` : `--${k}=${v}`,
     );
-    parts.push(`Flags: ${flagStrings.join(', ')}`);
+    parts.push(`Flags: ${flagStrings.join(", ")}`);
   }
 
   if (parsed.positionalArgs.length > 0) {
-    parts.push(`Positional args: ${parsed.positionalArgs.join(', ')}`);
+    parts.push(`Positional args: ${parsed.positionalArgs.join(", ")}`);
   }
 
-  return parts.join('\n');
+  return parts.join("\n");
 }

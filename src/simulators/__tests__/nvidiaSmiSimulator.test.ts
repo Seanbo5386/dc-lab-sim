@@ -181,6 +181,16 @@ describe("NvidiaSmiSimulator", () => {
       expect(result.exitCode).not.toBe(0);
       expect(result.output).toContain("GPU not found");
     });
+
+    it("should reject a negative GPU index cleanly (F4)", () => {
+      // -5 is now consumed as the value of -i (not misparsed as option --5)
+      const parsed = parse("nvidia-smi -q -i -5");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain("Invalid GPU index '-5'");
+      expect(result.output).not.toContain("unrecognized option");
+    });
   });
 
   describe("Help and Version", () => {

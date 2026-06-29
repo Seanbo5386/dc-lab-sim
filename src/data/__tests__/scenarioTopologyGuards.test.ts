@@ -86,8 +86,8 @@ describe("specific fault↔narrative consistency", () => {
 
 describe("validation patterns are architecture-neutral", () => {
   const FORBIDDEN = /\b(A100|H100|H200|B200|GB200|VR200|R200|HDR|NDR|XDR)\b/;
-  // A bare IB link rate as an alternation arm is architecture-specific (HDR=200, NDR=400, XDR=800, XDR2=1600 Gb/s).
-  const FORBIDDEN_RATE = /(?:^|\|)(200|400|800|1600)(?:\||$)/;
+  // A bare IB link rate as an alternation arm is architecture-specific (HDR=200, NDR=400, XDR=800 Gb/s).
+  const FORBIDDEN_RATE = /(?:^|\|)(200|400|800)(?:\||$)/;
   it("no validation.pattern hardcodes an architecture/IB token or bare IB rate", () => {
     const offenders: string[] = [];
     for (const s of scenarios) {

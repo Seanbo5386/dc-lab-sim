@@ -47,7 +47,11 @@ import {
   formatCommandList,
   getDidYouMeanMessage,
 } from "@/utils/commandSuggestions";
-import { applyPipeFilters, hasPipes } from "@/utils/pipeHandler";
+import {
+  applyPipeFilters,
+  hasPipes,
+  validatePipeChain,
+} from "@/utils/pipeHandler";
 import { CommandRouter } from "@/cli/commandRouter";
 
 // Helper function to format practice exercises
@@ -1287,8 +1291,13 @@ export const Terminal: React.FC<TerminalProps> = ({
           }
         }
 
-        // Apply pipe filters (grep, tail, head, etc.) to command output
-        if (result.output && hasPipes(cmdLine)) {
+        // Validate pipe syntax first (empty segment / unknown filter command),
+        // then apply pipe filters (grep, tail, head, etc.) to command output. A
+        // pipe error replaces the upstream output, matching real-shell behavior.
+        const pipeError = validatePipeChain(cmdLine);
+        if (pipeError) {
+          result.output = pipeError;
+        } else if (result.output && hasPipes(cmdLine)) {
           result.output = applyPipeFilters(result.output, cmdLine);
         }
 

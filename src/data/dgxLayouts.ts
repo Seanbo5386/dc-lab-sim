@@ -286,7 +286,7 @@ export const DGX_GB200_LAYOUT: DGXLayout = {
  * NVLink 6.0 with 18 links per GPU at 200 GB/s each = 3600 GB/s total per GPU.
  * All-to-all non-blocking connectivity through the 2 NVSwitch chips.
  * Vera CPU (ARM-based) instead of x86.
- * ConnectX-9 XDR2 1600Gb/s networking.
+ * ConnectX-9 XDR 800Gb/s networking.
  */
 export const DGX_VR200_LAYOUT: DGXLayout = {
   systemType: "DGX-VR200",

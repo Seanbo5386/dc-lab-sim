@@ -71,7 +71,7 @@ $ nvidia-smi
 
 40 scenarios put you in the role of a datacenter engineer. Each one has a story hook, automatic fault injection, inline quizzes, and a debrief:
 
-> **The Midnight Deployment** — It's 2AM and the training job crashed. Nodes are reporting XID errors, NCCL allreduce is hanging, and the team lead wants answers by morning. You have ibstat, dcgmi, and nvidia-smi. Go.
+> **The Midnight Deployment** — A brand-new cluster lands on the rack at 11 PM and has to be production-ready by 8 AM. You verify the BMC and memory, bring the GPUs online — and `nvidia-smi` shows GPU 6 throwing `ERR!` after shipping. Document it, reset it, validate the whole cluster. You have ipmitool, dmidecode, nvidia-smi, and dcgmi. Clock's ticking.
 
 Scenarios run in **sandboxed isolation** — faults and mutations never leak to other scenarios or the global cluster state.
 
@@ -83,14 +83,14 @@ Submit general feedback, bug reports, or success stories directly from the heade
 
 Switch architectures from the dashboard dropdown. Everything adapts — GPU specs, NVLink topology, InfiniBand rates, and all simulator output:
 
-| System    | GPUs        | Memory      | NVLink             | Network       |
-| --------- | ----------- | ----------- | ------------------ | ------------- |
-| DGX A100  | 8x A100     | 80GB HBM2e  | 3rd-gen (12 links) | HDR 200Gb/s   |
-| DGX H100  | 8x H100 SXM | 80GB HBM3   | 4th-gen (18 links) | NDR 400Gb/s   |
-| DGX H200  | 8x H200 SXM | 141GB HBM3e | 4th-gen (18 links) | NDR 400Gb/s   |
-| DGX B200  | 8x B200     | 192GB HBM3e | 5th-gen (18 links) | NDR 400Gb/s   |
-| DGX GB200 | 8x GB200    | 192GB HBM3e | 5th-gen (18 links) | XDR 800Gb/s   |
-| DGX VR200 | 8x R200     | 288GB HBM4  | 6th-gen (18 links) | XDR2 1600Gb/s |
+| System    | GPUs        | Memory      | NVLink             | Network     |
+| --------- | ----------- | ----------- | ------------------ | ----------- |
+| DGX A100  | 8x A100     | 80GB HBM2e  | 3rd-gen (12 links) | HDR 200Gb/s |
+| DGX H100  | 8x H100 SXM | 80GB HBM3   | 4th-gen (18 links) | NDR 400Gb/s |
+| DGX H200  | 8x H200 SXM | 141GB HBM3e | 4th-gen (18 links) | NDR 400Gb/s |
+| DGX B200  | 8x B200     | 192GB HBM3e | 5th-gen (18 links) | NDR 400Gb/s |
+| DGX GB200 | 8x GB200    | 192GB HBM3e | 5th-gen (18 links) | XDR 800Gb/s |
+| DGX VR200 | 8x R200     | 288GB HBM4  | 6th-gen (18 links) | XDR 800Gb/s |
 
 ### Exam Dashboard
 

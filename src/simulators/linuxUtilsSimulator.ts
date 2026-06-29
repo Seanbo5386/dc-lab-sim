@@ -5,6 +5,7 @@ import type {
   SimulatorMetadata,
 } from "@/types/commands";
 import { BaseSimulator } from "./BaseSimulator";
+import { stripControlSequences } from "@/utils/sanitizeTerminalText";
 
 /**
  * LinuxUtilsSimulator
@@ -925,8 +926,12 @@ Feb 12 08:15:24 dgx-00 kernel: [234569.200] NVRM: GPU at 0000:07:00.0: GPU is lo
     parsed: ParsedCommand,
     _context: CommandContext,
   ): CommandResult {
-    // Reconstruct text from subcommands and positional args
-    const text = [...parsed.subcommands, ...parsed.positionalArgs].join(" ");
+    // Reconstruct text from subcommands and positional args. Strip any control
+    // sequences the user embedded (ESC/CSI, NUL, etc.) so echoed input cannot
+    // clear/recolor the terminal or spoof output. Printable text/emoji survive.
+    const text = stripControlSequences(
+      [...parsed.subcommands, ...parsed.positionalArgs].join(" "),
+    );
     return this.createSuccess(text);
   }
 

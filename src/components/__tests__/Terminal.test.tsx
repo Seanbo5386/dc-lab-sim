@@ -152,6 +152,7 @@ vi.mock("../../utils/commandSuggestions", () => ({
 vi.mock("../../utils/pipeHandler", () => ({
   applyPipeFilters: vi.fn((output: string) => output),
   hasPipes: vi.fn(() => false),
+  validatePipeChain: vi.fn(() => null),
 }));
 
 vi.mock("../../cli/commandRouter", () => ({

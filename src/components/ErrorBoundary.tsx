@@ -41,6 +41,18 @@ export class ErrorBoundary extends React.Component<
     });
   };
 
+  // Recovery path for a crash caused by corrupted persisted state. "Try Again"
+  // only re-renders and would re-read the same bad localStorage and re-crash;
+  // this clears the simulator's persisted blob and reloads to a clean state.
+  handleResetData = () => {
+    try {
+      localStorage.removeItem("nvidia-simulator-storage");
+    } catch {
+      /* ignore — localStorage may be unavailable */
+    }
+    window.location.reload();
+  };
+
   render() {
     if (this.state.hasError) {
       return (
@@ -85,6 +97,16 @@ export class ErrorBoundary extends React.Component<
             >
               Try Again
             </button>
+
+            <button
+              onClick={this.handleResetData}
+              className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors duration-200"
+            >
+              Reset application data
+            </button>
+            <p className="text-xs text-gray-500 text-center mt-2">
+              Clears saved progress and settings, then reloads.
+            </p>
           </div>
         </div>
       );

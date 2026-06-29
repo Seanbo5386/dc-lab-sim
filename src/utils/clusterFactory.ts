@@ -161,7 +161,7 @@ function createInfiniBandPort(
     portNumber: portNum,
     state: "Active",
     physicalState: "LinkUp",
-    rate: specs.network.portRateGbs as 100 | 200 | 400 | 800 | 1600,
+    rate: specs.network.portRateGbs as 100 | 200 | 400 | 800,
     lid: 100 + portNum,
     guid: `0x${Math.floor(Math.random() * 0xffffffffffff)
       .toString(16)
@@ -350,6 +350,26 @@ export function createDGXNode(
     healthStatus: "OK",
     slurmState: "idle",
   };
+}
+
+/**
+ * Validates that an unknown value has the structural shape of a ClusterConfig
+ * with non-null nodes that each carry an id and a gpus array. Used on persist
+ * rehydrate to reject corrupted/partial localStorage blobs before they reach
+ * components that iterate nodes/gpus unguarded.
+ */
+export function isValidCluster(value: unknown): value is ClusterConfig {
+  if (!value || typeof value !== "object") return false;
+  const c = value as Partial<ClusterConfig>;
+  if (!Array.isArray(c.nodes) || c.nodes.length === 0) return false;
+  return c.nodes.every(
+    (n) =>
+      !!n &&
+      typeof n === "object" &&
+      typeof n.id === "string" &&
+      Array.isArray(n.gpus) &&
+      n.gpus.every((g) => !!g && typeof g === "object"),
+  );
 }
 
 export function createDefaultCluster(): ClusterConfig {
