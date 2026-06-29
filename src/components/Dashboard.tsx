@@ -351,17 +351,20 @@ const ClusterHealthSummary: React.FC = () => {
 
   const totalNodes = effectiveCluster.nodes.length;
   const totalGPUs = effectiveCluster.nodes.reduce(
-    (sum, node) => sum + node.gpus.length,
+    (sum, node) => sum + (node?.gpus?.length ?? 0),
     0,
   );
   const healthyGPUs = effectiveCluster.nodes.reduce(
     (sum, node) =>
-      sum + node.gpus.filter((gpu) => gpu.healthStatus === "OK").length,
+      sum +
+      (node?.gpus?.filter((gpu) => gpu.healthStatus === "OK").length ?? 0),
     0,
   );
   const criticalGPUs = effectiveCluster.nodes.reduce(
     (sum, node) =>
-      sum + node.gpus.filter((gpu) => gpu.healthStatus === "Critical").length,
+      sum +
+      (node?.gpus?.filter((gpu) => gpu.healthStatus === "Critical").length ??
+        0),
     0,
   );
 
@@ -525,7 +528,7 @@ export const Dashboard: React.FC = () => {
   ]);
 
   const currentNode =
-    effectiveCluster.nodes.find((n) => n.id === selectedNode) ||
+    effectiveCluster.nodes.find((n) => n?.id === selectedNode) ||
     effectiveCluster.nodes[0];
 
   // Start automatic metrics collection only when simulation is running

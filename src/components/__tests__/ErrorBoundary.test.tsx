@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { ErrorBoundary } from "../ErrorBoundary";
 
 // Suppress console.error from ErrorBoundary.componentDidCatch
@@ -51,5 +51,47 @@ describe("ErrorBoundary", () => {
       </ErrorBoundary>,
     );
     expect(screen.getByText("Error: Test error")).toBeInTheDocument();
+  });
+
+  it("should offer a Reset application data button on error (F5 recovery)", () => {
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow={true} />
+      </ErrorBoundary>,
+    );
+    expect(
+      screen.getByRole("button", { name: /reset application data/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("should clear persisted state and reload when Reset application data is clicked", () => {
+    const removeItem = vi
+      .spyOn(Storage.prototype, "removeItem")
+      .mockImplementation(() => {});
+    const reload = vi.fn();
+    const originalLocation = window.location;
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...originalLocation, reload },
+    });
+
+    render(
+      <ErrorBoundary>
+        <ThrowError shouldThrow={true} />
+      </ErrorBoundary>,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /reset application data/i }),
+    );
+
+    expect(removeItem).toHaveBeenCalledWith("nvidia-simulator-storage");
+    expect(reload).toHaveBeenCalled();
+
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: originalLocation,
+    });
+    removeItem.mockRestore();
   });
 });

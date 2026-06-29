@@ -176,7 +176,10 @@ export function AppHeader({
                   </div>
                   <div className="text-xs text-gray-400">
                     {cluster.nodes.length} nodes •{" "}
-                    {cluster.nodes.reduce((sum, n) => sum + n.gpus.length, 0)}{" "}
+                    {cluster.nodes.reduce(
+                      (sum, n) => sum + (n?.gpus?.length ?? 0),
+                      0,
+                    )}{" "}
                     GPUs
                   </div>
                 </div>

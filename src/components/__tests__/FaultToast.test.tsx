@@ -5,7 +5,7 @@ import { useFaultToastStore } from "@/store/faultToastStore";
 
 describe("FaultToast", () => {
   beforeEach(() => {
-    useFaultToastStore.setState({ toasts: [] });
+    useFaultToastStore.setState({ toasts: [], runCommandHandler: null });
     vi.useFakeTimers();
   });
 
@@ -109,5 +109,38 @@ describe("FaultToast", () => {
     expect(
       screen.getByText("Check the Dashboard to see changes reflected live."),
     ).toBeInTheDocument();
+  });
+
+  it("runs the suggested command via the registered handler, forwarding the affected node", () => {
+    const handler = vi.fn();
+    useFaultToastStore.getState().setRunCommandHandler(handler);
+    useFaultToastStore.getState().addToast({
+      title: "XID Error Injected",
+      message: "GPU fell off the bus",
+      suggestedCommand: "nvidia-smi",
+      severity: "critical",
+      targetNode: "dgx-04",
+    });
+
+    render(<FaultToastContainer />);
+    fireEvent.click(screen.getByRole("button", { name: "Run nvidia-smi" }));
+    // The handler receives both the command and the node it was injected on, so
+    // the terminal can connect to that node before running the command.
+    expect(handler).toHaveBeenCalledWith("nvidia-smi", "dgx-04");
+  });
+
+  it("forwards an undefined node when the toast has no targetNode", () => {
+    const handler = vi.fn();
+    useFaultToastStore.getState().setRunCommandHandler(handler);
+    useFaultToastStore.getState().addToast({
+      title: "Workload Applied",
+      message: "training",
+      suggestedCommand: "nvidia-smi",
+      severity: "info",
+    });
+
+    render(<FaultToastContainer />);
+    fireEvent.click(screen.getByRole("button", { name: "Run nvidia-smi" }));
+    expect(handler).toHaveBeenCalledWith("nvidia-smi", undefined);
   });
 });

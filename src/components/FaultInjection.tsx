@@ -5,6 +5,10 @@ import type { StateMutator } from "@/simulators/BaseSimulator";
 import { MetricsSimulator } from "@/utils/metricsSimulator";
 import { useFaultToastStore } from "@/store/faultToastStore";
 import {
+  applyRemediation,
+  type RemediationAction,
+} from "@/utils/remediationEngine";
+import {
   BASIC_FAULT_DESCRIPTIONS,
   COMPLEX_SCENARIO_DESCRIPTIONS,
   WORKLOAD_DESCRIPTIONS,
@@ -22,9 +26,26 @@ import {
   AlertOctagon,
   Info,
   ChevronUp,
+  X,
+  Lightbulb,
+  TerminalSquare,
+  Sparkles,
+  Send,
 } from "lucide-react";
+import { useLearningProgressStore } from "@/store/learningProgressStore";
 
 const metricsSimulator = new MetricsSimulator();
+
+type BasicFaultType = "xid" | "ecc" | "thermal" | "nvlink" | "power" | "pcie";
+
+const SURPRISE_TYPES = [
+  "xid",
+  "ecc",
+  "thermal",
+  "nvlink",
+  "power",
+  "pcie",
+] as const;
 
 /**
  * Get a mutator that routes to ScenarioContext when active, otherwise to global store.
@@ -72,26 +93,44 @@ function getMutator(): StateMutator {
   };
 }
 
-export const FaultInjection: React.FC = () => {
-  const cluster = useSimulationStore((state) => state.cluster);
-  const storeSelectedNode = useSimulationStore((state) => state.selectedNode);
+interface FaultInjectionProps {
+  onPasteCommand?: (cmd: string, targetNode?: string) => void;
+  onSwitchToTerminal?: () => void;
+}
 
-  // Read from active context's cluster when available, otherwise global
+export const FaultInjection: React.FC<FaultInjectionProps> = ({
+  onPasteCommand,
+  onSwitchToTerminal,
+}) => {
+  const cluster = useSimulationStore((state) => state.cluster);
+  const activeScenario = useSimulationStore((state) => state.activeScenario);
+
+  // Read from active context's cluster when available, otherwise global.
+  // Depends on activeScenario so the source flips when a scenario starts or
+  // stops — the active context can change while the global cluster reference
+  // stays the same, which would otherwise leave effectiveCluster stale.
   const effectiveCluster = useMemo(() => {
     const activeContext = scenarioContextManager.getActiveContext();
     return activeContext ? activeContext.getCluster() : cluster;
-  }, [cluster]);
+    // activeScenario is an intentional recompute trigger: the active context is
+    // read from scenarioContextManager (external to React) and changes when a
+    // scenario starts or stops, which the exhaustive-deps rule cannot see.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cluster, activeScenario]);
 
-  // Use the store's selected node (shared with Dashboard), fall back to first node.
-  // When a scenario context is active, the effective cluster may have different nodes
-  // than the store's selectedNode, so verify the node exists in the effective cluster.
-  const storeNodeExists = effectiveCluster.nodes.some(
-    (n) => n.id === storeSelectedNode,
+  const [selectedNode, setSelectedNode] = useState<string>(
+    () => effectiveCluster.nodes[0]?.id ?? "",
   );
-  const selectedNode =
-    storeNodeExists && storeSelectedNode
-      ? storeSelectedNode
-      : effectiveCluster.nodes[0]?.id || "";
+
+  // If the selected node disappears (e.g. cluster rebuilt on a system-type
+  // switch), fall back to the first available node.
+  useEffect(() => {
+    const exists = effectiveCluster.nodes.some((n) => n.id === selectedNode);
+    if (!exists && effectiveCluster.nodes.length > 0) {
+      setSelectedNode(effectiveCluster.nodes[0].id);
+    }
+  }, [effectiveCluster, selectedNode]);
+
   const [selectedGPU, setSelectedGPU] = useState(0);
 
   // Reset GPU selection when node changes
@@ -99,23 +138,87 @@ export const FaultInjection: React.FC = () => {
     setSelectedGPU(0);
   }, [selectedNode]);
 
+  // Clamp the GPU selection if the selected node's GPU count shrinks (e.g. a
+  // system-type switch rebuilds the cluster with fewer GPUs). Guarded so it
+  // only resets when actually out of range — it never clobbers a valid
+  // selection on routine cluster updates (every fault injection produces a new
+  // cluster reference).
+  useEffect(() => {
+    const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
+    if (node && selectedGPU >= node.gpus.length) {
+      setSelectedGPU(0);
+    }
+  }, [effectiveCluster, selectedNode, selectedGPU]);
+
   // Derive current GPU health for active-fault indicators
   const currentGPU = useMemo(() => {
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
     return node?.gpus[selectedGPU] || null;
   }, [effectiveCluster, selectedNode, selectedGPU]);
 
+  const sandboxIntroSeen = useLearningProgressStore((s) => s.sandboxIntroSeen);
+  const markSandboxIntroSeen = useLearningProgressStore(
+    (s) => s.markSandboxIntroSeen,
+  );
+  const [introDismissed, setIntroDismissed] = useState(false);
+  const showIntro = !sandboxIntroSeen && !introDismissed;
+
+  // Quick Reference open state. Defaults open on first run (when the intro is
+  // shown) but is then user-controlled — a synced onToggle keeps React from
+  // forcing the <details> back open/closed on unrelated re-renders.
+  const [quickRefOpen, setQuickRefOpen] = useState(() => showIntro);
+
+  const handleDismissIntro = () => {
+    setIntroDismissed(true);
+    markSandboxIntroSeen();
+  };
+
   const [workloadPattern, setWorkloadPattern] = useState<
     "idle" | "training" | "inference" | "stress"
   >("idle");
+
+  const [lastInjectedCommand, setLastInjectedCommand] = useState<string | null>(
+    null,
+  );
+
+  // Basic faults are staged via toggle buttons, then applied together on Submit.
+  const [selectedFaults, setSelectedFaults] = useState<Set<BasicFaultType>>(
+    () => new Set(),
+  );
+
+  const toggleFault = (faultType: BasicFaultType) => {
+    setSelectedFaults((prev) => {
+      const next = new Set(prev);
+      if (next.has(faultType)) {
+        next.delete(faultType);
+      } else {
+        next.add(faultType);
+      }
+      return next;
+    });
+  };
+
+  const runInTerminal = (cmd: string) => {
+    onSwitchToTerminal?.();
+    // Pass the Sandbox's selected node so the terminal connects to the
+    // affected node before running the diagnostic command.
+    onPasteCommand?.(cmd, selectedNode);
+  };
 
   // Collapsible info panel state
   const [showBasicInfo, setShowBasicInfo] = useState(false);
   const [showComplexInfo, setShowComplexInfo] = useState(false);
   const [showWorkloadInfo, setShowWorkloadInfo] = useState(false);
 
+  // Surprise me challenge mode
+  const [surpriseFault, setSurpriseFault] = useState<
+    (typeof SURPRISE_TYPES)[number] | null
+  >(null);
+  const [surpriseRevealed, setSurpriseRevealed] = useState(false);
+
   const handleInjectFault = (
-    faultType: "xid" | "ecc" | "thermal" | "nvlink" | "power" | "pcie",
+    faultType: BasicFaultType,
+    options?: { surprise?: boolean },
   ) => {
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
     if (!node) return;
@@ -128,7 +231,15 @@ export const FaultInjection: React.FC = () => {
 
     // Fire toast notification
     const desc = BASIC_FAULT_DESCRIPTIONS.find((d) => d.type === faultType);
-    if (desc) {
+    if (options?.surprise) {
+      useFaultToastStore.getState().addToast({
+        title: "Something's wrong with this node",
+        message: "A fault has been injected. Diagnose it in the Terminal.",
+        suggestedCommand: desc?.suggestedCommands[0] ?? "nvidia-smi",
+        severity: "warning",
+        targetNode: selectedNode,
+      });
+    } else if (desc) {
       useFaultToastStore.getState().addToast({
         title: `${desc.title} Injected`,
         message: desc.whatHappens,
@@ -140,8 +251,56 @@ export const FaultInjection: React.FC = () => {
             ? "warning"
             : "critical",
         xidCode: desc.relatedXIDCodes?.[0] || undefined,
+        targetNode: selectedNode,
       });
     }
+    setLastInjectedCommand(desc?.suggestedCommands[0] ?? "nvidia-smi");
+  };
+
+  const handleSurpriseMe = () => {
+    const type =
+      SURPRISE_TYPES[Math.floor(Math.random() * SURPRISE_TYPES.length)];
+    setSurpriseFault(type);
+    setSurpriseRevealed(false);
+    handleInjectFault(type, { surprise: true });
+  };
+
+  const handleSubmitFaults = () => {
+    const types = Array.from(selectedFaults);
+    if (types.length === 0) return;
+
+    // A single selected fault reuses the descriptive single-fault path
+    // (per-fault toast + suggested command).
+    if (types.length === 1) {
+      handleInjectFault(types[0]);
+      setSelectedFaults(new Set());
+      return;
+    }
+
+    const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
+    if (!node) return;
+    const gpu = node.gpus[selectedGPU];
+    if (!gpu) return;
+
+    // Chain each selected fault so they accumulate on the same GPU.
+    let faulted = gpu;
+    for (const type of types) {
+      faulted = metricsSimulator.injectFault(faulted, type);
+    }
+    getMutator().updateGPU(selectedNode, selectedGPU, faulted);
+
+    const labels = types.map(
+      (t) => BASIC_FAULT_DESCRIPTIONS.find((d) => d.type === t)?.title ?? t,
+    );
+    useFaultToastStore.getState().addToast({
+      title: `${types.length} Faults Injected`,
+      message: `Injected ${labels.join(", ")} on GPU ${selectedGPU}. Diagnose in the Terminal.`,
+      suggestedCommand: "nvidia-smi",
+      severity: "critical",
+      targetNode: selectedNode,
+    });
+    setLastInjectedCommand("nvidia-smi");
+    setSelectedFaults(new Set());
   };
 
   const handleInjectScenario = (
@@ -230,8 +389,10 @@ export const FaultInjection: React.FC = () => {
         suggestedCommand: desc.suggestedCommands[0],
         severity: scenarioType === "thermal-alert" ? "warning" : "critical",
         xidCode: desc.relatedXIDCodes?.[0] || undefined,
+        targetNode: selectedNode,
       });
     }
+    setLastInjectedCommand(desc?.suggestedCommands[0] ?? "nvidia-smi");
   };
 
   const handleSimulateWorkload = () => {
@@ -257,8 +418,10 @@ export const FaultInjection: React.FC = () => {
         message: desc.description,
         suggestedCommand: "nvidia-smi",
         severity: "info",
+        targetNode: selectedNode,
       });
     }
+    setLastInjectedCommand("nvidia-smi");
   };
 
   const handleClearFaults = () => {
@@ -284,14 +447,54 @@ export const FaultInjection: React.FC = () => {
         temperature: 65,
         powerDraw: gpu.powerLimit * 0.3,
         utilization: 5,
+        rmaStatus: "none",
       });
     });
+
+    // setBugReportCollected is a global-store action (not on StateMutator). The
+    // sandbox always operates on the global cluster — the Sandbox tab is disabled
+    // while a scenario is active — so this direct global write is correct here.
+    useSimulationStore.getState().setBugReportCollected(selectedNode, false);
 
     useFaultToastStore.getState().addToast({
       title: "All Faults Cleared",
       message: "All GPUs on this node reset to healthy state.",
       suggestedCommand: "nvidia-smi",
       severity: "info",
+      targetNode: selectedNode,
+    });
+    setLastInjectedCommand(null);
+  };
+
+  const selectedNodeObj = effectiveCluster.nodes.find(
+    (n) => n.id === selectedNode,
+  );
+  const bugReportCollected = selectedNodeObj?.bugReportCollected ?? false;
+  const nodeDrained = selectedNodeObj?.slurmState !== "alloc";
+  const rmaReady = bugReportCollected && nodeDrained;
+
+  const handlePhysicalAction = (action: RemediationAction) => {
+    const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
+    if (!node) return;
+    const gpu = node.gpus[selectedGPU];
+    if (!gpu) return;
+    const result = applyRemediation(gpu, node, action);
+    if (result.outcome === "fixed" && result.gpuUpdates) {
+      getMutator().updateGPU(selectedNode, selectedGPU, result.gpuUpdates);
+    }
+    useFaultToastStore.getState().addToast({
+      title:
+        result.outcome === "fixed"
+          ? "Remediation applied"
+          : result.outcome === "blocked"
+            ? "Action blocked"
+            : result.outcome === "insufficient"
+              ? "Not enough — escalate"
+              : "No effect",
+      message: result.message,
+      suggestedCommand: "nvidia-smi -q -d ECC",
+      severity: result.outcome === "fixed" ? "info" : "warning",
+      targetNode: selectedNode,
     });
   };
 
@@ -302,37 +505,78 @@ export const FaultInjection: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="bg-gray-800 rounded-lg p-4 sm:p-6 border border-gray-700">
-        <div className="flex items-center justify-between mb-4">
+        <div className="mb-4">
           <h2 className="text-lg font-bold text-nvidia-green">Sandbox</h2>
-          <span className="text-xs text-gray-500">
-            Select target on Dashboard
-          </span>
+          <p data-testid="sandbox-subtitle" className="text-xs text-gray-500">
+            Free experimentation — inject faults and diagnose them. No scoring.
+          </p>
         </div>
+
+        {showIntro && (
+          <div
+            data-testid="sandbox-intro"
+            className="mb-4 p-4 bg-nvidia-green/5 border border-nvidia-green/30 rounded-lg relative"
+          >
+            <button
+              onClick={handleDismissIntro}
+              data-testid="sandbox-intro-dismiss"
+              aria-label="Dismiss Sandbox intro"
+              className="absolute top-2 right-2 p-1 text-gray-400 hover:text-white rounded"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-2 mb-1">
+              <Lightbulb className="w-4 h-4 text-nvidia-green" />
+              <span className="font-semibold text-sm text-nvidia-green">
+                Welcome to the Sandbox
+              </span>
+            </div>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Free experimentation, no scoring. Pick a node and GPU, inject a
+              fault, then switch to the{" "}
+              <span className="text-nvidia-green">Terminal</span> tab and
+              diagnose it with real commands like{" "}
+              <code className="text-nvidia-green font-mono">nvidia-smi</code>.
+              Use <span className="text-nvidia-green">Quick Reference</span>{" "}
+              below for command ideas.
+            </p>
+          </div>
+        )}
 
         {/* Target Node + GPU Selection */}
         <div className="flex items-center gap-4 mb-6 p-3 bg-gray-900/50 rounded-lg border border-gray-700">
           <div className="flex items-center gap-2 text-sm min-w-0">
-            <span className="text-gray-400 shrink-0">Node:</span>
-            <span
-              className="text-nvidia-green font-medium font-mono truncate"
-              title={
-                effectiveCluster.nodes.find((n) => n.id === selectedNode)
-                  ?.hostname || selectedNode
-              }
+            <label
+              className="text-gray-400 shrink-0"
+              htmlFor="sandbox-node-select"
             >
-              <span className="sm:hidden">{selectedNode}</span>
-              <span className="hidden sm:inline">
-                {effectiveCluster.nodes.find((n) => n.id === selectedNode)
-                  ?.hostname || selectedNode}
-              </span>
-            </span>
+              Node:
+            </label>
+            <select
+              id="sandbox-node-select"
+              aria-label="Sandbox target node"
+              value={selectedNode}
+              onChange={(e) => setSelectedNode(e.target.value)}
+              className="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-nvidia-green font-mono focus:outline-none focus:border-nvidia-green"
+            >
+              {effectiveCluster.nodes.map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.hostname || n.id}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="h-4 w-px bg-gray-700" />
           <div className="flex items-center gap-2 flex-1">
-            <label className="text-sm text-gray-400 whitespace-nowrap">
+            <label
+              className="text-sm text-gray-400 whitespace-nowrap"
+              htmlFor="sandbox-gpu-select"
+            >
               GPU:
             </label>
             <select
+              id="sandbox-gpu-select"
+              aria-label="Sandbox target GPU"
               value={selectedGPU}
               onChange={(e) => setSelectedGPU(Number(e.target.value))}
               className="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-nvidia-green"
@@ -367,57 +611,19 @@ export const FaultInjection: React.FC = () => {
           </div>
         )}
 
-        {/* Quick Reference - collapsible */}
-        <details className="group mb-2">
-          <summary className="flex items-center gap-2 text-sm cursor-pointer hover:text-gray-300 select-none list-none [&::-webkit-details-marker]:hidden">
-            <span className="text-nvidia-green font-medium">
-              Quick Reference
-            </span>
-            <span className="text-xs text-gray-500">— diagnostic commands</span>
-          </summary>
-          <div className="mt-2 p-3 bg-gray-900 rounded-lg">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 font-mono text-xs text-gray-400">
-              <div>
-                • <span className="text-nvidia-green">nvidia-smi</span> — GPU
-                overview
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">nvidia-smi -q -d ECC</span>{" "}
-                — ECC errors
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">
-                  nvidia-smi -q -d TEMPERATURE
-                </span>{" "}
-                — Thermals
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">nvidia-smi nvlink -s</span>{" "}
-                — NVLink status
-              </div>
-              <div>
-                • <span className="text-nvidia-green">nvsm show health</span> —
-                Health summary
-              </div>
-              <div>
-                • <span className="text-nvidia-green">dcgmi diag -r 1</span> —
-                Quick diagnostics
-              </div>
-              <div>
-                • <span className="text-nvidia-green">dmesg | grep -i xid</span>{" "}
-                — XID errors in logs
-              </div>
-              <div>
-                •{" "}
-                <span className="text-nvidia-green">ipmitool sensor list</span>{" "}
-                — BMC sensors
-              </div>
-            </div>
-          </div>
-        </details>
+        {/* Post-inject Diagnose CTA */}
+        {lastInjectedCommand && (
+          <button
+            type="button"
+            data-testid="diagnose-cta"
+            onClick={() => runInTerminal(lastInjectedCommand)}
+            className="flex items-center gap-2 mb-4 px-3 py-2 rounded-lg text-xs font-medium bg-nvidia-green/10 text-nvidia-green border border-nvidia-green/30 hover:bg-nvidia-green/20 transition-colors"
+          >
+            <TerminalSquare className="w-3.5 h-3.5 shrink-0" />
+            Diagnose in Terminal — run{" "}
+            <code className="font-mono">{lastInjectedCommand}</code>
+          </button>
+        )}
 
         {/* Fault Injection Buttons */}
         <div className="space-y-4">
@@ -466,8 +672,14 @@ export const FaultInjection: React.FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <button
-              onClick={() => handleInjectFault("xid")}
-              className="flex items-center gap-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 rounded-lg px-4 py-3 text-left transition-colors"
+              type="button"
+              aria-pressed={selectedFaults.has("xid")}
+              onClick={() => toggleFault("xid")}
+              className={`flex items-center gap-3 bg-red-500/10 hover:bg-red-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("xid")
+                  ? "border-red-400 ring-2 ring-red-400/50"
+                  : "border-red-500/30"
+              }`}
             >
               <AlertTriangle className="w-5 h-5 text-red-400" />
               <div>
@@ -477,8 +689,14 @@ export const FaultInjection: React.FC = () => {
             </button>
 
             <button
-              onClick={() => handleInjectFault("ecc")}
-              className="flex items-center gap-3 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg px-4 py-3 text-left transition-colors"
+              type="button"
+              aria-pressed={selectedFaults.has("ecc")}
+              onClick={() => toggleFault("ecc")}
+              className={`flex items-center gap-3 bg-orange-500/10 hover:bg-orange-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("ecc")
+                  ? "border-orange-400 ring-2 ring-orange-400/50"
+                  : "border-orange-500/30"
+              }`}
             >
               <Cpu className="w-5 h-5 text-orange-400" />
               <div>
@@ -488,8 +706,14 @@ export const FaultInjection: React.FC = () => {
             </button>
 
             <button
-              onClick={() => handleInjectFault("thermal")}
-              className="flex items-center gap-3 bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/30 rounded-lg px-4 py-3 text-left transition-colors"
+              type="button"
+              aria-pressed={selectedFaults.has("thermal")}
+              onClick={() => toggleFault("thermal")}
+              className={`flex items-center gap-3 bg-yellow-500/10 hover:bg-yellow-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("thermal")
+                  ? "border-yellow-400 ring-2 ring-yellow-400/50"
+                  : "border-yellow-500/30"
+              }`}
             >
               <Thermometer className="w-5 h-5 text-yellow-400" />
               <div>
@@ -499,8 +723,14 @@ export const FaultInjection: React.FC = () => {
             </button>
 
             <button
-              onClick={() => handleInjectFault("nvlink")}
-              className="flex items-center gap-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg px-4 py-3 text-left transition-colors"
+              type="button"
+              aria-pressed={selectedFaults.has("nvlink")}
+              onClick={() => toggleFault("nvlink")}
+              className={`flex items-center gap-3 bg-purple-500/10 hover:bg-purple-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("nvlink")
+                  ? "border-purple-400 ring-2 ring-purple-400/50"
+                  : "border-purple-500/30"
+              }`}
             >
               <Link2 className="w-5 h-5 text-purple-400" />
               <div>
@@ -510,8 +740,14 @@ export const FaultInjection: React.FC = () => {
             </button>
 
             <button
-              onClick={() => handleInjectFault("power")}
-              className="flex items-center gap-3 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg px-4 py-3 text-left transition-colors"
+              type="button"
+              aria-pressed={selectedFaults.has("power")}
+              onClick={() => toggleFault("power")}
+              className={`flex items-center gap-3 bg-blue-500/10 hover:bg-blue-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("power")
+                  ? "border-blue-400 ring-2 ring-blue-400/50"
+                  : "border-blue-500/30"
+              }`}
             >
               <Zap className="w-5 h-5 text-blue-400" />
               <div>
@@ -523,8 +759,14 @@ export const FaultInjection: React.FC = () => {
             </button>
 
             <button
-              onClick={() => handleInjectFault("pcie")}
-              className="flex items-center gap-3 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 rounded-lg px-4 py-3 text-left transition-colors"
+              type="button"
+              aria-pressed={selectedFaults.has("pcie")}
+              onClick={() => toggleFault("pcie")}
+              className={`flex items-center gap-3 bg-cyan-500/10 hover:bg-cyan-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("pcie")
+                  ? "border-cyan-400 ring-2 ring-cyan-400/50"
+                  : "border-cyan-500/30"
+              }`}
             >
               <Radio className="w-5 h-5 text-cyan-400" />
               <div>
@@ -536,6 +778,25 @@ export const FaultInjection: React.FC = () => {
             </button>
 
             <button
+              type="button"
+              onClick={handleSubmitFaults}
+              disabled={selectedFaults.size === 0}
+              aria-label="Submit selected faults"
+              className="flex items-center gap-3 bg-nvidia-green/20 hover:bg-nvidia-green/30 border border-nvidia-green rounded-lg px-4 py-3 text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-nvidia-green/20"
+            >
+              <Send className="w-5 h-5 text-nvidia-green" />
+              <div>
+                <div className="font-medium text-nvidia-green">Submit</div>
+                <div className="text-xs text-gray-400">
+                  {selectedFaults.size > 0
+                    ? `Apply ${selectedFaults.size} selected`
+                    : "Select faults above"}
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
               onClick={handleClearFaults}
               className="flex items-center gap-3 bg-nvidia-green/10 hover:bg-nvidia-green/20 border border-nvidia-green/30 rounded-lg px-4 py-3 text-left transition-colors"
             >
@@ -546,7 +807,249 @@ export const FaultInjection: React.FC = () => {
               </div>
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={handleSurpriseMe}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-purple-500/10 text-purple-300 border border-purple-500/30 hover:bg-purple-500/20 transition-colors"
+          >
+            <Sparkles className="w-4 h-4" />
+            Surprise me
+          </button>
+
+          {surpriseFault && (
+            <div
+              data-testid="surprise-prompt"
+              className="p-3 bg-gray-900/50 rounded-lg border border-purple-500/30 text-sm text-gray-300"
+            >
+              Something&apos;s wrong with this node — can you find it? Switch to
+              the Terminal and investigate.
+              {surpriseRevealed ? (
+                <span
+                  data-testid="surprise-reveal-text"
+                  aria-live="polite"
+                  className="block mt-2 text-purple-300"
+                >
+                  Injected fault:{" "}
+                  {BASIC_FAULT_DESCRIPTIONS.find(
+                    (d) => d.type === surpriseFault,
+                  )?.title ?? surpriseFault}
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setSurpriseRevealed(true)}
+                  className="block mt-2 text-purple-300 hover:underline"
+                >
+                  Reveal
+                </button>
+              )}
+            </div>
+          )}
         </div>
+
+        {/* Physical Actions panel */}
+        <div className="mt-6 pt-6 border-t border-gray-700">
+          <h3 className="text-sm font-semibold text-gray-300 mb-1">
+            Physical Actions
+          </h3>
+          <p className="text-xs text-gray-500 mb-3">
+            Reseat or replace hardware when commands can&apos;t recover the GPU.
+          </p>
+
+          {currentGPU?.rmaStatus === "pending" ? (
+            <p className="text-xs text-red-400 mb-3" data-testid="gpu-status">
+              GPU {selectedGPU}: RMA pending
+            </p>
+          ) : currentGPU?.healthStatus === "OK" ? (
+            <p
+              className="text-xs text-nvidia-green mb-3"
+              data-testid="gpu-status"
+            >
+              GPU {selectedGPU}: ✓ Healthy
+            </p>
+          ) : (
+            <p
+              className="text-xs text-yellow-400 mb-3"
+              data-testid="gpu-status"
+            >
+              GPU {selectedGPU}: {currentGPU?.healthStatus ?? "Unknown"}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => handlePhysicalAction("reseat-gpu")}
+              className="px-3 py-2 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+            >
+              Reseat GPU
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePhysicalAction("reseat-nvlink")}
+              className="px-3 py-2 text-xs rounded bg-gray-700 hover:bg-gray-600 text-gray-200"
+            >
+              Reseat NVLink bridge
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePhysicalAction("rma")}
+              disabled={!rmaReady}
+              title={
+                rmaReady
+                  ? "Flag this GPU for replacement"
+                  : "Collect nvidia-bug-report.sh and drain the node first"
+              }
+              className="px-3 py-2 text-xs rounded bg-red-900/60 hover:bg-red-800 text-red-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Mark for RMA
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Reference - collapsible */}
+        <details
+          className="group mt-6 pt-6 border-t border-gray-700"
+          open={quickRefOpen}
+          onToggle={(e) =>
+            setQuickRefOpen((e.target as HTMLDetailsElement).open)
+          }
+          data-testid="quick-reference"
+        >
+          <summary className="flex items-center gap-2 text-sm cursor-pointer hover:text-gray-300 select-none list-none [&::-webkit-details-marker]:hidden">
+            <span className="text-nvidia-green font-medium">
+              Quick Reference
+            </span>
+            <span className="text-xs text-gray-500">— diagnostic commands</span>
+          </summary>
+          <div className="mt-2 p-3 bg-gray-900 rounded-lg">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 font-mono text-xs text-gray-400">
+              <div>
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run nvidia-smi"
+                  onClick={() => runInTerminal("nvidia-smi")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  nvidia-smi
+                </button>{" "}
+                — GPU overview
+              </div>
+              <div>
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run nvidia-smi -q -d ECC"
+                  onClick={() => runInTerminal("nvidia-smi -q -d ECC")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  nvidia-smi -q -d ECC
+                </button>{" "}
+                — ECC errors
+              </div>
+              <div>
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run nvidia-smi -q -d TEMPERATURE"
+                  onClick={() => runInTerminal("nvidia-smi -q -d TEMPERATURE")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  nvidia-smi -q -d TEMPERATURE
+                </button>{" "}
+                — Thermals
+              </div>
+              <div>
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run nvidia-smi nvlink -s"
+                  onClick={() => runInTerminal("nvidia-smi nvlink -s")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  nvidia-smi nvlink -s
+                </button>{" "}
+                — NVLink status
+              </div>
+              <div>
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run nvsm show health"
+                  onClick={() => runInTerminal("nvsm show health")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  nvsm show health
+                </button>{" "}
+                — Health summary
+              </div>
+              <div>
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run dcgmi diag -r 1"
+                  onClick={() => runInTerminal("dcgmi diag -r 1")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  dcgmi diag -r 1
+                </button>{" "}
+                — Quick diagnostics
+              </div>
+              <div>
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run dmesg | grep -i xid"
+                  onClick={() => runInTerminal("dmesg | grep -i xid")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  dmesg | grep -i xid
+                </button>{" "}
+                — XID errors in logs
+              </div>
+              <div>
+                •{" "}
+                <button
+                  type="button"
+                  aria-label="Run ipmitool sensor list"
+                  onClick={() => runInTerminal("ipmitool sensor list")}
+                  className="text-nvidia-green hover:underline"
+                >
+                  ipmitool sensor list
+                </button>{" "}
+                — BMC sensors
+              </div>
+            </div>
+          </div>
+        </details>
+
+        {/* Remediation commands reference */}
+        <details className="mt-4" data-testid="remediation-reference">
+          <summary className="text-sm font-semibold text-gray-300 cursor-pointer">
+            Remediation commands
+          </summary>
+          <div className="mt-2 flex flex-col gap-1">
+            {[
+              `nvidia-smi --gpu-reset -i ${selectedGPU}`,
+              `nvidia-smi -i ${selectedGPU} --reset-ecc-errors`,
+              `nvidia-smi -i ${selectedGPU} -pl 500`,
+              `systemctl restart nvidia-fabricmanager`,
+              `ipmitool chassis power cycle`,
+              `nvidia-bug-report.sh`,
+            ].map((cmd) => (
+              <button
+                key={cmd}
+                type="button"
+                onClick={() => runInTerminal(cmd)}
+                className="text-left text-xs font-mono text-nvidia-green hover:underline"
+              >
+                {cmd}
+              </button>
+            ))}
+          </div>
+        </details>
 
         {/* Complex Training Scenarios */}
         <div className="mt-6 pt-6 border-t border-gray-700 space-y-4">

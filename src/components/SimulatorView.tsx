@@ -5,6 +5,7 @@ import { FaultInjection } from "./FaultInjection";
 import { MissionCard } from "./MissionCard";
 import { MissionInstructionPanel } from "./MissionInstructionPanel";
 import { useSimulationStore } from "../store/simulationStore";
+import { useFaultToastStore } from "@/store/faultToastStore";
 import { HintManager } from "@/utils/hintManager";
 import {
   GripVertical,
@@ -98,14 +99,49 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
     };
   }, [activeScenario, updateValidationConfig]);
 
-  // Paste callback ref — set by Terminal's onReady
-  const pasteCommandRef = useRef<((cmd: string) => void) | null>(null);
-  const handleTerminalReady = useCallback((pasteFn: (cmd: string) => void) => {
-    pasteCommandRef.current = pasteFn;
+  // Paste callback ref — set by Terminal's onReady. The optional node connects
+  // the terminal to that node (via ssh) before staging the command.
+  const pasteCommandRef = useRef<
+    ((cmd: string, targetNode?: string) => void) | null
+  >(null);
+  // A paste requested before the terminal is ready is queued here. On mobile
+  // the Terminal lives under a hidden tab with zero dimensions, so it defers
+  // onReady; without this queue a Quick Reference / Diagnose command fired from
+  // the Sandbox tab (before Terminal was ever shown) would be silently dropped.
+  const pendingPasteRef = useRef<{ cmd: string; targetNode?: string } | null>(
+    null,
+  );
+  const handleTerminalReady = useCallback(
+    (pasteFn: (cmd: string, targetNode?: string) => void) => {
+      pasteCommandRef.current = pasteFn;
+      const pending = pendingPasteRef.current;
+      if (pending) {
+        pendingPasteRef.current = null;
+        pasteFn(pending.cmd, pending.targetNode);
+      }
+    },
+    [],
+  );
+  const handlePasteCommand = useCallback((cmd: string, targetNode?: string) => {
+    if (pasteCommandRef.current) {
+      pasteCommandRef.current(cmd, targetNode);
+    } else {
+      // Terminal not ready yet — queue and flush from onReady.
+      pendingPasteRef.current = { cmd, targetNode };
+    }
   }, []);
-  const handlePasteCommand = useCallback((cmd: string) => {
-    pasteCommandRef.current?.(cmd);
-  }, []);
+
+  // Register fault toast run-command handler so toast buttons route to terminal
+  useEffect(() => {
+    const setRunCommandHandler =
+      useFaultToastStore.getState().setRunCommandHandler;
+    setRunCommandHandler((cmd: string, targetNode?: string) => {
+      setRightTab("terminal");
+      setMobileTab("terminal");
+      handlePasteCommand(cmd, targetNode);
+    });
+    return () => setRunCommandHandler(null);
+  }, [handlePasteCommand]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -396,7 +432,10 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
           <div
             className={`h-full overflow-auto p-4 bg-gray-900 ${mobileTab !== "faults" ? "hidden" : ""}`}
           >
-            <FaultInjection />
+            <FaultInjection
+              onPasteCommand={handlePasteCommand}
+              onSwitchToTerminal={() => setMobileTab("terminal")}
+            />
           </div>
         </div>
       </div>
@@ -501,9 +540,12 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                 Sandbox
               </button>
             </div>
-            <div className="flex-1 overflow-hidden">
-              <Terminal className="h-full" onReady={handleTerminalReady} />
-            </div>
+            {/* Placeholder only — the live Terminal is mounted once the
+                container width is measured (below). Rendering a real Terminal
+                here would mount it, then immediately unmount and remount it
+                when containerWidth flips from 0, double-initializing xterm and
+                letting the throwaway mount consume the one-time welcome banner. */}
+            <div className="flex-1 overflow-hidden bg-black" />
           </div>
         </div>
       ) : (
@@ -607,6 +649,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   </button>
                   <div className="relative group">
                     <button
+                      data-tour="sandbox-tab"
                       onClick={() => !activeScenario && setRightTab("faults")}
                       disabled={!!activeScenario}
                       className={`flex items-center gap-1.5 py-2 px-4 text-sm font-medium transition-colors ${
@@ -690,7 +733,10 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({
                   <div
                     className={`h-full overflow-auto p-4 ${rightTab !== "faults" ? "hidden" : ""}`}
                   >
-                    <FaultInjection />
+                    <FaultInjection
+                      onPasteCommand={handlePasteCommand}
+                      onSwitchToTerminal={() => setRightTab("terminal")}
+                    />
                   </div>
                 </div>
               </>

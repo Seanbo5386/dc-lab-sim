@@ -14,18 +14,28 @@ export interface FaultToastData {
   suggestedCommand: string;
   severity: "critical" | "warning" | "info";
   xidCode?: number;
+  /**
+   * The node the fault was injected on. When set, running the suggested
+   * command routes the terminal to this node first (so the command actually
+   * targets the affected node, not whatever node the terminal is on).
+   */
+  targetNode?: string;
 }
 
 interface FaultToastState {
   toasts: FaultToastData[];
   addToast: (data: Omit<FaultToastData, "id">) => void;
   removeToast: (id: string) => void;
+  runCommandHandler: ((cmd: string, targetNode?: string) => void) | null;
+  setRunCommandHandler: (
+    fn: ((cmd: string, targetNode?: string) => void) | null,
+  ) => void;
 }
 
 const MAX_TOASTS = 3;
 
 function generateToastId(): string {
-  return `fault-toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `fault-toast-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 export const useFaultToastStore = create<FaultToastState>()((set) => ({
@@ -52,4 +62,7 @@ export const useFaultToastStore = create<FaultToastState>()((set) => ({
       toasts: state.toasts.filter((t) => t.id !== id),
     }));
   },
+
+  runCommandHandler: null,
+  setRunCommandHandler: (fn) => set({ runCommandHandler: fn }),
 }));

@@ -91,6 +91,7 @@ export interface GPU {
   xidErrors: XIDError[];
   persistenceMode: boolean;
   allocatedJobId?: number; // Slurm job ID if GPU is allocated
+  rmaStatus?: "none" | "pending"; // set to "pending" when flagged for RMA
 }
 
 export interface BlueFieldMode {
@@ -115,7 +116,7 @@ export interface InfiniBandPort {
   portNumber: number;
   state: "Active" | "Down" | "Polling" | "Disabled";
   physicalState: "LinkUp" | "LinkDown" | "Polling" | "Sleep";
-  rate: 100 | 200 | 400 | 800 | 1600; // Gb/s (EDR, HDR, NDR, XDR, XDR2)
+  rate: 100 | 200 | 400 | 800; // Gb/s (EDR, HDR, NDR, XDR)
   lid: number;
   guid: string;
   linkLayer: "InfiniBand" | "Ethernet";
@@ -177,6 +178,7 @@ export interface DGXNode {
   slurmState: "idle" | "alloc" | "drain" | "down";
   slurmReason?: string;
   clusterPowerLimit?: number; // Power limit set via DCMI in watts
+  bugReportCollected?: boolean; // true after nvidia-bug-report.sh runs on this node
 }
 
 export interface ClusterConfig {

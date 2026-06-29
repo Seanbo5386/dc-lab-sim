@@ -1,10 +1,10 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useFaultToastStore } from "../faultToastStore";
 
 describe("faultToastStore", () => {
   beforeEach(() => {
     // Reset store between tests
-    useFaultToastStore.setState({ toasts: [] });
+    useFaultToastStore.setState({ toasts: [], runCommandHandler: null });
   });
 
   it("starts with empty toasts array", () => {
@@ -104,5 +104,14 @@ describe("faultToastStore", () => {
     const { toasts } = useFaultToastStore.getState();
     expect(toasts).toHaveLength(1);
     expect(toasts[0].xidCode).toBeUndefined();
+  });
+
+  it("stores and clears the run-command handler", () => {
+    const handler = vi.fn();
+    useFaultToastStore.getState().setRunCommandHandler(handler);
+    expect(useFaultToastStore.getState().runCommandHandler).toBe(handler);
+
+    useFaultToastStore.getState().setRunCommandHandler(null);
+    expect(useFaultToastStore.getState().runCommandHandler).toBeNull();
   });
 });

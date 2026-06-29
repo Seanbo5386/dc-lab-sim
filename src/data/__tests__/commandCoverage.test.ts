@@ -1,5 +1,30 @@
 import { describe, it, expect } from "vitest";
 import { TERMINAL_COMMANDS } from "../registeredCommands";
+// Raw source of the component that actually wires up the command router, so we
+// can verify TERMINAL_COMMANDS matches the real router.register()/registerMany()
+// calls (the doc set's header claims this sync but nothing enforced it before).
+import terminalSource from "@/components/Terminal.tsx?raw";
+
+// Commands handled by a pre-router branch in Terminal.tsx rather than
+// router.register() (see the early `command === "clear"` return).
+const PRE_ROUTER_HANDLED = new Set<string>(["clear"]);
+
+// Parse every command name registered via router.register("x", ...) and
+// router.registerMany(["a", "b", ...], ...) from the component source.
+function extractRegisteredCommands(source: string): Set<string> {
+  const registered = new Set<string>();
+  for (const match of source.matchAll(/\.register\(\s*"([^"]+)"/g)) {
+    registered.add(match[1]);
+  }
+  for (const block of source.matchAll(/\.registerMany\(\s*\[([\s\S]*?)\]/g)) {
+    for (const name of block[1].matchAll(/"([^"]+)"/g)) {
+      registered.add(name[1]);
+    }
+  }
+  return registered;
+}
+
+const REGISTERED_IN_TERMINAL = extractRegisteredCommands(terminalSource);
 
 // All JSON definition files. import.meta.glob is resolved by Vite/Vitest; we only use the keys (paths).
 const defs = import.meta.glob("../output/**/*.json");
@@ -171,5 +196,31 @@ describe("every JSON-defined command is executable or explicitly docs-only", () 
 
   it("nvidia-bug-report is registered under its .sh name", () => {
     expect(TERMINAL_COMMANDS.has("nvidia-bug-report.sh")).toBe(true);
+  });
+});
+
+describe("TERMINAL_COMMANDS stays in sync with router registrations", () => {
+  it("found a realistic number of router registrations (parse sanity)", () => {
+    expect(REGISTERED_IN_TERMINAL.size).toBeGreaterThan(80);
+  });
+
+  // Catches a command listed in TERMINAL_COMMANDS (so it passes commandGapDetection)
+  // that is never actually registered — which would ship as "command not found".
+  it("every documented command is actually registered in Terminal.tsx", () => {
+    const notRegistered = [...TERMINAL_COMMANDS]
+      .filter(
+        (cmd) =>
+          !REGISTERED_IN_TERMINAL.has(cmd) && !PRE_ROUTER_HANDLED.has(cmd),
+      )
+      .sort();
+    expect(notRegistered).toEqual([]);
+  });
+
+  // Catches the reverse drift: a real registration missing from the doc set.
+  it("every registered command is documented in TERMINAL_COMMANDS", () => {
+    const undocumented = [...REGISTERED_IN_TERMINAL]
+      .filter((cmd) => !TERMINAL_COMMANDS.has(cmd))
+      .sort();
+    expect(undocumented).toEqual([]);
   });
 });

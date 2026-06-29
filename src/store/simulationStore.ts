@@ -19,6 +19,7 @@ import type { ValidationResult, ValidationConfig } from "@/types/validation";
 import {
   createDefaultCluster,
   createCustomCluster,
+  isValidCluster,
 } from "@/utils/clusterFactory";
 import type { SystemType } from "@/data/hardwareSpecs";
 import { useLearningProgressStore } from "./learningProgressStore";
@@ -108,6 +109,7 @@ interface SimulationState {
   updateGPU: (nodeId: string, gpuId: number, updates: Partial<GPU>) => void;
   updateHCAs: (nodeId: string, hcas: InfiniBandHCA[]) => void;
   updateNodeHealth: (nodeId: string, health: HealthStatus) => void;
+  setBugReportCollected: (nodeId: string, value: boolean) => void;
   addXIDError: (nodeId: string, gpuId: number, error: XIDError) => void;
   setMIGMode: (nodeId: string, gpuId: number, enabled: boolean) => void;
   setSlurmState: (
@@ -227,10 +229,14 @@ export const useSimulationStore = create<SimulationState>()(
       setCluster: (cluster) => set({ cluster }),
 
       setSystemType: (systemType) =>
-        set({
-          systemType,
-          cluster: createCustomCluster(8, systemType),
-          selectedNode: null,
+        set((state) => {
+          // The architecture lock during scenarios is enforced here, not just
+          // by the selector's `disabled` attribute. Bypassing the DOM lock must
+          // not rebuild the global cluster (and wipe global faults) mid-scenario.
+          if (state.activeScenario) return;
+          state.systemType = systemType;
+          state.cluster = createCustomCluster(8, systemType);
+          state.selectedNode = null;
         }),
 
       selectNode: (nodeId) => set({ selectedNode: nodeId }),
@@ -284,6 +290,14 @@ export const useSimulationStore = create<SimulationState>()(
           const node = state.cluster.nodes.find((n) => n.id === nodeId);
           if (node) {
             node.healthStatus = health;
+          }
+        }),
+
+      setBugReportCollected: (nodeId, value) =>
+        set((state) => {
+          const node = state.cluster.nodes.find((n) => n.id === nodeId);
+          if (node) {
+            node.bugReportCollected = value;
           }
         }),
 
@@ -722,15 +736,61 @@ export const useSimulationStore = create<SimulationState>()(
     {
       name: "nvidia-simulator-storage",
       version: 1,
-      migrate: () => {
-        // v0 → v1: cpuCount was persisted as socket count (2) instead of
-        // total cores (sockets × coresPerSocket). Discard stale cluster so
-        // createDefaultCluster() rebuilds it with correct values.
-        return {} as Record<string, unknown>;
+      migrate: (persistedState: unknown, version: number) => {
+        // v0 → v1: cpuCount was persisted as socket count (2) instead of total
+        // cores (sockets × coresPerSocket). Drop ONLY the stale cluster so the
+        // factory rebuilds it with correct values; preserve the user's
+        // scenarioProgress, completedScenarios, and settings rather than wiping
+        // everything.
+        //
+        // Any non-v1 version (older OR a future build's newer schema) is treated
+        // the same way: drop the cluster and let merge()/the factory rebuild it,
+        // rather than trusting a cluster shaped by an unknown schema version.
+        if (persistedState && typeof persistedState === "object") {
+          const next = { ...(persistedState as Record<string, unknown>) };
+          if (version !== 1) {
+            delete next.cluster;
+          }
+          return next;
+        }
+        return persistedState as Record<string, unknown>;
+      },
+      // Sanitize the persisted cluster on EVERY rehydrate (not just version
+      // bumps). A corrupted/partial localStorage blob — a null node, a node
+      // missing `gpus`, or `nodes` that is not an array — would otherwise be
+      // trusted verbatim and crash components that iterate nodes/gpus unguarded.
+      // If the persisted cluster fails the shape check, rebuild a fresh one for
+      // the persisted (or current) systemType; all other persisted state
+      // (progress, settings) is preserved.
+      merge: (persisted, current) => {
+        const c = current as SimulationState;
+        const p = (persisted ?? {}) as Partial<SimulationState>;
+        const safeCluster = isValidCluster(p.cluster)
+          ? p.cluster
+          : createCustomCluster(8, p.systemType ?? c.systemType);
+        return { ...c, ...p, cluster: safeCluster };
       },
       storage: createJSONStorage(() => createDebouncedStorage(2000)),
       partialize: (state) => ({
-        cluster: state.cluster,
+        // Strip session-scoped remediation flags (node.bugReportCollected /
+        // gpu.rmaStatus) so they do not survive a page reload. These track
+        // in-session remediation progress; persisting them would let a returning
+        // user satisfy the RMA gate or see "RMA pending" without doing the work.
+        cluster: {
+          ...state.cluster,
+          nodes: state.cluster.nodes.map((node) => {
+            const persistedNode = {
+              ...node,
+              gpus: node.gpus.map((gpu) => {
+                const persistedGpu = { ...gpu };
+                delete persistedGpu.rmaStatus;
+                return persistedGpu;
+              }),
+            };
+            delete persistedNode.bugReportCollected;
+            return persistedNode;
+          }),
+        },
         systemType: state.systemType,
         simulationSpeed: state.simulationSpeed,
         scenarioProgress: Object.fromEntries(

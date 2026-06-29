@@ -225,14 +225,14 @@ SM-2 algorithm in `spacedRepetition.ts` schedules review drills based on:
 
 Switch from dashboard dropdown. All simulators, specs, and topologies adapt:
 
-| System    | GPUs        | Memory      | NVLink             | Network       |
-| --------- | ----------- | ----------- | ------------------ | ------------- |
-| DGX A100  | 8x A100     | 80GB HBM2e  | 3rd-gen (12 links) | HDR 200Gb/s   |
-| DGX H100  | 8x H100 SXM | 80GB HBM3   | 4th-gen (18 links) | NDR 400Gb/s   |
-| DGX H200  | 8x H200 SXM | 141GB HBM3e | 4th-gen (18 links) | NDR 400Gb/s   |
-| DGX B200  | 8x B200     | 192GB HBM3e | 5th-gen (18 links) | NDR 400Gb/s   |
-| DGX GB200 | 8x GB200    | 192GB HBM3e | 5th-gen (18 links) | XDR 800Gb/s   |
-| DGX VR200 | 8x R200     | 288GB HBM4  | 6th-gen (18 links) | XDR2 1600Gb/s |
+| System    | GPUs        | Memory      | NVLink             | Network     |
+| --------- | ----------- | ----------- | ------------------ | ----------- |
+| DGX A100  | 8x A100     | 80GB HBM2e  | 3rd-gen (12 links) | HDR 200Gb/s |
+| DGX H100  | 8x H100 SXM | 80GB HBM3   | 4th-gen (18 links) | NDR 400Gb/s |
+| DGX H200  | 8x H200 SXM | 141GB HBM3e | 4th-gen (18 links) | NDR 400Gb/s |
+| DGX B200  | 8x B200     | 192GB HBM3e | 5th-gen (18 links) | NDR 400Gb/s |
+| DGX GB200 | 8x GB200    | 192GB HBM3e | 5th-gen (18 links) | XDR 800Gb/s |
+| DGX VR200 | 8x R200     | 288GB HBM4  | 6th-gen (18 links) | XDR 800Gb/s |
 
 ## Styling Conventions
 

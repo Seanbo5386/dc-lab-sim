@@ -397,6 +397,19 @@ describe("LinuxUtilsSimulator", () => {
       const result = simulator.execute(parse("echo"), context);
       expect(result.exitCode).toBe(0);
     });
+
+    it("should strip injected ANSI/control sequences (F1)", () => {
+      const result = simulator.execute(
+        parse("echo \x1b[2J\x1b[31mRED\x1b[0m\x00done"),
+        context,
+      );
+      expect(result.exitCode).toBe(0);
+      // The escape/control bytes are gone; the printable text survives.
+      expect(result.output).not.toContain("\x1b");
+      expect(result.output).not.toContain("\x00");
+      expect(result.output).toContain("RED");
+      expect(result.output).toContain("done");
+    });
   });
 
   // ============================================

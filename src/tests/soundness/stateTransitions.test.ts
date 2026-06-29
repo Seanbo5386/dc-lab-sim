@@ -37,9 +37,9 @@ describe("State Transitions", () => {
     it("GPU reset clears recoverable XID errors", () => {
       // Inject recoverable XID error
       store.addXIDError("dgx-00", 0, {
-        code: 63,
+        code: 48,
         timestamp: new Date(),
-        description: "Row Remap Failure",
+        description: "Double Bit ECC Error",
         severity: "Warning",
       });
 
@@ -281,13 +281,13 @@ describe("State Transitions", () => {
     it("multiple faults and partial recovery", () => {
       // Inject faults on two GPUs
       store.addXIDError("dgx-00", 0, {
-        code: 63,
+        code: 48,
         timestamp: new Date(),
         description: "GPU 0 error",
         severity: "Warning",
       });
       store.addXIDError("dgx-00", 1, {
-        code: 63,
+        code: 48,
         timestamp: new Date(),
         description: "GPU 1 error",
         severity: "Warning",

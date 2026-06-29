@@ -198,6 +198,51 @@ describe("DcgmiSimulator", () => {
       // Diag command doesn't require -g flag, uses default GPU
       expect(result.exitCode).toBe(0);
     });
+
+    it("should fail Page Retirement/Row Remap and GPU Memory at level 1 on uncorrectable ECC", () => {
+      // Mirror nvidia-smi's "Volatile Uncorr. ECC = 1": double-bit ECC error
+      const state = vi.mocked(useSimulationStore.getState)();
+      state.cluster.nodes[0].gpus[0].eccErrors = {
+        singleBit: 0,
+        doubleBit: 1,
+        aggregated: { singleBit: 0, doubleBit: 1 },
+      };
+
+      const result = simulator.execute(parse("dcgmi diag -r 1"), context);
+
+      expect(result.exitCode).toBe(0);
+      // The quick diag now surfaces the memory subsystem fault
+      expect(result.output).toContain("Page Retirement/Row Remap");
+      expect(result.output).toContain("\x1b[31mFail\x1b[0m");
+      expect(result.output).toContain("test(s) failed");
+      expect(result.output).not.toContain("All tests passed successfully");
+    });
+
+    it("should fail memory checks when a row-remap XID is present", () => {
+      const state = vi.mocked(useSimulationStore.getState)();
+      state.cluster.nodes[0].gpus[0].xidErrors = [
+        {
+          code: 63,
+          timestamp: new Date(),
+          description: "Row Remap Failure",
+          severity: "Warning",
+        },
+      ];
+
+      const result = simulator.execute(parse("dcgmi diag -r 1"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("\x1b[31mFail\x1b[0m");
+      expect(result.output).not.toContain("All tests passed successfully");
+    });
+
+    it("should still pass cleanly on a healthy GPU at level 1", () => {
+      const result = simulator.execute(parse("dcgmi diag -r 1"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("All tests passed successfully");
+      expect(result.output).not.toContain("\x1b[31mFail\x1b[0m");
+    });
   });
 
   describe("Stats Command", () => {

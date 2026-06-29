@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within, act } from "@testing-library/react";
 
 // ---------------------------------------------------------------------------
 // Hoisted mock setup - these are available to vi.mock factories
@@ -11,11 +11,15 @@ const {
   mockUpdateNodeHealth,
   mockSetMIGMode,
   mockSetSlurmState,
+  mockSetBugReportCollected,
   mockContextUpdateGPU,
   mockContextAddXIDError,
   mockInjectFault,
   mockSimulateWorkload,
   mockActiveContext,
+  mockMarkSandboxIntroSeen,
+  mockAddToast,
+  mockApplyRemediation,
   shared,
 } = vi.hoisted(() => {
   // -- store mocks --
@@ -24,6 +28,7 @@ const {
   const mockUpdateNodeHealth = vi.fn();
   const mockSetMIGMode = vi.fn();
   const mockSetSlurmState = vi.fn();
+  const mockSetBugReportCollected = vi.fn();
 
   // -- scenario context mocks --
   const mockContextUpdateGPU = vi.fn();
@@ -47,15 +52,55 @@ const {
       })),
   );
 
+  // -- faultToastStore mock fn --
+  const mockAddToast = vi.fn();
+
+  // -- remediationEngine mock fn --
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mockApplyRemediation = vi.fn((_gpu: any, _node: any, _action: any) => ({
+    outcome: "fixed" as const,
+    message: "GPU 0 nvlink fault resolved.",
+    gpuUpdates: {
+      nvlinks: [
+        {
+          linkId: 0,
+          status: "Active",
+          speed: 600,
+          txErrors: 0,
+          rxErrors: 0,
+          replayErrors: 0,
+        },
+        {
+          linkId: 1,
+          status: "Active",
+          speed: 600,
+          txErrors: 0,
+          rxErrors: 0,
+          replayErrors: 0,
+        },
+      ],
+      healthStatus: "OK",
+    },
+  }));
+
+  // -- learningProgressStore mock fn --
+  const mockMarkSandboxIntroSeen = vi.fn(() => {
+    shared.sandboxIntroSeen = true;
+  });
+
   // -- shared mutable state --
   const shared: {
     activeContextReturn: unknown;
     currentCluster: unknown;
     selectedNode: string | null;
+    sandboxIntroSeen: boolean;
+    activeScenario: { id: string } | null;
   } = {
     activeContextReturn: undefined,
     currentCluster: null, // will be set after createMockNode is defined
     selectedNode: "dgx-00",
+    sandboxIntroSeen: false,
+    activeScenario: null,
   };
 
   const mockActiveContext = {
@@ -73,6 +118,7 @@ const {
     mockUpdateNodeHealth,
     mockSetMIGMode,
     mockSetSlurmState,
+    mockSetBugReportCollected,
     mockContextUpdateGPU,
     mockContextAddXIDError,
     mockContextUpdateNodeHealth,
@@ -81,6 +127,9 @@ const {
     mockInjectFault,
     mockSimulateWorkload,
     mockActiveContext,
+    mockMarkSandboxIntroSeen,
+    mockAddToast,
+    mockApplyRemediation,
     shared,
   };
 });
@@ -95,11 +144,13 @@ vi.mock("@/store/simulationStore", () => ({
       const state = {
         cluster: shared.currentCluster,
         selectedNode: shared.selectedNode,
+        activeScenario: shared.activeScenario,
         updateGPU: mockUpdateGPU,
         addXIDError: mockAddXIDError,
         updateNodeHealth: mockUpdateNodeHealth,
         setMIGMode: mockSetMIGMode,
         setSlurmState: mockSetSlurmState,
+        setBugReportCollected: mockSetBugReportCollected,
       };
       return selector ? selector(state) : state;
     }),
@@ -107,14 +158,22 @@ vi.mock("@/store/simulationStore", () => ({
       getState: vi.fn(() => ({
         cluster: shared.currentCluster,
         selectedNode: shared.selectedNode,
+        activeScenario: shared.activeScenario,
         updateGPU: mockUpdateGPU,
         addXIDError: mockAddXIDError,
         updateNodeHealth: mockUpdateNodeHealth,
         setMIGMode: mockSetMIGMode,
         setSlurmState: mockSetSlurmState,
+        setBugReportCollected: mockSetBugReportCollected,
       })),
     },
   ),
+}));
+
+vi.mock("@/utils/remediationEngine", () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  applyRemediation: (gpu: any, node: any, action: any) =>
+    mockApplyRemediation(gpu, node, action),
 }));
 
 vi.mock("@/store/scenarioContext", () => ({
@@ -153,14 +212,29 @@ vi.mock("lucide-react", () => {
     Info: createIcon("Info"),
     ChevronDown: createIcon("ChevronDown"),
     ChevronUp: createIcon("ChevronUp"),
+    X: createIcon("X"),
+    Lightbulb: createIcon("Lightbulb"),
+    TerminalSquare: createIcon("TerminalSquare"),
+    Sparkles: createIcon("Sparkles"),
+    Send: createIcon("Send"),
   };
 });
+
+vi.mock("@/store/learningProgressStore", () => ({
+  useLearningProgressStore: vi.fn((selector?: (s: unknown) => unknown) => {
+    const state = {
+      sandboxIntroSeen: shared.sandboxIntroSeen,
+      markSandboxIntroSeen: mockMarkSandboxIntroSeen,
+    };
+    return selector ? selector(state) : state;
+  }),
+}));
 
 vi.mock("@/store/faultToastStore", () => ({
   useFaultToastStore: Object.assign(vi.fn(), {
     getState: vi.fn(() => ({
       toasts: [],
-      addToast: vi.fn(),
+      addToast: mockAddToast,
       removeToast: vi.fn(),
     })),
   }),
@@ -272,6 +346,15 @@ const mockCluster = {
 // Set the initial cluster value
 shared.currentCluster = mockCluster;
 
+// Basic faults are now staged via toggle buttons and applied on Submit.
+// This helper selects a fault by its button label and clicks Submit.
+function selectAndSubmit(label: string) {
+  fireEvent.click(screen.getByText(label));
+  fireEvent.click(
+    screen.getByRole("button", { name: "Submit selected faults" }),
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Test suite
 // ---------------------------------------------------------------------------
@@ -282,6 +365,8 @@ describe("FaultInjection", () => {
     shared.activeContextReturn = undefined;
     shared.currentCluster = mockCluster;
     shared.selectedNode = "dgx-00";
+    shared.sandboxIntroSeen = false;
+    shared.activeScenario = null;
     // Re-set mockActiveContext.getCluster default
     mockActiveContext.getCluster.mockReturnValue(mockCluster);
   });
@@ -296,11 +381,9 @@ describe("FaultInjection", () => {
       expect(screen.getByText("Sandbox")).toBeInTheDocument();
     });
 
-    it("should render the description text with Dashboard hint", () => {
+    it("should render the node dropdown with Sandbox label", () => {
       render(<FaultInjection />);
-      expect(
-        screen.getByText("Select target on Dashboard"),
-      ).toBeInTheDocument();
+      expect(screen.getByLabelText("Sandbox target node")).toBeInTheDocument();
     });
 
     it("should render all basic fault injection buttons", () => {
@@ -357,13 +440,16 @@ describe("FaultInjection", () => {
     it("should render the diagnostic commands section with suggested commands", () => {
       render(<FaultInjection />);
 
-      expect(screen.getByText("Quick Reference")).toBeInTheDocument();
+      // Scope assertions to the Quick Reference <details> element so they would
+      // fail if the QR command list were removed (even if the intro banner exists).
+      const qr = within(screen.getByTestId("quick-reference"));
+      expect(qr.getByText("Quick Reference")).toBeInTheDocument();
       expect(screen.getByText(/diagnostic commands/)).toBeInTheDocument();
-      expect(screen.getByText(/nvidia-smi$/)).toBeInTheDocument();
-      expect(screen.getByText("nvsm show health")).toBeInTheDocument();
-      expect(screen.getByText("dcgmi diag -r 1")).toBeInTheDocument();
-      expect(screen.getByText("dmesg | grep -i xid")).toBeInTheDocument();
-      expect(screen.getByText("ipmitool sensor list")).toBeInTheDocument();
+      expect(qr.getByText(/nvidia-smi$/)).toBeInTheDocument();
+      expect(qr.getByText("nvsm show health")).toBeInTheDocument();
+      expect(qr.getByText("dcgmi diag -r 1")).toBeInTheDocument();
+      expect(qr.getByText("dmesg | grep -i xid")).toBeInTheDocument();
+      expect(qr.getByText("ipmitool sensor list")).toBeInTheDocument();
     });
   });
 
@@ -372,25 +458,29 @@ describe("FaultInjection", () => {
   // =========================================================================
 
   describe("Node Selection", () => {
-    it("should display the selected node hostname from the store", () => {
+    it("should display the node dropdown with the first node selected by default", () => {
       render(<FaultInjection />);
 
       expect(screen.getByText("Node:")).toBeInTheDocument();
-      expect(screen.getByText("dgx-00.local")).toBeInTheDocument();
+      const nodeSelect = screen.getByLabelText("Sandbox target node");
+      expect((nodeSelect as HTMLSelectElement).value).toBe("dgx-00");
     });
 
-    it("should display a different node when store selectedNode changes", () => {
-      shared.selectedNode = "dgx-01";
+    it("should list all cluster nodes as dropdown options", () => {
       render(<FaultInjection />);
 
+      const nodeSelect = screen.getByLabelText("Sandbox target node");
+      const options = nodeSelect.querySelectorAll("option");
+      expect(options).toHaveLength(2);
+      expect((options[0] as HTMLOptionElement).value).toBe("dgx-00");
+      expect((options[1] as HTMLOptionElement).value).toBe("dgx-01");
+    });
+
+    it("should show node hostname in dropdown options", () => {
+      render(<FaultInjection />);
+
+      expect(screen.getByText("dgx-00.local")).toBeInTheDocument();
       expect(screen.getByText("dgx-01.local")).toBeInTheDocument();
-    });
-
-    it("should fall back to first node when store selectedNode is null", () => {
-      shared.selectedNode = null;
-      render(<FaultInjection />);
-
-      expect(screen.getByText("dgx-00.local")).toBeInTheDocument();
     });
   });
 
@@ -415,12 +505,14 @@ describe("FaultInjection", () => {
       expect(options).toHaveLength(2);
     });
 
-    it("should show GPU list for the store-selected node", () => {
-      // dgx-01 has 4 GPUs
-      shared.selectedNode = "dgx-01";
+    it("should show GPU list for the sandbox-selected node", () => {
+      // dgx-01 has 4 GPUs; select it via the sandbox node dropdown
       render(<FaultInjection />);
 
-      const gpuSelect = screen.getByDisplayValue("GPU 0");
+      const nodeSelect = screen.getByLabelText("Sandbox target node");
+      fireEvent.change(nodeSelect, { target: { value: "dgx-01" } });
+
+      const gpuSelect = screen.getByLabelText("Sandbox target GPU");
       const options = gpuSelect.querySelectorAll("option");
       expect(options).toHaveLength(4);
     });
@@ -439,10 +531,10 @@ describe("FaultInjection", () => {
   // =========================================================================
 
   describe("Basic Fault Injection", () => {
-    it("should call injectFault with 'xid' and updateGPU when XID Error clicked", () => {
+    it("should call injectFault with 'xid' and updateGPU when XID Error selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("XID Error"));
+      selectAndSubmit("XID Error");
 
       expect(mockInjectFault).toHaveBeenCalledTimes(1);
       expect(mockInjectFault).toHaveBeenCalledWith(
@@ -457,10 +549,10 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call injectFault with 'ecc' when ECC Error clicked", () => {
+    it("should call injectFault with 'ecc' when ECC Error selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("ECC Error"));
+      selectAndSubmit("ECC Error");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 0 }),
@@ -468,10 +560,10 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call injectFault with 'thermal' when Thermal Issue clicked", () => {
+    it("should call injectFault with 'thermal' when Thermal Issue selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("Thermal Issue"));
+      selectAndSubmit("Thermal Issue");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 0 }),
@@ -479,10 +571,10 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call injectFault with 'nvlink' when NVLink Down clicked", () => {
+    it("should call injectFault with 'nvlink' when NVLink Down selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("NVLink Down"));
+      selectAndSubmit("NVLink Down");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 0 }),
@@ -490,10 +582,10 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call injectFault with 'power' when Power Issue clicked", () => {
+    it("should call injectFault with 'power' when Power Issue selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("Power Issue"));
+      selectAndSubmit("Power Issue");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 0 }),
@@ -501,10 +593,10 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call injectFault with 'pcie' when PCIe Error clicked", () => {
+    it("should call injectFault with 'pcie' when PCIe Error selected and submitted", () => {
       render(<FaultInjection />);
 
-      fireEvent.click(screen.getByText("PCIe Error"));
+      selectAndSubmit("PCIe Error");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 0 }),
@@ -519,7 +611,7 @@ describe("FaultInjection", () => {
       const gpuSelect = screen.getByDisplayValue("GPU 0");
       fireEvent.change(gpuSelect, { target: { value: "1" } });
 
-      fireEvent.click(screen.getByText("XID Error"));
+      selectAndSubmit("XID Error");
 
       expect(mockInjectFault).toHaveBeenCalledWith(
         expect.objectContaining({ id: 1 }),
@@ -530,6 +622,119 @@ describe("FaultInjection", () => {
         1,
         expect.anything(),
       );
+    });
+
+    it("does not inject until Submit is clicked", () => {
+      render(<FaultInjection />);
+
+      // Toggling a fault button only stages it; nothing is injected yet.
+      fireEvent.click(screen.getByText("XID Error"));
+      expect(mockInjectFault).not.toHaveBeenCalled();
+      expect(mockUpdateGPU).not.toHaveBeenCalled();
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      );
+      expect(mockInjectFault).toHaveBeenCalledTimes(1);
+      expect(mockUpdateGPU).toHaveBeenCalledTimes(1);
+    });
+
+    it("marks a toggled fault button as pressed", () => {
+      render(<FaultInjection />);
+
+      const xidButton = screen.getByText("XID Error").closest("button");
+      expect(xidButton).toHaveAttribute("aria-pressed", "false");
+
+      fireEvent.click(screen.getByText("XID Error"));
+      expect(xidButton).toHaveAttribute("aria-pressed", "true");
+
+      // Toggling again clears the selection.
+      fireEvent.click(screen.getByText("XID Error"));
+      expect(xidButton).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("applies multiple selected faults to the same GPU on a single Submit", () => {
+      render(<FaultInjection />);
+
+      // Stage two faults, then submit once.
+      fireEvent.click(screen.getByText("XID Error"));
+      fireEvent.click(screen.getByText("Thermal Issue"));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      );
+
+      // Both fault types are injected (chained onto the same GPU)...
+      expect(mockInjectFault).toHaveBeenCalledTimes(2);
+      expect(mockInjectFault).toHaveBeenCalledWith(expect.anything(), "xid");
+      expect(mockInjectFault).toHaveBeenCalledWith(
+        expect.anything(),
+        "thermal",
+      );
+      // ...and the GPU is updated exactly once with the accumulated result.
+      expect(mockUpdateGPU).toHaveBeenCalledTimes(1);
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        0,
+        expect.anything(),
+      );
+    });
+
+    it("fires a combined toast naming each fault when multiple are submitted", () => {
+      render(<FaultInjection />);
+
+      fireEvent.click(screen.getByText("XID Error"));
+      fireEvent.click(screen.getByText("ECC Error"));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      );
+
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "2 Faults Injected" }),
+      );
+    });
+
+    it("tags the fault toast with the affected node so its command can connect there", () => {
+      render(<FaultInjection />);
+
+      fireEvent.change(screen.getByLabelText("Sandbox target node"), {
+        target: { value: "dgx-01" },
+      });
+      selectAndSubmit("XID Error");
+
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.objectContaining({ targetNode: "dgx-01" }),
+      );
+    });
+
+    it("Submit is disabled and does nothing when no fault is selected", () => {
+      render(<FaultInjection />);
+
+      const submit = screen.getByRole("button", {
+        name: "Submit selected faults",
+      });
+      expect(submit).toBeDisabled();
+
+      fireEvent.click(submit);
+      expect(mockInjectFault).not.toHaveBeenCalled();
+      expect(mockUpdateGPU).not.toHaveBeenCalled();
+    });
+
+    it("clears the staged selection after a successful Submit", () => {
+      render(<FaultInjection />);
+
+      fireEvent.click(screen.getByText("XID Error"));
+      const xidButton = screen.getByText("XID Error").closest("button");
+      expect(xidButton).toHaveAttribute("aria-pressed", "true");
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      );
+
+      // Selection resets, so Submit is disabled again.
+      expect(xidButton).toHaveAttribute("aria-pressed", "false");
+      expect(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      ).toBeDisabled();
     });
   });
 
@@ -774,7 +979,7 @@ describe("FaultInjection", () => {
       shared.activeContextReturn = undefined;
 
       render(<FaultInjection />);
-      fireEvent.click(screen.getByText("XID Error"));
+      selectAndSubmit("XID Error");
 
       expect(mockUpdateGPU).toHaveBeenCalled();
       expect(mockContextUpdateGPU).not.toHaveBeenCalled();
@@ -784,7 +989,7 @@ describe("FaultInjection", () => {
       shared.activeContextReturn = mockActiveContext;
 
       render(<FaultInjection />);
-      fireEvent.click(screen.getByText("XID Error"));
+      selectAndSubmit("XID Error");
 
       expect(mockContextUpdateGPU).toHaveBeenCalledWith(
         "dgx-00",
@@ -846,6 +1051,58 @@ describe("FaultInjection", () => {
 
       expect(screen.getByText("scenario-node.local")).toBeInTheDocument();
     });
+
+    it("recomputes effectiveCluster when a scenario starts even if the global cluster ref is unchanged", () => {
+      // No active context to begin with: the global cluster is shown.
+      shared.activeContextReturn = undefined;
+      shared.activeScenario = null;
+      const { rerender } = render(<FaultInjection />);
+      expect(screen.getByText("dgx-00.local")).toBeInTheDocument();
+
+      // Scenario starts: the active context exposes a different cluster while
+      // the global `cluster` reference stays the same. With activeScenario in
+      // the memo deps, effectiveCluster must recompute and show the new node.
+      const scenarioCluster = {
+        ...mockCluster,
+        nodes: [createMockNode("scenario-node", "scenario-node.local", 1)],
+      };
+      mockActiveContext.getCluster.mockReturnValue(scenarioCluster);
+      shared.activeContextReturn = mockActiveContext;
+      shared.activeScenario = { id: "s1" };
+
+      act(() => {
+        rerender(<FaultInjection />);
+      });
+
+      expect(screen.getByText("scenario-node.local")).toBeInTheDocument();
+    });
+  });
+
+  // =========================================================================
+  // Independent Node Selection
+  // =========================================================================
+
+  describe("Independent Node Selection", () => {
+    it("injects on the node chosen in the Sandbox node dropdown, not the store node", () => {
+      render(<FaultInjection />);
+
+      // The Sandbox now has its own node dropdown (independent of the Dashboard).
+      const nodeSelect = screen.getByLabelText("Sandbox target node");
+      // Pick a node that is NOT the store's selectedNode ("dgx-00").
+      const options = within(nodeSelect as HTMLSelectElement)
+        .getAllByRole("option")
+        .map((o) => (o as HTMLOptionElement).value);
+      const otherNode = options.find((v) => v !== "dgx-00") ?? options[0];
+
+      fireEvent.change(nodeSelect, { target: { value: otherNode } });
+      selectAndSubmit("XID Error");
+
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        otherNode,
+        expect.any(Number),
+        expect.anything(),
+      );
+    });
   });
 
   // =========================================================================
@@ -861,8 +1118,8 @@ describe("FaultInjection", () => {
       const { container } = render(<FaultInjection />);
       expect(container).toBeInTheDocument();
 
-      // Should not crash when clicking inject with no nodes
-      fireEvent.click(screen.getByText("XID Error"));
+      // Should not crash when selecting + submitting a fault with no nodes
+      selectAndSubmit("XID Error");
       expect(mockInjectFault).not.toHaveBeenCalled();
     });
 
@@ -885,6 +1142,424 @@ describe("FaultInjection", () => {
         screen.getByText("Complex Training Scenarios"),
       ).toBeInTheDocument();
       expect(screen.getByText("Simulate Workloads")).toBeInTheDocument();
+    });
+
+    it("shows the first-run intro when sandboxIntroSeen is false and dismisses it", () => {
+      shared.sandboxIntroSeen = false;
+      render(<FaultInjection />);
+
+      const intro = screen.getByTestId("sandbox-intro");
+      expect(intro).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId("sandbox-intro-dismiss"));
+      expect(mockMarkSandboxIntroSeen).toHaveBeenCalled();
+    });
+
+    it("hides the first-run intro when sandboxIntroSeen is true", () => {
+      shared.sandboxIntroSeen = true;
+      render(<FaultInjection />);
+      expect(screen.queryByTestId("sandbox-intro")).not.toBeInTheDocument();
+    });
+
+    it("lets the user collapse Quick Reference on first run without it reopening on re-render", () => {
+      // First run → intro shown, Quick Reference defaults open.
+      shared.sandboxIntroSeen = false;
+      render(<FaultInjection />);
+      const details = screen.getByTestId(
+        "quick-reference",
+      ) as HTMLDetailsElement;
+      expect(details.open).toBe(true);
+
+      // User collapses it (native <details> toggle).
+      act(() => {
+        details.open = false;
+        fireEvent(details, new Event("toggle"));
+      });
+      expect(details.open).toBe(false);
+
+      // Toggling a fault re-renders the component; the section must stay closed
+      // (the bug was that a controlled `open` forced it back open).
+      fireEvent.click(screen.getByText("XID Error"));
+      expect(details.open).toBe(false);
+    });
+
+    it("clamps the GPU selection when the cluster rebuilds with fewer GPUs", async () => {
+      shared.currentCluster = mockCluster; // dgx-01 has 4 GPUs
+      const { rerender } = render(<FaultInjection />);
+
+      // Target dgx-01 and pick GPU 3 (valid for a 4-GPU node).
+      fireEvent.change(screen.getByLabelText("Sandbox target node"), {
+        target: { value: "dgx-01" },
+      });
+      fireEvent.change(screen.getByLabelText("Sandbox target GPU"), {
+        target: { value: "3" },
+      });
+      expect(
+        (screen.getByLabelText("Sandbox target GPU") as HTMLSelectElement)
+          .value,
+      ).toBe("3");
+
+      // Rebuild the cluster so dgx-01 now has only 2 GPUs (GPU 3 is gone).
+      const rebuilt = {
+        ...mockCluster,
+        nodes: [
+          createMockNode("dgx-00", "dgx-00.local", 2),
+          createMockNode("dgx-01", "dgx-01.local", 2),
+        ],
+      };
+      await act(async () => {
+        shared.currentCluster = rebuilt;
+        rerender(<FaultInjection />);
+      });
+
+      // The out-of-range GPU selection is clamped back to 0.
+      expect(
+        (screen.getByLabelText("Sandbox target GPU") as HTMLSelectElement)
+          .value,
+      ).toBe("0");
+    });
+
+    it("Quick Reference command click switches to terminal and pastes the command", () => {
+      shared.sandboxIntroSeen = true; // hide intro so "Quick Reference" is unambiguous
+      const onPaste = vi.fn();
+      const onSwitch = vi.fn();
+      render(
+        <FaultInjection
+          onPasteCommand={onPaste}
+          onSwitchToTerminal={onSwitch}
+        />,
+      );
+
+      // Open Quick Reference (it's a <details>); the summary toggles it.
+      fireEvent.click(screen.getByText("Quick Reference"));
+      fireEvent.click(screen.getByRole("button", { name: "Run nvidia-smi" }));
+
+      expect(onSwitch).toHaveBeenCalled();
+      // The command is paired with the Sandbox's selected node so the terminal
+      // connects to the affected node before running it.
+      expect(onPaste).toHaveBeenCalledWith("nvidia-smi", "dgx-00");
+    });
+
+    it("pastes the diagnostic command with the Sandbox-selected node, not the default", () => {
+      const onPaste = vi.fn();
+      const onSwitch = vi.fn();
+      render(
+        <FaultInjection
+          onPasteCommand={onPaste}
+          onSwitchToTerminal={onSwitch}
+        />,
+      );
+
+      // Choose a non-default node in the Sandbox.
+      fireEvent.change(screen.getByLabelText("Sandbox target node"), {
+        target: { value: "dgx-01" },
+      });
+
+      // Inject + diagnose via the post-inject CTA.
+      selectAndSubmit("XID Error");
+      fireEvent.click(screen.getByTestId("diagnose-cta"));
+
+      // The pasted command carries the affected node (dgx-01).
+      expect(onPaste).toHaveBeenCalledWith(expect.any(String), "dgx-01");
+    });
+
+    it("shows a Diagnose-in-Terminal CTA after injecting a fault", () => {
+      const onPaste = vi.fn();
+      const onSwitch = vi.fn();
+      render(
+        <FaultInjection
+          onPasteCommand={onPaste}
+          onSwitchToTerminal={onSwitch}
+        />,
+      );
+
+      expect(screen.queryByTestId("diagnose-cta")).not.toBeInTheDocument();
+      selectAndSubmit("XID Error");
+
+      fireEvent.click(screen.getByTestId("diagnose-cta"));
+      expect(onSwitch).toHaveBeenCalled();
+      expect(onPaste).toHaveBeenCalled();
+    });
+
+    it("Surprise me injects a hidden fault and Reveal shows what it was", () => {
+      render(
+        <FaultInjection
+          onPasteCommand={vi.fn()}
+          onSwitchToTerminal={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /surprise me/i }));
+
+      // A fault was injected on the cluster.
+      expect(mockUpdateGPU).toHaveBeenCalled();
+      // The challenge prompt appears, fault name hidden until revealed.
+      expect(screen.getByTestId("surprise-prompt")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("surprise-reveal-text"),
+      ).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: /reveal/i }));
+      expect(screen.getByTestId("surprise-reveal-text")).toBeInTheDocument();
+    });
+
+    it("Surprise me fires a generic toast title that does not leak the fault type", () => {
+      render(
+        <FaultInjection
+          onPasteCommand={vi.fn()}
+          onSwitchToTerminal={vi.fn()}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /surprise me/i }));
+
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Something's wrong with this node" }),
+      );
+    });
+
+    it("guard effect: falls back to first node when selected node disappears after cluster rebuild", async () => {
+      // Start with the full two-node cluster (dgx-00, dgx-01)
+      shared.currentCluster = mockCluster;
+      const { rerender } = render(<FaultInjection />);
+
+      // Select the second node (dgx-01), which is NOT the first node
+      const nodeSelect = screen.getByLabelText("Sandbox target node");
+      fireEvent.change(nodeSelect, { target: { value: "dgx-01" } });
+      expect((nodeSelect as HTMLSelectElement).value).toBe("dgx-01");
+
+      // Simulate a system-type switch that rebuilds the cluster with only dgx-00
+      // (dgx-01 is gone — the guard effect must detect this and reset selectedNode)
+      const rebuiltCluster = {
+        ...mockCluster,
+        nodes: [createMockNode("dgx-00", "dgx-00.local", 2)],
+      };
+
+      await act(async () => {
+        shared.currentCluster = rebuiltCluster;
+        // Rerender so useSimulationStore returns the new cluster value,
+        // triggering useMemo(effectiveCluster) change and then the guard useEffect
+        rerender(<FaultInjection />);
+      });
+
+      // The guard effect must have reset selectedNode to "dgx-00".
+      // Verify via fault injection: submitting an XID fault must target dgx-00,
+      // NOT the stale dgx-01 (which no longer exists in the cluster).
+      selectAndSubmit("XID Error");
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        expect.any(Number),
+        expect.anything(),
+      );
+      // Without the guard effect, handleInjectFault would find no node for "dgx-01"
+      // and return early without calling updateGPU at all.
+      expect(mockUpdateGPU).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // =========================================================================
+  // Sandbox Subtitle
+  // =========================================================================
+
+  describe("Sandbox Subtitle", () => {
+    it("shows the Sandbox subtitle clarifying it is unscored free practice", () => {
+      shared.sandboxIntroSeen = true; // hide intro to isolate the subtitle
+      render(<FaultInjection />);
+      expect(screen.getByTestId("sandbox-subtitle")).toHaveTextContent(
+        /no scoring/i,
+      );
+    });
+  });
+
+  // =========================================================================
+  // Remediation physical actions
+  // =========================================================================
+
+  describe("remediation physical actions", () => {
+    beforeEach(() => {
+      // Reset the mockApplyRemediation to the default "fixed" nvlink response
+      mockApplyRemediation.mockReturnValue({
+        outcome: "fixed" as const,
+        message: "GPU 0 nvlink fault resolved.",
+        gpuUpdates: {
+          nvlinks: [
+            {
+              linkId: 0,
+              status: "Active",
+              speed: 600,
+              txErrors: 0,
+              rxErrors: 0,
+              replayErrors: 0,
+            },
+            {
+              linkId: 1,
+              status: "Active",
+              speed: 600,
+              txErrors: 0,
+              rxErrors: 0,
+              replayErrors: 0,
+            },
+          ],
+          healthStatus: "OK",
+        },
+      });
+    });
+
+    it("Reseat NVLink bridge dispatches reseat-nvlink to the engine and applies its updates", () => {
+      // applyRemediation is mocked here; this asserts dispatch + passthrough only. Real engine resolution is covered by remediationEngine.test.ts and the e2e suite.
+      // Arrange: GPU 0 on dgx-00 has a downed NVLink (used by applyRemediation to classify)
+      const nodeWithDownLink = {
+        ...mockNode0,
+        gpus: [
+          createMockGPU(0, {
+            nvlinks: [
+              {
+                linkId: 0,
+                status: "Down",
+                speed: 0,
+                txErrors: 5,
+                rxErrors: 3,
+                replayErrors: 0,
+              },
+              {
+                linkId: 1,
+                status: "Active",
+                speed: 600,
+                txErrors: 0,
+                rxErrors: 0,
+                replayErrors: 0,
+              },
+            ],
+            healthStatus: "Warning",
+          }),
+          createMockGPU(1),
+        ],
+      };
+      shared.currentCluster = {
+        ...mockCluster,
+        nodes: [nodeWithDownLink, mockNode1],
+      };
+
+      render(<FaultInjection />);
+
+      // Click "Reseat NVLink bridge" button
+      fireEvent.click(
+        screen.getByRole("button", { name: "Reseat NVLink bridge" }),
+      );
+
+      // applyRemediation was called with the GPU, node, and action
+      expect(mockApplyRemediation).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 0 }),
+        expect.objectContaining({ id: "dgx-00" }),
+        "reseat-nvlink",
+      );
+
+      // Since outcome is "fixed", updateGPU should be called with NVLinks Active + healthStatus OK
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        0,
+        expect.objectContaining({
+          nvlinks: expect.arrayContaining([
+            expect.objectContaining({ status: "Active" }),
+          ]),
+          healthStatus: "OK",
+        }),
+      );
+    });
+
+    it("Mark for RMA is disabled until a bug report exists and the node is drained", () => {
+      // Arrange: node has bugReportCollected: false and slurmState "idle" (not alloc)
+      // nodeDrained = slurmState !== "alloc" → true; bugReportCollected = false → rmaReady = false
+      const nodeNotReady = {
+        ...mockNode0,
+        bugReportCollected: false,
+        slurmState: "idle",
+      };
+      shared.currentCluster = {
+        ...mockCluster,
+        nodes: [nodeNotReady, mockNode1],
+      };
+
+      const { rerender } = render(<FaultInjection />);
+
+      // Button should be disabled when bugReportCollected is false
+      const rmaButton = screen.getByRole("button", { name: "Mark for RMA" });
+      expect(rmaButton).toBeDisabled();
+
+      // Now update: bugReportCollected true + node drained
+      const nodeReady = {
+        ...mockNode0,
+        bugReportCollected: true,
+        slurmState: "drain",
+      };
+      shared.currentCluster = { ...mockCluster, nodes: [nodeReady, mockNode1] };
+
+      act(() => {
+        rerender(<FaultInjection />);
+      });
+
+      expect(
+        screen.getByRole("button", { name: "Mark for RMA" }),
+      ).not.toBeDisabled();
+    });
+
+    it("shows 'RMA pending' when the selected GPU has rmaStatus pending", () => {
+      // Arrange: GPU 0 has rmaStatus "pending"
+      const nodeWithRMA = {
+        ...mockNode0,
+        gpus: [createMockGPU(0, { rmaStatus: "pending" }), createMockGPU(1)],
+      };
+      shared.currentCluster = {
+        ...mockCluster,
+        nodes: [nodeWithRMA, mockNode1],
+      };
+
+      render(<FaultInjection />);
+
+      expect(screen.getByTestId("gpu-status")).toHaveTextContent(/RMA pending/);
+    });
+
+    it("a remediation command pastes ssh-aware to the affected node", () => {
+      const onPasteCommand = vi.fn();
+      const onSwitchToTerminal = vi.fn();
+      shared.sandboxIntroSeen = true;
+
+      render(
+        <FaultInjection
+          onPasteCommand={onPasteCommand}
+          onSwitchToTerminal={onSwitchToTerminal}
+        />,
+      );
+
+      // Open the Remediation commands <details> by clicking its summary
+      fireEvent.click(screen.getByText("Remediation commands"));
+
+      // Click the nvidia-smi --gpu-reset button (GPU 0 is selected by default)
+      fireEvent.click(
+        screen.getByRole("button", { name: "nvidia-smi --gpu-reset -i 0" }),
+      );
+
+      expect(onSwitchToTerminal).toHaveBeenCalled();
+      expect(onPasteCommand).toHaveBeenCalledWith(
+        expect.stringContaining("--gpu-reset"),
+        "dgx-00",
+      );
+    });
+
+    it("Clear All resets rmaStatus and bugReportCollected", () => {
+      render(<FaultInjection />);
+
+      fireEvent.click(screen.getByText("Clear All"));
+
+      // updateGPU should be called for each GPU on dgx-00 with rmaStatus: "none"
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        expect.any(Number),
+        expect.objectContaining({ rmaStatus: "none" }),
+      );
+
+      // setBugReportCollected should be called to reset the bug report flag
+      expect(mockSetBugReportCollected).toHaveBeenCalledWith("dgx-00", false);
     });
   });
 });

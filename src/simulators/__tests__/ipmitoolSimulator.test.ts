@@ -201,4 +201,152 @@ describe("IpmitoolSimulator", () => {
       expect(result.output).toBe("Chassis Power is on");
     });
   });
+
+  // ---------------------------------------------------------------------------
+  // chassis power cycle remediation (Task 4)
+  // ---------------------------------------------------------------------------
+  describe("chassis power cycle remediation", () => {
+    /**
+     * Build a mock store state with a faulted node (XID 79 = off-bus GPU) and
+     * an `updateGPU` spy.  Returns the spy so callers can assert on it.
+     */
+    function buildFaultedNodeWithSpy(
+      nodeOverrides: { slurmState?: string } = {},
+    ) {
+      const updateGPU = vi.fn();
+      const state = {
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: "Critical",
+              slurmState: nodeOverrides.slurmState ?? "idle",
+              nvidiaDriverVersion: "535.129.03",
+              cudaVersion: "12.2",
+              gpus: [
+                {
+                  id: 0,
+                  name: "NVIDIA H100 80GB HBM3",
+                  type: "H100-SXM",
+                  uuid: "GPU-12345678-1234-1234-1234-123456789012",
+                  pciAddress: "0000:17:00.0",
+                  temperature: 45,
+                  powerDraw: 250,
+                  powerLimit: 700,
+                  memoryTotal: 81920,
+                  memoryUsed: 1024,
+                  utilization: 0,
+                  clocksSM: 1980,
+                  clocksMem: 2619,
+                  eccEnabled: true,
+                  eccErrors: {
+                    singleBit: 0,
+                    doubleBit: 0,
+                    aggregated: { singleBit: 0, doubleBit: 0 },
+                  },
+                  migMode: false,
+                  migInstances: [],
+                  // XID 79 = off-bus fault, resolved by power-cycle
+                  nvlinks: [],
+                  healthStatus: "Critical",
+                  xidErrors: [
+                    {
+                      code: 79,
+                      timestamp: new Date(),
+                      description: "GPU fell off the PCIe bus",
+                      severity: "Critical" as const,
+                    },
+                  ],
+                  persistenceMode: true,
+                },
+              ],
+              hcas: [],
+              bmc: {
+                powerState: "On",
+                sensors: [],
+                systemPower: "on",
+                chassisStatus: {
+                  powerOn: true,
+                  powerFault: false,
+                  interlock: false,
+                  overload: false,
+                  cooling: "ok",
+                },
+                sel: [],
+                fru: {
+                  chassisType: "Rack Mount Chassis",
+                  chassisSerial: "DGX-001",
+                  boardMfg: "NVIDIA",
+                  boardProduct: "DGX H100",
+                  boardSerial: "PGX001234",
+                  productMfg: "NVIDIA",
+                  productName: "DGX H100",
+                  productSerial: "DGX-H100-001",
+                },
+              },
+            },
+          ],
+        },
+        updateGPU,
+      };
+      vi.mocked(useSimulationStore.getState).mockReturnValue(state as never);
+      return { updateGPU };
+    }
+
+    it("recovers an off-the-bus GPU on power cycle (chassis subcommand)", () => {
+      const { updateGPU } = buildFaultedNodeWithSpy({ slurmState: "idle" });
+
+      const result = simulator.execute(
+        parse("ipmitool chassis power cycle"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/Cycle/);
+      expect(updateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        0,
+        expect.objectContaining({ xidErrors: [], healthStatus: "OK" }),
+      );
+    });
+
+    it("is blocked when the node is allocated (chassis subcommand)", () => {
+      const { updateGPU } = buildFaultedNodeWithSpy({ slurmState: "alloc" });
+
+      const result = simulator.execute(
+        parse("ipmitool chassis power cycle"),
+        context,
+      );
+
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toMatch(/drain/i);
+      expect(updateGPU).not.toHaveBeenCalled();
+    });
+
+    it("recovers an off-the-bus GPU on power cycle (power shortcut)", () => {
+      const { updateGPU } = buildFaultedNodeWithSpy({ slurmState: "idle" });
+
+      const result = simulator.execute(parse("ipmitool power cycle"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/Cycle/);
+      expect(updateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        0,
+        expect.objectContaining({ xidErrors: [], healthStatus: "OK" }),
+      );
+    });
+
+    it("is blocked when the node is allocated (power shortcut)", () => {
+      const { updateGPU } = buildFaultedNodeWithSpy({ slurmState: "alloc" });
+
+      const result = simulator.execute(parse("ipmitool power cycle"), context);
+
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toMatch(/drain/i);
+      expect(updateGPU).not.toHaveBeenCalled();
+    });
+  });
 });

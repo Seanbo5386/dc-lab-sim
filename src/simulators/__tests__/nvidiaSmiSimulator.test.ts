@@ -181,6 +181,16 @@ describe("NvidiaSmiSimulator", () => {
       expect(result.exitCode).not.toBe(0);
       expect(result.output).toContain("GPU not found");
     });
+
+    it("should reject a negative GPU index cleanly (F4)", () => {
+      // -5 is now consumed as the value of -i (not misparsed as option --5)
+      const parsed = parse("nvidia-smi -q -i -5");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain("Invalid GPU index '-5'");
+      expect(result.output).not.toContain("unrecognized option");
+    });
   });
 
   describe("Help and Version", () => {
@@ -480,5 +490,217 @@ describe("NvidiaSmiSimulator", () => {
       expect(result.output).toContain("81920MiB");
       expect(result.output).not.toContain("80MiB");
     });
+  });
+});
+
+describe("remediation routing", () => {
+  let simulator: NvidiaSmiSimulator;
+  let context: CommandContext;
+
+  beforeEach(() => {
+    simulator = new NvidiaSmiSimulator();
+    context = {
+      currentNode: "dgx-00",
+      currentPath: "/root",
+      environment: {},
+      history: [],
+    };
+  });
+
+  afterEach(() => vi.clearAllMocks());
+
+  // A faulted node with an updateGPU spy, returned by a local getState mock.
+  function buildContextWithSpy(
+    gpu: Partial<import("@/types/hardware").GPU>,
+    nodeOverrides: Partial<import("@/types/hardware").DGXNode> = {},
+  ) {
+    const baseGpu = {
+      id: 0,
+      uuid: "GPU-x",
+      name: "NVIDIA H100 80GB HBM3",
+      type: "H100-SXM",
+      pciAddress: "0000:17:00.0",
+      temperature: 45,
+      powerDraw: 250,
+      powerLimit: 700,
+      memoryTotal: 81920,
+      memoryUsed: 1024,
+      utilization: 0,
+      clocksSM: 1980,
+      clocksMem: 2619,
+      eccEnabled: true,
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 0,
+        aggregated: { singleBit: 0, doubleBit: 0 },
+      },
+      migMode: false,
+      migInstances: [],
+      nvlinks: [],
+      healthStatus: "OK",
+      xidErrors: [],
+      persistenceMode: true,
+      ...gpu,
+    };
+    const updateGPU = vi.fn();
+    const state = {
+      cluster: {
+        nodes: [
+          {
+            id: "dgx-00",
+            hostname: "n",
+            systemType: "DGX-H100",
+            healthStatus: "OK",
+            slurmState: "idle",
+            gpus: [baseGpu],
+            hcas: [],
+            ...nodeOverrides,
+          },
+        ],
+      },
+      updateGPU,
+    };
+    vi.mocked(useSimulationStore.getState).mockReturnValue(state as never);
+    return { updateGPU };
+  }
+
+  it("--gpu-reset clears a critical XID and reports success", () => {
+    const { updateGPU } = buildContextWithSpy({
+      xidErrors: [
+        {
+          code: 43,
+          timestamp: new Date(),
+          description: "x",
+          severity: "Critical",
+        },
+      ],
+      healthStatus: "Critical",
+    });
+    const result = simulator.execute(
+      parse("nvidia-smi --gpu-reset -i 0"),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(updateGPU).toHaveBeenCalledWith(
+      "dgx-00",
+      0,
+      expect.objectContaining({ xidErrors: [], healthStatus: "OK" }),
+    );
+  });
+
+  it("--gpu-reset refuses an off-the-bus GPU (XID 79)", () => {
+    const { updateGPU } = buildContextWithSpy({
+      xidErrors: [
+        {
+          code: 79,
+          timestamp: new Date(),
+          description: "x",
+          severity: "Critical",
+        },
+      ],
+      healthStatus: "Critical",
+    });
+    const result = simulator.execute(
+      parse("nvidia-smi --gpu-reset -i 0"),
+      context,
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toMatch(/power-cycle/i);
+    expect(updateGPU).not.toHaveBeenCalled();
+  });
+
+  it("--gpu-reset is blocked while the node is allocated", () => {
+    const { updateGPU } = buildContextWithSpy(
+      {
+        xidErrors: [
+          {
+            code: 43,
+            timestamp: new Date(),
+            description: "x",
+            severity: "Critical",
+          },
+        ],
+        healthStatus: "Critical",
+      },
+      { slurmState: "alloc" },
+    );
+    const result = simulator.execute(
+      parse("nvidia-smi --gpu-reset -i 0"),
+      context,
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toMatch(/drain/i);
+    expect(updateGPU).not.toHaveBeenCalled();
+  });
+
+  it("--reset-ecc-errors clears double-bit ECC", () => {
+    const { updateGPU } = buildContextWithSpy({
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 5,
+        aggregated: { singleBit: 0, doubleBit: 5 },
+      },
+      healthStatus: "Critical",
+    });
+    const result = simulator.execute(
+      parse("nvidia-smi -i 0 --reset-ecc-errors"),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(updateGPU).toHaveBeenCalledWith(
+      "dgx-00",
+      0,
+      expect.objectContaining({
+        eccErrors: {
+          singleBit: 0,
+          doubleBit: 0,
+          aggregated: { singleBit: 0, doubleBit: 0 },
+        },
+        healthStatus: "OK",
+      }),
+    );
+  });
+
+  it("-p (short form of --reset-ecc-errors) clears double-bit ECC", () => {
+    const { updateGPU } = buildContextWithSpy({
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 5,
+        aggregated: { singleBit: 0, doubleBit: 5 },
+      },
+      healthStatus: "Critical",
+    });
+    const result = simulator.execute(parse("nvidia-smi -i 0 -p"), context);
+    expect(result.exitCode).toBe(0);
+    expect(updateGPU).toHaveBeenCalledWith(
+      "dgx-00",
+      0,
+      expect.objectContaining({
+        eccErrors: {
+          singleBit: 0,
+          doubleBit: 0,
+          aggregated: { singleBit: 0, doubleBit: 0 },
+        },
+        healthStatus: "OK",
+      }),
+    );
+  });
+
+  it("-pl resolves a thermal fault while setting the limit", () => {
+    const { updateGPU } = buildContextWithSpy({
+      temperature: 85,
+      healthStatus: "Warning",
+    });
+    const result = simulator.execute(parse("nvidia-smi -i 0 -pl 500"), context);
+    expect(result.exitCode).toBe(0);
+    expect(updateGPU).toHaveBeenCalledWith(
+      "dgx-00",
+      0,
+      expect.objectContaining({
+        powerLimit: 500,
+        temperature: 65,
+        healthStatus: "OK",
+      }),
+    );
   });
 });

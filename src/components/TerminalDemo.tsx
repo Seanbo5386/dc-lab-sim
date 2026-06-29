@@ -63,6 +63,37 @@ const DCGMI_OUTPUT = [
 
 const CHAR_DELAY = 50; // ms per character for typing animation
 
+// Colors mirror the real in-app xterm terminal's default prompt
+// (Terminal.tsx's `\x1b[1;32mroot@${node}\x1b[0m:\x1b[1;34m${path}\x1b[0m# `
+// against the TERMINAL_THEME in terminalConfig.ts). xterm's default
+// drawBoldTextInBrightColors promotes the bold 32/34 codes to their bright
+// variants, and unstyled text falls back to the theme's default foreground.
+const PROMPT_HOST_COLOR = "#5af78e"; // bright green — "root@dgx-00"
+const PROMPT_PATH_COLOR = "#caa9fa"; // bright blue — cwd segment
+const PROMPT_DEFAULT_COLOR = "#00ff00"; // default foreground — ":", "# ", typed text
+const CURSOR_COLOR = "#76B900"; // theme.cursor
+
+/** Splits a "root@dgx-00:<path># " prompt into its real-terminal-colored segments. */
+function renderPrompt(promptText: string) {
+  const match = promptText.match(/^(root@dgx-00):(.*)(# )$/);
+  if (!match) {
+    return <span style={{ color: PROMPT_DEFAULT_COLOR }}>{promptText}</span>;
+  }
+  const [, host, path, hashSpace] = match;
+  return (
+    <>
+      <span className="font-bold" style={{ color: PROMPT_HOST_COLOR }}>
+        {host}
+      </span>
+      <span style={{ color: PROMPT_DEFAULT_COLOR }}>:</span>
+      <span className="font-bold" style={{ color: PROMPT_PATH_COLOR }}>
+        {path}
+      </span>
+      <span style={{ color: PROMPT_DEFAULT_COLOR }}>{hashSpace}</span>
+    </>
+  );
+}
+
 const SEQUENCE: SequenceLine[] = [
   { type: "briefing", text: "[MISSION BRIEFING]", delay: 400 },
   { type: "narrative", text: "The Midnight Deployment", delay: 300 },
@@ -156,7 +187,7 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 interface VisibleLine {
   type: LineType;
   text: string;
-  /** Committed command text shown in white after a prompt */
+  /** Committed command text shown after a prompt */
   command?: string;
 }
 
@@ -267,7 +298,7 @@ export const TerminalDemo: React.FC<TerminalDemoProps> = ({ onEnterApp }) => {
         // Append the prompt+command as a visible line
         setInteractiveLines((prev) => [
           ...prev,
-          { type: "prompt" as LineType, text: prompt + cmd },
+          { type: "prompt" as LineType, text: prompt, command: cmd },
         ]);
         inputBufferRef.current = "";
         setInputBuffer("");
@@ -386,15 +417,17 @@ export const TerminalDemo: React.FC<TerminalDemoProps> = ({ onEnterApp }) => {
       const isTyping = isLastLine && typingText !== null;
       return (
         <div key={index} className="flex">
-          <span style={{ color: "#76B900" }}>{line.text}</span>
+          {renderPrompt(line.text)}
           {line.command && !isTyping && (
-            <span className="text-white">{line.command}</span>
+            <span style={{ color: PROMPT_DEFAULT_COLOR }}>{line.command}</span>
           )}
-          {isTyping && <span className="text-white">{typingText}</span>}
+          {isTyping && (
+            <span style={{ color: PROMPT_DEFAULT_COLOR }}>{typingText}</span>
+          )}
           {isTyping && (
             <span
               className="inline-block w-2 h-4 ml-px animate-blink"
-              style={{ backgroundColor: "#76B900" }}
+              style={{ backgroundColor: CURSOR_COLOR }}
             />
           )}
         </div>
@@ -481,14 +514,13 @@ export const TerminalDemo: React.FC<TerminalDemoProps> = ({ onEnterApp }) => {
         {/* Live input prompt */}
         {animationDone && (
           <div className="flex">
-            <span style={{ color: "#76B900" }}>
-              root@dgx-00:
-              {cwdRef.current === "/home/operator" ? "~" : cwdRef.current}#{" "}
-            </span>
-            <span className="text-white">{inputBuffer}</span>
+            {renderPrompt(
+              `root@dgx-00:${cwdRef.current === "/home/operator" ? "~" : cwdRef.current}# `,
+            )}
+            <span style={{ color: PROMPT_DEFAULT_COLOR }}>{inputBuffer}</span>
             <span
               className="inline-block w-2 h-4 ml-px animate-blink"
-              style={{ backgroundColor: "#76B900" }}
+              style={{ backgroundColor: CURSOR_COLOR }}
             />
           </div>
         )}

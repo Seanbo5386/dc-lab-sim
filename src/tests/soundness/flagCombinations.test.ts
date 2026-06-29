@@ -320,7 +320,7 @@ describe("Flag Combinations", () => {
     it("reset GPU after XID error", () => {
       // Inject recoverable error
       store.addXIDError("dgx-00", 0, {
-        code: 63,
+        code: 48,
         timestamp: new Date(),
         description: "Recoverable error",
         severity: "Warning",

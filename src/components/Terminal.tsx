@@ -47,7 +47,12 @@ import {
   formatCommandList,
   getDidYouMeanMessage,
 } from "@/utils/commandSuggestions";
-import { applyPipeFilters, hasPipes } from "@/utils/pipeHandler";
+import {
+  applyPipeFilters,
+  hasPipes,
+  validatePipeStages,
+  validatePipeSyntax,
+} from "@/utils/pipeHandler";
 import { CommandRouter } from "@/cli/commandRouter";
 
 // Helper function to format practice exercises
@@ -101,8 +106,13 @@ function formatPracticeExercises(
 
 interface TerminalProps {
   className?: string;
-  /** Called when terminal is ready, providing a function to paste text into the input buffer */
-  onReady?: (pasteCommand: (cmd: string) => void) => void;
+  /**
+   * Called when terminal is ready, providing a function to paste text into the
+   * input buffer. An optional `targetNode` connects the terminal to that node
+   * (via `ssh`) before staging the command, so a command runs against the
+   * intended node rather than whichever node the terminal is currently on.
+   */
+  onReady?: (pasteCommand: (cmd: string, targetNode?: string) => void) => void;
 }
 
 export const Terminal: React.FC<TerminalProps> = ({
@@ -322,8 +332,17 @@ export const Terminal: React.FC<TerminalProps> = ({
         resizeObserver.observe(container);
         xtermRef.current = term;
         setIsTerminalReady(true);
-        term.write(generateWelcomeMessage(term.cols));
-        prompt();
+        // Show the full welcome banner only outside of an active scenario.
+        // During a mission the lab-feedback "STARTING LAB" box introduces the
+        // task and writes its own trailing prompt, so writing a banner and an
+        // initial prompt here would be redundant (and leave an orphan prompt
+        // above the lab intro). Read the scenario from the store at write time
+        // (openAndInit runs async, after this []-deps effect closed over its
+        // initial render values) to avoid a stale-closure mismatch.
+        if (!useSimulationStore.getState().activeScenario) {
+          term.write(generateWelcomeMessage(term.cols, { variant: "full" }));
+          prompt();
+        }
 
         term.onData((data) => {
           const result = handleKeyboardInput(data, {
@@ -346,7 +365,7 @@ export const Terminal: React.FC<TerminalProps> = ({
 
         // Notify parent that terminal is ready with paste capability
         // Must fire after onData is wired so pasteToInput keeps currentLine in sync
-        onReadyRef.current?.(pasteToInput);
+        onReadyRef.current?.(pasteCommandOnNode);
       });
     };
 
@@ -1238,9 +1257,21 @@ export const Terminal: React.FC<TerminalProps> = ({
           return;
         }
 
+        // A malformed pipeline (empty segment, e.g. `cmd | | grep`) is a
+        // parse-time error: a real shell rejects the whole line and runs
+        // NOTHING. Detect it before dispatching to any handler so an invalid
+        // command cannot apply side effects (GPU reset, scenario/remediation
+        // state) and only then have its output replaced by the error. Unknown
+        // downstream stages are a runtime error (the upstream still runs) and
+        // are handled after the command executes, below.
+        const pipeSyntaxError = validatePipeSyntax(cmdLine);
+
         // Handle environment variable assignments (VAR=VALUE)
         const envVarPattern = /^[A-Z_][A-Z0-9_]*=\S+$/;
-        if (envVarPattern.test(cmdLine.trim())) {
+        if (pipeSyntaxError) {
+          result.output = pipeSyntaxError;
+          result.exitCode = 2;
+        } else if (envVarPattern.test(cmdLine.trim())) {
           result.output = cmdLine.trim();
           result.exitCode = 0;
         } else {
@@ -1273,9 +1304,16 @@ export const Terminal: React.FC<TerminalProps> = ({
           }
         }
 
-        // Apply pipe filters (grep, tail, head, etc.) to command output
-        if (result.output && hasPipes(cmdLine)) {
-          result.output = applyPipeFilters(result.output, cmdLine);
+        // With valid pipe syntax, either report an unknown downstream filter
+        // (`cmd | nonexistent` → command not found, after the upstream ran) or
+        // apply the pipe filters (grep, tail, head, ...) to the output.
+        if (!pipeSyntaxError) {
+          const stageError = validatePipeStages(cmdLine);
+          if (stageError) {
+            result.output = stageError;
+          } else if (result.output && hasPipes(cmdLine)) {
+            result.output = applyPipeFilters(result.output, cmdLine);
+          }
         }
 
         if (result.output) {
@@ -1377,6 +1415,41 @@ export const Terminal: React.FC<TerminalProps> = ({
       term.focus();
     };
 
+    // Paste a command, optionally connecting to a target node first.
+    // When `targetNode` differs from the node the terminal is currently on, we
+    // run `ssh <targetNode>` (the same flow as Dashboard-driven auto-SSH) and
+    // wait for it to finish before staging the command. This keeps the command
+    // pointed at the node where a Sandbox fault was injected. Awaiting the ssh
+    // avoids a race where the pasted text would land mid-connection-output.
+    const pasteCommandOnNode = (cmd: string, targetNode?: string) => {
+      if (!term || disposed) return;
+      const currentNode = currentContext.current.currentNode;
+      if (
+        targetNode &&
+        targetNode !== currentNode &&
+        executeCommandRef.current
+      ) {
+        const sshCommand = `ssh ${targetNode}`;
+        // executeCommand does not echo programmatic input, so echo it here to
+        // mirror what the user would see when typing the command themselves.
+        term.write(sshCommand);
+        term.write("\r\n");
+        void executeCommandRef
+          .current(sshCommand)
+          .then(() => {
+            if (disposed) return;
+            pasteToInput(cmd);
+          })
+          .catch((err) => {
+            // Surface but swallow the rejection so a failed auto-ssh does not
+            // become an unhandled promise rejection; the user keeps the prompt.
+            logger.error("Auto-ssh before paste failed", err);
+          });
+      } else {
+        pasteToInput(cmd);
+      }
+    };
+
     // Defer term.open() until container has non-zero dimensions to prevent
     // xterm Viewport._innerRefresh from accessing uninitialized _renderService.dimensions
     let initObserver: ResizeObserver | null = null;
@@ -1397,7 +1470,8 @@ export const Terminal: React.FC<TerminalProps> = ({
 
     // Expose reset callback for architecture changes
     resetTerminalRef.current = () => {
-      const { cluster: newCluster } = useSimulationStore.getState();
+      const { cluster: newCluster, systemType: newSystemType } =
+        useSimulationStore.getState();
       const newNode = newCluster.nodes[0]?.id || "dgx-00";
       term.reset();
       currentLine = "";
@@ -1409,7 +1483,12 @@ export const Terminal: React.FC<TerminalProps> = ({
       currentContext.current.history = [];
       currentContext.current.scenarioContext = undefined;
       currentContext.current.cluster = newCluster;
-      term.write(generateWelcomeMessage(term.cols));
+      term.write(
+        generateWelcomeMessage(term.cols, {
+          variant: "architecture",
+          systemType: newSystemType,
+        }),
+      );
       prompt();
     };
 

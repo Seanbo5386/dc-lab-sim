@@ -107,6 +107,7 @@ describe("NvidiaBugReportSimulator", () => {
         },
         slurmConfig: { controlMachine: "dgx-headnode01", partitions: ["gpu"] },
       },
+      setBugReportCollected: vi.fn(),
     } as ReturnType<typeof useSimulationStore.getState>);
   });
 
@@ -328,6 +329,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -366,6 +368,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -403,6 +406,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -440,6 +444,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -477,6 +482,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -514,6 +520,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -551,6 +558,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -594,6 +602,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -626,6 +635,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -669,6 +679,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -716,6 +727,7 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
@@ -747,12 +759,51 @@ describe("NvidiaBugReportSimulator", () => {
           },
           slurmConfig: { controlMachine: "h01", partitions: ["gpu"] },
         },
+        setBugReportCollected: vi.fn(),
       } as ReturnType<typeof useSimulationStore.getState>);
 
       const parsed = parse("nvidia-bug-report.sh");
       const result = simulator.execute(parsed, context);
 
       expect(result.output).toContain("near power limit");
+    });
+  });
+
+  // ============================
+  // Bug report collection flag
+  // ============================
+  describe("bug report collection flag", () => {
+    it("marks the node bugReportCollected after running", () => {
+      const setBugReportCollected = vi.fn();
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          name: "test-cluster",
+          nodes: [makeNode()],
+          fabricTopology: "FatTree",
+          bcmHA: {
+            enabled: true,
+            primary: "dgx-headnode01",
+            secondary: "dgx-headnode02",
+            state: "Active",
+          },
+          slurmConfig: {
+            controlMachine: "dgx-headnode01",
+            partitions: ["gpu"],
+          },
+        },
+        setBugReportCollected,
+      } as ReturnType<typeof useSimulationStore.getState>);
+
+      const sim = new NvidiaBugReportSimulator();
+      const ctx: CommandContext = {
+        currentNode: "dgx-00",
+        currentPath: "/root",
+        environment: {},
+        history: [],
+      };
+      const result = sim.execute(parse("nvidia-bug-report.sh"), ctx);
+      expect(result.exitCode).toBe(0);
+      expect(setBugReportCollected).toHaveBeenCalledWith("dgx-00", true);
     });
   });
 

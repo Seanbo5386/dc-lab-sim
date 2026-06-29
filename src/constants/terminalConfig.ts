@@ -1,3 +1,9 @@
+import {
+  getHardwareSpecs,
+  getSystemDisplayName,
+  type SystemType,
+} from "@/data/hardwareSpecs";
+
 /**
  * Terminal Theme Configuration
  * NVIDIA-themed color scheme for XTerm
@@ -86,30 +92,33 @@ const COMMAND_LIST = [
   "  \x1b[36mclear\x1b[0m           - Clear terminal",
 ].join("\n");
 
+export type WelcomeVariant = "full" | "architecture";
+
+export interface WelcomeMessageOptions {
+  variant?: WelcomeVariant;
+  systemType?: SystemType;
+}
+
 /**
  * Generate welcome message sized to terminal width.
  */
-export function generateWelcomeMessage(cols: number): string {
+export function generateWelcomeMessage(
+  cols: number,
+  options: WelcomeMessageOptions = {},
+): string {
+  const variant = options.variant ?? "full";
+
   // Usable width (leave 1-col safety margin)
   const w = Math.max(30, cols - 1);
 
   // Box: adapt inner width to terminal, min 30
   const boxInner = Math.min(48, w - 2); // 2 for ║…║
   const rule = "═".repeat(boxInner);
-  const line1 = "Data Center Lab Simulator";
-  const line2 = `NCP-AII Certification Practice v${import.meta.env.VITE_APP_VERSION}`;
 
   const boxLine = (text: string) => {
     const t = text.length > boxInner - 2 ? text.slice(0, boxInner - 2) : text;
     return `║  ${t.padEnd(boxInner - 2)}║`;
   };
-
-  const box = [
-    `\x1b[1;32m╔${rule}╗`,
-    boxLine(line1),
-    boxLine(line2),
-    `╚${rule}╝\x1b[0m`,
-  ].join("\n");
 
   // Command table: pad command to align descriptions
   const cmdPad = 16;
@@ -121,6 +130,50 @@ export function generateWelcomeMessage(cols: number): string {
     return `    \x1b[36m${cmd.padEnd(cmdPad)}\x1b[0m${desc}`;
   };
 
+  // Shared "get started" guidance, shown outside of an active scenario.
+  // No "hint" line here — hint only does something during a lab/scenario.
+  const guidance = [
+    "",
+    "\x1b[1;33mGet started:\x1b[0m",
+    cmdRow("nvidia-smi", "Check GPU status"),
+    cmdRow("ibstat", "InfiniBand adapter status"),
+    cmdRow("sinfo", "Slurm cluster info"),
+    "",
+    "\x1b[1;33mNeed help?\x1b[0m",
+    cmdRow("help", "Browse all 60+ commands"),
+    cmdRow("help <command>", "Detailed docs & examples"),
+    // Trailing blank line so the prompt isn't flush against the last row.
+    "",
+  ].join("\n");
+
+  if (variant === "architecture") {
+    const systemType = options.systemType ?? "DGX-A100";
+    const specs = getHardwareSpecs(systemType);
+    const displayName = getSystemDisplayName(systemType);
+    const specLine = `${specs.gpu.count}x ${specs.gpu.model} · ${specs.gpu.memoryType} · NVLink ${specs.nvlink.version} · ${specs.network.protocol} ${specs.network.portRateGbs}Gb/s`;
+    const box = [
+      `\x1b[1;32m╔${rule}╗`,
+      boxLine(`Switched to ${displayName}`),
+      `╚${rule}╝\x1b[0m`,
+    ].join("\n");
+    return `${box}
+
+  ${specLine}
+${guidance}
+`;
+  }
+
+  // variant === "full" (default)
+  const line1 = "Data Center Lab Simulator";
+  const line2 = `NCP-AII Certification Practice v${import.meta.env.VITE_APP_VERSION}`;
+
+  const box = [
+    `\x1b[1;32m╔${rule}╗`,
+    boxLine(line1),
+    boxLine(line2),
+    `╚${rule}╝\x1b[0m`,
+  ].join("\n");
+
   // Description: visible "  Simulated DGX cluster for NCP-AII exam prep." = 48 cols
   const desc =
     w >= 48
@@ -130,16 +183,7 @@ export function generateWelcomeMessage(cols: number): string {
   return `${box}
 
 ${desc}
-
-\x1b[1;33mGet started:\x1b[0m
-${cmdRow("nvidia-smi", "Check GPU status")}
-${cmdRow("ibstat", "InfiniBand adapter status")}
-${cmdRow("sinfo", "Slurm cluster info")}
-
-\x1b[1;33mNeed help?\x1b[0m
-${cmdRow("help", "Browse all 60+ commands")}
-${cmdRow("help <command>", "Detailed docs & examples")}
-${cmdRow("hint", "Guidance during labs")}
+${guidance}
 `;
 }
 

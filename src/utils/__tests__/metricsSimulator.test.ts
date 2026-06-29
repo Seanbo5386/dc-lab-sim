@@ -190,6 +190,40 @@ describe("MetricsSimulator", () => {
       return result;
     }
 
+    it("should sustain an applied workload without an allocated job", () => {
+      // Simulates the sandbox "Apply Workload" path: simulateWorkload sets a
+      // high utilization but no allocatedJobId. The live tick must treat this
+      // as load and keep utilization elevated instead of resetting to idle.
+      const workloadGpu = createMockGPU({ utilization: 60 });
+      expect(workloadGpu.allocatedJobId).toBeUndefined();
+
+      let gpu = workloadGpu;
+      for (let i = 0; i < 30; i++) {
+        gpu = tickMetrics([gpu])[0];
+      }
+      expect(gpu.utilization).toBeGreaterThan(40);
+    });
+
+    it("should ramp power and temperature for an applied workload", () => {
+      // An applied workload (no allocated job) should drive power draw toward
+      // load and temperature should follow, rather than decaying to idle.
+      const workloadGpu = createMockGPU({
+        utilization: 60,
+        powerDraw: 60, // starting near idle
+        powerLimit: 400,
+        temperature: 35,
+      });
+
+      let gpu = workloadGpu;
+      for (let i = 0; i < 30; i++) {
+        gpu = tickMetrics([gpu])[0];
+      }
+
+      // 60% utilization on a 400W card => target ~ 0.15*400 + 0.6*(400-60) ≈ 264W
+      expect(gpu.powerDraw).toBeGreaterThan(180);
+      expect(gpu.temperature).toBeGreaterThan(50);
+    });
+
     it("should keep idle GPU utilization near 0%", () => {
       const idleGpu = createMockGPU({ utilization: 0 });
       expect(idleGpu.allocatedJobId).toBeUndefined();

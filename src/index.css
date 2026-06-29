@@ -10,6 +10,16 @@
   }
 }
 
+/* Dynamic viewport height for the app root: on mobile, 100vh is computed
+   against the largest viewport and never shrinks for the on-screen
+   keyboard, so the keyboard ends up covering the terminal's input line.
+   100dvh tracks the visual viewport and shrinks correctly; browsers
+   without dvh support silently keep the 100vh fallback above it. */
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+}
+
 /* XTerm.js terminal styling */
 .terminal-container {
   @apply w-full h-full bg-black rounded-lg flex flex-col;

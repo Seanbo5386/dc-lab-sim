@@ -19,9 +19,20 @@ function validateSteps(steps: TourStep[]) {
   }
 }
 
+describe("Sandbox tour step", () => {
+  it("includes a step targeting the Sandbox tab", () => {
+    const step = SIMULATOR_TOUR_STEPS.find(
+      (s) => s.selector === '[data-tour="sandbox-tab"]',
+    );
+    expect(step).toBeDefined();
+    expect(step?.title.length).toBeGreaterThan(0);
+    expect(step?.description.length).toBeGreaterThan(0);
+  });
+});
+
 describe("tourSteps", () => {
-  it("SIMULATOR_TOUR_STEPS has 9 steps with valid structure", () => {
-    expect(SIMULATOR_TOUR_STEPS).toHaveLength(9);
+  it("SIMULATOR_TOUR_STEPS has 10 steps with valid structure", () => {
+    expect(SIMULATOR_TOUR_STEPS).toHaveLength(10);
     validateSteps(SIMULATOR_TOUR_STEPS);
   });
 

@@ -80,8 +80,9 @@ export function IncidentLauncher({ onStartIncident }: IncidentLauncherProps) {
         <h2 className="text-2xl font-bold text-nvidia-green">Live Incidents</h2>
       </div>
       <p className="text-gray-400 text-sm mb-6">
-        Unguided troubleshooting scenarios that adapt to your skill level.
-        Diagnose and resolve realistic datacenter incidents without hints.
+        Timed, adaptive troubleshooting challenges — scored, no hints. Unlocks
+        after 3 completed missions. (For free, unscored practice, use the
+        Sandbox tab in the Simulator.)
       </p>
 
       {/* Rating and controls card */}
