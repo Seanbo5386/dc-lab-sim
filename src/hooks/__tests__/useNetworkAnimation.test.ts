@@ -113,6 +113,68 @@ describe("useNetworkAnimation", () => {
     expect(result.current.particles.length).toBeGreaterThan(0);
   });
 
+  it("should not spawn particles on inactive (down) links", () => {
+    const links = [
+      {
+        id: "link-down",
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 100,
+        targetY: 0,
+        active: false,
+        utilization: 80,
+      },
+    ];
+
+    const { result } = renderHook(() =>
+      useNetworkAnimation({ enabled: true, links }),
+    );
+
+    act(() => {
+      runAnimationFrames(120, 100); // Plenty of time to spawn if it were going to
+    });
+
+    expect(result.current.particles).toEqual([]);
+  });
+
+  it("should only spawn particles on active links in a mixed set", () => {
+    const links = [
+      {
+        id: "link-up",
+        sourceX: 0,
+        sourceY: 0,
+        targetX: 100,
+        targetY: 0,
+        active: true,
+        utilization: 80,
+        bidirectional: false,
+      },
+      {
+        id: "link-down",
+        sourceX: 0,
+        sourceY: 50,
+        targetX: 100,
+        targetY: 50,
+        active: false,
+        utilization: 80,
+        bidirectional: false,
+      },
+    ];
+
+    const { result } = renderHook(() =>
+      useNetworkAnimation({ enabled: true, links }),
+    );
+
+    act(() => {
+      runAnimationFrames(120, 100);
+    });
+
+    expect(result.current.particles.length).toBeGreaterThan(0);
+    expect(result.current.particles.every((p) => p.linkId === "link-up")).toBe(
+      true,
+    );
+  });
+
   it("should clean up on unmount", () => {
     const links = [
       {
