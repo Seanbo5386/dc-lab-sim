@@ -142,6 +142,8 @@ export function generateWelcomeMessage(
     "\x1b[1;33mNeed help?\x1b[0m",
     cmdRow("help", "Browse all 60+ commands"),
     cmdRow("help <command>", "Detailed docs & examples"),
+    // Trailing blank line so the prompt isn't flush against the last row.
+    "",
   ].join("\n");
 
   if (variant === "architecture") {
