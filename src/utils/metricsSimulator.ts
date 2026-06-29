@@ -83,7 +83,13 @@ export class MetricsSimulator {
 
   private updateGpuMetrics(gpus: GPU[]): GPU[] {
     return gpus.map((gpu) => {
-      const isActive = gpu.allocatedJobId != null;
+      // A GPU is under load if Slurm has allocated a job to it OR a workload
+      // has been applied directly (sandbox "Apply Workload" sets a high
+      // utilization without an allocatedJobId). The >15% threshold separates
+      // real loads (inference ~60, training ~95) from idle jitter (<2%) and the
+      // "idle" workload pattern (~10%), so applied workloads sustain and drive
+      // power/temperature instead of being reset to idle on the next tick.
+      const isActive = gpu.allocatedJobId != null || gpu.utilization > 15;
 
       // Utilization: stable under load, near-zero when idle
       const newUtilization = isActive
