@@ -50,7 +50,8 @@ import {
 import {
   applyPipeFilters,
   hasPipes,
-  validatePipeChain,
+  validatePipeStages,
+  validatePipeSyntax,
 } from "@/utils/pipeHandler";
 import { CommandRouter } from "@/cli/commandRouter";
 
@@ -1256,9 +1257,21 @@ export const Terminal: React.FC<TerminalProps> = ({
           return;
         }
 
+        // A malformed pipeline (empty segment, e.g. `cmd | | grep`) is a
+        // parse-time error: a real shell rejects the whole line and runs
+        // NOTHING. Detect it before dispatching to any handler so an invalid
+        // command cannot apply side effects (GPU reset, scenario/remediation
+        // state) and only then have its output replaced by the error. Unknown
+        // downstream stages are a runtime error (the upstream still runs) and
+        // are handled after the command executes, below.
+        const pipeSyntaxError = validatePipeSyntax(cmdLine);
+
         // Handle environment variable assignments (VAR=VALUE)
         const envVarPattern = /^[A-Z_][A-Z0-9_]*=\S+$/;
-        if (envVarPattern.test(cmdLine.trim())) {
+        if (pipeSyntaxError) {
+          result.output = pipeSyntaxError;
+          result.exitCode = 2;
+        } else if (envVarPattern.test(cmdLine.trim())) {
           result.output = cmdLine.trim();
           result.exitCode = 0;
         } else {
@@ -1291,14 +1304,16 @@ export const Terminal: React.FC<TerminalProps> = ({
           }
         }
 
-        // Validate pipe syntax first (empty segment / unknown filter command),
-        // then apply pipe filters (grep, tail, head, etc.) to command output. A
-        // pipe error replaces the upstream output, matching real-shell behavior.
-        const pipeError = validatePipeChain(cmdLine);
-        if (pipeError) {
-          result.output = pipeError;
-        } else if (result.output && hasPipes(cmdLine)) {
-          result.output = applyPipeFilters(result.output, cmdLine);
+        // With valid pipe syntax, either report an unknown downstream filter
+        // (`cmd | nonexistent` → command not found, after the upstream ran) or
+        // apply the pipe filters (grep, tail, head, ...) to the output.
+        if (!pipeSyntaxError) {
+          const stageError = validatePipeStages(cmdLine);
+          if (stageError) {
+            result.output = stageError;
+          } else if (result.output && hasPipes(cmdLine)) {
+            result.output = applyPipeFilters(result.output, cmdLine);
+          }
         }
 
         if (result.output) {
@@ -1419,10 +1434,17 @@ export const Terminal: React.FC<TerminalProps> = ({
         // mirror what the user would see when typing the command themselves.
         term.write(sshCommand);
         term.write("\r\n");
-        void executeCommandRef.current(sshCommand).then(() => {
-          if (disposed) return;
-          pasteToInput(cmd);
-        });
+        void executeCommandRef
+          .current(sshCommand)
+          .then(() => {
+            if (disposed) return;
+            pasteToInput(cmd);
+          })
+          .catch((err) => {
+            // Surface but swallow the rejection so a failed auto-ssh does not
+            // become an unhandled promise rejection; the user keeps the prompt.
+            logger.error("Auto-ssh before paste failed", err);
+          });
       } else {
         pasteToInput(cmd);
       }

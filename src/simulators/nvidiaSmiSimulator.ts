@@ -248,8 +248,10 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       return this.handlePowerLimit(parsed, context);
     }
 
-    // Handle ECC error reset
-    if (this.hasAnyFlag(parsed, ["reset-ecc-errors"])) {
+    // Handle ECC error reset. `-p` is the advertised short form of
+    // --reset-ecc-errors (see registered flags); the parser does not normalize
+    // short→long, so both must be checked here.
+    if (this.hasAnyFlag(parsed, ["p", "reset-ecc-errors"])) {
       return this.handleResetEcc(parsed, context);
     }
 

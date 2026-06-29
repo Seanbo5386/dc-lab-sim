@@ -4,6 +4,8 @@ import {
   hasPipes,
   parsePipeChain,
   validatePipeChain,
+  validatePipeStages,
+  validatePipeSyntax,
 } from "../pipeHandler";
 
 describe("pipeHandler", () => {
@@ -19,6 +21,23 @@ describe("pipeHandler", () => {
     it("preserves pipes inside quotes", () => {
       expect(parsePipeChain("echo 'a | b' | grep a")).toEqual([
         "echo 'a | b'",
+        "grep a",
+      ]);
+    });
+
+    it("does not split on a pipe after an escaped quote inside a string", () => {
+      // The \" keeps the double-quoted string open, so the | is part of it.
+      expect(parsePipeChain('echo "a\\"|b" | grep a')).toEqual([
+        'echo "a\\"|b"',
+        "grep a",
+      ]);
+    });
+
+    it("treats a backslash inside single quotes as literal (no escape)", () => {
+      // Single quotes are literal in bash: the backslash does not escape, and
+      // the closing quote still ends the string so the pipe splits normally.
+      expect(parsePipeChain("echo 'a\\' | grep a")).toEqual([
+        "echo 'a\\'",
         "grep a",
       ]);
     });
@@ -73,11 +92,52 @@ describe("pipeHandler", () => {
     });
   });
 
+  describe("validatePipeSyntax (parse-time, pre-handler)", () => {
+    it("returns null when there are no pipes", () => {
+      expect(validatePipeSyntax("nvidia-smi -i 0")).toBeNull();
+    });
+
+    it("returns null for a syntactically valid chain (even unknown stages)", () => {
+      // Unknown commands are a runtime concern, not a syntax error.
+      expect(validatePipeSyntax("nvidia-smi | nonexistentcmd")).toBeNull();
+    });
+
+    it("flags an empty interior segment as a syntax error", () => {
+      expect(validatePipeSyntax("nvidia-smi | | grep x")).toBe(
+        "bash: syntax error near unexpected token '|'",
+      );
+    });
+
+    it("flags a dangling trailing pipe as a syntax error", () => {
+      expect(validatePipeSyntax("nvidia-smi |")).toBe(
+        "bash: syntax error near unexpected token '|'",
+      );
+    });
+  });
+
+  describe("validatePipeStages (runtime, post-handler)", () => {
+    it("returns null for known filter stages", () => {
+      expect(validatePipeStages("nvidia-smi | grep GPU | wc -l")).toBeNull();
+    });
+
+    it("flags an unknown downstream command", () => {
+      expect(validatePipeStages("nvidia-smi | nonexistentcmd")).toBe(
+        "bash: nonexistentcmd: command not found",
+      );
+    });
+  });
+
   describe("applyPipeFilters still works for valid chains", () => {
     it("greps then counts lines", () => {
       const output = "alpha GPU\nbeta\ngamma GPU";
       const result = applyPipeFilters(output, "cmd | grep GPU | wc -l");
       expect(result.trim()).toBe("2");
+    });
+
+    it("awk ignores leading whitespace when selecting $1", () => {
+      const output = "  alpha beta\n\tgamma delta";
+      const result = applyPipeFilters(output, "cmd | awk '{print $1}'");
+      expect(result).toBe("alpha\ngamma");
     });
   });
 });

@@ -661,6 +661,31 @@ describe("remediation routing", () => {
     );
   });
 
+  it("-p (short form of --reset-ecc-errors) clears double-bit ECC", () => {
+    const { updateGPU } = buildContextWithSpy({
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 5,
+        aggregated: { singleBit: 0, doubleBit: 5 },
+      },
+      healthStatus: "Critical",
+    });
+    const result = simulator.execute(parse("nvidia-smi -i 0 -p"), context);
+    expect(result.exitCode).toBe(0);
+    expect(updateGPU).toHaveBeenCalledWith(
+      "dgx-00",
+      0,
+      expect.objectContaining({
+        eccErrors: {
+          singleBit: 0,
+          doubleBit: 0,
+          aggregated: { singleBit: 0, doubleBit: 0 },
+        },
+        healthStatus: "OK",
+      }),
+    );
+  });
+
   it("-pl resolves a thermal fault while setting the limit", () => {
     const { updateGPU } = buildContextWithSpy({
       temperature: 85,

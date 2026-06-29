@@ -17,14 +17,32 @@ export interface PipeCommand {
  * @param cmdLine - Full command line string
  * @returns Array of pipe commands (first element is the main command)
  */
-export function parsePipeChain(cmdLine: string): string[] {
-  // Split by pipe, preserving quoted strings
+/**
+ * Split a command line on unquoted, unescaped pipe characters. Quotes and
+ * backslash escapes are honored the way the command tokenizer treats them: a
+ * backslash escapes the next character EXCEPT inside single quotes, where it is
+ * literal (bash semantics). Returns raw (untrimmed) segments; callers decide how
+ * to treat whitespace and empty segments. Centralizing the scan here keeps the
+ * escape/quote handling identical for both parsePipeChain and the raw splitter.
+ */
+function splitOnUnquotedPipes(cmdLine: string): string[] {
   const parts: string[] = [];
   let current = "";
   let inSingleQuote = false;
   let inDoubleQuote = false;
+  let escaped = false;
 
   for (const char of cmdLine) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && !inSingleQuote) {
+      escaped = true;
+      current += char;
+      continue;
+    }
     if (char === "'" && !inDoubleQuote) {
       inSingleQuote = !inSingleQuote;
       current += char;
@@ -32,17 +50,24 @@ export function parsePipeChain(cmdLine: string): string[] {
       inDoubleQuote = !inDoubleQuote;
       current += char;
     } else if (char === "|" && !inSingleQuote && !inDoubleQuote) {
-      parts.push(current.trim());
+      parts.push(current);
       current = "";
     } else {
       current += char;
     }
   }
 
-  if (current.trim()) {
-    parts.push(current.trim());
-  }
+  parts.push(current);
+  return parts;
+}
 
+export function parsePipeChain(cmdLine: string): string[] {
+  const parts = splitOnUnquotedPipes(cmdLine).map((s) => s.trim());
+  // Drop only a trailing empty segment (a dangling final pipe produced no
+  // command); intermediate empties are preserved as before.
+  if (parts.length > 0 && parts[parts.length - 1] === "") {
+    parts.pop();
+  }
   return parts;
 }
 
@@ -76,28 +101,7 @@ const KNOWN_PIPE_FILTERS = new Set([
  * (`cmd | | grep`) is detectable.
  */
 function splitPipeSegmentsRaw(cmdLine: string): string[] {
-  const parts: string[] = [];
-  let current = "";
-  let inSingleQuote = false;
-  let inDoubleQuote = false;
-
-  for (const char of cmdLine) {
-    if (char === "'" && !inDoubleQuote) {
-      inSingleQuote = !inSingleQuote;
-      current += char;
-    } else if (char === '"' && !inSingleQuote) {
-      inDoubleQuote = !inDoubleQuote;
-      current += char;
-    } else if (char === "|" && !inSingleQuote && !inDoubleQuote) {
-      parts.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-
-  parts.push(current.trim());
-  return parts;
+  return splitOnUnquotedPipes(cmdLine).map((s) => s.trim());
 }
 
 /**
@@ -112,24 +116,54 @@ function splitPipeSegmentsRaw(cmdLine: string): string[] {
  * command (first segment) is NOT validated here — it is handled by the command
  * router; only the downstream filter stages are checked.
  */
-export function validatePipeChain(cmdLine: string): string | null {
+/**
+ * Parse-time pipe validation: an empty pipe segment (`cmd | | grep`) is a
+ * SYNTAX error — a real shell rejects the whole line and runs nothing. Callers
+ * should check this BEFORE dispatching to side-effecting handlers so a malformed
+ * pipeline cannot mutate state (GPU reset, scenario/remediation progress) and
+ * only then surface the error. Returns null for no-pipe or syntactically valid
+ * lines.
+ */
+export function validatePipeSyntax(cmdLine: string): string | null {
   const segments = splitPipeSegmentsRaw(cmdLine);
   if (segments.length <= 1) {
     return null; // no pipes
   }
-
   if (segments.some((segment) => segment === "")) {
     return "bash: syntax error near unexpected token '|'";
   }
+  return null;
+}
 
+/**
+ * Runtime pipe validation: a downstream stage that names a command this
+ * simulator does not implement (`cmd | nonexistent`) is "command not found".
+ * Unlike a syntax error, this is a RUNTIME failure — a real shell still runs the
+ * upstream command (side effects occur) — so this is checked AFTER the handler
+ * runs. Returns null when every downstream stage is a known filter.
+ */
+export function validatePipeStages(cmdLine: string): string | null {
+  const segments = splitPipeSegmentsRaw(cmdLine);
+  if (segments.length <= 1) {
+    return null;
+  }
   for (const segment of segments.slice(1)) {
+    if (segment === "") continue; // empty segments are a syntax concern, not here
     const cmd = segment.split(/\s+/)[0];
     if (!KNOWN_PIPE_FILTERS.has(cmd)) {
       return `bash: ${cmd}: command not found`;
     }
   }
-
   return null;
+}
+
+/**
+ * Combined pipe validation (syntax first, then unknown-stage). Retained for
+ * callers that validate the whole chain at once; the Terminal uses the granular
+ * validatePipeSyntax/validatePipeStages to correctly order side effects.
+ */
+export function validatePipeChain(cmdLine: string): string | null {
+  return validatePipeSyntax(cmdLine) ?? validatePipeStages(cmdLine);
 }
 
 /**
@@ -421,9 +455,11 @@ function parseFieldSpec(spec: string): number[] {
 function applyAwk(output: string, args: string[]): string {
   if (!output) return "";
 
-  // Find the awk script (usually last argument or in quotes)
-  const script =
-    args.find((a) => a.includes("print")) || args[args.length - 1] || "";
+  // Reconstruct the awk script from all args. applyPipeCommand splits the pipe
+  // stage on whitespace, so a quoted script like '{print $1}' arrives as
+  // several tokens ("'{print", "$1}'"); rejoining them lets the print pattern
+  // (which needs whitespace after "print") match instead of being torn apart.
+  const script = args.join(" ");
 
   // Basic pattern: {print $1} or '{print $1, $2}'
   const printMatch = script.match(/print\s+(.*)/);
@@ -438,7 +474,9 @@ function applyAwk(output: string, args: string[]): string {
   const lines = output.split("\n");
   return lines
     .map((line) => {
-      const parts = line.split(/\s+/);
+      // Trim first so a leading-whitespace line does not yield an empty $1
+      // (real awk skips leading field separators).
+      const parts = line.trim().split(/\s+/);
       return fieldNums.map((n) => parts[n - 1] || "").join(" ");
     })
     .join("\n");
