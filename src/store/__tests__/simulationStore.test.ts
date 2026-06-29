@@ -146,3 +146,38 @@ describe("persistence sanitization (partialize)", () => {
     expect(live.cluster.nodes[0].gpus[0].rmaStatus).toBe("pending");
   });
 });
+
+describe("persistence migration (migrate)", () => {
+  it("drops only the stale cluster on v0→v1, preserving user progress", () => {
+    const migrate = useSimulationStore.persist.getOptions().migrate;
+    expect(migrate).toBeDefined();
+
+    const v0State = {
+      cluster: { nodes: [{ id: "node-1", cpuCount: 2 }] },
+      systemType: "DGX-H100",
+      simulationSpeed: 2,
+      scenarioProgress: { "domain1-x": { steps: [] } },
+      completedScenarios: ["domain1-x"],
+    };
+
+    const migrated = migrate!(v0State, 0) as Record<string, unknown>;
+
+    // Stale cluster is dropped so createDefaultCluster() rebuilds it correctly.
+    expect(migrated.cluster).toBeUndefined();
+
+    // Everything else the user earned/chose survives the version bump.
+    expect(migrated.systemType).toBe("DGX-H100");
+    expect(migrated.simulationSpeed).toBe(2);
+    expect(migrated.scenarioProgress).toEqual({ "domain1-x": { steps: [] } });
+    expect(migrated.completedScenarios).toEqual(["domain1-x"]);
+  });
+
+  it("passes current-version state through untouched", () => {
+    const migrate = useSimulationStore.persist.getOptions().migrate;
+    const v1State = { cluster: { nodes: [] }, completedScenarios: ["a"] };
+
+    const migrated = migrate!(v1State, 1) as Record<string, unknown>;
+
+    expect(migrated).toBe(v1State);
+  });
+});
