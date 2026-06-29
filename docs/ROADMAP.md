@@ -1,6 +1,6 @@
 # Data Center Lab Simulator — Roadmap
 
-_Last updated: June 2026 (v1.5.0)_
+_Last updated: June 2026 (v1.6.0)_
 
 ## Current State
 
@@ -8,7 +8,7 @@ The simulator is feature-complete for its core mission: browser-based NCP-AII ce
 
 | Metric              | Value                                                   |
 | ------------------- | ------------------------------------------------------- |
-| Version             | 1.5.0                                                   |
+| Version             | 1.6.0                                                   |
 | Command simulators  | 20 (229 CLI definitions across 17 categories)           |
 | Narrative scenarios | 40 story-driven labs across all 5 exam domains          |
 | Exam questions      | 199 practice + 65 tool selection + 175 deep mastery     |

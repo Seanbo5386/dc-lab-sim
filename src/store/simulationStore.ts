@@ -739,7 +739,25 @@ export const useSimulationStore = create<SimulationState>()(
       },
       storage: createJSONStorage(() => createDebouncedStorage(2000)),
       partialize: (state) => ({
-        cluster: state.cluster,
+        // Strip session-scoped remediation flags (node.bugReportCollected /
+        // gpu.rmaStatus) so they do not survive a page reload. These track
+        // in-session remediation progress; persisting them would let a returning
+        // user satisfy the RMA gate or see "RMA pending" without doing the work.
+        cluster: {
+          ...state.cluster,
+          nodes: state.cluster.nodes.map((node) => {
+            const persistedNode = {
+              ...node,
+              gpus: node.gpus.map((gpu) => {
+                const persistedGpu = { ...gpu };
+                delete persistedGpu.rmaStatus;
+                return persistedGpu;
+              }),
+            };
+            delete persistedNode.bugReportCollected;
+            return persistedNode;
+          }),
+        },
         systemType: state.systemType,
         simulationSpeed: state.simulationSpeed,
         scenarioProgress: Object.fromEntries(

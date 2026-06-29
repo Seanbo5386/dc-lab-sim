@@ -116,3 +116,33 @@ describe("setBugReportCollected", () => {
     ).not.toThrow();
   });
 });
+
+describe("persistence sanitization (partialize)", () => {
+  it("strips session-scoped remediation flags from the persisted cluster", () => {
+    const store = useSimulationStore.getState();
+    const nodeId = store.cluster.nodes[0].id;
+    store.setBugReportCollected(nodeId, true);
+    store.updateGPU(nodeId, 0, { rmaStatus: "pending" });
+
+    const partialize = useSimulationStore.persist.getOptions().partialize;
+    expect(partialize).toBeDefined();
+
+    const persisted = partialize!(useSimulationStore.getState()) as {
+      cluster: {
+        nodes: {
+          bugReportCollected?: boolean;
+          gpus: { rmaStatus?: string }[];
+        }[];
+      };
+    };
+
+    // Persisted blob must NOT carry in-session remediation progress.
+    expect(persisted.cluster.nodes[0].bugReportCollected).toBeUndefined();
+    expect(persisted.cluster.nodes[0].gpus[0].rmaStatus).toBeUndefined();
+
+    // ...but the live in-memory state is untouched (only persistence is sanitized).
+    const live = useSimulationStore.getState();
+    expect(live.cluster.nodes[0].bugReportCollected).toBe(true);
+    expect(live.cluster.nodes[0].gpus[0].rmaStatus).toBe("pending");
+  });
+});
