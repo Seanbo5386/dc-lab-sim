@@ -15,9 +15,20 @@ import {
 
 const CHANGELOG = [
   {
+    version: "v1.6.1",
+    title: "Security & Review Hardening",
+    current: true,
+    highlights: [
+      "Terminal input hardening: echo strips ANSI/control sequences, pipe chains reject empty segments and unknown filter stages, and a malformed pipeline is rejected before any command runs so it cannot apply side effects",
+      "Command parser treats a negative number following a value flag as that flag's value (nvidia-smi -i -5) instead of a malformed option",
+      "Persisted-state hardening: corrupted or future-version localStorage clusters are rebuilt on rehydrate, and switching architecture is blocked during an active scenario",
+      "nvidia-smi honors the short -p form of --reset-ecc-errors; awk pipe stages parse quoted scripts and ignore leading whitespace",
+      "Error boundary gains a Reset application data action; VR200 InfiniBand corrected to XDR 800Gb/s throughout",
+    ],
+  },
+  {
     version: "v1.6.0",
     title: "Sandbox Remediation & Onboarding",
-    current: true,
     highlights: [
       "Sandbox remediation loop — fix injected GPU faults with real commands (nvidia-smi --gpu-reset / --reset-ecc-errors, systemctl restart nvidia-fabricmanager, ipmitool chassis power cycle) along a realistic escalation ladder",
       "Physical-action panel: Reseat GPU, Reseat NVLink, and Mark for RMA — gated behind bug-report collection and a drained node, matching real datacenter procedure",

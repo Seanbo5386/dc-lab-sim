@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.6.0-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.6.1-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Tests](https://img.shields.io/badge/tests-3851_unit_|_459_E2E-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-3906_unit_|_459_E2E-brightgreen?style=for-the-badge)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
 ![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
@@ -44,7 +44,7 @@ The NCP-AII certification exam tests hands-on datacenter skills — but most peo
 | **Architectures** | DGX A100, H100, H200, B200, GB200, VR200 (switchable from dashboard)         |
 | **Learning**      | 3-tier progression (Guided > Choice > Realistic) with SM-2 spaced repetition |
 | **Cloud Sync**    | Optional sign-in to save progress across devices (AWS Cognito)               |
-| **Tests**         | 3,851 unit + 459 E2E tests, 0 TypeScript errors, 0 lint warnings             |
+| **Tests**         | 3,906 unit + 459 E2E tests, 0 TypeScript errors, 0 lint warnings             |
 
 ---
 
@@ -351,7 +351,7 @@ aws dynamodb scan --table-name Feedback-<your-stack-id> --region us-east-1
 
 ```bash
 npm run test           # Watch mode
-npm run test:run       # Single run (3,851 unit tests)
+npm run test:run       # Single run (3,906 unit tests)
 npm run test:coverage  # With coverage report
 npm run lint           # ESLint (0 errors, 0 warnings)
 npx playwright test    # 459 E2E tests (commands, scenarios, visual regression)
@@ -369,7 +369,7 @@ CI/CD via GitHub Actions runs lint, tests, and production build on every push.
 | ------------- | --------------------------------------------------------------- |
 | UI            | React 18, TypeScript, TailwindCSS, Lucide icons                 |
 | Terminal      | xterm.js with FitAddon and WebLinksAddon                        |
-| State         | Zustand (4 stores + sandbox context, persisted to localStorage) |
+| State         | Zustand (7 stores + sandbox context, persisted to localStorage) |
 | Visualization | D3.js (topology maps), Recharts (metrics)                       |
 | Auth & Sync   | AWS Amplify Gen 2 (Cognito, AppSync, DynamoDB) — optional       |
 | Build         | Vite                                                            |
@@ -385,7 +385,7 @@ src/
 ├── cli/              # Data-driven CLI framework (229 JSON definitions)
 ├── data/             # Scenarios, exam questions, hardware specs
 ├── store/            # Zustand stores + sandbox context
-├── utils/            # 39 utility modules
+├── utils/            # 41 utility modules
 ├── types/            # TypeScript definitions
 └── App.tsx           # 5-tab layout (Simulator, Labs, Exams, Docs, About)
 ```
@@ -393,6 +393,14 @@ src/
 ---
 
 ## Roadmap
+
+### Completed (v1.6.1)
+
+- [x] Terminal input hardening: echo strips ANSI/control sequences; pipe chains reject empty segments and unknown filter stages; a malformed pipeline is rejected before any command runs (no side effects)
+- [x] Command parser treats a negative number after a value flag as that flag's value (`nvidia-smi -i -5`)
+- [x] Persisted-state hardening: corrupted/future-version localStorage clusters are rebuilt on rehydrate; architecture switching blocked during an active scenario
+- [x] `nvidia-smi` honors the short `-p` form of `--reset-ecc-errors`; awk pipe stages parse quoted scripts and ignore leading whitespace
+- [x] Error boundary "Reset application data" action; VR200 InfiniBand corrected to XDR 800Gb/s
 
 ### Completed (v1.6.0)
 
