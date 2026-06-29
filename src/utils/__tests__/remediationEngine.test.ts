@@ -108,6 +108,32 @@ describe("applyRemediation", () => {
     expect(r.gpuUpdates).toMatchObject({ xidErrors: [], healthStatus: "OK" });
   });
 
+  it("power-cycle restores downed NVLinks on an off-bus (XID 79) GPU", () => {
+    const gpu = makeGpu({
+      xidErrors: [xid(79)],
+      healthStatus: "Critical",
+      nvlinks: [
+        {
+          linkId: 0,
+          status: "Down",
+          speed: 400,
+          txErrors: 100,
+          rxErrors: 5,
+          replayErrors: 0,
+        },
+      ],
+    });
+    const r = applyRemediation(gpu, makeNode({}, [gpu]), "power-cycle");
+    expect(r.outcome).toBe("fixed");
+    expect(r.gpuUpdates?.nvlinks?.[0]).toMatchObject({
+      status: "Active",
+      txErrors: 0,
+      rxErrors: 0,
+    });
+    // off-bus does not change temperature, so recovery must not touch it
+    expect(r.gpuUpdates?.temperature).toBeUndefined();
+  });
+
   it("reset-ecc-errors clears double-bit ECC", () => {
     const gpu = makeGpu({
       eccErrors: {
@@ -152,6 +178,13 @@ describe("applyRemediation", () => {
     const r = applyRemediation(gpu, makeNode({}, [gpu]), "set-power-limit");
     expect(r.outcome).toBe("fixed");
     expect(r.gpuUpdates?.healthStatus).toBe("OK");
+  });
+
+  it("a healthy GPU at >=95% TDP is NOT a power fault (heavy load, not remediable)", () => {
+    const gpu = makeGpu({ powerDraw: 700 * 0.96, healthStatus: "OK" });
+    expect(
+      applyRemediation(gpu, makeNode({}, [gpu]), "set-power-limit").outcome,
+    ).toBe("not-applicable");
   });
 
   it("set-power-limit on a node-wide thermal alert (>=90C) is insufficient", () => {

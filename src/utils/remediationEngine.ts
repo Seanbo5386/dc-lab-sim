@@ -59,7 +59,11 @@ function classifyFault(gpu: GPU): FaultKind | null {
   if (gpu.xidErrors.length > 0) return "xid"; // any other XID (43, 48, ...)
   if (gpu.eccErrors.doubleBit > 0) return "ecc";
   if (gpu.temperature >= 85) return "thermal";
-  if (gpu.powerDraw >= gpu.powerLimit * 0.95) return "power";
+  // Only a *faulted* GPU pinned near its cap is a power fault. A healthy GPU at
+  // >=95% TDP is just under heavy load (e.g. a running benchmark) and must not
+  // be "remediated" by clamping its power draw.
+  if (gpu.healthStatus !== "OK" && gpu.powerDraw >= gpu.powerLimit * 0.95)
+    return "power";
   return null;
 }
 
@@ -127,9 +131,17 @@ const PROFILES: Record<FaultKind, FaultProfile> = {
     escalateFrom: ["gpu-reset", "reset-ecc-errors"],
     escalateHint:
       "GPU is off the bus — power-cycle the node: ipmitool chassis power cycle",
-    healthyUpdates: () => ({
+    healthyUpdates: (gpu) => ({
       xidErrors: [],
-      temperature: 65,
+      // A GPU that fell off the PCIe bus reports its NVLinks down; a successful
+      // power-cycle brings them back. (Off-bus never changes temperature, so we
+      // leave it alone rather than forcing an arbitrary value.)
+      nvlinks: gpu.nvlinks.map((l) => ({
+        ...l,
+        status: "Active" as const,
+        txErrors: 0,
+        rxErrors: 0,
+      })),
       healthStatus: "OK",
     }),
   },

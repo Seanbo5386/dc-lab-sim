@@ -307,6 +307,11 @@ export class NvidiaBugReportSimulator extends BaseSimulator {
     output += `\n\x1b[32mnvidia-bug-report.sh completed successfully.\x1b[0m\n`;
     output += `\nPlease include this report when contacting NVIDIA support.\n`;
 
+    // `bugReportCollected` is a global-cluster flag only (it gates the RMA
+    // action in the Free Mode sandbox, which always runs on the global cluster).
+    // It is intentionally not part of StateMutator/ScenarioContext, so inside an
+    // active narrative scenario we skip it rather than leak a write to the global
+    // store — narrative scenarios drive their own validated flows, not this gate.
     if (!context.scenarioContext) {
       useSimulationStore.getState().setBugReportCollected(node.id, true);
     }

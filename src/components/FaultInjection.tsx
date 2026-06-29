@@ -451,6 +451,9 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
       });
     });
 
+    // setBugReportCollected is a global-store action (not on StateMutator). The
+    // sandbox always operates on the global cluster — the Sandbox tab is disabled
+    // while a scenario is active — so this direct global write is correct here.
     useSimulationStore.getState().setBugReportCollected(selectedNode, false);
 
     useFaultToastStore.getState().addToast({
