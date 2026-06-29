@@ -157,4 +157,25 @@ describe("ClusterPhysicsEngine", () => {
     const events = engine.getThresholdEvents();
     expect(events.some((e) => e.type === "thermal-warning")).toBe(true);
   });
+
+  it("should tag threshold events with the GPU's globally-unique uuid", () => {
+    // gpuId is node-local (0-7) and repeats across nodes, so the uuid is what
+    // routes an event back to its node. Two GPUs sharing id 0 must be told
+    // apart by uuid.
+    const engine = new ClusterPhysicsEngine();
+    const gpu = createTestGPU({
+      id: 0,
+      uuid: "GPU-NODE3-0",
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 0,
+        aggregated: { singleBit: 110, doubleBit: 0 },
+      },
+    });
+    engine.tickGPU(gpu);
+    const eccEvent = engine
+      .getThresholdEvents()
+      .find((e) => e.type === "ecc-accumulation");
+    expect(eccEvent?.gpuUuid).toBe("GPU-NODE3-0");
+  });
 });

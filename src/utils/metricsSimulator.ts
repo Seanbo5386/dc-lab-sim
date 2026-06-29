@@ -15,6 +15,13 @@ export interface MetricsUpdate {
   hcas: InfiniBandHCA[];
 }
 
+/**
+ * Utilization (%) above which a GPU is treated as "under load" even without a
+ * Slurm-allocated job. Chosen to separate real workloads (inference ~60,
+ * training ~95) from idle jitter (<2%) and the "idle" workload pattern (~10%).
+ */
+const ACTIVE_UTILIZATION_THRESHOLD = 15;
+
 export class MetricsSimulator {
   private intervalId: number | null = null;
   private isRunning: boolean = false;
@@ -85,11 +92,13 @@ export class MetricsSimulator {
     return gpus.map((gpu) => {
       // A GPU is under load if Slurm has allocated a job to it OR a workload
       // has been applied directly (sandbox "Apply Workload" sets a high
-      // utilization without an allocatedJobId). The >15% threshold separates
-      // real loads (inference ~60, training ~95) from idle jitter (<2%) and the
-      // "idle" workload pattern (~10%), so applied workloads sustain and drive
-      // power/temperature instead of being reset to idle on the next tick.
-      const isActive = gpu.allocatedJobId != null || gpu.utilization > 15;
+      // utilization without an allocatedJobId). The threshold separates real
+      // loads from idle jitter and the "idle" workload pattern, so applied
+      // workloads sustain and drive power/temperature instead of being reset
+      // to idle on the next tick (see ACTIVE_UTILIZATION_THRESHOLD).
+      const isActive =
+        gpu.allocatedJobId != null ||
+        gpu.utilization > ACTIVE_UTILIZATION_THRESHOLD;
 
       // Utilization: stable under load, near-zero when idle
       const newUtilization = isActive

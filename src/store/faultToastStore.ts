@@ -35,7 +35,7 @@ interface FaultToastState {
 const MAX_TOASTS = 3;
 
 function generateToastId(): string {
-  return `fault-toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return `fault-toast-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 export const useFaultToastStore = create<FaultToastState>()((set) => ({

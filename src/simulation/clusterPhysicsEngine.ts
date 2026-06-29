@@ -14,7 +14,10 @@ export interface ThresholdEvent {
     | "thermal-critical"
     | "power-warning"
     | "ecc-accumulation";
+  /** Node-local GPU index (0-7). Human-readable only — NOT unique across nodes. */
   gpuId: number;
+  /** Globally unique GPU identifier. Use this to route the event to a node. */
+  gpuUuid: string;
   value: number;
 }
 
@@ -54,6 +57,7 @@ export class ClusterPhysicsEngine {
       this.thresholdEvents.push({
         type: "thermal-warning",
         gpuId: gpu.id,
+        gpuUuid: gpu.uuid,
         value: updated.temperature,
       });
     }
@@ -61,6 +65,7 @@ export class ClusterPhysicsEngine {
       this.thresholdEvents.push({
         type: "thermal-critical",
         gpuId: gpu.id,
+        gpuUuid: gpu.uuid,
         value: updated.temperature,
       });
     }
@@ -80,6 +85,7 @@ export class ClusterPhysicsEngine {
       this.thresholdEvents.push({
         type: "ecc-accumulation",
         gpuId: gpu.id,
+        gpuUuid: gpu.uuid,
         value: totalEcc,
       });
     }

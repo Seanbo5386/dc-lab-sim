@@ -21,9 +21,11 @@ import type {
 /** Map a physics ThresholdEvent to an EventLog-compatible ClusterEventInput. */
 function thresholdToClusterEvent(
   event: ThresholdEvent,
-  gpuToNode: Map<number, string>,
+  gpuToNode: Map<string, string>,
 ): ClusterEventInput | null {
-  const nodeId = gpuToNode.get(event.gpuId);
+  // Route by globally-unique uuid: gpuId is node-local (0-7) and collides
+  // across the 8 nodes, so it cannot identify the originating node.
+  const nodeId = gpuToNode.get(event.gpuUuid);
   if (!nodeId) return null;
 
   const typeMap: Record<ThresholdEvent["type"], ClusterEventType> = {
@@ -79,15 +81,17 @@ export function useMetricsSimulation(isRunning: boolean): void {
       simulator.start((updater) => {
         const store = useSimulationStore.getState();
 
-        // Build gpuId -> nodeId mapping for threshold event routing
-        const gpuToNode = new Map<number, string>();
+        // Build gpuUuid -> nodeId mapping for threshold event routing.
+        // Keyed on uuid (not gpu.id) because gpu.id is node-local and repeats
+        // across nodes — keying on it would collide and misroute events.
+        const gpuToNode = new Map<string, string>();
 
         store.cluster.nodes.forEach((node) => {
           const updated = updater({ gpus: node.gpus, hcas: node.hcas });
 
           // Track GPU-to-node mapping for threshold events
           for (const gpu of node.gpus) {
-            gpuToNode.set(gpu.id, node.id);
+            gpuToNode.set(gpu.uuid, node.id);
           }
 
           // Update GPUs - use shallow comparison for better performance

@@ -827,6 +827,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
               {surpriseRevealed ? (
                 <span
                   data-testid="surprise-reveal-text"
+                  aria-live="polite"
                   className="block mt-2 text-purple-300"
                 >
                   Injected fault:{" "}
