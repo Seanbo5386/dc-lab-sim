@@ -125,8 +125,16 @@ export const TopologyGraph: React.FC<TopologyGraphProps> = ({
         sourceGpu && targetGpu
           ? (sourceGpu.utilization + targetGpu.utilization) / 2
           : 50;
+      // A link animates only when neither endpoint has a downed NVLink. This
+      // mirrors the red/dashed "down" rendering (sourceHasDown || targetHasDown)
+      // in the dynamic-update effect, so live data flow never traverses a link
+      // that is drawn as down.
+      const sourceHasDown =
+        sourceGpu?.nvlinks.some((l) => l.status !== "Active") ?? false;
+      const targetHasDown =
+        targetGpu?.nvlinks.some((l) => l.status !== "Active") ?? false;
       const isActive =
-        sourceGpu?.nvlinks.some((l) => l.status === "Active") ?? true;
+        !!sourceGpu && !!targetGpu && !sourceHasDown && !targetHasDown;
 
       links.push({
         id: `nvlink-${conn.from}-${conn.to}`,
