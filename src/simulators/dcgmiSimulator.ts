@@ -347,6 +347,17 @@ export class DcgmiSimulator extends BaseSimulator {
       "|\n";
     output += DOUBLE_BORDER + "\n";
 
+    // Even a quick (-r 1) diag inspects retired pages / row-remap state and the
+    // GPU memory subsystem, so an active uncorrectable (double-bit) ECC error --
+    // or a row-remap/double-bit XID -- surfaces here, consistent with what
+    // nvidia-smi reports in the "Volatile Uncorr. ECC" column and `health -c`.
+    const ROW_REMAP_XID_CODES = new Set([48, 63, 64]); // double-bit ECC / row remap failures
+    const hasUncorrectableEcc = gpus.some((g) => g.eccErrors.doubleBit > 0);
+    const hasRowRemapFault = gpus.some((g) =>
+      g.xidErrors.some((xid) => ROW_REMAP_XID_CODES.has(xid.code)),
+    );
+    const memoryFault = hasUncorrectableEcc || hasRowRemapFault;
+
     const tests = [
       { name: "Deployment", desc: "Blacklist", pass: true },
       { name: "Deployment", desc: "NVML Library", pass: true },
@@ -354,9 +365,13 @@ export class DcgmiSimulator extends BaseSimulator {
       { name: "Deployment", desc: "Permissions and OS Blocks", pass: true },
       { name: "Deployment", desc: "Persistence Mode", pass: true },
       { name: "Deployment", desc: "Environment Variables", pass: true },
-      { name: "Deployment", desc: "Page Retirement/Row Remap", pass: true },
+      {
+        name: "Deployment",
+        desc: "Page Retirement/Row Remap",
+        pass: !memoryFault,
+      },
       { name: "Deployment", desc: "Graphics Processes", pass: true },
-      { name: "Hardware", desc: "GPU Memory", pass: true },
+      { name: "Hardware", desc: "GPU Memory", pass: !memoryFault },
       { name: "Hardware", desc: "Pulse Test", pass: true },
     ];
 
