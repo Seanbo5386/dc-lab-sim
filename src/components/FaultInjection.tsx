@@ -544,8 +544,8 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
         )}
 
         {/* Target Node + GPU Selection */}
-        <div className="flex items-center gap-4 mb-6 p-3 bg-gray-900/50 rounded-lg border border-gray-700">
-          <div className="flex items-center gap-2 text-sm min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-6 p-3 bg-gray-900/50 rounded-lg border border-gray-700">
+          <div className="flex items-center gap-2 text-sm min-w-0 sm:flex-1">
             <label
               className="text-gray-400 shrink-0"
               htmlFor="sandbox-node-select"
@@ -557,7 +557,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
               aria-label="Sandbox target node"
               value={selectedNode}
               onChange={(e) => setSelectedNode(e.target.value)}
-              className="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-nvidia-green font-mono focus:outline-none focus:border-nvidia-green"
+              className="min-w-0 flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-nvidia-green font-mono focus:outline-none focus:border-nvidia-green"
             >
               {effectiveCluster.nodes.map((n) => (
                 <option key={n.id} value={n.id}>
@@ -566,8 +566,8 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
               ))}
             </select>
           </div>
-          <div className="h-4 w-px bg-gray-700" />
-          <div className="flex items-center gap-2 flex-1">
+          <div className="hidden sm:block h-4 w-px bg-gray-700" />
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <label
               className="text-sm text-gray-400 whitespace-nowrap"
               htmlFor="sandbox-gpu-select"
@@ -579,7 +579,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
               aria-label="Sandbox target GPU"
               value={selectedGPU}
               onChange={(e) => setSelectedGPU(Number(e.target.value))}
-              className="bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-nvidia-green"
+              className="min-w-0 flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-1.5 text-sm text-gray-100 focus:outline-none focus:border-nvidia-green"
             >
               {effectiveCluster.nodes
                 .find((n) => n.id === selectedNode)
