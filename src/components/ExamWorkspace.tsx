@@ -498,10 +498,8 @@ export function ExamWorkspace({
                             <div className="w-5 h-5 rounded-full border-2 border-gray-600" />
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-gray-300 break-words">
-                            {choice}
-                          </span>
+                        <div className="flex-1 min-w-0 break-words">
+                          <span className="text-gray-300">{choice}</span>
                           {isCorrectChoice && (
                             <span className="ml-2 text-sm text-green-400 font-semibold">
                               ✓ Correct Answer

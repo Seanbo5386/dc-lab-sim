@@ -567,7 +567,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
             </select>
           </div>
           <div className="hidden sm:block h-4 w-px bg-gray-700" />
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex items-center gap-2 sm:flex-1 min-w-0">
             <label
               className="text-sm text-gray-400 whitespace-nowrap"
               htmlFor="sandbox-gpu-select"
