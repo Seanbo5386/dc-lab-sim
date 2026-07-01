@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSimulationStore } from "@/store/simulationStore";
 import { useLearningStore } from "@/store/learningStore";
 import {
@@ -98,6 +98,19 @@ export function ExamWorkspace({
   const [showResults, setShowResults] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [examTimer, setExamTimer] = useState<ExamTimer | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Reset scroll position when moving between questions. On mobile the question
+  // body and the stacked navigation share one vertical scroller, so React would
+  // otherwise preserve scrollTop and leave the newly selected question above the
+  // viewport. Also resets the inner question pane used on desktop.
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.scrollTop = 0;
+    const questionPane = el.firstElementChild as HTMLElement | null;
+    if (questionPane) questionPane.scrollTop = 0;
+  }, [currentQuestionIdx]);
 
   // Load questions on mount
   useEffect(() => {
@@ -328,7 +341,7 @@ export function ExamWorkspace({
                             {domainCommands.map((cmd, idx) => (
                               <div
                                 key={idx}
-                                className="font-mono text-sm text-gray-300 bg-black rounded px-3 py-1"
+                                className="font-mono text-sm text-gray-300 bg-black rounded px-3 py-1 break-words"
                               >
                                 {cmd}
                               </div>
@@ -342,7 +355,7 @@ export function ExamWorkspace({
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={handleExit}
                 className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-6 py-3 rounded font-semibold transition-colors"
@@ -403,7 +416,7 @@ export function ExamWorkspace({
       <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
         <div className="bg-gray-900 rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col border border-green-500">
           {/* Header */}
-          <div className="bg-gray-800 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+          <div className="bg-gray-800 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-700 flex items-center justify-between gap-3">
             <div>
               <h2 className="text-xl font-bold text-green-400">Review Mode</h2>
               <p className="text-sm text-gray-400 mt-1">
@@ -442,9 +455,12 @@ export function ExamWorkspace({
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 flex overflow-hidden">
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden"
+          >
             {/* Question Area */}
-            <div className="flex-1 overflow-y-auto p-8">
+            <div className="flex-none lg:flex-1 lg:overflow-y-auto p-4 sm:p-6 lg:p-8">
               {/* Domain Badge */}
               <div className="inline-block bg-blue-900 text-blue-300 text-xs px-3 py-1 rounded-full mb-4">
                 {currentQuestion.domain.toUpperCase()}
@@ -498,7 +514,7 @@ export function ExamWorkspace({
                             <div className="w-5 h-5 rounded-full border-2 border-gray-600" />
                           )}
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0 break-words">
                           <span className="text-gray-300">{choice}</span>
                           {isCorrectChoice && (
                             <span className="ml-2 text-sm text-green-400 font-semibold">
@@ -529,7 +545,7 @@ export function ExamWorkspace({
             </div>
 
             {/* Sidebar - Question Navigation */}
-            <div className="w-80 border-l border-gray-700 bg-gray-850 p-6 overflow-y-auto">
+            <div className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-gray-700 bg-gray-850 p-4 lg:p-6 lg:overflow-y-auto">
               <h4 className="text-sm font-semibold text-gray-400 mb-4">
                 QUESTION NAVIGATION
               </h4>
@@ -599,7 +615,7 @@ export function ExamWorkspace({
           </div>
 
           {/* Footer Navigation */}
-          <div className="bg-gray-800 px-6 py-4 border-t border-gray-700 flex items-center justify-between">
+          <div className="bg-gray-800 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-700 flex items-center justify-between gap-2">
             <button
               onClick={() =>
                 setCurrentQuestionIdx(Math.max(0, currentQuestionIdx - 1))
@@ -648,18 +664,18 @@ export function ExamWorkspace({
     <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <div className="bg-gray-900 rounded-lg shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col border border-green-500">
         {/* Header */}
-        <div className="bg-gray-800 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-green-400">
+        <div className="bg-gray-800 px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-700 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-xl font-bold text-green-400">
               NCP-AII Practice Exam
             </h2>
             <p className="text-sm text-gray-400 mt-1">
               Question {currentQuestionIdx + 1} of {questions.length}
             </p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <div
-              className={`flex items-center gap-2 px-4 py-2 rounded ${timeRemaining < 300 ? "bg-red-900 text-red-300" : "bg-gray-700 text-gray-300"}`}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded ${timeRemaining < 300 ? "bg-red-900 text-red-300" : "bg-gray-700 text-gray-300"}`}
             >
               <Clock className="w-5 h-5" />
               <span className="font-mono font-bold">
@@ -689,9 +705,12 @@ export function ExamWorkspace({
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex overflow-hidden">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden"
+        >
           {/* Question Area */}
-          <div className="flex-1 overflow-y-auto p-8">
+          <div className="flex-none lg:flex-1 lg:overflow-y-auto p-4 sm:p-6 lg:p-8">
             {/* Domain Badge */}
             <div className="inline-block bg-blue-900 text-blue-300 text-xs px-3 py-1 rounded-full mb-4">
               {currentQuestion.domain.toUpperCase()}
@@ -741,7 +760,9 @@ export function ExamWorkspace({
                         }}
                         className="mt-1"
                       />
-                      <span className="text-gray-300 flex-1">{choice}</span>
+                      <span className="text-gray-300 flex-1 min-w-0 break-words">
+                        {choice}
+                      </span>
                     </div>
                   </label>
                 );
@@ -756,7 +777,7 @@ export function ExamWorkspace({
           </div>
 
           {/* Sidebar - Question Navigation */}
-          <div className="w-80 border-l border-gray-700 bg-gray-850 p-6 overflow-y-auto">
+          <div className="w-full lg:w-80 shrink-0 border-t lg:border-t-0 lg:border-l border-gray-700 bg-gray-850 p-4 lg:p-6 lg:overflow-y-auto">
             <h4 className="text-sm font-semibold text-gray-400 mb-4">
               QUESTION NAVIGATION
             </h4>
@@ -827,7 +848,7 @@ export function ExamWorkspace({
         </div>
 
         {/* Footer Navigation */}
-        <div className="bg-gray-800 px-6 py-4 border-t border-gray-700 flex items-center justify-between">
+        <div className="bg-gray-800 px-4 sm:px-6 py-3 sm:py-4 border-t border-gray-700 flex items-center justify-between gap-2">
           <button
             onClick={() =>
               setCurrentQuestionIdx(Math.max(0, currentQuestionIdx - 1))
