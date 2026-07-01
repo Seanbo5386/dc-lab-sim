@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSimulationStore } from "@/store/simulationStore";
 import { useLearningStore } from "@/store/learningStore";
 import {
@@ -98,6 +98,19 @@ export function ExamWorkspace({
   const [showResults, setShowResults] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [examTimer, setExamTimer] = useState<ExamTimer | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Reset scroll position when moving between questions. On mobile the question
+  // body and the stacked navigation share one vertical scroller, so React would
+  // otherwise preserve scrollTop and leave the newly selected question above the
+  // viewport. Also resets the inner question pane used on desktop.
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    el.scrollTop = 0;
+    const questionPane = el.firstElementChild as HTMLElement | null;
+    if (questionPane) questionPane.scrollTop = 0;
+  }, [currentQuestionIdx]);
 
   // Load questions on mount
   useEffect(() => {
@@ -328,7 +341,7 @@ export function ExamWorkspace({
                             {domainCommands.map((cmd, idx) => (
                               <div
                                 key={idx}
-                                className="font-mono text-sm text-gray-300 bg-black rounded px-3 py-1 break-all"
+                                className="font-mono text-sm text-gray-300 bg-black rounded px-3 py-1 break-words"
                               >
                                 {cmd}
                               </div>
@@ -442,7 +455,10 @@ export function ExamWorkspace({
           </div>
 
           {/* Main Content */}
-          <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden">
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden"
+          >
             {/* Question Area */}
             <div className="flex-none lg:flex-1 lg:overflow-y-auto p-4 sm:p-6 lg:p-8">
               {/* Domain Badge */}
@@ -689,7 +705,10 @@ export function ExamWorkspace({
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-y-auto lg:overflow-hidden"
+        >
           {/* Question Area */}
           <div className="flex-none lg:flex-1 lg:overflow-y-auto p-4 sm:p-6 lg:p-8">
             {/* Domain Badge */}
