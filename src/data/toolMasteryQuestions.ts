@@ -145,13 +145,13 @@ GPU 0000:3B:00.0
     questionText: "What does the -r flag control in the dcgmi diag command?",
     choices: [
       "The report output format",
-      "The diagnostic run level (1=quick, 2=medium, 3=long)",
+      "The diagnostic run level (1=quick, 2=medium, 3=long, 4=xlong)",
       "Whether to reset GPU state before running diagnostics",
       "The number of times to repeat each test",
     ],
     correctAnswer: 1,
     explanation:
-      "dcgmi diag -r specifies the diagnostic run level. Level 1 runs quick deployment tests (seconds). Level 2 adds medium-length stress tests (minutes). Level 3 runs comprehensive long-duration tests including extended memory and compute stress tests that can take 15+ minutes per GPU.",
+      "dcgmi diag -r specifies the diagnostic run level. Level 1 runs quick deployment checks (seconds). Level 2 adds PCIe and GPU memory tests (~2 min). Level 3 runs the long stress suite — SM stress, targeted stress, memory bandwidth (~30 min). Level 4 (xlong) adds the longest suites including the Pulse Test on supported GPUs (1+ hours).",
     examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
   },
   {
@@ -2642,16 +2642,16 @@ const diagnosticsQuestions: ToolMasteryQuestion[] = [
     category: "conceptual",
     difficulty: "beginner",
     questionText:
-      "What are the three diagnostic levels available in dcgmi diag and how do they differ?",
+      "Which diagnostic run levels does dcgmi diag support, and how do they differ?",
     choices: [
       "Levels 1, 2, 3: quick GPU info, driver check, full hardware scan",
-      "Levels 1, 2, 3: quick deployment check (seconds), medium stress tests (minutes), comprehensive long-duration tests (15+ minutes) including PCIe, memory, compute, and NVLink stress",
+      "Levels 1-4: quick deployment checks (seconds), PCIe and memory tests (~2 min), long stress suite including SM stress and memory bandwidth (~30 min), and extended/xlong suite with Pulse Test on supported GPUs (1+ hours)",
       "Levels A, B, C: basic, standard, advanced",
       "Levels 1, 2, 3: single GPU, multi-GPU, full system",
     ],
     correctAnswer: 1,
     explanation:
-      "dcgmi diag -r 1 runs quick deployment tests in seconds (software/driver verification, basic GPU checks). -r 2 adds medium-length stress tests lasting a few minutes. -r 3 runs the full comprehensive suite including extended memory bandwidth, PCIe stress, NVLink bandwidth, and compute stress tests that can take 15+ minutes per GPU. Level 3 is recommended for pre-deployment validation.",
+      "dcgmi diag -r supports four run levels. -r 1 runs quick software/deployment checks in seconds. -r 2 adds PCIe and GPU memory tests (~2 min). -r 3 runs the long stress suite — SM stress, targeted stress, and memory bandwidth tests (~30 min) — and is the standard pre-deployment validation level. -r 4 (xlong) adds the longest test suites including the Pulse Test on supported GPUs and can take 1+ hours.",
     examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
   },
   {
