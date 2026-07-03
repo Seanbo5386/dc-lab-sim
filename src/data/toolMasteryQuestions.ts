@@ -274,7 +274,7 @@ GPU 3       83      0.94    0.86`,
     ],
     correctAnswer: 1,
     explanation:
-      "nvsm show health displays the system-wide health status of a DGX system, including GPU, NVLink, InfiniBand, storage, and other subsystem statuses. nvsm (NVIDIA System Management) is the fleet management CLI specific to DGX systems and requires root privileges.",
+      "nvsm show health displays the system-wide health status of a DGX system, including GPU, NVLink, InfiniBand, storage, and other subsystem statuses. nvsm (NVIDIA System Management) is the node-local system management CLI for DGX systems and requires root privileges.",
     examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
   },
   {
@@ -286,14 +286,14 @@ GPU 3       83      0.94    0.86`,
     questionText:
       "What distinguishes nvsm from nvidia-smi and dcgmi in a DGX BasePOD environment?",
     choices: [
-      "nvsm can only monitor GPUs while nvidia-smi and dcgmi can monitor all components",
-      "nvsm provides fleet-level health management across multiple DGX nodes, while nvidia-smi and dcgmi are single-node tools",
+      "nvsm can only monitor GPUs while nvidia-smi and dcgmi monitor all components",
+      "nvsm performs whole-system health checks on the local DGX node (GPUs plus storage, networking, PSUs, chassis), while nvidia-smi and dcgmi are GPU-focused",
       "nvsm is a userspace tool while nvidia-smi and dcgmi require root privileges",
-      "nvsm replaces nvidia-smi and dcgmi entirely on DGX systems",
+      "nvsm provides centralized multi-node fleet management for BasePOD",
     ],
     correctAnswer: 1,
     explanation:
-      "nvsm is designed for managing multiple DGX systems in a BasePOD or SuperPOD configuration. It aggregates health data across the entire DGX fleet and provides centralized management. nvidia-smi and dcgmi operate at the single-node level. nvsm also monitors non-GPU subsystems like storage, networking, and chassis components specific to DGX hardware.",
+      "nvsm's differentiator is breadth on a single node: it checks the entire DGX system including non-GPU subsystems (storage, networking, PSUs, chassis) that nvidia-smi and dcgmi do not cover. The last option is a common misconception - centralized multi-node fleet management for BasePOD/SuperPOD is Base Command Manager (BCM), not nvsm.",
     examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
   },
   {
@@ -529,16 +529,16 @@ Health Monitor Report for group 1
     category: "best-practice",
     difficulty: "advanced",
     questionText:
-      "In a DGX SuperPOD deployment with 20 DGX nodes, what is the most effective way to use nvsm for fleet monitoring?",
+      "In a DGX SuperPOD deployment with 20 DGX nodes, which tool provides centralized fleet-level health monitoring, and what is nvsm's role?",
     choices: [
-      "SSH into each node individually and run nvsm show health",
-      "Use nvsm's centralized fleet management to aggregate health data across all nodes and set up automated alerts for degraded components",
-      "Rely solely on nvidia-smi on each node",
-      "Only check nvsm when a user reports a problem",
+      "nvsm aggregates health across all nodes from a central management pane",
+      "Base Command Manager (BCM) provides fleet-level monitoring; nvsm performs node-local whole-system health checks on each DGX",
+      "nvidia-smi run with the --fleet flag",
+      "dcgmi discovery -l executed against the fabric",
     ],
     correctAnswer: 1,
     explanation:
-      "nvsm is specifically designed for fleet-level management in DGX BasePOD and SuperPOD deployments. It can aggregate health status across all DGX nodes from a central point, providing a single-pane-of-glass view of the entire cluster. Automated alerting ensures degraded components are caught early. This proactive approach prevents cascading failures and reduces unplanned downtime across the fleet.",
+      "Fleet-level monitoring and management for BasePOD/SuperPOD is Base Command Manager (BCM). nvsm is node-local: it validates the full DGX system (GPUs, NVSwitch, storage, networking, chassis) on the node where it runs and exposes per-node health that external DCIM/monitoring stacks can poll. There is no nvsm central aggregation pane and no nvidia-smi --fleet flag.",
     examRelevance: "NCP-AII Domain 1: Systems & Server Bring-Up",
   },
 ];

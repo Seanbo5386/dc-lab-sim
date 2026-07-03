@@ -72,22 +72,22 @@
     {
       "id": "gpu-mon-q4",
       "familyId": "gpu-monitoring",
-      "scenario": "You manage 50 DGX nodes in a BasePOD cluster and need to quickly check the overall health status of all GPU systems from a central location.",
+      "scenario": "You are logged into a single DGX node that is reporting degraded health. You want one command that checks GPUs, NVLink, storage, networking, and other chassis subsystems on this node.",
       "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
       "correctAnswer": "nvsm",
-      "explanation": "nvsm (NVIDIA System Management) is specifically designed for fleet management of multiple DGX systems. It provides cluster-wide health views and centralized management for DGX BasePOD environments.",
+      "explanation": "nvsm (NVIDIA System Management) is the DGX node-local health framework: 'nvsm show health' checks the whole system - GPUs, NVSwitch/NVLink, storage, networking, PSUs, and chassis. Fleet-wide monitoring across many nodes is Base Command Manager (BCM)'s job, not nvsm's.",
       "whyNotOthers": [
         {
           "tool": "nvidia-smi",
-          "reason": "nvidia-smi runs on individual nodes; you'd need to SSH to each of the 50 nodes separately"
+          "reason": "nvidia-smi reports GPU state only - it does not check storage, networking, PSUs, or chassis subsystems"
         },
         {
           "tool": "nvtop",
-          "reason": "nvtop is for single-node monitoring only and has no multi-node capabilities"
+          "reason": "nvtop is an interactive GPU utilization viewer, not a health-check tool"
         },
         {
           "tool": "dcgmi",
-          "reason": "dcgmi runs per-node; while it can be deployed across nodes, nvsm provides the integrated DGX fleet view"
+          "reason": "dcgmi health focuses on GPU subsystems; it does not cover DGX storage/network/chassis health"
         }
       ],
       "difficulty": "advanced"
@@ -599,22 +599,22 @@
     {
       "id": "gpu-mon-q9",
       "familyId": "gpu-monitoring",
-      "scenario": "After a firmware update across your SuperPOD, you need to verify that all 20 DGX nodes report healthy GPU and NVSwitch status without SSHing into each node individually.",
+      "scenario": "After a firmware update on a DGX node, you want a single node-local command that verifies the GPUs, NVSwitches, storage, and other subsystems all report healthy.",
       "choices": ["nvidia-smi", "nvtop", "dcgmi", "nvsm"],
       "correctAnswer": "nvsm",
-      "explanation": "nvsm provides centralized fleet management for DGX SuperPOD and BasePOD deployments. It can query health status across all nodes from a single management interface without requiring individual SSH sessions.",
+      "explanation": "nvsm show health runs on the DGX node and validates GPU, NVSwitch/NVLink, storage, network, and chassis subsystem health in one pass. To verify many nodes fleet-wide you would drive this per node or use Base Command Manager (BCM) - nvsm itself is node-local.",
       "whyNotOthers": [
         {
           "tool": "nvidia-smi",
-          "reason": "nvidia-smi operates on a single node; checking 20 nodes would require SSHing to each one"
+          "reason": "nvidia-smi shows GPU state but does not validate NVSwitch, storage, or chassis subsystems"
         },
         {
           "tool": "nvtop",
-          "reason": "nvtop is an interactive single-node tool with no multi-node or remote capabilities"
+          "reason": "nvtop is an interactive single-node utilization viewer with no health-check capability"
         },
         {
           "tool": "dcgmi",
-          "reason": "dcgmi runs per-node; while DCGM can be deployed as a cluster service, nvsm is the native DGX fleet management tool"
+          "reason": "dcgmi covers GPU health; nvsm covers the whole DGX system including non-GPU subsystems"
         }
       ],
       "difficulty": "intermediate"
