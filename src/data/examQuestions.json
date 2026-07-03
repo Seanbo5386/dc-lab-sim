@@ -15,16 +15,16 @@
     {
       "id": "q001",
       "domain": "domain1",
-      "questionText": "Which command is used to view the BIOS version on a DGX system via IPMI?",
+      "questionText": "Which command displays the system BIOS version on a DGX system?",
       "type": "multiple-choice",
       "choices": [
+        "dmidecode -s bios-version",
         "ipmitool fru print 0",
-        "ipmitool bios version",
         "ipmitool mc info",
-        "dmidecode -t bios"
+        "nvidia-smi -q"
       ],
       "correctAnswer": 0,
-      "explanation": "'ipmitool fru print 0' displays Field Replaceable Unit information including BIOS version. While 'dmidecode -t bios' also works from the OS, the question specifically asks about IPMI access.",
+      "explanation": "'dmidecode -s bios-version' reads the BIOS version from the SMBIOS tables. 'ipmitool fru print 0' shows FRU inventory data (board/product/serials), and 'ipmitool mc info' reports the BMC firmware version - neither contains the system BIOS version.",
       "points": 1,
       "difficulty": "beginner"
     },
@@ -676,16 +676,16 @@
     {
       "id": "q047",
       "domain": "domain4",
-      "questionText": "What does a low 'busBW' relative to 'algBW' in NCCL tests indicate?",
+      "questionText": "In nccl-tests output, what is the relationship between busBW and algBW for all-reduce?",
       "type": "multiple-choice",
       "choices": [
-        "Good performance - efficient algorithm",
-        "Poor performance - interconnect saturation",
-        "Memory bandwidth bottleneck",
-        "CPU bottleneck"
+        "busBW = algBW x 2(N-1)/N - a fixed conversion factor, so busBW can be compared against hardware link bandwidth",
+        "busBW varies independently of algBW depending on algorithm efficiency",
+        "busBW is always half of algBW",
+        "busBW measures PCIe traffic while algBW measures NVLink traffic"
       ],
       "correctAnswer": 0,
-      "explanation": "algBW is application-level bandwidth, busBW is actual data transferred. For all-reduce, each byte is sent/received once but travels across links, so busBW is typically 2x algBW. Lower ratio means efficient ring algorithm.",
+      "explanation": "busBW is derived from algBW by the fixed factor 2(N-1)/N for all-reduce (nccl-tests PERFORMANCE.md). It represents the data rate on the busiest link, so a healthy run's busBW should approach the interconnect's physical bandwidth. Judge performance by comparing busBW against the link ceiling - never busBW against algBW.",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -1254,10 +1254,10 @@
         "ibportstate <lid> <port> reset",
         "perfquery -x -R",
         "ibclearcounters",
-        "Both A and B"
+        "Both B and C"
       ],
       "correctAnswer": 3,
-      "explanation": "Use 'perfquery -x -R' to reset extended performance counters, or 'ibportstate <lid> <port> reset' to reset port state. Clearing counters before tests helps isolate new errors. Note: ibportstate requires the LID and port number as positional arguments.",
+      "explanation": "'perfquery -x -R' resets the extended counters on one port, and 'ibclearcounters' clears port counters fabric-wide. 'ibportstate <lid> <port> reset' performs a link reset - it retrains the link (disruptive) and does NOT clear PMA error counters.",
       "points": 1,
       "difficulty": "intermediate"
     },
@@ -1883,11 +1883,11 @@
     {
       "id": "q124",
       "domain": "domain4",
-      "questionText": "What is the theoretical peak FP16 Tensor Core performance of an H100 SXM GPU?",
+      "questionText": "What is the theoretical peak FP16 Tensor Core performance (with sparsity) of an H100 SXM GPU?",
       "type": "multiple-choice",
       "choices": ["312 TFLOPS", "989 TFLOPS", "1,979 TFLOPS", "3,958 TFLOPS"],
       "correctAnswer": 2,
-      "explanation": "H100 SXM achieves 1,979 TFLOPS for FP16 Tensor Core operations (with sparsity: 3,958 TFLOPS). This is the peak theoretical performance for AI training.",
+      "explanation": "H100 SXM FP16 Tensor Core peak is 989.4 TFLOPS dense and 1,979 TFLOPS with structured sparsity (the headline figure this question asks for). 3,958 TFLOPS is the FP8 Tensor Core sparsity figure, not FP16.",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -1956,8 +1956,8 @@
         "Four ports are active",
         "Link speed is 4 Gbps"
       ],
-      "correctAnswer": 1,
-      "explanation": "HDR InfiniBand should show '4x' for full 200Gb/s or may use NDR at higher speeds. If expecting wider link (like NDR 400G needing 4x), 4x may be correct. Context matters.",
+      "correctAnswer": 0,
+      "explanation": "HDR is 4 lanes x 50 Gb/s = 200 Gb/s, so 'Link Width Active: 4x' is the full, normal width for an HDR port. A degraded link shows 1x or 2x and warrants cable/port investigation.",
       "points": 1,
       "difficulty": "advanced"
     },
