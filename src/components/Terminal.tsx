@@ -1310,8 +1310,8 @@ export const Terminal: React.FC<TerminalProps> = ({
                 parsed.subcommands.length === 0,
               )
             ) {
-              const newShellState = {
-                mode: command,
+              const newShellState: ShellState = {
+                mode: command as ShellState["mode"],
                 prompt: result.prompt || "",
               };
               shellStateRef.current = newShellState;
