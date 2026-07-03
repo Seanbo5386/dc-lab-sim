@@ -2370,16 +2370,16 @@
     {
       "id": "q156",
       "domain": "domain5",
-      "questionText": "What does XID error code 119 indicate?",
+      "questionText": "What does XID error code 62 indicate?",
       "type": "multiple-choice",
       "choices": [
-        "GSP RPC timeout - the GPU System Processor stopped responding to the driver",
+        "Internal micro-controller halt - the GPU's management processor stopped",
         "NVLink flow control failure",
         "VRAM over-temperature shutdown",
         "PCIe replay rate exceeded"
       ],
       "correctAnswer": 0,
-      "explanation": "XID 119 indicates a GSP (GPU System Processor) RPC timeout: the driver's request to GSP firmware timed out. Mitigation: reset the GPU or reboot; if persistent, check driver/firmware versions per NVIDIA guidance.",
+      "explanation": "XID 62 indicates an internal micro-controller halt. It usually requires a GPU reset or system reboot and often accompanies hardware faults - collect nvidia-bug-report.sh output before resetting.",
       "points": 1,
       "difficulty": "advanced"
     },
