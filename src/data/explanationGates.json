@@ -350,13 +350,13 @@
       "familyId": "gpu-monitoring",
       "question": "What command attempts to reset a GPU that has become unresponsive?",
       "choices": [
-        "nvidia-smi -r -i 0",
+        "nvidia-smi --reset-ecc -i 0",
         "nvidia-smi --gpu-reset -i 0",
         "nvidia-smi -pm 0 -i 0",
         "dcgmi reset -g 0"
       ],
       "correctAnswer": 1,
-      "explanation": "The 'nvidia-smi --gpu-reset -i <gpu_id>' command attempts to reset an unresponsive GPU. This terminates all processes using the GPU and reinitializes it. Note that this only works if the GPU is still on the PCIe bus."
+      "explanation": "The 'nvidia-smi --gpu-reset -i <gpu_id>' command (short form: -r) attempts to reset an unresponsive GPU. It terminates all processes using the GPU and reinitializes it, and only works if the GPU is still on the PCIe bus. '--reset-ecc' is not a real flag; ECC counter reset uses -p."
     },
     {
       "id": "gate-domain4-clusterkit",

@@ -161,7 +161,7 @@ GPU 0000:3B:00.0
     category: "conceptual",
     difficulty: "intermediate",
     questionText:
-      "In DCGM field groups, what does field ID 150 (DCGM_FI_PROF_SM_ACTIVE) measure?",
+      "In DCGM field groups, what does field ID 1002 (DCGM_FI_PROF_SM_ACTIVE) measure?",
     choices: [
       "The number of active CUDA streams on the GPU",
       "The ratio of cycles where at least one warp is active on a Streaming Multiprocessor",
@@ -170,7 +170,7 @@ GPU 0000:3B:00.0
     ],
     correctAnswer: 1,
     explanation:
-      "DCGM field ID 150 (DCGM_FI_PROF_SM_ACTIVE) measures the ratio of cycles where at least one warp is active across all SMs. A value below 1.0 indicates that some SMs are idle, suggesting the workload may not be fully utilizing the GPU compute resources. This is a key metric for GPU profiling.",
+      "DCGM_FI_PROF_SM_ACTIVE is field ID 1002 (the profiling fields are 1001-1014). It measures the ratio of cycles where at least one warp is active across all SMs; below 1.0 means some SMs are idle. Do not confuse it with field 150, which is DCGM_FI_DEV_GPU_TEMP (GPU temperature).",
     examRelevance: "NCP-AII Domain 4: Cluster Test & Verification",
   },
   {
@@ -180,8 +180,8 @@ GPU 0000:3B:00.0
     category: "output-interpretation",
     difficulty: "advanced",
     questionText: "What does this dcgmi dmon output indicate?",
-    codeSnippet: `$ dcgmi dmon -e 203,150,155 -d 1000
-#Entity   GPUTEMP   SMACT   FP32A
+    codeSnippet: `$ dcgmi dmon -e 150,1002,1007 -d 1000
+#Entity   GPUTMP   SMACT   FP32A
 GPU 0       82      0.95    0.87
 GPU 1       84      0.93    0.85
 GPU 2       91      0.12    0.03
@@ -194,7 +194,7 @@ GPU 3       83      0.94    0.86`,
     ],
     correctAnswer: 2,
     explanation:
-      "GPU 2 shows a concerning pattern: high temperature (91C) but extremely low SM activity (0.12) and almost no FP32 activity (0.03). On a healthy GPU under load, high temperature would correlate with high activity. This combination suggests a process may be stuck (spinning without doing useful compute) or there is a hardware issue causing thermal dissipation problems. Field IDs: 203=GPU Temperature, 150=SM Active, 155=FP32 Engine Active.",
+      "GPU 2 shows a concerning pattern: high temperature (91C) but extremely low SM activity (0.12) and almost no FP32 activity (0.03). On a healthy GPU under load, high temperature would correlate with high activity. This combination suggests a process may be stuck (spinning without doing useful compute) or there is a hardware issue causing thermal dissipation problems. Field IDs: 150=GPU Temperature (DCGM_FI_DEV_GPU_TEMP), 1002=SM Active (DCGM_FI_PROF_SM_ACTIVE), 1007=FP32 Engine Active (DCGM_FI_PROF_PIPE_FP32_ACTIVE).",
     examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
   },
   {
@@ -963,7 +963,7 @@ PortMulticastRcvPkts:............121`,
     category: "flags-options",
     difficulty: "intermediate",
     questionText:
-      "Which ibdiagnet flag collects port counters from all ports in the fabric?",
+      "Which ibdiagnet flag resets (clears) all port counters across the fabric?",
     choices: [
       "ibdiagnet --counters",
       "ibdiagnet --pc",
@@ -972,7 +972,7 @@ PortMulticastRcvPkts:............121`,
     ],
     correctAnswer: 1,
     explanation:
-      "ibdiagnet --pc (port counters) collects performance and error counters from every port discovered in the fabric. The counter data is saved to the ibdiagnet2.pm file in the output directory (/var/tmp/ibdiagnet2/). This is invaluable for identifying ports with high error rates across the entire fabric in a single sweep.",
+      "ibdiagnet --pc clears all fabric port counters - run it before a test window so subsequent error counts are fresh. Counter COLLECTION happens by default during ibdiagnet's port-counters stage (written to ibdiagnet2.pm in /var/tmp/ibdiagnet2/); --pm_pause_time controls the sampling window.",
     examRelevance: "NCP-AII Domain 2: Physical Layer Management",
   },
   {
@@ -2989,7 +2989,7 @@ GPU 7: OK - temp: 73C - 18219 Gflop/s`,
     ],
     correctAnswer: 1,
     explanation:
-      "XID 48 is a double-bit (uncorrectable) ECC error. Unlike single-bit errors that ECC corrects transparently, double-bit errors corrupt data and typically cause the CUDA context to be destroyed. Repeated XID 48 errors on the same GPU indicate degrading memory cells. The affected memory pages should be retired (nvidia-smi --retire-pages), and if errors persist, the GPU should be RMA'd.",
+      "XID 48 is a double-bit (uncorrectable) ECC error. Unlike single-bit errors that ECC corrects transparently, double-bit errors corrupt data and typically cause the CUDA context to be destroyed. Repeated XID 48 errors on the same GPU indicate degrading memory cells. The driver retires/remaps affected memory automatically (page retirement pre-A100, row remapping on A100+). Verify with 'nvidia-smi -q -d ROW_REMAPPER' and reset/reboot to apply pending remaps; if errors persist, RMA the GPU.",
     examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
   },
   {
@@ -3517,7 +3517,7 @@ const xidDiagnosticsQuestions: ToolMasteryQuestion[] = [
     ],
     correctAnswer: 2,
     explanation:
-      "XID 64 indicates ECC errors combined with a GPU exception, meaning compute operations are being corrupted. When a level-3 DCGM diagnostic also fails, this confirms the GPU cannot reliably perform computations. The combination of runtime XID 64 errors and diagnostic failure is strong evidence of hardware degradation. The GPU should be replaced.",
+      "XID 64 indicates a row-remapping failure: after an uncorrectable memory error, the GPU could not record the row remap in InfoROM. Memory errors are occurring AND the containment mechanism itself is failing. When a level-3 DCGM diagnostic also fails, hardware degradation is confirmed - replace the GPU.",
     examRelevance: "NCP-AII Domain 5: Troubleshooting & Optimization",
   },
   {
