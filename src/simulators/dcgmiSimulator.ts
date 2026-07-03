@@ -359,7 +359,7 @@ export class DcgmiSimulator extends BaseSimulator {
     const memoryFault = hasUncorrectableEcc || hasRowRemapFault;
 
     const tests = [
-      { name: "Deployment", desc: "Blacklist", pass: true },
+      { name: "Deployment", desc: "Denylist", pass: true },
       { name: "Deployment", desc: "NVML Library", pass: true },
       { name: "Deployment", desc: "CUDA Main Library", pass: true },
       { name: "Deployment", desc: "Permissions and OS Blocks", pass: true },
@@ -371,27 +371,33 @@ export class DcgmiSimulator extends BaseSimulator {
         pass: !memoryFault,
       },
       { name: "Deployment", desc: "Graphics Processes", pass: true },
-      { name: "Hardware", desc: "GPU Memory", pass: !memoryFault },
-      { name: "Hardware", desc: "Pulse Test", pass: true },
+      { name: "Deployment", desc: "Inforom", pass: true },
     ];
 
     if (mode >= 2) {
       tests.push(
         { name: "Integration", desc: "PCIe", pass: true },
-        { name: "Performance", desc: "SM Stress", pass: true },
-        { name: "Performance", desc: "Targeted Stress", pass: true },
+        { name: "Hardware", desc: "GPU Memory", pass: !memoryFault },
       );
     }
 
     if (mode >= 3) {
       tests.push(
+        { name: "Performance", desc: "SM Stress", pass: true },
+        { name: "Performance", desc: "Targeted Stress", pass: true },
         { name: "Performance", desc: "Memory Bandwidth", pass: true },
-        { name: "Performance", desc: "Diagnostic", pass: true },
         {
           name: "Hardware",
           desc: "ECC Check",
           pass: gpus.every((g) => g.eccErrors.doubleBit === 0),
         },
+      );
+    }
+
+    if (mode >= 4) {
+      tests.push(
+        { name: "Hardware", desc: "Pulse Test", pass: true },
+        { name: "Performance", desc: "Diagnostic", pass: true },
       );
     }
 
@@ -464,9 +470,9 @@ export class DcgmiSimulator extends BaseSimulator {
     // Get mode from -r or --mode flag
     const mode = this.getFlagNumber(parsed, ["r", "mode"], 1);
 
-    if (mode < 1 || mode > 3) {
+    if (mode < 1 || mode > 4) {
       return this.createError(
-        "mode must be 1 (short), 2 (medium), or 3 (long)",
+        "mode must be 1 (short), 2 (medium), 3 (long), or 4 (xlong)",
       );
     }
 

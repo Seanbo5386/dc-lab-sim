@@ -199,7 +199,7 @@ describe("DcgmiSimulator", () => {
       expect(result.exitCode).toBe(0);
     });
 
-    it("should fail Page Retirement/Row Remap and GPU Memory at level 1 on uncorrectable ECC", () => {
+    it("should fail Page Retirement/Row Remap at level 1 on uncorrectable ECC", () => {
       // Mirror nvidia-smi's "Volatile Uncorr. ECC = 1": double-bit ECC error
       const state = vi.mocked(useSimulationStore.getState)();
       state.cluster.nodes[0].gpus[0].eccErrors = {
@@ -242,6 +242,30 @@ describe("DcgmiSimulator", () => {
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain("All tests passed successfully");
       expect(result.output).not.toContain("\x1b[31mFail\x1b[0m");
+    });
+
+    it("accepts diag run level 4 and includes the Pulse Test", () => {
+      const result = simulator.execute(parse("dcgmi diag -r 4"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Pulse Test");
+    });
+
+    it("rejects diag run level 5", () => {
+      const result = simulator.execute(parse("dcgmi diag -r 5"), context);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain(
+        "mode must be 1 (short), 2 (medium), 3 (long), or 4 (xlong)",
+      );
+    });
+
+    it("runs software-only checks at level 1 (no hardware/stress tests)", () => {
+      const result = simulator.execute(parse("dcgmi diag -r 1"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Denylist");
+      expect(result.output).toContain("Inforom");
+      expect(result.output).not.toContain("Pulse Test");
+      expect(result.output).not.toContain("GPU Memory");
+      expect(result.output).not.toContain("SM Stress");
     });
   });
 

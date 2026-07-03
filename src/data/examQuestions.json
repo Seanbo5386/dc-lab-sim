@@ -2957,11 +2957,11 @@
       "choices": [
         "dcgmi diag -r 1 (Quick - ~30 seconds)",
         "dcgmi diag -r 2 (Medium - ~2 minutes)",
-        "dcgmi diag -r 3 (Long - ~15 minutes)",
-        "dcgmi diag --nvlink-only (NVLink-specific run)"
+        "dcgmi diag -r 3 (Long - ~30 minutes)",
+        "dcgmi diag -r 4 (Extended/xlong - 1+ hours)"
       ],
-      "correctAnswer": [2],
-      "explanation": "NVLink stress and bandwidth tests are only included in level 3 (Long) diagnostics. Level 1 runs only basic health checks, and level 2 adds PCIe and short memory tests but does not include full NVLink bandwidth testing. Note: dcgmi diag supports only levels 1, 2, and 3; there is no level 4 or --nvlink-only flag.",
+      "correctAnswer": [2, 3],
+      "explanation": "Stress-level testing (including NVLink bandwidth) begins at run level 3 and continues in level 4 (extended/xlong, which adds the longest-running suites such as the Pulse Test on supported GPUs). Levels 1-2 cover deployment/software checks plus short PCIe and memory tests. dcgmi diag supports run levels 1-4; there is no --nvlink-only flag.",
       "points": 1,
       "difficulty": "intermediate"
     },
