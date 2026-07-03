@@ -1364,12 +1364,12 @@
       "type": "multiple-choice",
       "choices": [
         "Memory access violation",
-        "Contained ECC error - correctable error that was isolated",
+        "Contained uncorrectable ECC error - impact isolated to the affected application(s)",
         "Driver crash",
         "Thermal emergency"
       ],
       "correctAnswer": 1,
-      "explanation": "Xid 94 indicates a contained ECC error - the error was correctable and isolated to prevent data corruption. Monitor for increasing frequency which may indicate degrading memory.",
+      "explanation": "Xid 94 indicates a contained uncorrectable ECC error: an uncorrectable memory error occurred, but error containment isolated the impact to the affected application(s), which are terminated. The GPU remains usable. Correctable errors never raise Xid 94 — monitor row-remap status (nvidia-smi -q -d ROW_REMAPPER) and plan RMA if these recur.",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -2331,12 +2331,12 @@
       "type": "multiple-choice",
       "choices": [
         "GPU memory ECC error",
-        "Hardware watchdog timeout - GPU failed internal health check",
+        "Auxiliary power cable is not connected to the GPU board",
         "NVLink communication failure",
         "Display engine error"
       ],
       "correctAnswer": 1,
-      "explanation": "XID 54 indicates the GPU's internal hardware watchdog detected a timeout. This is more severe than XID 43 (external driver timeout) and typically requires a system reboot.",
+      "explanation": "XID 54 means auxiliary power is not connected to the GPU board. Check and reseat the GPU's auxiliary power cables (8-pin/12VHPWR). This matches NVIDIA's XID documentation and the simulator's own XID reference (xidErrors.ts).",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -2346,8 +2346,8 @@
       "questionText": "Which XID error code indicates NVLink training failure?",
       "type": "multiple-choice",
       "choices": ["XID 72", "XID 74", "XID 76", "XID 79"],
-      "correctAnswer": 2,
-      "explanation": "XID 76 indicates NVLink failed to complete link training. This is a physical connection problem requiring GPU reseat or hardware replacement.",
+      "correctAnswer": 1,
+      "explanation": "XID 74 is the NVLink error code, raised when NVLink link training or the connection fails — typically a physical problem: reseat the GPU/NVLink bridge or replace hardware. XID 72/76 are robust-channel copy-engine errors, and XID 79 means the GPU has fallen off the PCIe bus.",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -2370,16 +2370,16 @@
     {
       "id": "q156",
       "domain": "domain5",
-      "questionText": "XID 72 indicates what type of NVLink problem?",
+      "questionText": "What does XID error code 119 indicate?",
       "type": "multiple-choice",
       "choices": [
-        "Physical cable disconnection",
-        "Flow control credits exhausted or protocol error",
-        "ECC error on NVLink data path",
-        "Link training failure"
+        "GSP RPC timeout - the GPU System Processor stopped responding to the driver",
+        "NVLink flow control failure",
+        "VRAM over-temperature shutdown",
+        "PCIe replay rate exceeded"
       ],
-      "correctAnswer": 1,
-      "explanation": "XID 72 indicates NVLink flow control issues - congestion or protocol errors. It often precedes more severe NVLink errors and may indicate early link degradation.",
+      "correctAnswer": 0,
+      "explanation": "XID 119 indicates a GSP (GPU System Processor) RPC timeout: the driver's request to GSP firmware timed out. Mitigation: reset the GPU or reboot; if persistent, check driver/firmware versions per NVIDIA guidance.",
       "points": 1,
       "difficulty": "advanced"
     },
