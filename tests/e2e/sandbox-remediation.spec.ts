@@ -13,6 +13,7 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
+import { seedUiFlags } from "./setup/seedUiFlags";
 
 test.use({ viewport: { width: 1920, height: 1080 } });
 test.setTimeout(90_000);
@@ -23,27 +24,6 @@ const CMD_TIMEOUT = 8_000;
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Seed localStorage so the Spotlight Tour and Sandbox intro do not appear.
- * The tour fires after the welcome screen is dismissed for first-time users.
- * Must be called via addInitScript BEFORE page.goto().
- */
-async function seedStorage(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    // Mark the simulator tour as already seen so it doesn't block input
-    localStorage.setItem("ncp-aii-tour-simulator-seen", "true");
-    // Mark the sandbox intro as already seen to avoid the dismiss button
-    const learning = {
-      state: { sandboxIntroSeen: true },
-      version: 0,
-    };
-    localStorage.setItem(
-      "ncp-aii-learning-progress-v2",
-      JSON.stringify(learning),
-    );
-  });
-}
 
 /** Dismiss the welcome screen that appears on first load. */
 async function dismissWelcome(page: Page): Promise<void> {
@@ -103,7 +83,7 @@ async function getTerminalOutput(page: Page): Promise<string> {
 
 test.describe("Sandbox remediation", () => {
   test("inject XID hang -> gpu-reset recovers the GPU", async ({ page }) => {
-    await seedStorage(page);
+    await seedUiFlags(page, { keepWelcome: true });
     await page.goto("/");
     await dismissWelcome(page);
 
@@ -147,7 +127,7 @@ test.describe("Sandbox remediation", () => {
   test("severe ECC -> bug report + RMA gate -> Mark for RMA", async ({
     page,
   }) => {
-    await seedStorage(page);
+    await seedUiFlags(page, { keepWelcome: true });
     await page.goto("/");
     await dismissWelcome(page);
 
