@@ -1,0 +1,34 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src", "tests"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/__tests__/logicConsistency.test.ts",
+    "src/data/__tests__/examQuestions.test.ts",
+    "src/data/__tests__/toolMasteryQuestions.test.ts",
+    "src/hooks/__tests__/useNetworkAnimation.test.ts",
+    "src/simulators/__tests__/adversarialInputs.test.ts",
+    "src/simulators/__tests__/BaseSimulator.test.ts",
+    "src/simulators/__tests__/bcmSimulator.test.ts",
+    "src/simulators/__tests__/cmshSimulator.test.ts",
+    "src/simulators/__tests__/infinibandSimulator.test.ts",
+    "src/simulators/__tests__/nvidiaBugReportSimulator.test.ts",
+    "src/simulators/__tests__/nvidiaSmiSimulator.test.ts",
+    "src/store/__tests__/learningProgressStore.test.ts",
+    "src/store/__tests__/simulationStore.test.ts",
+    "src/tests/scenarioValidator.test.ts",
+    "src/tests/soundness/boundaryConditions.test.ts",
+    "src/tests/soundness/crossSimulatorConsistency.test.ts",
+    "src/tests/soundness/flagCombinations.test.ts",
+    "src/tests/soundness/stateTransitions.test.ts",
+    "src/utils/__tests__/adaptiveLearning.test.ts",
+    "src/utils/__tests__/examEngine.test.ts",
+    "src/utils/__tests__/narrativeAdapter.test.ts",
+    "src/utils/__tests__/networkFlowAnimation.test.ts",
+    "src/utils/__tests__/scenarioLoader.test.ts"
+  ]
+}

@@ -350,13 +350,13 @@
       "familyId": "gpu-monitoring",
       "question": "What command attempts to reset a GPU that has become unresponsive?",
       "choices": [
-        "nvidia-smi -r -i 0",
+        "nvidia-smi --reset-ecc -i 0",
         "nvidia-smi --gpu-reset -i 0",
         "nvidia-smi -pm 0 -i 0",
         "dcgmi reset -g 0"
       ],
       "correctAnswer": 1,
-      "explanation": "The 'nvidia-smi --gpu-reset -i <gpu_id>' command attempts to reset an unresponsive GPU. This terminates all processes using the GPU and reinitializes it. Note that this only works if the GPU is still on the PCIe bus."
+      "explanation": "The 'nvidia-smi --gpu-reset -i <gpu_id>' command (short form: -r) attempts to reset an unresponsive GPU. It terminates all processes using the GPU and reinitializes it, and only works if the GPU is still on the PCIe bus. '--reset-ecc' is not a real flag; ECC counter reset uses -p."
     },
     {
       "id": "gate-domain4-clusterkit",
@@ -404,15 +404,15 @@
       "id": "gate-domain4-dcgmi-diag",
       "scenarioId": "domain4-dcgmi-diag",
       "familyId": "diagnostics",
-      "question": "What is the difference between DCGM diagnostic levels 1, 2, and 3?",
+      "question": "What is the difference between DCGM diagnostic run levels 1-4?",
       "choices": [
         "They test different GPUs in the system",
-        "Level 1 is software checks, Level 2 adds short stress tests, Level 3 runs extended stress tests",
+        "Level 1 is software checks; level 2 adds short hardware tests; level 3 runs the stress suite; level 4 runs the longest extended suite",
         "They represent different GPU generations",
         "Higher levels test more GPU memory"
       ],
       "correctAnswer": 1,
-      "explanation": "DCGM Level 1 performs quick software and deployment checks. Level 2 adds short hardware stress tests (1-2 minutes). Level 3 runs comprehensive extended stress tests (10-15 minutes per GPU) for thorough hardware validation."
+      "explanation": "Level 1 (~seconds) runs software/deployment checks. Level 2 (~2 minutes) adds PCIe and GPU memory tests. Level 3 (~30 minutes) runs the stress suite (SM stress, targeted stress, memory bandwidth). Level 4 (xlong, 1+ hours) adds the extended suite including the Pulse Test on supported GPUs."
     },
     {
       "id": "gate-domain4-ai-validation",

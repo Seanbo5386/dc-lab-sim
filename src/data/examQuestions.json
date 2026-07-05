@@ -15,16 +15,16 @@
     {
       "id": "q001",
       "domain": "domain1",
-      "questionText": "Which command is used to view the BIOS version on a DGX system via IPMI?",
+      "questionText": "Which command displays the system BIOS version on a DGX system?",
       "type": "multiple-choice",
       "choices": [
+        "dmidecode -s bios-version",
         "ipmitool fru print 0",
-        "ipmitool bios version",
         "ipmitool mc info",
-        "dmidecode -t bios"
+        "nvidia-smi -q"
       ],
       "correctAnswer": 0,
-      "explanation": "'ipmitool fru print 0' displays Field Replaceable Unit information including BIOS version. While 'dmidecode -t bios' also works from the OS, the question specifically asks about IPMI access.",
+      "explanation": "'dmidecode -s bios-version' reads the BIOS version from the SMBIOS tables. 'ipmitool fru print 0' shows FRU inventory data (board/product/serials), and 'ipmitool mc info' reports the BMC firmware version - neither contains the system BIOS version.",
       "points": 1,
       "difficulty": "beginner"
     },
@@ -676,16 +676,16 @@
     {
       "id": "q047",
       "domain": "domain4",
-      "questionText": "What does a low 'busBW' relative to 'algBW' in NCCL tests indicate?",
+      "questionText": "In nccl-tests output, what is the relationship between busBW and algBW for all-reduce?",
       "type": "multiple-choice",
       "choices": [
-        "Good performance - efficient algorithm",
-        "Poor performance - interconnect saturation",
-        "Memory bandwidth bottleneck",
-        "CPU bottleneck"
+        "busBW = algBW x 2(N-1)/N - a fixed conversion factor, so busBW can be compared against hardware link bandwidth",
+        "busBW varies independently of algBW depending on algorithm efficiency",
+        "busBW is always half of algBW",
+        "busBW measures PCIe traffic while algBW measures NVLink traffic"
       ],
       "correctAnswer": 0,
-      "explanation": "algBW is application-level bandwidth, busBW is actual data transferred. For all-reduce, each byte is sent/received once but travels across links, so busBW is typically 2x algBW. Lower ratio means efficient ring algorithm.",
+      "explanation": "busBW is derived from algBW by the fixed factor 2(N-1)/N for all-reduce (nccl-tests PERFORMANCE.md). It represents the data rate on the busiest link, so a healthy run's busBW should approach the interconnect's physical bandwidth. Judge performance by comparing busBW against the link ceiling - never busBW against algBW.",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -1254,10 +1254,10 @@
         "ibportstate <lid> <port> reset",
         "perfquery -x -R",
         "ibclearcounters",
-        "Both A and B"
+        "Both B and C"
       ],
       "correctAnswer": 3,
-      "explanation": "Use 'perfquery -x -R' to reset extended performance counters, or 'ibportstate <lid> <port> reset' to reset port state. Clearing counters before tests helps isolate new errors. Note: ibportstate requires the LID and port number as positional arguments.",
+      "explanation": "'perfquery -x -R' resets the extended counters on one port, and 'ibclearcounters' clears port counters fabric-wide. 'ibportstate <lid> <port> reset' performs a link reset - it retrains the link (disruptive) and does NOT clear PMA error counters.",
       "points": 1,
       "difficulty": "intermediate"
     },
@@ -1364,12 +1364,12 @@
       "type": "multiple-choice",
       "choices": [
         "Memory access violation",
-        "Contained ECC error - correctable error that was isolated",
+        "Contained uncorrectable ECC error - impact isolated to the affected application(s)",
         "Driver crash",
         "Thermal emergency"
       ],
       "correctAnswer": 1,
-      "explanation": "Xid 94 indicates a contained ECC error - the error was correctable and isolated to prevent data corruption. Monitor for increasing frequency which may indicate degrading memory.",
+      "explanation": "Xid 94 indicates a contained uncorrectable ECC error: an uncorrectable memory error occurred, but error containment isolated the impact to the affected application(s), which are terminated. The GPU remains usable. Correctable errors never raise Xid 94 — monitor row-remap status (nvidia-smi -q -d ROW_REMAPPER) and plan RMA if these recur.",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -1883,11 +1883,11 @@
     {
       "id": "q124",
       "domain": "domain4",
-      "questionText": "What is the theoretical peak FP16 Tensor Core performance of an H100 SXM GPU?",
+      "questionText": "What is the theoretical peak FP16 Tensor Core performance (with sparsity) of an H100 SXM GPU?",
       "type": "multiple-choice",
       "choices": ["312 TFLOPS", "989 TFLOPS", "1,979 TFLOPS", "3,958 TFLOPS"],
       "correctAnswer": 2,
-      "explanation": "H100 SXM achieves 1,979 TFLOPS for FP16 Tensor Core operations (with sparsity: 3,958 TFLOPS). This is the peak theoretical performance for AI training.",
+      "explanation": "H100 SXM FP16 Tensor Core peak is 989.4 TFLOPS dense and 1,979 TFLOPS with structured sparsity (the headline figure this question asks for). 3,958 TFLOPS is the FP8 Tensor Core sparsity figure, not FP16.",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -1956,8 +1956,8 @@
         "Four ports are active",
         "Link speed is 4 Gbps"
       ],
-      "correctAnswer": 1,
-      "explanation": "HDR InfiniBand should show '4x' for full 200Gb/s or may use NDR at higher speeds. If expecting wider link (like NDR 400G needing 4x), 4x may be correct. Context matters.",
+      "correctAnswer": 0,
+      "explanation": "HDR is 4 lanes x 50 Gb/s = 200 Gb/s, so 'Link Width Active: 4x' is the full, normal width for an HDR port. A degraded link shows 1x or 2x and warrants cable/port investigation.",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -2331,12 +2331,12 @@
       "type": "multiple-choice",
       "choices": [
         "GPU memory ECC error",
-        "Hardware watchdog timeout - GPU failed internal health check",
+        "Auxiliary power cable is not connected to the GPU board",
         "NVLink communication failure",
         "Display engine error"
       ],
       "correctAnswer": 1,
-      "explanation": "XID 54 indicates the GPU's internal hardware watchdog detected a timeout. This is more severe than XID 43 (external driver timeout) and typically requires a system reboot.",
+      "explanation": "XID 54 means auxiliary power is not connected to the GPU board. Check and reseat the GPU's auxiliary power cables (8-pin/12VHPWR). This matches NVIDIA's XID documentation and the simulator's own XID reference (xidErrors.ts).",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -2346,8 +2346,8 @@
       "questionText": "Which XID error code indicates NVLink training failure?",
       "type": "multiple-choice",
       "choices": ["XID 72", "XID 74", "XID 76", "XID 79"],
-      "correctAnswer": 2,
-      "explanation": "XID 76 indicates NVLink failed to complete link training. This is a physical connection problem requiring GPU reseat or hardware replacement.",
+      "correctAnswer": 1,
+      "explanation": "XID 74 is the NVLink error code, raised when NVLink link training or the connection fails — typically a physical problem: reseat the GPU/NVLink bridge or replace hardware. XID 72/76 are robust-channel copy-engine errors, and XID 79 means the GPU has fallen off the PCIe bus.",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -2370,16 +2370,16 @@
     {
       "id": "q156",
       "domain": "domain5",
-      "questionText": "XID 72 indicates what type of NVLink problem?",
+      "questionText": "What does XID error code 62 indicate?",
       "type": "multiple-choice",
       "choices": [
-        "Physical cable disconnection",
-        "Flow control credits exhausted or protocol error",
-        "ECC error on NVLink data path",
-        "Link training failure"
+        "Internal micro-controller halt - the GPU's management processor stopped",
+        "NVLink flow control failure",
+        "VRAM over-temperature shutdown",
+        "PCIe replay rate exceeded"
       ],
-      "correctAnswer": 1,
-      "explanation": "XID 72 indicates NVLink flow control issues - congestion or protocol errors. It often precedes more severe NVLink errors and may indicate early link degradation.",
+      "correctAnswer": 0,
+      "explanation": "XID 62 indicates an internal micro-controller halt. It usually requires a GPU reset or system reboot and often accompanies hardware faults - collect nvidia-bug-report.sh output before resetting.",
       "points": 1,
       "difficulty": "advanced"
     },
@@ -2957,11 +2957,11 @@
       "choices": [
         "dcgmi diag -r 1 (Quick - ~30 seconds)",
         "dcgmi diag -r 2 (Medium - ~2 minutes)",
-        "dcgmi diag -r 3 (Long - ~15 minutes)",
-        "dcgmi diag --nvlink-only (NVLink-specific run)"
+        "dcgmi diag -r 3 (Long - ~30 minutes)",
+        "dcgmi diag -r 4 (Extended/xlong - 1+ hours)"
       ],
-      "correctAnswer": [2],
-      "explanation": "NVLink stress and bandwidth tests are only included in level 3 (Long) diagnostics. Level 1 runs only basic health checks, and level 2 adds PCIe and short memory tests but does not include full NVLink bandwidth testing. Note: dcgmi diag supports only levels 1, 2, and 3; there is no level 4 or --nvlink-only flag.",
+      "correctAnswer": [2, 3],
+      "explanation": "Stress-level testing (including NVLink bandwidth) begins at run level 3 and continues in level 4 (extended/xlong, which adds the longest-running suites such as the Pulse Test on supported GPUs). Levels 1-2 cover deployment/software checks plus short PCIe and memory tests. dcgmi diag supports run levels 1-4; there is no --nvlink-only flag.",
       "points": 1,
       "difficulty": "intermediate"
     },

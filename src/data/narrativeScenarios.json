@@ -6281,15 +6281,10 @@
             "pattern": "discovery|-c|compute"
           },
           "quiz": {
-            "question": "What are the three diagnostic levels in DCGM?",
-            "options": [
-              "Basic, Standard, Premium",
-              "Quick (1), Medium (2), Extended (3)",
-              "Hardware, Software, Network",
-              "Level A, Level B, Level C"
-            ],
+            "question": "Which DCGM diagnostic run level provides the quickest software-only validation?",
+            "options": ["-r 3", "-r 1", "-r 4", "-r 2"],
             "correctIndex": 1,
-            "explanation": "DCGM provides three diagnostic levels: Quick (level 1) for fast checks, Medium (level 2) for moderate stress tests, and Extended (level 3) for comprehensive hardware validation."
+            "explanation": "Run level 1 is the quick deployment/software check (~seconds). Levels 2-4 add progressively longer hardware and stress testing, up to the extended xlong suite at level 4."
           }
         },
         {
@@ -8293,8 +8288,8 @@
       "difficulty": "advanced",
       "narrative": {
         "hook": "Acceptance testing time. The cluster must pass a structured GPU diagnostic before it certifies for production.",
-        "setting": "Use DCGM's three diagnostic levels on the cluster: a fast deployment check, a medium stress pass, and the full hardware/stress suite — then establish the ECC error baseline and a health-watch policy.",
-        "resolution": "All three DCGM levels pass, ECC counts are zero across the fleet, and a health policy is registered to flag future regressions. The cluster is certified."
+        "setting": "Use DCGM's diagnostic run levels on the cluster: a fast deployment check, a medium stress pass, and the full hardware/stress suite — then establish the ECC error baseline and a health-watch policy.",
+        "resolution": "All DCGM diagnostic run levels pass, ECC counts are zero across the fleet, and a health policy is registered to flag future regressions. The cluster is certified."
       },
       "commandFamilies": ["diagnostics", "gpu-monitoring", "cluster-tools"],
       "estimatedMinutes": 25,
@@ -8304,16 +8299,16 @@
           "id": "step-1",
           "type": "concept",
           "situation": "DCGM's diag -r levels trade runtime for coverage. Knowing what each level actually exercises tells you which to run when.",
-          "task": "Understand the three diagnostic run levels.",
+          "task": "Understand the DCGM diagnostic run levels.",
           "expectedCommands": [],
           "hints": [
-            "Level 1 ≈ seconds; Level 3 ≈ many minutes of stress.",
-            "Use 1 for quick gating, 3 for acceptance."
+            "Level 1 ≈ seconds; Level 3 ≈ many minutes of stress; Level 4 ≈ hours.",
+            "Use 1 for quick gating, 3 for acceptance, 4 for extended burn-in."
           ],
           "validation": {
             "type": "none"
           },
-          "conceptContent": "DCGM diagnostic levels:\n- -r 1 (Quick/Deployment): software/config sanity — driver, NVML, persistence, page-retirement. Seconds.\n- -r 2 (Medium): adds integration + light stress (PCIe, memory bandwidth). Minutes.\n- -r 3 (Long): full stress — SM stress, targeted power/thermal, memory stress, NVLink. Tens of minutes; surfaces marginal hardware.\nRun 1 at every bring-up; run 3 for acceptance and after hardware changes.",
+          "conceptContent": "DCGM diagnostic levels:\n- -r 1 (Quick/Deployment): software/config sanity — driver, NVML, persistence, page-retirement. Seconds.\n- -r 2 (Medium): adds PCIe and GPU memory tests. Minutes.\n- -r 3 (Long): full stress suite — SM stress, targeted stress, memory bandwidth. Tens of minutes; surfaces marginal hardware.\n- -r 4 (Extended/xlong): longest-running suite including the Pulse Test on supported GPUs. Hours.\nRun 1 at every bring-up; run 3 for acceptance; run 4 for deep burn-in after hardware changes.",
           "tips": [
             "A node that passes -r 1 but fails -r 3 usually has marginal hardware that only shows under sustained load."
           ]

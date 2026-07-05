@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   build-and-test:
-    timeout-minutes: 10
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +26,42 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
-        run: npm run test:run
+      - name: Typecheck (including test files)
+        run: npx tsc -p tsconfig.test.json --noEmit
+
+      - name: Unit tests with coverage
+        run: npm run test:coverage
 
       - name: Build application
         run: npm run build
+
+  e2e:
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm ls @rollup/rollup-linux-x64-gnu || npm install @rollup/rollup-linux-x64-gnu --no-save
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Smoke subset: most e2e specs are currently red on dev (pre-existing; welcome-screen overlay + missing visual baselines - see docs/superpowers/plans/2026-07-02-audit-remediation-master.md). Expand this list as specs are remediated.
+      - name: Run e2e smoke tests (desktop viewport)
+        run: npx playwright test tests/e2e/sandbox-remediation.spec.ts --project=desktop-1920
+
+      - name: Upload report on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

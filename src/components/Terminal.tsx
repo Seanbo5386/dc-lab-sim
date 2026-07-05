@@ -122,13 +122,24 @@ export const Terminal: React.FC<TerminalProps> = ({
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<XTerm | null>(null);
   const [, setCurrentCommand] = useState("");
-  const [commandHistory, setCommandHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  // History lives on currentContext.current.history (a ref the mount-effect
+  // closures can safely read); the index is a ref for the same reason.
+  // React state here would be frozen at first-render values inside onData.
+  const historyIndexRef = useRef(-1);
   const [isTerminalReady, setIsTerminalReady] = useState(false);
   const [shellState, setShellState] = useState<ShellState>({
     mode: "bash",
     prompt: "",
   });
+  // Mirror shellState in a ref so mount-effect closures (prompt, executeCommand)
+  // always read the current mode/prompt instead of the first-render snapshot.
+  // Synced via effect (not during render — unsafe under concurrent rendering);
+  // the mount effect additionally writes the ref synchronously at every
+  // setShellState transition, so terminal handlers never see a stale value.
+  const shellStateRef = useRef<ShellState>(shellState);
+  useEffect(() => {
+    shellStateRef.current = shellState;
+  }, [shellState]);
   const selectedNode = useSimulationStore((state) => state.selectedNode);
   const cluster = useSimulationStore((state) => state.cluster);
   const systemType = useSimulationStore((state) => state.systemType);
@@ -347,19 +358,21 @@ export const Terminal: React.FC<TerminalProps> = ({
         term.onData((data) => {
           const result = handleKeyboardInput(data, {
             term,
-            commandHistory,
-            historyIndex,
+            commandHistory: currentContext.current.history,
+            historyIndex: historyIndexRef.current,
             currentLine,
             currentNode: currentContext.current.currentNode,
             onExecute: executeCommand,
-            onHistoryChange: setHistoryIndex,
+            onHistoryChange: (i) => {
+              historyIndexRef.current = i;
+            },
             onLineChange: setCurrentCommand,
             onPrompt: prompt,
           });
           if (result) {
             currentLine = result.currentLine;
             setCurrentCommand(result.currentLine);
-            setHistoryIndex(result.historyIndex);
+            historyIndexRef.current = result.historyIndex;
           }
         });
 
@@ -370,12 +383,13 @@ export const Terminal: React.FC<TerminalProps> = ({
     };
 
     const prompt = () => {
-      if (shellState.mode === "nvsm") {
+      const currentShellState = shellStateRef.current;
+      if (currentShellState.mode === "nvsm") {
         // Use NVSM's current prompt
-        term.write(`\x1b[36m${shellState.prompt || "nvsm> "}\x1b[0m`);
-      } else if (shellState.mode === "cmsh") {
+        term.write(`\x1b[36m${currentShellState.prompt || "nvsm> "}\x1b[0m`);
+      } else if (currentShellState.mode === "cmsh") {
         term.write(
-          `\x1b[36m${shellState.prompt || "[root@dgx-headnode]% "}\x1b[0m`,
+          `\x1b[36m${currentShellState.prompt || "[root@dgx-headnode]% "}\x1b[0m`,
         );
       } else {
         // Normal bash prompt — show ~ for /root, otherwise the full path
@@ -500,19 +514,20 @@ export const Terminal: React.FC<TerminalProps> = ({
     });
 
     router.register("ssh", (cl) => {
+      const clusterNow = useSimulationStore.getState().cluster;
       const args = cl.trim().split(/\s+/).slice(1);
       if (args.length === 0) {
         return {
           output:
             "\x1b[33mUsage: ssh <hostname>\x1b[0m\n\nAvailable nodes:\n" +
-            cluster.nodes
+            clusterNow.nodes
               .map((n) => `  \x1b[36m${n.id}\x1b[0m - ${n.systemType}`)
               .join("\n"),
           exitCode: 0,
         };
       }
       const targetNode = args[0];
-      const nodeExists = cluster.nodes.some((n) => n.id === targetNode);
+      const nodeExists = clusterNow.nodes.some((n) => n.id === targetNode);
       if (!nodeExists) {
         return {
           output: `\x1b[31mssh: Could not resolve hostname ${targetNode}: Name or service not known\x1b[0m`,
@@ -532,7 +547,7 @@ export const Terminal: React.FC<TerminalProps> = ({
       return {
         output:
           `\x1b[32mConnecting to ${targetNode}...\x1b[0m\n` +
-          `\x1b[90mThe authenticity of host '${targetNode} (10.0.0.${cluster.nodes.findIndex((n) => n.id === targetNode) + 1})' was established.\x1b[0m\n` +
+          `\x1b[90mThe authenticity of host '${targetNode} (10.0.0.${clusterNow.nodes.findIndex((n) => n.id === targetNode) + 1})' was established.\x1b[0m\n` +
           `\x1b[32mConnection established.\x1b[0m\n` +
           `\x1b[90mLast login: ${new Date().toLocaleString()} from ${oldNode}\x1b[0m`,
         exitCode: 0,
@@ -827,7 +842,7 @@ export const Terminal: React.FC<TerminalProps> = ({
     );
 
     // ── Shell builtins ────────────────────────────────────
-    // These need direct access to currentContext / commandHistory / router,
+    // These need direct access to currentContext / router,
     // so they live here rather than in a simulator.
 
     // Known directory tree (matches linuxUtilsSimulator ls handler)
@@ -965,7 +980,7 @@ export const Terminal: React.FC<TerminalProps> = ({
     });
 
     router.register("history", () => {
-      const lines = commandHistory.map(
+      const lines = currentContext.current.history.map(
         (cmd, i) => `  ${String(i + 1).padStart(4)}  ${cmd}`,
       );
       return { output: lines.join("\n"), exitCode: 0 };
@@ -1210,7 +1225,6 @@ export const Terminal: React.FC<TerminalProps> = ({
       );
 
       // Add to history (store the original, unexpanded form)
-      setCommandHistory((prev) => [...prev, originalCmdLine]);
       currentContext.current.history.push(originalCmdLine);
 
       // Parse command
@@ -1223,28 +1237,30 @@ export const Terminal: React.FC<TerminalProps> = ({
       };
 
       // INTERACTIVE SHELL MODE INTERCEPT
-      if (shellState.mode === "nvsm") {
+      if (shellStateRef.current.mode === "nvsm") {
         const newState = handleInteractiveShellInput(
           nvsmSimulator.current,
           cmdLine,
           currentContext.current,
           term,
-          shellState,
+          shellStateRef.current,
           prompt,
         );
+        shellStateRef.current = newState;
         setShellState(newState);
         return;
       }
 
-      if (shellState.mode === "cmsh") {
+      if (shellStateRef.current.mode === "cmsh") {
         const newState = handleInteractiveShellInput(
           cmshSimulator.current,
           cmdLine,
           currentContext.current,
           term,
-          shellState,
+          shellStateRef.current,
           prompt,
         );
+        shellStateRef.current = newState;
         setShellState(newState);
         return;
       }
@@ -1299,7 +1315,12 @@ export const Terminal: React.FC<TerminalProps> = ({
                 parsed.subcommands.length === 0,
               )
             ) {
-              setShellState({ mode: command, prompt: result.prompt || "" });
+              const newShellState: ShellState = {
+                mode: command as ShellState["mode"],
+                prompt: result.prompt || "",
+              };
+              shellStateRef.current = newShellState;
+              setShellState(newShellState);
             }
           }
         }
@@ -1475,8 +1496,7 @@ export const Terminal: React.FC<TerminalProps> = ({
       const newNode = newCluster.nodes[0]?.id || "dgx-00";
       term.reset();
       currentLine = "";
-      setCommandHistory([]);
-      setHistoryIndex(-1);
+      historyIndexRef.current = -1;
       setConnectedNode(newNode);
       currentContext.current.currentNode = newNode;
       currentContext.current.currentPath = "/root";
@@ -1505,7 +1525,6 @@ export const Terminal: React.FC<TerminalProps> = ({
         100,
       );
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Terminal initialization runs once on mount
 
   // Lab Feedback - display messages when labs start/complete
