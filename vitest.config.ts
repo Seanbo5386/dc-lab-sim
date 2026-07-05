@@ -21,10 +21,14 @@ export default defineConfig({
         "**/*.config.*",
         "dist/**",
       ],
-      lines: 78, // lowered from 90% to measured baseline 2026-07-03 (after excluding non-product dirs); raise as coverage improves
-      functions: 80, // lowered from 95% to measured baseline 2026-07-03 (after excluding non-product dirs); raise as coverage improves
-      branches: 80, // lowered from 85% to measured baseline 2026-07-03 (after excluding non-product dirs); raise as coverage improves
-      statements: 78, // lowered from 90% to measured baseline 2026-07-03 (after excluding non-product dirs); raise as coverage improves
+      // Vitest 1.x reads thresholds ONLY from coverage.thresholds.* — flat
+      // keys under coverage are silently ignored (caught by Codex on PR #82).
+      thresholds: {
+        lines: 78, // lowered from 90% to measured baseline 2026-07-03 (after excluding non-product dirs); raise as coverage improves
+        functions: 80, // lowered from 95% to measured baseline 2026-07-03 (after excluding non-product dirs); raise as coverage improves
+        branches: 80, // lowered from 85% to measured baseline 2026-07-03 (after excluding non-product dirs); raise as coverage improves
+        statements: 78, // lowered from 90% to measured baseline 2026-07-03 (after excluding non-product dirs); raise as coverage improves
+      },
     },
     include: ["src/**/*.{test,spec}.{js,ts,jsx,tsx}"],
     exclude: ["node_modules", "dist", ".idea", ".git", ".cache"],

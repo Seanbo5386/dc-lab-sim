@@ -133,8 +133,13 @@ export const Terminal: React.FC<TerminalProps> = ({
   });
   // Mirror shellState in a ref so mount-effect closures (prompt, executeCommand)
   // always read the current mode/prompt instead of the first-render snapshot.
+  // Synced via effect (not during render — unsafe under concurrent rendering);
+  // the mount effect additionally writes the ref synchronously at every
+  // setShellState transition, so terminal handlers never see a stale value.
   const shellStateRef = useRef<ShellState>(shellState);
-  shellStateRef.current = shellState;
+  useEffect(() => {
+    shellStateRef.current = shellState;
+  }, [shellState]);
   const selectedNode = useSimulationStore((state) => state.selectedNode);
   const cluster = useSimulationStore((state) => state.cluster);
   const systemType = useSimulationStore((state) => state.systemType);
