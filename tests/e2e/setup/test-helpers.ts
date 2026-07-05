@@ -1,16 +1,34 @@
 import { Page, expect } from "@playwright/test";
+import { seedUiFlags } from "./seedUiFlags";
 
 export class SimulatorTestHelper {
   constructor(private page: Page) {}
 
   async navigateToSimulator() {
+    // Seed tour-seen/sandbox-intro flags before the first navigation so the
+    // Spotlight Tour and sandbox intro overlays never auto-start and steal
+    // focus/clicks from these specs. Keep the welcome screen since this
+    // helper explicitly clicks through it below.
+    await seedUiFlags(this.page, { keepWelcome: true });
     await this.page.goto("/");
-    // Wait for welcome screen animation to complete
-    await this.page.waitForSelector('[data-testid="welcome-screen"]', {
-      timeout: 10000,
-    });
-    // Click the "Enter Virtual Datacenter" button
-    await this.page.click('button:has-text("Enter Virtual Datacenter")');
+
+    // Some specs call navigateToSimulator() a second time within the same
+    // test (e.g. after changing the viewport). ncp-aii-welcome-dismissed
+    // persists in localStorage across page.goto() calls within a test, so
+    // on a second visit the welcome screen never (re)appears and the app
+    // renders the terminal directly. Race both so either path resolves.
+    const welcome = this.page.locator('[data-testid="welcome-screen"]');
+    const terminal = this.page.locator('[data-testid="terminal"]');
+    await Promise.race([
+      welcome.waitFor({ state: "visible", timeout: 10000 }),
+      terminal.waitFor({ state: "visible", timeout: 10000 }),
+    ]);
+
+    if (await welcome.isVisible()) {
+      // Click the "Enter Virtual Datacenter" button
+      await this.page.click('button:has-text("Enter Virtual Datacenter")');
+    }
+
     // Wait for terminal to be ready
     await this.page.waitForSelector('[data-testid="terminal"]', {
       timeout: 10000,
