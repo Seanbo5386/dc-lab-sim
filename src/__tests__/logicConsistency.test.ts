@@ -245,6 +245,28 @@ function injectFault(
 }
 
 /**
+ * Advance a GPU's physics state forward by N ticks of the shared
+ * MetricsSimulator's physics engine, writing each result back to the store.
+ * Needed for thermal faults (Phase 3): injectFault only sets a persistent
+ * `activeFaultHeatWatts` term now (PHYS-9) rather than snapping
+ * temperature/clocksSM directly, so tests that assert on the resulting
+ * temperature/clock values must tick the physics engine forward to let
+ * that fault heat actually manifest, the same way the live tick loop does.
+ */
+function tickGpuPhysics(nodeId: string, gpuId: number, ticks: number): GPU {
+  const state = useSimulationStore.getState();
+  let gpu = getGpuState(nodeId, gpuId);
+  if (!gpu) throw new Error(`GPU ${gpuId} not found on node ${nodeId}`);
+
+  const engine = metricsSimulator.getPhysicsEngine();
+  for (let i = 0; i < ticks; i++) {
+    gpu = engine.tickGPU(gpu);
+  }
+  state.updateGPU(nodeId, gpuId, gpu);
+  return gpu;
+}
+
+/**
  * Clear all faults by resetting GPU to healthy state
  */
 function clearFaults(nodeId: string, gpuId: number): void {
@@ -439,7 +461,12 @@ describe("Category 1: Fault Injection Cascades", () => {
 
   describe("1.3 Thermal Fault", () => {
     it("should set GPU temperature to high value", () => {
-      const gpu = injectFault("dgx-00", 0, "thermal");
+      // Phase 3: injectFault sets a persistent activeFaultHeatWatts term
+      // rather than snapping temperature directly (PHYS-9) — it takes
+      // effect gradually as the physics engine ticks, same as a real
+      // cooling-deficit fault would.
+      injectFault("dgx-00", 0, "thermal");
+      const gpu = tickGpuPhysics("dgx-00", 0, 30);
       expect(gpu.temperature).toBeGreaterThanOrEqual(85);
     });
 
@@ -452,7 +479,8 @@ describe("Category 1: Fault Injection Cascades", () => {
       const gpuBefore = getGpuState("dgx-00", 0);
       const originalClocks = gpuBefore?.clocksSM || 1410;
 
-      const gpu = injectFault("dgx-00", 0, "thermal");
+      injectFault("dgx-00", 0, "thermal");
+      const gpu = tickGpuPhysics("dgx-00", 0, 30);
       // Thermal throttling should reduce clocks
       expect(gpu.clocksSM).toBeLessThan(originalClocks);
     });
@@ -821,7 +849,11 @@ describe("Category 4: Cluster Aggregation Accuracy", () => {
     it("should increase average temp after thermal fault", () => {
       const metricsBefore = getClusterMetrics();
 
+      // Phase 3: the fault's heat term only manifests as the physics
+      // engine ticks (PHYS-9), so tick the faulted GPU forward before
+      // re-reading cluster-wide aggregates.
       injectFault("dgx-00", 0, "thermal");
+      tickGpuPhysics("dgx-00", 0, 30);
 
       const metricsAfter = getClusterMetrics();
       expect(metricsAfter.avgTemp).toBeGreaterThan(metricsBefore.avgTemp);
