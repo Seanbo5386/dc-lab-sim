@@ -19,6 +19,17 @@ describe("createDefaultCluster", () => {
     expect(gpu.memoryTotal).toBe(81920);
   });
 
+  it("should set idle powerDraw near the physics idle floor (15% of TDP), not 60-80% of TDP", () => {
+    const gpu = cluster.nodes[0].gpus[0];
+    // A100 TDP is 400W (powerLimit). 0% utilization should start near the
+    // physics engine's own idle floor (IDLE_POWER_FLOOR = 15% of TDP), not
+    // the 60-80% range a fresh cluster started at before this fix (PHYS-4:
+    // "0% utilization at 249-318W" is physically impossible).
+    expect(gpu.utilization).toBe(0);
+    expect(gpu.powerDraw).toBeGreaterThanOrEqual(gpu.powerLimit * 0.15);
+    expect(gpu.powerDraw).toBeLessThan(gpu.powerLimit * 0.25);
+  });
+
   it("should initialize NVLink arrays with 12 connections for A100", () => {
     const gpu = cluster.nodes[0].gpus[0];
     expect(gpu.nvlinks).toHaveLength(12);

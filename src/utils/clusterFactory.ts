@@ -15,6 +15,7 @@ import {
   type SystemType,
   type HardwareSpec,
 } from "@/data/hardwareSpecs";
+import { IDLE_POWER_FLOOR } from "@/simulation/clusterPhysicsEngine";
 
 const GPU_TYPE_MAP: Record<SystemType, GPUType> = {
   "DGX-A100": "A100-80GB",
@@ -105,8 +106,14 @@ function createGPU(id: number, specs: HardwareSpec): GPU {
     type: GPU_TYPE_MAP[specs.system.type] || "A100-80GB",
     pciAddress: `00000000:${(0x10 + id).toString(16).padStart(2, "0")}:00.0`,
     temperature: 30 + Math.random() * 10,
+    // Idle equilibrium: 0% utilization should draw ~IDLE_POWER_FLOOR of TDP
+    // (the same floor ClusterPhysicsEngine.tickGPU() converges every GPU
+    // toward at 0% utilization), not 60-80% of TDP — PHYS-4's "0% util at
+    // 249-318W" symptom. Temperature is left as-is: it already lands close
+    // to this same floor's implied ~39-41°C equilibrium.
     powerDraw:
-      specs.gpu.tdpWatts * 0.6 + Math.random() * specs.gpu.tdpWatts * 0.2,
+      specs.gpu.tdpWatts * IDLE_POWER_FLOOR +
+      Math.random() * specs.gpu.tdpWatts * 0.05,
     powerLimit: specs.gpu.tdpWatts,
     memoryTotal: specs.gpu.memoryMiB,
     memoryUsed: 0,
