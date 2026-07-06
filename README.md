@@ -4,7 +4,7 @@
 
 ![Version](https://img.shields.io/badge/version-1.6.1-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Tests](https://img.shields.io/badge/tests-3906_unit_|_459_E2E-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-3920_unit_|_483_E2E-brightgreen?style=for-the-badge)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
 ![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
@@ -36,15 +36,15 @@ The NCP-AII certification exam tests hands-on datacenter skills — but most peo
 
 ## At a Glance
 
-|                   |                                                                              |
-| ----------------- | ---------------------------------------------------------------------------- |
-| **Commands**      | 20 simulators, 229 CLI definitions across 17 categories                      |
-| **Scenarios**     | 40 story-driven labs across all 5 exam domains                               |
-| **Exam Prep**     | 199 practice questions + 65 tool selection + 175 deep mastery quizzes        |
-| **Architectures** | DGX A100, H100, H200, B200, GB200, VR200 (switchable from dashboard)         |
-| **Learning**      | 3-tier progression (Guided > Choice > Realistic) with SM-2 spaced repetition |
-| **Cloud Sync**    | Optional sign-in to save progress across devices (AWS Cognito)               |
-| **Tests**         | 3,906 unit + 459 E2E tests, 0 TypeScript errors, 0 lint warnings             |
+|                   |                                                                                           |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| **Commands**      | 20 simulators, 229 CLI definitions across 17 categories                                   |
+| **Scenarios**     | 40 story-driven labs across all 5 exam domains                                            |
+| **Exam Prep**     | 199 practice questions + 65 tool selection + 175 deep mastery quizzes                     |
+| **Architectures** | DGX A100, H100, H200, B200, GB200, VR200 (switchable from dashboard)                      |
+| **Learning**      | 3-tier progression (Guided > Choice > Realistic) with SM-2 spaced repetition              |
+| **Cloud Sync**    | Optional sign-in to save progress across devices (AWS Cognito)                            |
+| **Tests**         | 3,920 unit + 483 E2E tests (474 passed / 9 skipped), 0 TypeScript errors, 0 lint warnings |
 
 ---
 
@@ -351,13 +351,13 @@ aws dynamodb scan --table-name Feedback-<your-stack-id> --region us-east-1
 
 ```bash
 npm run test           # Watch mode
-npm run test:run       # Single run (3,906 unit tests)
+npm run test:run       # Single run (3,920 unit tests)
 npm run test:coverage  # With coverage report
 npm run lint           # ESLint (0 errors, 0 warnings)
-npx playwright test    # 459 E2E tests (commands, scenarios, visual regression)
+npx playwright test    # 483 E2E tests, 3 viewports (474 passed / 9 skipped, 0 failed)
 ```
 
-CI/CD via GitHub Actions runs lint, tests, and production build on every push.
+CI/CD via GitHub Actions runs lint, tests, and production build on every push; the desktop-1920 suite (161 tests: 158 pass + 3 skip) runs on every push to dev/main.
 
 ---
 
