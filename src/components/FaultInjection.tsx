@@ -397,16 +397,18 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
 
   const handleSimulateWorkload = () => {
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
-    if (!node) return;
+    const gpu = node?.gpus[selectedGPU];
+    if (!node || !gpu) return;
 
-    const updatedGPUs = metricsSimulator.simulateWorkload(
-      node.gpus,
+    // Scope to the selected GPU only — every other sandbox handler
+    // (handleInjectFault, handlePhysicalAction) already does this; Apply
+    // Workload was the one path that ignored the GPU selector (LIVE-5).
+    const [updatedGPU] = metricsSimulator.simulateWorkload(
+      [gpu],
       workloadPattern,
     );
     const mutator = getMutator();
-    updatedGPUs.forEach((gpu) => {
-      mutator.updateGPU(selectedNode, gpu.id, gpu);
-    });
+    mutator.updateGPU(selectedNode, updatedGPU.id, updatedGPU);
 
     // Fire toast notification for workload
     const desc = WORKLOAD_DESCRIPTIONS.find(
