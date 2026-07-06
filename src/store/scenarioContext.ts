@@ -117,12 +117,24 @@ export class ScenarioContext {
    * Record a mutation: append to the bounded retained history and bump the
    * monotonic counter. Keeps `mutations` capped at MAX_RETAINED_MUTATIONS
    * while `mutationCount` keeps incrementing forever.
+   *
+   * The tick loop calls updateGPU() once per second per changed GPU, so
+   * "gpu-update" entries dominate volume and would fill the cap within
+   * seconds of ticking. Evict the oldest "gpu-update" first so rarer,
+   * more meaningful entries (xid-error, node-health, slurm-state, node-add)
+   * survive — falling back to oldest-overall only once no gpu-update
+   * entries remain to drop.
    */
   private recordMutation(change: StateChange): void {
     this.mutations.push(change);
     this.mutationCount++;
     if (this.mutations.length > MAX_RETAINED_MUTATIONS) {
-      this.mutations.shift();
+      const index = this.mutations.findIndex((m) => m.type === "gpu-update");
+      if (index !== -1) {
+        this.mutations.splice(index, 1);
+      } else {
+        this.mutations.shift();
+      }
     }
   }
 
