@@ -1,6 +1,11 @@
 import type { GPU, InfiniBandHCA } from "@/types/hardware";
 import { HARDWARE_SPECS } from "@/data/hardwareSpecs";
-import { ClusterPhysicsEngine } from "@/simulation/clusterPhysicsEngine";
+import {
+  ClusterPhysicsEngine,
+  AMBIENT_TEMP,
+  THERMAL_CEILING,
+  IDLE_POWER_FLOOR,
+} from "@/simulation/clusterPhysicsEngine";
 
 /** Look up the boost clock for a GPU by its model name. Falls back to A100's 1410 MHz. */
 function getBoostClock(gpuName: string): number {
@@ -187,16 +192,41 @@ export class MetricsSimulator {
       stress: 100,
     }[pattern];
 
-    return gpus.map((gpu) => ({
-      ...gpu,
-      utilization: utilizationTarget + (Math.random() - 0.5) * 10,
-      memoryUsed:
+    return gpus.map((gpu) => {
+      const utilization = Math.max(
+        0,
+        Math.min(100, utilizationTarget + (Math.random() - 0.5) * 10),
+      );
+      const memoryUsed =
         pattern === "idle"
           ? gpu.memoryTotal * 0.01
           : pattern === "training"
             ? gpu.memoryTotal * 0.9
-            : gpu.memoryTotal * 0.6,
-    }));
+            : gpu.memoryTotal * 0.6;
+
+      // Jump directly to the physics engine's equilibrium point for the new
+      // utilization so the GPU is internally consistent the instant a
+      // workload is applied, instead of reporting the new utilization at
+      // whatever power/temperature it happened to have before (PHYS-4/
+      // LIVE-5: sandbox Apply Workload previously left power/temp
+      // untouched — 95% util at idle watts). Uses the same constants
+      // ClusterPhysicsEngine.tickGPU() converges toward every tick, so
+      // there's no discontinuity once ticking resumes.
+      const targetPower =
+        gpu.powerLimit *
+        (IDLE_POWER_FLOOR + (utilization / 100) * (1 - IDLE_POWER_FLOOR));
+      const targetTemp =
+        AMBIENT_TEMP +
+        (targetPower / gpu.powerLimit) * (THERMAL_CEILING - AMBIENT_TEMP);
+
+      return {
+        ...gpu,
+        utilization: Math.round(utilization * 10) / 10,
+        memoryUsed: Math.round(memoryUsed),
+        powerDraw: Math.round(targetPower * 10) / 10,
+        temperature: Math.round(targetTemp * 10) / 10,
+      };
+    });
   }
 
   // Inject a fault for troubleshooting practice

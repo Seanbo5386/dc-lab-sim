@@ -67,6 +67,45 @@ describe("MetricsSimulator", () => {
 
       expect(training[0].memoryUsed).toBeGreaterThan(idle[0].memoryUsed);
     });
+
+    it("should set powerDraw consistent with the new utilization, not the GPU's previous value", () => {
+      // Idle GPU (idle powerDraw ~60W for a 400W-limit A100) gets a training
+      // workload applied — before this fix, powerDraw stayed at 60W while
+      // utilization jumped to ~95%. It should immediately reflect ~95% load.
+      const gpus = [
+        createMockGPU({ powerLimit: 400, powerDraw: 60, utilization: 0 }),
+      ];
+      const result = simulator.simulateWorkload(gpus, "training");
+      // Physics floor/target: 400 * (0.15 + 0.90*0.85) = 366 minimum-ish for
+      // 90% utilization; allow for the +/-5 utilization jitter simulateWorkload
+      // applies, so assert a wide-but-meaningful band clearly above idle.
+      expect(result[0].powerDraw).toBeGreaterThan(300);
+      expect(result[0].powerDraw).toBeLessThanOrEqual(400);
+    });
+
+    it("should set temperature consistent with the new powerDraw, not the GPU's previous value", () => {
+      const gpus = [
+        createMockGPU({ powerLimit: 400, temperature: 35, utilization: 0 }),
+      ];
+      const result = simulator.simulateWorkload(gpus, "training");
+      // AMBIENT_TEMP(32) + powerRatio * (THERMAL_CEILING(95) - 32); a ~90%+
+      // power ratio should land temperature well above the idle 35°C.
+      expect(result[0].temperature).toBeGreaterThan(60);
+    });
+
+    it("should leave idle-pattern GPUs near the idle power/temp floor", () => {
+      const gpus = [
+        createMockGPU({
+          powerLimit: 400,
+          powerDraw: 300,
+          temperature: 80,
+          utilization: 90,
+        }),
+      ];
+      const result = simulator.simulateWorkload(gpus, "idle");
+      expect(result[0].powerDraw).toBeLessThan(150);
+      expect(result[0].temperature).toBeLessThan(55);
+    });
   });
 
   describe("injectFault", () => {

@@ -1,12 +1,12 @@
 import type { GPU } from "@/types/hardware";
 
-const AMBIENT_TEMP = 32;
-const THERMAL_CEILING = 95;
+export const AMBIENT_TEMP = 32;
+export const THERMAL_CEILING = 95;
 const THROTTLE_THRESHOLD = 83;
 const THROTTLE_RATE_MHZ_PER_DEGREE = 10;
 const TEMP_SMOOTHING = 0.15;
 const POWER_SMOOTHING = 0.2;
-const IDLE_POWER_FLOOR = 0.15;
+export const IDLE_POWER_FLOOR = 0.15;
 
 export interface ThresholdEvent {
   type:
