@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useSimulationStore } from "@/store/simulationStore";
-import { scenarioContextManager } from "@/store/scenarioContext";
-import type { StateMutator } from "@/simulators/BaseSimulator";
+import {
+  resolveEffectiveCluster,
+  resolveEffectiveMutator,
+} from "@/utils/effectiveState";
 import { MetricsSimulator } from "@/utils/metricsSimulator";
 import { useFaultToastStore } from "@/store/faultToastStore";
 import {
@@ -47,52 +49,6 @@ const SURPRISE_TYPES = [
   "pcie",
 ] as const;
 
-/**
- * Get a mutator that routes to ScenarioContext when active, otherwise to global store.
- */
-function getMutator(): StateMutator {
-  const activeContext = scenarioContextManager.getActiveContext();
-  if (activeContext) {
-    return {
-      updateGPU: (nodeId, gpuId, updates) =>
-        activeContext.updateGPU(nodeId, gpuId, updates),
-      addXIDError: (nodeId, gpuId, error) =>
-        activeContext.addXIDError(nodeId, gpuId, error),
-      updateNodeHealth: (nodeId, health) =>
-        activeContext.updateNodeHealth(nodeId, health),
-      setMIGMode: (nodeId, gpuId, enabled) =>
-        activeContext.setMIGMode(nodeId, gpuId, enabled),
-      setSlurmState: (nodeId, state, reason) =>
-        activeContext.setSlurmState(nodeId, state, reason),
-      allocateGPUsForJob: (nodeId, gpuIds, jobId, targetUtilization) =>
-        activeContext.allocateGPUsForJob(
-          nodeId,
-          gpuIds,
-          jobId,
-          targetUtilization,
-        ),
-      deallocateGPUsForJob: (jobId) =>
-        activeContext.deallocateGPUsForJob(jobId),
-    };
-  }
-  const store = useSimulationStore.getState();
-  return {
-    updateGPU: (nodeId, gpuId, updates) =>
-      store.updateGPU(nodeId, gpuId, updates),
-    addXIDError: (nodeId, gpuId, error) =>
-      store.addXIDError(nodeId, gpuId, error),
-    updateNodeHealth: (nodeId, health) =>
-      store.updateNodeHealth(nodeId, health),
-    setMIGMode: (nodeId, gpuId, enabled) =>
-      store.setMIGMode(nodeId, gpuId, enabled),
-    setSlurmState: (nodeId, state, reason) =>
-      store.setSlurmState(nodeId, state, reason),
-    allocateGPUsForJob: (nodeId, gpuIds, jobId, targetUtilization) =>
-      store.allocateGPUsForJob(nodeId, gpuIds, jobId, targetUtilization),
-    deallocateGPUsForJob: (jobId) => store.deallocateGPUsForJob(jobId),
-  };
-}
-
 interface FaultInjectionProps {
   onPasteCommand?: (cmd: string, targetNode?: string) => void;
   onSwitchToTerminal?: () => void;
@@ -110,8 +66,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
   // stops — the active context can change while the global cluster reference
   // stays the same, which would otherwise leave effectiveCluster stale.
   const effectiveCluster = useMemo(() => {
-    const activeContext = scenarioContextManager.getActiveContext();
-    return activeContext ? activeContext.getCluster() : cluster;
+    return resolveEffectiveCluster(cluster);
     // activeScenario is an intentional recompute trigger: the active context is
     // read from scenarioContextManager (external to React) and changes when a
     // scenario starts or stops, which the exhaustive-deps rule cannot see.
@@ -227,7 +182,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
     if (!gpu) return;
 
     const faultedGPU = metricsSimulator.injectFault(gpu, faultType);
-    getMutator().updateGPU(selectedNode, selectedGPU, faultedGPU);
+    resolveEffectiveMutator().updateGPU(selectedNode, selectedGPU, faultedGPU);
 
     // Fire toast notification
     const desc = BASIC_FAULT_DESCRIPTIONS.find((d) => d.type === faultType);
@@ -287,7 +242,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
     for (const type of types) {
       faulted = metricsSimulator.injectFault(faulted, type);
     }
-    getMutator().updateGPU(selectedNode, selectedGPU, faulted);
+    resolveEffectiveMutator().updateGPU(selectedNode, selectedGPU, faulted);
 
     const labels = types.map(
       (t) => BASIC_FAULT_DESCRIPTIONS.find((d) => d.type === t)?.title ?? t,
@@ -309,7 +264,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
     if (!node) return;
 
-    const mutator = getMutator();
+    const mutator = resolveEffectiveMutator();
 
     switch (scenarioType) {
       case "gpu-hang": {
@@ -397,16 +352,18 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
 
   const handleSimulateWorkload = () => {
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
-    if (!node) return;
+    const gpu = node?.gpus[selectedGPU];
+    if (!node || !gpu) return;
 
-    const updatedGPUs = metricsSimulator.simulateWorkload(
-      node.gpus,
+    // Scope to the selected GPU only — every other sandbox handler
+    // (handleInjectFault, handlePhysicalAction) already does this; Apply
+    // Workload was the one path that ignored the GPU selector (LIVE-5).
+    const [updatedGPU] = metricsSimulator.simulateWorkload(
+      [gpu],
       workloadPattern,
     );
-    const mutator = getMutator();
-    updatedGPUs.forEach((gpu) => {
-      mutator.updateGPU(selectedNode, gpu.id, gpu);
-    });
+    const mutator = resolveEffectiveMutator();
+    mutator.updateGPU(selectedNode, updatedGPU.id, updatedGPU);
 
     // Fire toast notification for workload
     const desc = WORKLOAD_DESCRIPTIONS.find(
@@ -428,7 +385,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
     if (!node) return;
 
-    const mutator = getMutator();
+    const mutator = resolveEffectiveMutator();
     node.gpus.forEach((gpu) => {
       mutator.updateGPU(selectedNode, gpu.id, {
         xidErrors: [],
@@ -480,7 +437,11 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
     if (!gpu) return;
     const result = applyRemediation(gpu, node, action);
     if (result.outcome === "fixed" && result.gpuUpdates) {
-      getMutator().updateGPU(selectedNode, selectedGPU, result.gpuUpdates);
+      resolveEffectiveMutator().updateGPU(
+        selectedNode,
+        selectedGPU,
+        result.gpuUpdates,
+      );
     }
     useFaultToastStore.getState().addToast({
       title:

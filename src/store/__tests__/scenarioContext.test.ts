@@ -638,6 +638,34 @@ describe("ScenarioContext", () => {
       ctx.updateNodeHealth("node-01", "Warning");
       expect(ctx.getMutationCount()).toBe(2);
     });
+
+    it("should evict gpu-update mutations before rarer mutation types once the retained history is full", () => {
+      // The tick loop calls updateGPU() once per second per changed GPU, so
+      // gpu-update entries dominate volume. A plain FIFO cap would silently
+      // drop an earlier xid-error under tick-loop volume; recordMutation()
+      // must evict the oldest gpu-update instead.
+      const ctx = new ScenarioContext("test-scenario", testCluster);
+
+      ctx.addXIDError("node-01", 0, {
+        code: 63,
+        timestamp: new Date(),
+        description: "Row remap failure",
+        severity: "Warning",
+      });
+
+      // Push well past MAX_RETAINED_MUTATIONS (500) with tick-loop-style
+      // gpu-update noise only.
+      for (let i = 0; i < 600; i++) {
+        ctx.updateGPU("node-01", 0, { temperature: 70 + (i % 10) });
+      }
+
+      const mutations = ctx.getMutations();
+      expect(mutations.some((m) => m.type === "xid-error")).toBe(true);
+      // Monotonic counter keeps counting every call, independent of the cap.
+      expect(ctx.getMutationCount()).toBe(601);
+      // Retained array stays bounded regardless of eviction order.
+      expect(mutations.length).toBeLessThanOrEqual(500);
+    });
   });
 
   // ---------------------------------------------------------------------------

@@ -949,13 +949,18 @@ describe("FaultInjection", () => {
       );
     });
 
-    it("should call updateGPU for each GPU after workload simulation", () => {
+    it("should call updateGPU only for the selected GPU after workload simulation", () => {
       render(<FaultInjection />);
 
+      // Default sandbox GPU selection is GPU 0 (component defaults to index 0).
       fireEvent.click(screen.getByText("Apply Workload"));
 
-      // dgx-00 has 2 GPUs, so updateGPU is called for each
-      expect(mockUpdateGPU).toHaveBeenCalledTimes(2);
+      expect(mockUpdateGPU).toHaveBeenCalledTimes(1);
+      expect(mockUpdateGPU).toHaveBeenCalledWith(
+        "dgx-00",
+        0,
+        expect.any(Object),
+      );
     });
 
     it("should use idle pattern by default", () => {
@@ -1035,7 +1040,7 @@ describe("FaultInjection", () => {
       render(<FaultInjection />);
       fireEvent.click(screen.getByText("Apply Workload"));
 
-      expect(mockContextUpdateGPU).toHaveBeenCalledTimes(2);
+      expect(mockContextUpdateGPU).toHaveBeenCalledTimes(1);
       expect(mockUpdateGPU).not.toHaveBeenCalled();
     });
 

@@ -191,7 +191,7 @@ export const useSimulationStore = create<SimulationState>()(
       cluster: createDefaultCluster(),
       systemType: "DGX-A100" as SystemType,
       selectedNode: null,
-      isRunning: false,
+      isRunning: true,
       simulationSpeed: 1.0,
       metricsInterval: 1000,
       lastMetricsUpdate: Date.now(),

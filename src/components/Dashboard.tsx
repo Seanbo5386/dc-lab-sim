@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { useSimulationStore } from "@/store/simulationStore";
 import { scenarioContextManager } from "@/store/scenarioContext";
+import { resolveEffectiveCluster } from "@/utils/effectiveState";
 import {
   Activity,
   HardDrive,
@@ -534,14 +535,17 @@ export const Dashboard: React.FC = () => {
   // Start automatic metrics collection only when simulation is running
   useEffect(() => {
     if (isRunning) {
-      // Get node from store directly to avoid stale closure
+      // Get node from store directly to avoid stale closure. Route through
+      // resolveEffectiveCluster so history samples whichever cluster the
+      // tick loop is actually ticking (a scenario's isolated cluster when
+      // one is active, otherwise global) — sampling the raw global cluster
+      // unconditionally would flatline the chart during any active
+      // scenario, since Task 6 stopped ticking global while a scenario runs.
       MetricsHistory.startCollection(() => {
         const state = useSimulationStore.getState();
         const nodeId = state.selectedNode;
-        return (
-          state.cluster.nodes.find((n) => n.id === nodeId) ||
-          state.cluster.nodes[0]
-        );
+        const cluster = resolveEffectiveCluster(state.cluster);
+        return cluster.nodes.find((n) => n.id === nodeId) || cluster.nodes[0];
       }, 1000);
     } else {
       MetricsHistory.stopCollection();
