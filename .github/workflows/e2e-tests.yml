@@ -54,9 +54,9 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      # Smoke subset: most e2e specs are currently red on dev (pre-existing; welcome-screen overlay + missing visual baselines - see docs/superpowers/plans/2026-07-02-audit-remediation-master.md). Expand this list as specs are remediated.
-      - name: Run e2e smoke tests (desktop viewport)
-        run: npx playwright test tests/e2e/sandbox-remediation.spec.ts --project=desktop-1920
+      # Desktop-only in CI keeps the job manageable; laptop-1366 and large-2560 remain local-only. The visual-regression spec self-skips on Linux via its win32 platform gate.
+      - name: Run e2e tests (desktop viewport)
+        run: npx playwright test --project=desktop-1920
 
       - name: Upload report on failure
         uses: actions/upload-artifact@v4
