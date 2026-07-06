@@ -58,14 +58,23 @@ describe("ClusterPhysicsEngine", () => {
     expect(updated.temperature).toBeLessThan(80);
   });
 
-  it("should throttle SM clocks when temperature exceeds 83C", () => {
+  it("should throttle SM clocks when temperature exceeds the per-arch max operating temp", () => {
     const engine = new ClusterPhysicsEngine();
-    const gpu = createTestGPU({ temperature: 90, clocksSM: 1410 });
+    // High utilization gives the equilibrium target a real reason to sit
+    // above the throttle threshold (A100 maxOp = 85) — a "hot but idle"
+    // GPU has no physical basis to stay hot and correctly cools instead.
+    const gpu = createTestGPU({
+      temperature: 90,
+      clocksSM: 1410,
+      utilization: 95,
+      powerDraw: 380,
+      powerLimit: 400,
+    });
     const updated = engine.tickGPU(gpu);
     expect(updated.clocksSM).toBeLessThan(1410);
   });
 
-  it("should not throttle clocks below 83C", () => {
+  it("should not throttle clocks well below the per-arch max operating temp", () => {
     const engine = new ClusterPhysicsEngine();
     const gpu = createTestGPU({ temperature: 70, clocksSM: 1410 });
     const updated = engine.tickGPU(gpu);
@@ -136,26 +145,121 @@ describe("ClusterPhysicsEngine", () => {
     expect(events.some((e) => e.type === "ecc-accumulation")).toBe(false);
   });
 
-  it("should detect thermal threshold crossing", () => {
+  it("should detect thermal threshold crossing when a persistent fault holds temperature up", () => {
     const engine = new ClusterPhysicsEngine();
-    // First tick at 82C establishes previous temp below threshold
-    const gpu82 = createTestGPU({
-      utilization: 95,
-      temperature: 82,
-      powerDraw: 380,
+    // A moderate persistent fault (60% of TDP as extra heat) plus moderate
+    // load will, over many ticks, cross the A100's 85°C maxOp threshold —
+    // proving crossing-detection still works once something legitimate
+    // (not load alone) drives the temperature there.
+    let gpu = createTestGPU({
+      temperature: 40,
+      utilization: 50,
+      powerDraw: 100,
       powerLimit: 400,
+      activeFaultHeatWatts: 240, // 400 * 0.6
     });
-    engine.tickGPU(gpu82);
-    // Second tick at 85C — high utilization keeps output above 83C
-    const gpu85 = createTestGPU({
-      utilization: 95,
-      temperature: 85,
-      powerDraw: 380,
+    let firedWarning = false;
+    for (let i = 0; i < 60 && !firedWarning; i++) {
+      gpu = engine.tickGPU(gpu);
+      firedWarning = engine
+        .consumeThresholdEvents()
+        .some((e) => e.type === "thermal-warning");
+    }
+    expect(firedWarning).toBe(true);
+  });
+
+  it("should settle full-utilization, no-fault load at 70-75C without throttling", () => {
+    const engine = new ClusterPhysicsEngine();
+    let gpu = createTestGPU({
+      temperature: 35,
+      powerDraw: 60,
       powerLimit: 400,
+      utilization: 100,
+      clocksSM: 1410,
     });
-    engine.tickGPU(gpu85);
-    const events = engine.getThresholdEvents();
-    expect(events.some((e) => e.type === "thermal-warning")).toBe(true);
+    for (let i = 0; i < 200; i++) {
+      gpu = engine.tickGPU(gpu);
+    }
+    expect(gpu.temperature).toBeGreaterThanOrEqual(68);
+    expect(gpu.temperature).toBeLessThanOrEqual(76);
+    expect(gpu.clocksSM).toBe(1410); // never throttled — equilibrium stays below A100's 85C maxOp
+  });
+
+  it("should hold a persistent fault's temperature elevated across many ticks, not decay it", () => {
+    const engine = new ClusterPhysicsEngine();
+    let gpu = createTestGPU({
+      temperature: 40,
+      powerDraw: 60,
+      powerLimit: 400,
+      utilization: 5,
+      activeFaultHeatWatts: 400, // A100's ratedTDP * 1.0 — saturating fault (powerLimit is uncapped here, so it equals ratedTDP)
+    });
+    for (let i = 0; i < 30; i++) {
+      gpu = engine.tickGPU(gpu);
+    }
+    const heldTemp = gpu.temperature;
+    expect(heldTemp).toBeGreaterThan(85); // well above A100 maxOp
+    // Run 30 MORE ticks with the fault still active — temperature must not
+    // decay back down on its own (this is the fix for PHYS-9/LIVE-2's
+    // fault-evaporation bug: the old one-shot write decayed within ~10-20s).
+    for (let i = 0; i < 30; i++) {
+      gpu = engine.tickGPU(gpu);
+    }
+    expect(gpu.temperature).toBeGreaterThanOrEqual(heldTemp - 1);
+  });
+
+  it("should cool back toward the load-appropriate equilibrium once the fault is cleared", () => {
+    const engine = new ClusterPhysicsEngine();
+    let gpu = createTestGPU({
+      temperature: 40,
+      powerDraw: 60,
+      powerLimit: 400,
+      utilization: 5,
+      activeFaultHeatWatts: 400,
+    });
+    for (let i = 0; i < 30; i++) {
+      gpu = engine.tickGPU(gpu);
+    }
+    expect(gpu.temperature).toBeGreaterThan(85);
+
+    // Remediation clears the fault term (does NOT snap temperature directly).
+    gpu = { ...gpu, activeFaultHeatWatts: 0 };
+    for (let i = 0; i < 100; i++) {
+      gpu = engine.tickGPU(gpu);
+    }
+    // At 5% utilization with no fault, equilibrium is ~38C — well below maxOp.
+    expect(gpu.temperature).toBeLessThan(50);
+  });
+
+  it("should let a lower power limit measurably reduce equilibrium temperature (power-capping cools — PHYS-2)", () => {
+    const engineHigh = new ClusterPhysicsEngine();
+    const engineLow = new ClusterPhysicsEngine();
+    let gpuHighLimit = createTestGPU({
+      temperature: 40,
+      powerDraw: 100,
+      powerLimit: 400, // A100's rated TDP — uncapped
+      utilization: 100,
+    });
+    let gpuLowLimit = createTestGPU({
+      temperature: 40,
+      powerDraw: 100,
+      powerLimit: 250, // capped, as if `nvidia-smi -pl 250` had been applied
+      utilization: 100,
+    });
+    for (let i = 0; i < 200; i++) {
+      gpuHighLimit = engineHigh.tickGPU(gpuHighLimit);
+      gpuLowLimit = engineLow.tickGPU(gpuLowLimit);
+    }
+    // Uncapped settles ~72C (loadRatio = 400/ratedTDP(400) = 1.0).
+    // Capped settles ~57C (loadRatio = 250/ratedTDP(400) = 0.625) — a REAL,
+    // substantial difference, because the ratio's denominator is the fixed
+    // rated TDP, not the (now-lower) current limit. If this ever regresses
+    // to dividing by gpu.powerLimit instead, both would converge to the
+    // same ~72C and this assertion would catch it immediately.
+    expect(gpuHighLimit.temperature).toBeGreaterThanOrEqual(68);
+    expect(gpuHighLimit.temperature).toBeLessThanOrEqual(76);
+    expect(gpuLowLimit.temperature).toBeLessThan(gpuHighLimit.temperature - 10);
+    expect(gpuLowLimit.powerDraw).toBeLessThan(gpuHighLimit.powerDraw);
   });
 
   it("should tag threshold events with the GPU's globally-unique uuid", () => {
