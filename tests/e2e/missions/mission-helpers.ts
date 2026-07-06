@@ -10,9 +10,7 @@
 
 import { type Page, expect } from "@playwright/test";
 import type { Mission, MissionStep } from "./mission-data";
-
-/** How long to wait for the step to auto-advance after validation passes. */
-const STEP_ADVANCE_MS = 3_500;
+import { seedUiFlags } from "../setup/seedUiFlags";
 
 /** How long to wait for lazy UI elements before failing. */
 const UI_TIMEOUT = 10_000;
@@ -29,6 +27,11 @@ export class MissionRunner {
    * view (including the terminal) to load.
    */
   async enterSimulator(): Promise<void> {
+    // Seed tour-seen/sandbox-intro flags before the first navigation so the
+    // Spotlight Tour and sandbox intro overlays never auto-start and steal
+    // focus/clicks from the mission flow. Keep the welcome screen, since this
+    // runner explicitly exercises dismissing it below.
+    await seedUiFlags(this.page, { keepWelcome: true });
     await this.page.goto("/");
 
     // Wait for welcome screen
@@ -50,8 +53,19 @@ export class MissionRunner {
 
   /**
    * Navigate to Labs & Scenarios, find the mission card by
-   * title, click it, and click "Begin Mission" on the
-   * NarrativeIntro screen.
+   * title, click it, and click "Accept Mission" on the
+   * MissionBriefing screen.
+   *
+   * NOTE: MissionBriefing (src/components/MissionBriefing.tsx) is the
+   * component actually rendered here, not NarrativeIntro — App.tsx only
+   * mounts NarrativeIntro's sibling (LabWorkspace) while activeScenario is
+   * null, and activeScenario is already set by the time the briefing shows.
+   * Its "Accept Mission" button plays a ~2-3s typing/fade-in animation
+   * before becoming opaque, but the button element itself is present and
+   * clickable (non-zero size, no visibility:hidden) throughout — Playwright's
+   * actionability checks don't consider CSS opacity, so waiting for
+   * state:"visible" resolves immediately without needing the animation to
+   * finish.
    */
   async launchMission(title: string): Promise<void> {
     // Switch to Labs tab
@@ -65,24 +79,35 @@ export class MissionRunner {
     await card.scrollIntoViewIfNeeded();
     await card.click();
 
-    // NarrativeIntro screen — click "Begin Mission"
-    const beginBtn = this.page.locator('button:has-text("Begin Mission")');
-    await beginBtn.waitFor({ state: "visible", timeout: UI_TIMEOUT });
-    await beginBtn.click();
+    // MissionBriefing screen — click "Accept Mission"
+    const acceptBtn = this.page.locator(
+      '[data-testid="mission-briefing"] button:has-text("Accept Mission")',
+    );
+    await acceptBtn.waitFor({ state: "visible", timeout: UI_TIMEOUT });
+    await acceptBtn.click();
 
-    // Lab workspace should now be visible
-    await this.page.waitForSelector('[data-testid="lab-workspace"]', {
-      timeout: UI_TIMEOUT,
-    });
+    // Mission Mode is now active (App.tsx swaps to MissionModeBar +
+    // SimulatorView) — wait for the instruction panel to mount.
+    await this.page.waitForSelector(
+      '[data-testid="mission-instruction-panel"]',
+      { timeout: UI_TIMEOUT },
+    );
   }
 
   // ──────────────────────────────────────────────
   //  Step handlers
   // ──────────────────────────────────────────────
 
-  /** Click the "Continue" button shown for concept steps. */
+  /**
+   * Click the "Continue" button shown for concept/observe steps that have
+   * no expectedCommands and no quiz (src/components/MissionInstructionPanel.tsx
+   * — the button has no testid, only the visible label "Continue", and only
+   * renders inside the mission instruction panel).
+   */
   async completeConceptStep(): Promise<void> {
-    const btn = this.page.locator('[data-testid="concept-continue-btn"]');
+    const btn = this.page
+      .locator('[data-testid="mission-instruction-panel"] button')
+      .filter({ hasText: "Continue" });
     await btn.waitFor({ state: "visible", timeout: UI_TIMEOUT });
     await btn.click();
   }
@@ -93,6 +118,22 @@ export class MissionRunner {
    */
   async completeObserveStep(): Promise<void> {
     await this.completeConceptStep();
+  }
+
+  /**
+   * Click the "Next →" / "Finish →" button in the mission instruction
+   * panel. Mission Mode disables step auto-advance (SimulatorView sets
+   * validationConfig.autoAdvance = false while a scenario is active), so
+   * after a command step (or a concept/observe step with expectedCommands)
+   * passes validation with no quiz attached, this explicit click is what
+   * actually advances scenarioProgress.currentStepIndex.
+   */
+  async clickNextOrFinish(): Promise<void> {
+    const btn = this.page
+      .locator('[data-testid="mission-instruction-panel"] button')
+      .filter({ hasText: /Next|Finish/ });
+    await btn.waitFor({ state: "visible", timeout: UI_TIMEOUT });
+    await btn.click();
   }
 
   /**
@@ -153,11 +194,21 @@ export class MissionRunner {
   }
 
   /**
-   * Wait for the step to auto-advance after validation
-   * passes (the app has a ~1.5s auto-advance timer).
+   * Wait for the instruction panel to show the given step number —
+   * the deterministic signal that the app advanced to the next step.
+   * (Replaces a fixed 3.5s sleep per step that added ~22 minutes of
+   * dead time across the 40-mission suite and pushed the serial CI
+   * job past its timeout.)
    */
-  async waitForStepAdvance(): Promise<void> {
-    await this.page.waitForTimeout(STEP_ADVANCE_MS);
+  async waitForStepNumber(
+    stepNumber: number,
+    totalSteps: number,
+  ): Promise<void> {
+    await expect(
+      this.page
+        .locator('[data-testid="mission-instruction-panel"]')
+        .getByText(`Step ${stepNumber} of ${totalSteps}`),
+    ).toBeVisible({ timeout: UI_TIMEOUT });
   }
 
   /**
@@ -189,13 +240,23 @@ export class MissionRunner {
    * Quiz ordering matters:
    * - concept/observe WITH quiz: quiz renders immediately alongside
    *   the Continue button. Answering the quiz calls completeScenarioStep(),
-   *   so we answer the quiz and skip Continue.
-   * - concept/observe WITHOUT quiz: click Continue to complete.
+   *   so we answer the quiz and skip Continue/Next.
+   * - concept/observe WITHOUT quiz, no commands: click Continue, which
+   *   calls completeScenarioStep() directly.
+   * - concept/observe WITHOUT quiz, WITH commands: type command(s) →
+   *   validation passes → the Continue button is replaced by "Next →" /
+   *   "Finish →" (MissionInstructionPanel hides Continue once
+   *   expectedCommands is non-empty) → click it.
    * - command WITH quiz: type command → validation passes → quiz appears
    *   → answer quiz (which calls completeScenarioStep()).
-   * - command WITHOUT quiz: type command → auto-advance after validation.
+   * - command WITHOUT quiz: type command → validation passes → click
+   *   "Next →" / "Finish →" (Mission Mode disables auto-advance, so this
+   *   click is what actually advances currentStepIndex).
    */
-  async runStep(step: MissionStep): Promise<void> {
+  async runStep(
+    step: MissionStep,
+    advance?: { nextStepNumber: number; totalSteps: number },
+  ): Promise<void> {
     const hasQuiz = step.hasQuiz && step.quizCorrectIndex !== undefined;
 
     switch (step.type) {
@@ -207,9 +268,10 @@ export class MissionRunner {
           for (const cmd of step.expectedCommands) {
             await this.executeCommand(cmd);
           }
-          // If there's also a quiz, answer it after commands
           if (hasQuiz) {
             await this.answerQuiz(step.quizCorrectIndex!);
+          } else {
+            await this.clickNextOrFinish();
           }
         } else if (hasQuiz) {
           // Quiz is visible immediately for concept/observe steps.
@@ -225,16 +287,22 @@ export class MissionRunner {
         for (const cmd of step.expectedCommands) {
           await this.executeCommand(cmd);
         }
-        // For command steps, quiz appears after validation passes.
         if (hasQuiz) {
+          // Quiz appears once validation passes; answering it advances.
           await this.answerQuiz(step.quizCorrectIndex!);
+        } else {
+          await this.clickNextOrFinish();
         }
         break;
       }
     }
 
-    // Wait for auto-advance to next step
-    await this.waitForStepAdvance();
+    // Wait for the app to actually advance before the next step's
+    // assertions run. On the last step the caller asserts mission
+    // completion instead, which carries its own condition wait.
+    if (advance) {
+      await this.waitForStepNumber(advance.nextStepNumber, advance.totalSteps);
+    }
   }
 
   /**
@@ -246,7 +314,15 @@ export class MissionRunner {
       const step = mission.steps[i];
       const isLastStep = i === mission.steps.length - 1;
 
-      await this.runStep(step);
+      await this.runStep(
+        step,
+        isLastStep
+          ? undefined
+          : {
+              nextStepNumber: i + 2,
+              totalSteps: mission.steps.length,
+            },
+      );
 
       // On the last step, don't wait for advance — assert completion instead
       if (isLastStep) {

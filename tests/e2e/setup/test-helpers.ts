@@ -1,16 +1,35 @@
 import { Page, expect } from "@playwright/test";
+import { seedUiFlags } from "./seedUiFlags";
 
 export class SimulatorTestHelper {
   constructor(private page: Page) {}
 
   async navigateToSimulator() {
+    // Seed tour-seen/sandbox-intro flags before the first navigation so the
+    // Spotlight Tour and sandbox intro overlays never auto-start and steal
+    // focus/clicks from these specs. Keep the welcome screen since this
+    // helper explicitly clicks through it below.
+    await seedUiFlags(this.page, { keepWelcome: true });
     await this.page.goto("/");
-    // Wait for welcome screen animation to complete
-    await this.page.waitForSelector('[data-testid="welcome-screen"]', {
+
+    // Some specs call navigateToSimulator() a second time within the same
+    // test (e.g. after changing the viewport). ncp-aii-welcome-dismissed
+    // persists in localStorage across page.goto() calls within a test, so
+    // on a second visit the welcome screen never (re)appears and the app
+    // renders the terminal directly. or() accepts either path with a single
+    // promise (a Promise.race of two waitFors leaves the losing waitFor to
+    // reject unhandled after its timeout).
+    const welcome = this.page.locator('[data-testid="welcome-screen"]');
+    const terminal = this.page.locator('[data-testid="terminal"]');
+    await expect(welcome.or(terminal).first()).toBeVisible({
       timeout: 10000,
     });
-    // Click the "Enter Virtual Datacenter" button
-    await this.page.click('button:has-text("Enter Virtual Datacenter")');
+
+    if (await welcome.isVisible()) {
+      // Click the "Enter Virtual Datacenter" button
+      await this.page.click('button:has-text("Enter Virtual Datacenter")');
+    }
+
     // Wait for terminal to be ready
     await this.page.waitForSelector('[data-testid="terminal"]', {
       timeout: 10000,
@@ -43,6 +62,58 @@ export class SimulatorTestHelper {
     return terminalContent || "";
   }
 
+  /**
+   * Read the terminal's FULL buffer text, including scrollback that has
+   * scrolled out of xterm's rendered viewport. xterm only keeps the
+   * *visible* rows in the .xterm-rows DOM, so on short viewports
+   * (laptop-1366's 768px) the head of a long command's output — banners,
+   * report titles, nvidia-smi's header table — is not in the DOM at all
+   * and getTerminalOutput() can't see it.
+   *
+   * DOM scrolling doesn't work here (.xterm-viewport reports
+   * scrollHeight === clientHeight and pins scrollTop to 0), but xterm's
+   * built-in keyboard scrolling does and re-renders .xterm-rows per page.
+   * So: focus the terminal, Shift+PageUp to the top of the scrollback
+   * snapshotting each page, then Shift+End back to the bottom.
+   *
+   * Rows are rendered atomically, so every buffer row lands intact in
+   * some snapshot. Pages are joined with a newline; a soft-wrapped line
+   * that straddles a page boundary will be split, so keep asserted
+   * substrings short (single-row) as usual. Adjacent pages can overlap,
+   * so text may appear twice — use this for positive contains/match
+   * assertions only, never for counting or not-contains checks.
+   */
+  async getFullTerminalOutput(): Promise<string> {
+    const terminal = this.page.locator('[data-testid="terminal"]');
+    const rows = this.page.locator('[data-testid="terminal"] .xterm-rows');
+    const read = async () => (await rows.textContent()) || "";
+
+    // Focus the terminal so xterm receives the scroll keystrokes.
+    await terminal.click();
+
+    // Collect pages bottom -> top. Stop when a page-up no longer changes
+    // the rendered text (top of scrollback reached). Bounded as a safety
+    // net (~60 pages ≈ 2,000 lines at laptop row counts).
+    const chunks: string[] = [await read()];
+    for (let i = 0; i < 60; i++) {
+      await this.page.keyboard.press("Shift+PageUp");
+      await this.page.waitForTimeout(50);
+      const text = await read();
+      if (text === chunks[chunks.length - 1]) break;
+      chunks.push(text);
+    }
+
+    // Restore the view to the bottom so subsequent viewport-only reads
+    // (getTerminalOutput / verifyOutputNotContains) see the latest output.
+    // xterm binds Shift+End to scrollToBottom, so one keypress replaces
+    // paging back down chunk by chunk.
+    await this.page.keyboard.press("Shift+End");
+    await this.page.waitForTimeout(50);
+
+    // Reverse into natural top -> bottom order.
+    return chunks.reverse().join("\n");
+  }
+
   async getLastCommandOutput(): Promise<string> {
     const output = await this.getTerminalOutput();
     // The output contains all terminal history
@@ -51,7 +122,11 @@ export class SimulatorTestHelper {
   }
 
   async verifyOutputContains(text: string | RegExp) {
-    const output = await this.getTerminalOutput();
+    // Positive assertions read the FULL buffer (scrollback included) so a
+    // long command's header lines still match on short viewports where they
+    // have scrolled out of the rendered rows. Reading a superset can only
+    // make a contains/match assertion pass more, never less.
+    const output = await this.getFullTerminalOutput();
     if (typeof text === "string") {
       expect(output).toContain(text);
     } else {
@@ -60,6 +135,10 @@ export class SimulatorTestHelper {
   }
 
   async verifyOutputNotContains(text: string) {
+    // Deliberately reads only the visible viewport (NOT the full buffer):
+    // scrollback retains output from earlier commands in the same test, so
+    // a full-buffer not-contains would fail on stale text the current
+    // command never printed.
     const output = await this.getTerminalOutput();
     expect(output).not.toContain(text);
   }
