@@ -211,8 +211,10 @@ test.describe("Firmware and Cable Validation", () => {
       await helper.typeCommand("ibdiagnet");
       await helper.waitForCommandOutput();
 
-      // Both should work correctly in sequence
-      const output = await helper.getTerminalOutput();
+      // Both should work correctly in sequence. Read the full buffer: on
+      // laptop-1366 the ibdiagnet output pushes all nvidia-smi -q "GPU"
+      // lines out of the rendered viewport.
+      const output = await helper.getFullTerminalOutput();
       expect(output).toContain("GPU");
     });
 
