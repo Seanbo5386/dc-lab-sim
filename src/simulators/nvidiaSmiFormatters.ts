@@ -1,5 +1,6 @@
 import type { GPU, DGXNode } from "@/types/hardware";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
+import { getThermalThresholds } from "@/simulation/clusterPhysicsEngine";
 
 export type DisplayFormatter = (gpu: GPU, node?: DGXNode) => string;
 
@@ -53,25 +54,6 @@ export function formatDisplayECC(gpu: GPU, _node?: DGXNode): string {
   output += `            DRAM Correctable              : ${gpu.eccErrors.aggregated.singleBit}\n`;
   output += `            DRAM Uncorrectable            : ${gpu.eccErrors.aggregated.doubleBit}\n`;
   return output;
-}
-
-export function getThermalThresholds(gpuName: string): {
-  shutdown: number;
-  slowdown: number;
-  maxOp: number;
-} {
-  if (gpuName.includes("H100") || gpuName.includes("H200")) {
-    return { shutdown: 95, slowdown: 90, maxOp: 83 };
-  }
-  if (
-    gpuName.includes("B200") ||
-    gpuName.includes("GB200") ||
-    gpuName.includes("R200")
-  ) {
-    return { shutdown: 95, slowdown: 90, maxOp: 83 };
-  }
-  // A100 default
-  return { shutdown: 92, slowdown: 89, maxOp: 85 };
 }
 
 export function formatDisplayTemperature(gpu: GPU, _node?: DGXNode): string {

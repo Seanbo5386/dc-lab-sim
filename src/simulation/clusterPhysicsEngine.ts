@@ -1,4 +1,5 @@
 import type { GPU } from "@/types/hardware";
+import { HARDWARE_SPECS } from "@/data/hardwareSpecs";
 
 export const AMBIENT_TEMP = 32;
 export const THERMAL_CEILING = 95;
@@ -7,6 +8,49 @@ const THROTTLE_RATE_MHZ_PER_DEGREE = 10;
 const TEMP_SMOOTHING = 0.15;
 const POWER_SMOOTHING = 0.2;
 export const IDLE_POWER_FLOOR = 0.15;
+
+export function getThermalThresholds(gpuName: string): {
+  shutdown: number;
+  slowdown: number;
+  maxOp: number;
+} {
+  if (gpuName.includes("H100") || gpuName.includes("H200")) {
+    return { shutdown: 95, slowdown: 90, maxOp: 83 };
+  }
+  if (
+    gpuName.includes("B200") ||
+    gpuName.includes("GB200") ||
+    gpuName.includes("R200")
+  ) {
+    return { shutdown: 95, slowdown: 90, maxOp: 83 };
+  }
+  // A100 default
+  return { shutdown: 92, slowdown: 89, maxOp: 85 };
+}
+
+/** Look up the boost clock for a GPU by its model name. Falls back to A100's 1410 MHz. */
+export function getBoostClock(gpuName: string): number {
+  for (const spec of Object.values(HARDWARE_SPECS)) {
+    if (spec.gpu.model === gpuName) return spec.gpu.boostClockMHz;
+  }
+  return 1410;
+}
+
+/**
+ * Look up a GPU's RATED (as-shipped) TDP by model name — a fixed reference
+ * that never changes, unlike `gpu.powerLimit` which `-pl` can lower. The
+ * temperature formula divides by this, not by the current limit, so
+ * capping the current limit genuinely reduces the computed ratio instead
+ * of always renormalizing back to 1.0 at 100% utilization (PHYS-2: power
+ * capping must be watts-driven, not ratio-driven). Falls back to A100's
+ * 400W.
+ */
+export function getRatedTDP(gpuName: string): number {
+  for (const spec of Object.values(HARDWARE_SPECS)) {
+    if (spec.gpu.model === gpuName) return spec.gpu.tdpWatts;
+  }
+  return 400;
+}
 
 export interface ThresholdEvent {
   type:

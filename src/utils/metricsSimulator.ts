@@ -1,19 +1,11 @@
 import type { GPU, InfiniBandHCA } from "@/types/hardware";
-import { HARDWARE_SPECS } from "@/data/hardwareSpecs";
 import {
   ClusterPhysicsEngine,
   AMBIENT_TEMP,
   THERMAL_CEILING,
   IDLE_POWER_FLOOR,
+  getBoostClock,
 } from "@/simulation/clusterPhysicsEngine";
-
-/** Look up the boost clock for a GPU by its model name. Falls back to A100's 1410 MHz. */
-function getBoostClock(gpuName: string): number {
-  for (const spec of Object.values(HARDWARE_SPECS)) {
-    if (spec.gpu.model === gpuName) return spec.gpu.boostClockMHz;
-  }
-  return 1410;
-}
 
 export interface MetricsUpdate {
   gpus: GPU[];

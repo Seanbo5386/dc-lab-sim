@@ -8,10 +8,8 @@ import {
 import { MIG_PROFILES } from "@/utils/clusterFactory";
 import { generateTimestamp } from "@/utils/outputTemplates";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
-import {
-  DISPLAY_FORMATTERS,
-  getThermalThresholds,
-} from "@/simulators/nvidiaSmiFormatters";
+import { DISPLAY_FORMATTERS } from "@/simulators/nvidiaSmiFormatters";
+import { getThermalThresholds } from "@/simulation/clusterPhysicsEngine";
 import { applyRemediation } from "@/utils/remediationEngine";
 
 function getArchitecture(systemType?: string): string {

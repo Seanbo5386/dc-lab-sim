@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ClusterPhysicsEngine } from "../clusterPhysicsEngine";
+import { ClusterPhysicsEngine, getRatedTDP } from "../clusterPhysicsEngine";
 import type { GPU } from "@/types/hardware";
 
 function createTestGPU(overrides: Partial<GPU> = {}): GPU {
@@ -177,5 +177,17 @@ describe("ClusterPhysicsEngine", () => {
       .getThresholdEvents()
       .find((e) => e.type === "ecc-accumulation");
     expect(eccEvent?.gpuUuid).toBe("GPU-NODE3-0");
+  });
+});
+
+describe("getRatedTDP", () => {
+  it("returns the A100's rated TDP (400W)", () => {
+    expect(getRatedTDP("NVIDIA A100-SXM4-80GB")).toBe(400);
+  });
+
+  it("returns a DIFFERENT GPU's own rated TDP, not a shared default", () => {
+    // H100 (700W) must not collapse to A100's fallback value — this is
+    // what makes the per-arch power-capping math in Task 2 correct.
+    expect(getRatedTDP("NVIDIA H100-SXM5-80GB")).toBe(700);
   });
 });
