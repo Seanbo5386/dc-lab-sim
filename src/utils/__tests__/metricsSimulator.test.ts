@@ -217,12 +217,12 @@ describe("MetricsSimulator", () => {
       vi.useRealTimers();
     });
 
-    /** Run one metrics update tick via startGpuOnly + fake timer */
+    /** Run one metrics update tick via start() + fake timer — the production path (CODE-7: previously used the legacy startGpuOnly() shim, which no production caller uses). */
     function tickMetrics(gpus: GPU[]): GPU[] {
       let result: GPU[] = gpus;
       const sim = new MetricsSimulator();
-      sim.startGpuOnly((updater) => {
-        result = updater(gpus);
+      sim.start((updater) => {
+        result = updater({ gpus, hcas: [] }).gpus;
       }, 1000);
       vi.advanceTimersByTime(1000);
       sim.stop();
