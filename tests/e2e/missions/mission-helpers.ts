@@ -12,9 +12,6 @@ import { type Page, expect } from "@playwright/test";
 import type { Mission, MissionStep } from "./mission-data";
 import { seedUiFlags } from "../setup/seedUiFlags";
 
-/** How long to wait for the step to auto-advance after validation passes. */
-const STEP_ADVANCE_MS = 3_500;
-
 /** How long to wait for lazy UI elements before failing. */
 const UI_TIMEOUT = 10_000;
 
@@ -197,11 +194,21 @@ export class MissionRunner {
   }
 
   /**
-   * Wait for the step to auto-advance after validation
-   * passes (the app has a ~1.5s auto-advance timer).
+   * Wait for the instruction panel to show the given step number —
+   * the deterministic signal that the app advanced to the next step.
+   * (Replaces a fixed 3.5s sleep per step that added ~22 minutes of
+   * dead time across the 40-mission suite and pushed the serial CI
+   * job past its timeout.)
    */
-  async waitForStepAdvance(): Promise<void> {
-    await this.page.waitForTimeout(STEP_ADVANCE_MS);
+  async waitForStepNumber(
+    stepNumber: number,
+    totalSteps: number,
+  ): Promise<void> {
+    await expect(
+      this.page
+        .locator('[data-testid="mission-instruction-panel"]')
+        .getByText(`Step ${stepNumber} of ${totalSteps}`),
+    ).toBeVisible({ timeout: UI_TIMEOUT });
   }
 
   /**
@@ -246,7 +253,10 @@ export class MissionRunner {
    *   "Next →" / "Finish →" (Mission Mode disables auto-advance, so this
    *   click is what actually advances currentStepIndex).
    */
-  async runStep(step: MissionStep): Promise<void> {
+  async runStep(
+    step: MissionStep,
+    advance?: { nextStepNumber: number; totalSteps: number },
+  ): Promise<void> {
     const hasQuiz = step.hasQuiz && step.quizCorrectIndex !== undefined;
 
     switch (step.type) {
@@ -287,8 +297,12 @@ export class MissionRunner {
       }
     }
 
-    // Let the UI settle before the next step's assertions run.
-    await this.waitForStepAdvance();
+    // Wait for the app to actually advance before the next step's
+    // assertions run. On the last step the caller asserts mission
+    // completion instead, which carries its own condition wait.
+    if (advance) {
+      await this.waitForStepNumber(advance.nextStepNumber, advance.totalSteps);
+    }
   }
 
   /**
@@ -300,7 +314,15 @@ export class MissionRunner {
       const step = mission.steps[i];
       const isLastStep = i === mission.steps.length - 1;
 
-      await this.runStep(step);
+      await this.runStep(
+        step,
+        isLastStep
+          ? undefined
+          : {
+              nextStepNumber: i + 2,
+              totalSteps: mission.steps.length,
+            },
+      );
 
       // On the last step, don't wait for advance — assert completion instead
       if (isLastStep) {

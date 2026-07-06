@@ -16,13 +16,14 @@ export class SimulatorTestHelper {
     // test (e.g. after changing the viewport). ncp-aii-welcome-dismissed
     // persists in localStorage across page.goto() calls within a test, so
     // on a second visit the welcome screen never (re)appears and the app
-    // renders the terminal directly. Race both so either path resolves.
+    // renders the terminal directly. or() accepts either path with a single
+    // promise (a Promise.race of two waitFors leaves the losing waitFor to
+    // reject unhandled after its timeout).
     const welcome = this.page.locator('[data-testid="welcome-screen"]');
     const terminal = this.page.locator('[data-testid="terminal"]');
-    await Promise.race([
-      welcome.waitFor({ state: "visible", timeout: 10000 }),
-      terminal.waitFor({ state: "visible", timeout: 10000 }),
-    ]);
+    await expect(welcome.or(terminal).first()).toBeVisible({
+      timeout: 10000,
+    });
 
     if (await welcome.isVisible()) {
       // Click the "Enter Virtual Datacenter" button
@@ -71,10 +72,9 @@ export class SimulatorTestHelper {
    *
    * DOM scrolling doesn't work here (.xterm-viewport reports
    * scrollHeight === clientHeight and pins scrollTop to 0), but xterm's
-   * built-in Shift+PageUp/Shift+PageDown keyboard scrolling does and
-   * re-renders .xterm-rows per page. So: focus the terminal, page up to
-   * the top of the scrollback snapshotting each page, then page back
-   * down to the bottom.
+   * built-in keyboard scrolling does and re-renders .xterm-rows per page.
+   * So: focus the terminal, Shift+PageUp to the top of the scrollback
+   * snapshotting each page, then Shift+End back to the bottom.
    *
    * Rows are rendered atomically, so every buffer row lands intact in
    * some snapshot. Pages are joined with a newline; a soft-wrapped line
@@ -105,10 +105,10 @@ export class SimulatorTestHelper {
 
     // Restore the view to the bottom so subsequent viewport-only reads
     // (getTerminalOutput / verifyOutputNotContains) see the latest output.
-    for (let i = 0; i < chunks.length + 2; i++) {
-      await this.page.keyboard.press("Shift+PageDown");
-      await this.page.waitForTimeout(25);
-    }
+    // xterm binds Shift+End to scrollToBottom, so one keypress replaces
+    // paging back down chunk by chunk.
+    await this.page.keyboard.press("Shift+End");
+    await this.page.waitForTimeout(50);
 
     // Reverse into natural top -> bottom order.
     return chunks.reverse().join("\n");
