@@ -11,6 +11,10 @@ import { MetricsSimulator } from "@/utils/metricsSimulator";
 import { useSimulationStore } from "@/store/simulationStore";
 import { shallowCompareGPU, shallowCompareHCAs } from "@/utils/shallowCompare";
 import { scenarioContextManager } from "@/store/scenarioContext";
+import {
+  resolveEffectiveCluster,
+  resolveEffectiveMutator,
+} from "@/utils/effectiveState";
 import type { ThresholdEvent } from "@/simulation/clusterPhysicsEngine";
 import type {
   ClusterEventInput,
@@ -80,13 +84,26 @@ export function useMetricsSimulation(isRunning: boolean): void {
     if (isRunning) {
       simulator.start((updater) => {
         const store = useSimulationStore.getState();
+        // Tick whichever cluster the learner is actually looking at: the
+        // active ScenarioContext's isolated cluster (mission/incident/free
+        // sandbox) when one exists, otherwise the global dashboard cluster.
+        // Previously this always ticked the global cluster even while a
+        // scenario was active, so sandbox GPUs never moved (PHYS-4) and
+        // Apply Workload's one-shot values never converged.
+        const targetCluster = resolveEffectiveCluster(store.cluster);
+        const mutator = resolveEffectiveMutator();
+        const isTickingScenario = targetCluster !== store.cluster;
 
         // Build gpuUuid -> nodeId mapping for threshold event routing.
         // Keyed on uuid (not gpu.id) because gpu.id is node-local and repeats
         // across nodes — keying on it would collide and misroute events.
+        // Built from targetCluster (whichever cluster is actually ticked) so
+        // events describe the same cluster they're routed into (PHYS-14) —
+        // previously this was always built from the global cluster even when
+        // a scenario's cluster was the one that mattered.
         const gpuToNode = new Map<string, string>();
 
-        store.cluster.nodes.forEach((node) => {
+        targetCluster.nodes.forEach((node) => {
           const updated = updater({ gpus: node.gpus, hcas: node.hcas });
 
           // Track GPU-to-node mapping for threshold events
@@ -97,12 +114,22 @@ export function useMetricsSimulation(isRunning: boolean): void {
           // Update GPUs - use shallow comparison for better performance
           updated.gpus.forEach((gpu, idx) => {
             if (!shallowCompareGPU(gpu, node.gpus[idx])) {
-              store.updateGPU(node.id, gpu.id, gpu);
+              mutator.updateGPU(node.id, gpu.id, gpu);
             }
           });
 
-          // Update HCAs (InfiniBand port errors) - use shallow comparison
-          if (!shallowCompareHCAs(updated.hcas, node.hcas)) {
+          // Update HCAs (InfiniBand port errors) - use shallow comparison.
+          // HCA metrics are a pure pass-through in updateHcaMetrics (errors
+          // come from explicit fault injection, never from ticking) and
+          // ScenarioContext has no HCA-mutation method, so there's nothing
+          // to write back when ticking a sandbox — this call only ever
+          // fires for the global cluster, matching what it already did in
+          // practice (updateHcaMetrics returning the same reference meant
+          // shallowCompareHCAs always skipped it anyway).
+          if (
+            !isTickingScenario &&
+            !shallowCompareHCAs(updated.hcas, node.hcas)
+          ) {
             store.updateHCAs(node.id, updated.hcas);
           }
         });
