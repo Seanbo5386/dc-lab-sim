@@ -115,14 +115,18 @@ test.describe("Live Incidents", () => {
             "domain4-silent-cluster",
           ],
         },
-        version: 0,
+        version: 1,
       };
 
       localStorage.setItem(
         "ncp-aii-learning-progress-v2",
         JSON.stringify(learningData),
       );
-      localStorage.setItem("ncp-aii-simulation-store", JSON.stringify(simData));
+      // NOTE: the simulationStore persist key is "nvidia-simulator-storage"
+      // (src/store/simulationStore.ts), not "ncp-aii-simulation-store" — the
+      // old key name silently no-oped this seed and left completedScenarios
+      // empty, so the prerequisite gate never unlocked.
+      localStorage.setItem("nvidia-simulator-storage", JSON.stringify(simData));
     });
 
     await page.goto("/");
