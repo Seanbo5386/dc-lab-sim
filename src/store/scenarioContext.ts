@@ -43,10 +43,27 @@ export type StateChange =
   | (StateChangeBase & { type: "mig-mode"; data: { enabled: boolean } })
   | (StateChangeBase & { type: "node-add"; data: Node });
 
+/**
+ * Cap on how many mutation records are retained in memory. The tick loop
+ * (useMetricsSimulation) can call mutation-recording methods once per second
+ * per changed GPU, so an unbounded array would grow without limit over a
+ * long session. `getMutationCount()` still increments forever (see
+ * `mutationCount`) so callers that poll for "did anything change" keep
+ * working; only the retained history is bounded.
+ */
+const MAX_RETAINED_MUTATIONS = 500;
+
 export class ScenarioContext {
   private scenarioId: string;
   private isolatedCluster: ClusterConfig;
   private mutations: StateChange[] = [];
+  /**
+   * Monotonically increasing count of mutations ever recorded, independent
+   * of how many are actually retained in `mutations`. Used by
+   * `getMutationCount()` so re-render-polling consumers (e.g. Dashboard)
+   * keep detecting change even after the retained array is capped.
+   */
+  private mutationCount = 0;
   private startTime: number;
   private readonly: boolean = false;
   private eventLog: EventLog;
@@ -97,6 +114,19 @@ export class ScenarioContext {
   }
 
   /**
+   * Record a mutation: append to the bounded retained history and bump the
+   * monotonic counter. Keeps `mutations` capped at MAX_RETAINED_MUTATIONS
+   * while `mutationCount` keeps incrementing forever.
+   */
+  private recordMutation(change: StateChange): void {
+    this.mutations.push(change);
+    this.mutationCount++;
+    if (this.mutations.length > MAX_RETAINED_MUTATIONS) {
+      this.mutations.shift();
+    }
+  }
+
+  /**
    * Update a GPU in the isolated state
    */
   updateGPU(
@@ -126,7 +156,7 @@ export class ScenarioContext {
     Object.assign(gpu, updates);
 
     // Track mutation
-    this.mutations.push({
+    this.recordMutation({
       type: "gpu-update",
       timestamp: Date.now(),
       nodeId,
@@ -158,7 +188,7 @@ export class ScenarioContext {
 
     node.healthStatus = health;
 
-    this.mutations.push({
+    this.recordMutation({
       type: "node-health",
       timestamp: Date.now(),
       nodeId,
@@ -193,7 +223,7 @@ export class ScenarioContext {
     }
     gpu.xidErrors.push(error);
 
-    this.mutations.push({
+    this.recordMutation({
       type: "xid-error",
       timestamp: Date.now(),
       nodeId,
@@ -231,7 +261,7 @@ export class ScenarioContext {
       gpu.migInstances = []; // Empty array instead of undefined
     }
 
-    this.mutations.push({
+    this.recordMutation({
       type: "mig-mode",
       timestamp: Date.now(),
       nodeId,
@@ -267,7 +297,7 @@ export class ScenarioContext {
       node.slurmReason = reason;
     }
 
-    this.mutations.push({
+    this.recordMutation({
       type: "slurm-state",
       timestamp: Date.now(),
       nodeId,
@@ -294,7 +324,7 @@ export class ScenarioContext {
 
     this.isolatedCluster.nodes.push(node);
 
-    this.mutations.push({
+    this.recordMutation({
       type: "node-add",
       timestamp: Date.now(),
       nodeId: node.id,
@@ -363,21 +393,26 @@ export class ScenarioContext {
   }
 
   /**
-   * Get all mutations that have been applied
+   * Get recent mutations that have been applied, bounded to the most recent
+   * MAX_RETAINED_MUTATIONS (older entries are dropped; see `recordMutation`).
    */
   getMutations(): StateChange[] {
     return [...this.mutations];
   }
 
   /**
-   * Get mutation count
+   * Get the total mutation count. This is a monotonically increasing
+   * counter of every mutation ever recorded — it does NOT reflect the size
+   * of the (bounded) retained `mutations` array, so polling consumers keep
+   * detecting change even after the retained history is capped.
    */
   getMutationCount(): number {
-    return this.mutations.length;
+    return this.mutationCount;
   }
 
   /**
-   * Apply all mutations to the global state
+   * Apply recently-retained mutations to the global state (bounded to the
+   * most recent MAX_RETAINED_MUTATIONS; see `recordMutation`).
    * Used when we want to merge scenario changes back
    */
   applyToGlobalState(): void {
@@ -451,6 +486,7 @@ export class ScenarioContext {
     const store = useSimulationStore.getState();
     this.isolatedCluster = structuredClone(store.cluster);
     this.mutations = [];
+    this.mutationCount = 0;
     this.eventLog = new EventLog();
     logger.debug(`Reset scenario context ${this.scenarioId}`);
   }
@@ -542,11 +578,10 @@ export class ScenarioContext {
    * default if not set, matching real systemd behavior where most services
    * are running unless explicitly marked otherwise by a scenario.
    */
-  getServiceState(
-    nodeId: string,
-    serviceName: string,
-  ): "active" | "inactive" {
-    return this.serviceStates.get(this.serviceKey(nodeId, serviceName)) ?? "active";
+  getServiceState(nodeId: string, serviceName: string): "active" | "inactive" {
+    return (
+      this.serviceStates.get(this.serviceKey(nodeId, serviceName)) ?? "active"
+    );
   }
 
   /**

@@ -110,7 +110,7 @@ function createGPU(id: number, specs: HardwareSpec): GPU {
     // (the same floor ClusterPhysicsEngine.tickGPU() converges every GPU
     // toward at 0% utilization), not 60-80% of TDP — PHYS-4's "0% util at
     // 249-318W" symptom. Temperature is left as-is: it already lands close
-    // to this same floor's implied ~39-41°C equilibrium.
+    // to this same floor's implied ~41.5-44.6°C equilibrium.
     powerDraw:
       specs.gpu.tdpWatts * IDLE_POWER_FLOOR +
       Math.random() * specs.gpu.tdpWatts * 0.05,
