@@ -357,7 +357,7 @@ npm run lint           # ESLint (0 errors, 0 warnings)
 npx playwright test    # 483 E2E tests, 3 viewports (474 passed / 9 skipped, 0 failed)
 ```
 
-CI/CD via GitHub Actions runs lint, tests, and production build on every push; the desktop-1920 suite (161 tests: 158 pass + 3 skip) runs on every push to dev/main.
+CI/CD via GitHub Actions runs lint, tests, and production build on every push; the full desktop-1920 suite (161 tests) runs on every push to dev/main — 141 pass + 20 skip on Linux CI, where the win32-only visual baselines self-skip.
 
 ---
 

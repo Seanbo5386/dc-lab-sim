@@ -117,7 +117,7 @@ test.describe("Visual Regression Baselines", () => {
       // out of scope for baseline regeneration; src/ is read-only here.
       test.skip(
         true,
-        "lab-workspace testid is unreachable in current app wiring (dead LabWorkspace guard); needs app-level follow-up",
+        "product bug E2E-FINDING-3 — lab-workspace testid is unreachable in current app wiring (dead LabWorkspace guard); needs app-level follow-up",
       );
       const helper = await createHelper(page);
       await helper.navigateToSimulator();
@@ -199,7 +199,7 @@ test.describe("Visual Regression Baselines", () => {
       // in the current app wiring regardless of viewport.
       test.skip(
         true,
-        "lab-workspace testid is unreachable in current app wiring (dead LabWorkspace guard); needs app-level follow-up",
+        "product bug E2E-FINDING-3 — lab-workspace testid is unreachable in current app wiring (dead LabWorkspace guard); needs app-level follow-up",
       );
       const helper = await createHelper(page);
       await helper.navigateToSimulator();

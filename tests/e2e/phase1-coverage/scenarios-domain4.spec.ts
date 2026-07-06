@@ -117,9 +117,7 @@ test.describe("Domain 4 Lab Scenarios", () => {
   });
 
   test.describe("Mission Mode UI", () => {
-    test("should show scenario title and tier on the mission briefing", async ({
-      page,
-    }) => {
+    test("should show scenario title", async ({ page }) => {
       const helper = await createHelper(page);
 
       await helper.navigateToLabs();
@@ -128,8 +126,16 @@ test.describe("Domain 4 Lab Scenarios", () => {
       await domain4Card.locator("button").first().click();
 
       // MissionBriefing (src/components/MissionBriefing.tsx) shows the
-      // scenario title as an <h2> and a tier badge before Mission Mode
-      // starts — this replaces the old lab-workspace title/difficulty check.
+      // scenario title as an <h2> before Mission Mode starts — this
+      // replaces the old lab-workspace title/difficulty check.
+      //
+      // NOTE: MissionBriefing also supports a tier badge
+      // (tierConfig["Guided"|"Choice"|"Realistic"] for tier 1/2/3), but
+      // `tier` is optional on NarrativeScenario (src/types/scenarios.ts)
+      // and the domain-4 card's first scenario by difficulty sort
+      // ("domain4-bandwidth-bottleneck") has no `tier` field in
+      // narrativeScenarios.json, so no tier badge renders for this flow.
+      // Not asserting on it here to avoid a false failure.
       const briefing = page.locator('[data-testid="mission-briefing"]');
       await expect(briefing).toBeVisible({ timeout: UI_TIMEOUT });
       await expect(briefing.locator("h2")).toBeVisible();
@@ -413,7 +419,9 @@ test.describe("Domain 4 Lab Scenarios", () => {
 
       // Exam workspace should appear (ExamWorkspace.tsx renders an
       // "NCP-AII Practice Exam" heading once questions load)
-      await expect(page.locator("text=Exam").first()).toBeVisible({
+      await expect(
+        page.getByRole("heading", { name: "NCP-AII Practice Exam" }),
+      ).toBeVisible({
         timeout: UI_TIMEOUT,
       });
     });
