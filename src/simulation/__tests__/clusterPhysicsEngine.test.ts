@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   ClusterPhysicsEngine,
   getRatedTDP,
+  getPowerLimitBounds,
   deriveThermalSeverity,
   heatWattsFraction,
 } from "../clusterPhysicsEngine";
@@ -348,6 +349,26 @@ describe("getRatedTDP", () => {
     // H100 (700W) must not collapse to A100's fallback value — this is
     // what makes the per-arch power-capping math in Task 2 correct.
     expect(getRatedTDP("NVIDIA H100-SXM5-80GB")).toBe(700);
+  });
+});
+
+describe("getPowerLimitBounds", () => {
+  it("returns fixed A100 bounds regardless of the GPU's current (capped) powerLimit", () => {
+    expect(getPowerLimitBounds("NVIDIA A100-SXM4-80GB")).toEqual({
+      min: 100,
+      max: 400,
+    });
+  });
+
+  it("returns fixed H100 bounds", () => {
+    expect(getPowerLimitBounds("NVIDIA H100-SXM5-80GB")).toEqual({
+      min: 200,
+      max: 700,
+    });
+  });
+
+  it("falls back to A100 bounds for an unknown GPU name", () => {
+    expect(getPowerLimitBounds("unknown-gpu")).toEqual({ min: 100, max: 400 });
   });
 });
 

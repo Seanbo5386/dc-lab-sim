@@ -517,7 +517,11 @@ describe("remediation routing", () => {
     const baseGpu = {
       id: 0,
       uuid: "GPU-x",
-      name: "NVIDIA H100 80GB HBM3",
+      // Exact HARDWARE_SPECS model string (not the display-only "NVIDIA H100
+      // 80GB HBM3" used elsewhere in this file) so architecture lookups like
+      // getPowerLimitBounds/getRatedTDP resolve real H100 bounds (200-700W)
+      // instead of silently falling back to A100's (100-400W).
+      name: "NVIDIA H100-SXM5-80GB",
       type: "H100-SXM",
       pciAddress: "0000:17:00.0",
       temperature: 45,
@@ -705,5 +709,44 @@ describe("remediation routing", () => {
     );
     const call = updateGPU.mock.calls[0][2] as Record<string, unknown>;
     expect(call).not.toHaveProperty("temperature");
+  });
+
+  it("accepts a power limit above the GPU's CURRENT (already-capped) limit, using the fixed architecture ceiling instead", () => {
+    // Simulate a GPU a prior `-pl 150` already capped: current powerLimit is
+    // 150, well below this H100 fixture's real fixed ceiling (700W). The OLD
+    // buggy code derived the max bound from this CURRENT powerLimit (150),
+    // so -pl 350 would have been wrongly rejected (350 > 150). The fix must
+    // derive the max bound from the fixed architecture ceiling (700)
+    // instead, so 350 (<= 700) is accepted — this is the exact SIM-2
+    // regression guard.
+    buildContextWithSpy({ powerLimit: 150 });
+    const result = simulator.execute(parse("nvidia-smi -i 0 -pl 350"), context);
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("350 W");
+  });
+
+  it("-q reports the fixed architecture Min/Max Power Limit, not values derived from the current (capped) limit", () => {
+    // A prior -pl already lowered the current limit to 150W; Min/Max Power
+    // Limit in `-q` output must still reflect H100's real fixed bounds
+    // (200-700W), not "100.00 W" / "150.00 W" derived from the current cap.
+    buildContextWithSpy({ powerLimit: 150 });
+    const result = simulator.execute(parse("nvidia-smi -q -i 0"), context);
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain(
+      "Min Power Limit                       : 200.00 W",
+    );
+    expect(result.output).toContain(
+      "Max Power Limit                       : 700.00 W",
+    );
+  });
+
+  it("--query-gpu=power.max_limit reports the fixed architecture ceiling, not a value derived from the current (capped) limit", () => {
+    buildContextWithSpy({ powerLimit: 150 });
+    const result = simulator.execute(
+      parse("nvidia-smi --query-gpu=power.max_limit --format=csv,noheader"),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.output.trim()).toBe("700 W");
   });
 });

@@ -9,7 +9,10 @@ import { MIG_PROFILES } from "@/utils/clusterFactory";
 import { generateTimestamp } from "@/utils/outputTemplates";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
 import { DISPLAY_FORMATTERS } from "@/simulators/nvidiaSmiFormatters";
-import { getThermalThresholds } from "@/simulation/clusterPhysicsEngine";
+import {
+  getThermalThresholds,
+  getPowerLimitBounds,
+} from "@/simulation/clusterPhysicsEngine";
 import { applyRemediation } from "@/utils/remediationEngine";
 
 function getArchitecture(systemType?: string): string {
@@ -644,15 +647,13 @@ export class NvidiaSmiSimulator extends BaseSimulator {
         return `${Math.round(gpu.powerLimit)} W`;
       case "power.default_limit":
         return `${Math.round(gpu.powerLimit)} W`;
-      case "power.min_limit":
-        return `${Math.round(gpu.powerLimit * 0.5)} W`;
+      case "power.min_limit": {
+        const bounds = getPowerLimitBounds(gpu.name);
+        return `${Math.round(bounds.min)} W`;
+      }
       case "power.max_limit": {
-        // SXM form factor: max = TDP. PCIe: allow slight headroom.
-        const isSXMQuery = gpu.type?.includes("SXM") || false;
-        const maxLimitQuery = isSXMQuery
-          ? gpu.powerLimit
-          : gpu.powerLimit * 1.05;
-        return `${Math.round(maxLimitQuery)} W`;
+        const bounds = getPowerLimitBounds(gpu.name);
+        return `${Math.round(bounds.max)} W`;
       }
       case "power.management":
         return "Supported";
@@ -879,14 +880,15 @@ export class NvidiaSmiSimulator extends BaseSimulator {
 
     const gpuId = this.getFlagNumber(parsed, ["i", "id"], 0);
     const powerLimit = this.getFlagNumber(parsed, ["pl"], 0);
+    const gpu = node.gpus[gpuId];
+    const bounds = getPowerLimitBounds(gpu.name);
 
-    if (powerLimit < 100 || powerLimit > node.gpus[gpuId].powerLimit) {
+    if (powerLimit < bounds.min || powerLimit > bounds.max) {
       return this.createError(
-        `Error: Power limit must be between 100 and ${node.gpus[gpuId].powerLimit} W`,
+        `Error: Power limit must be between ${bounds.min} and ${bounds.max} W`,
       );
     }
 
-    const gpu = node.gpus[gpuId];
     const result = applyRemediation(gpu, node, "set-power-limit");
     const updates: Partial<GPU> = { powerLimit };
     if (result.outcome === "fixed" && result.gpuUpdates) {
@@ -1611,14 +1613,15 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       output += `    Memory Current Temp                   : ${isCritical ? "ERR!" : Math.round(g.temperature - 5) + " C"}\n`;
       output += `    Memory Max Operating Temp             : 95 C\n\n`;
 
+      const powerBounds = getPowerLimitBounds(g.name);
       output += `Power Readings\n`;
       output += `    Power Management                      : Supported\n`;
       output += `    Power Draw                            : ${g.powerDraw.toFixed(2)} W\n`;
       output += `    Power Limit                           : ${g.powerLimit.toFixed(2)} W\n`;
       output += `    Default Power Limit                   : ${g.powerLimit.toFixed(2)} W\n`;
       output += `    Enforced Power Limit                  : ${g.powerLimit.toFixed(2)} W\n`;
-      output += `    Min Power Limit                       : 100.00 W\n`;
-      output += `    Max Power Limit                       : ${g.powerLimit.toFixed(2)} W\n\n`;
+      output += `    Min Power Limit                       : ${powerBounds.min.toFixed(2)} W\n`;
+      output += `    Max Power Limit                       : ${powerBounds.max.toFixed(2)} W\n\n`;
 
       output += `Clocks\n`;
       output += `    Graphics                              : ${g.clocksSM} MHz\n`;

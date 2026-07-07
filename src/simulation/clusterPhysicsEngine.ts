@@ -113,6 +113,28 @@ export function getRatedTDP(gpuName: string): number {
   return 400;
 }
 
+/**
+ * Look up a GPU's real min/max power-limit bounds by model name — the
+ * range `-pl`/nvidia-smi's power-limit query fields must report, NOT a
+ * range derived from `gpu.powerLimit` (the CURRENT, possibly already-capped
+ * value). Deriving bounds from the current limit means a GPU capped to
+ * 250W would report a "max" of 250W to a query run immediately afterward —
+ * the reported ceiling would shrink every time -pl lowers it, instead of
+ * staying fixed at the hardware's real ceiling (SIM-2). Falls back to
+ * A100's 100-400W.
+ */
+export function getPowerLimitBounds(gpuName: string): {
+  min: number;
+  max: number;
+} {
+  for (const spec of Object.values(HARDWARE_SPECS)) {
+    if (spec.gpu.model === gpuName) {
+      return { min: spec.gpu.minPowerLimitW, max: spec.gpu.maxPowerLimitW };
+    }
+  }
+  return { min: 100, max: 400 };
+}
+
 export interface ThresholdEvent {
   type:
     | "thermal-warning"

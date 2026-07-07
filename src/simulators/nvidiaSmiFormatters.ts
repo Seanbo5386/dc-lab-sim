@@ -1,6 +1,9 @@
 import type { GPU, DGXNode } from "@/types/hardware";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
-import { getThermalThresholds } from "@/simulation/clusterPhysicsEngine";
+import {
+  getThermalThresholds,
+  getPowerLimitBounds,
+} from "@/simulation/clusterPhysicsEngine";
 
 export type DisplayFormatter = (gpu: GPU, node?: DGXNode) => string;
 
@@ -75,17 +78,15 @@ export function formatDisplayTemperature(gpu: GPU, _node?: DGXNode): string {
 export function formatDisplayPower(gpu: GPU, _node?: DGXNode): string {
   const powerDraw = Math.round(gpu.powerDraw);
   const powerLimit = Math.round(gpu.powerLimit);
-  const minLimit = Math.round(gpu.powerLimit * 0.5);
-  const isSXM = gpu.name?.includes("SXM") || false;
-  const maxLimit = isSXM ? powerLimit : Math.round(gpu.powerLimit * 1.05);
+  const bounds = getPowerLimitBounds(gpu.name);
   let output = `    GPU Power Readings\n`;
   output += `        Power Management                  : Supported\n`;
   output += `        Power Draw                        : ${powerDraw}.00 W\n`;
   output += `        Current Power Limit               : ${powerLimit}.00 W\n`;
   output += `        Requested Power Limit             : ${powerLimit}.00 W\n`;
   output += `        Default Power Limit               : ${powerLimit}.00 W\n`;
-  output += `        Min Power Limit                   : ${minLimit}.00 W\n`;
-  output += `        Max Power Limit                   : ${maxLimit}.00 W\n`;
+  output += `        Min Power Limit                   : ${bounds.min}.00 W\n`;
+  output += `        Max Power Limit                   : ${bounds.max}.00 W\n`;
   output += `    Module Power Readings\n`;
   output += `        Power Draw                        : N/A\n`;
   output += `        Current Power Limit               : N/A\n`;
