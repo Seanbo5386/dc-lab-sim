@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { NvidiaSmiSimulator } from "../nvidiaSmiSimulator";
 import { parse } from "@/utils/commandParser";
 import type { CommandContext } from "@/types/commands";
@@ -984,7 +984,60 @@ describe("--query-gpu field consolidation (SIM-11 regression)", () => {
       environment: {},
       history: [],
     };
+
+    // Explicit single-GPU node so these tests don't depend on whatever
+    // mock state an earlier describe block left behind (a prior version
+    // of this suite only passed because an earlier test's
+    // mockReturnValue override was never reset before this block ran).
+    const gpu: import("@/types/hardware").GPU = {
+      id: 0,
+      uuid: "GPU-sim11-0000-0000-0000-000000000000",
+      name: "NVIDIA H100 80GB HBM3",
+      type: "H100-SXM",
+      pciAddress: "0000:17:00.0",
+      temperature: 45,
+      powerDraw: 250,
+      powerLimit: 700,
+      memoryTotal: 81920,
+      memoryUsed: 1024,
+      utilization: 0,
+      clocksSM: 1980,
+      clocksMem: 2619,
+      eccEnabled: true,
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 0,
+        aggregated: { singleBit: 0, doubleBit: 0 },
+      },
+      migMode: false,
+      migInstances: [],
+      nvlinks: [],
+      healthStatus: "OK",
+      xidErrors: [],
+      persistenceMode: true,
+      computeMode: "Default",
+    };
+
+    const state = {
+      cluster: {
+        nodes: [
+          {
+            id: "dgx-00",
+            hostname: "dgx-node01",
+            systemType: "DGX-H100",
+            healthStatus: "OK",
+            nvidiaDriverVersion: "535.129.03",
+            cudaVersion: "12.2",
+            gpus: [gpu],
+            hcas: [],
+          },
+        ],
+      },
+    };
+    vi.mocked(useSimulationStore.getState).mockReturnValue(state as never);
   });
+
+  afterEach(() => vi.clearAllMocks());
 
   it("serves pcie.link.gen.current (was allowlisted but unimplemented under the pci. prefix)", () => {
     const result = simulator.execute(
@@ -1021,5 +1074,23 @@ describe("--query-gpu field consolidation (SIM-11 regression)", () => {
     );
     expect(result.exitCode).not.toBe(0);
     expect(result.output).toContain("Invalid or unsupported query field");
+  });
+
+  it("rejects inherited Object.prototype keys as query fields (constructor, __proto__)", () => {
+    const constructorResult = simulator.execute(
+      parse("nvidia-smi --query-gpu=constructor --format=csv,noheader"),
+      context,
+    );
+    expect(constructorResult.exitCode).not.toBe(0);
+    expect(constructorResult.output).toContain(
+      "Invalid or unsupported query field",
+    );
+
+    const protoResult = simulator.execute(
+      parse("nvidia-smi --query-gpu=__proto__ --format=csv,noheader"),
+      context,
+    );
+    expect(protoResult.exitCode).not.toBe(0);
+    expect(protoResult.output).toContain("Invalid or unsupported query field");
   });
 });

@@ -683,7 +683,12 @@ export class NvidiaSmiSimulator extends BaseSimulator {
 
     const invalidFields: string[] = [];
     for (const field of fieldList) {
-      if (!(field.toLowerCase() in QUERY_FIELD_HANDLERS)) {
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          QUERY_FIELD_HANDLERS,
+          field.toLowerCase(),
+        )
+      ) {
         invalidFields.push(field);
       }
     }
