@@ -689,6 +689,7 @@ describe("remediation routing", () => {
   it("-pl resolves a thermal fault while setting the limit", () => {
     const { updateGPU } = buildContextWithSpy({
       temperature: 85,
+      activeFaultHeatWatts: 240,
       healthStatus: "Warning",
     });
     const result = simulator.execute(parse("nvidia-smi -i 0 -pl 500"), context);
@@ -698,9 +699,11 @@ describe("remediation routing", () => {
       0,
       expect.objectContaining({
         powerLimit: 500,
-        temperature: 65,
+        activeFaultHeatWatts: 0,
         healthStatus: "OK",
       }),
     );
+    const call = updateGPU.mock.calls[0][2] as Record<string, unknown>;
+    expect(call).not.toHaveProperty("temperature");
   });
 });

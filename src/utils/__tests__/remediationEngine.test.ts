@@ -166,11 +166,21 @@ describe("applyRemediation", () => {
     ).toBe("fixed");
   });
 
-  it("set-power-limit resolves a thermal (85C) fault", () => {
-    const gpu = makeGpu({ temperature: 85, healthStatus: "Warning" });
+  it("clears the persistent fault heat term on successful thermal remediation, without snapping temperature", () => {
+    const gpu = makeGpu({
+      temperature: 88,
+      activeFaultHeatWatts: 240,
+      healthStatus: "Warning",
+    });
     const r = applyRemediation(gpu, makeNode({}, [gpu]), "set-power-limit");
     expect(r.outcome).toBe("fixed");
-    expect(r.gpuUpdates).toMatchObject({ temperature: 65, healthStatus: "OK" });
+    expect(r.gpuUpdates).toMatchObject({
+      activeFaultHeatWatts: 0,
+      healthStatus: "OK",
+    });
+    // The fix must NOT set an explicit temperature — physics converges it
+    // back down over subsequent ticks (PHYS-9's realistic-settle-time goal).
+    expect(r.gpuUpdates).not.toHaveProperty("temperature");
   });
 
   it("set-power-limit resolves a power fault", () => {
@@ -193,11 +203,19 @@ describe("applyRemediation", () => {
     expect(r.outcome).toBe("insufficient");
   });
 
-  it("power-cycle resolves a node-wide thermal alert", () => {
-    const gpu = makeGpu({ temperature: 95, healthStatus: "Warning" });
-    expect(
-      applyRemediation(gpu, makeNode({}, [gpu]), "power-cycle").outcome,
-    ).toBe("fixed");
+  it("power-cycle resolves a node-wide thermal alert, clearing the persistent fault heat term without snapping temperature", () => {
+    const gpu = makeGpu({
+      temperature: 95,
+      activeFaultHeatWatts: 300,
+      healthStatus: "Warning",
+    });
+    const r = applyRemediation(gpu, makeNode({}, [gpu]), "power-cycle");
+    expect(r.outcome).toBe("fixed");
+    expect(r.gpuUpdates).toMatchObject({
+      activeFaultHeatWatts: 0,
+      healthStatus: "OK",
+    });
+    expect(r.gpuUpdates).not.toHaveProperty("temperature");
   });
 
   it("fabricmanager-restart resolves a downed NVLink", () => {
