@@ -29,11 +29,25 @@ export const IDLE_POWER_FLOOR = 0.15;
  * from near-idle load" — actual load on top of it can only push
  * temperature higher, never lower, which is the safe direction for a
  * fault-severity approximation.
+ *
+ * tickGPU's loadRatio is computed from POST-fault-inflated power draw
+ * (newPowerDraw includes activeFaultHeatWatts via targetPower), so a
+ * fault's heat drives temperature through BOTH the load-ratio term
+ * (scaled to NORMAL_FULL_LOAD_TEMP) and the fault-ratio term (scaled to
+ * THERMAL_CEILING) for a near-idle GPU. Solving for the fraction that
+ * lands a near-idle GPU at targetTempC requires inverting both channels
+ * together, not just the fault-ratio term alone — the single-channel
+ * version of this formula caused all of narrativeScenarios.json's
+ * authored thermal faults (83C, 85C, 92C) to converge to the same 95C
+ * ceiling regardless of their intended severity.
  */
 export function heatWattsFraction(targetTempC: number): number {
   return Math.max(
     0,
-    (targetTempC - AMBIENT_TEMP) / (THERMAL_CEILING - AMBIENT_TEMP),
+    (targetTempC -
+      AMBIENT_TEMP -
+      IDLE_POWER_FLOOR * (NORMAL_FULL_LOAD_TEMP - AMBIENT_TEMP)) /
+      (NORMAL_FULL_LOAD_TEMP - AMBIENT_TEMP + (THERMAL_CEILING - AMBIENT_TEMP)),
   );
 }
 

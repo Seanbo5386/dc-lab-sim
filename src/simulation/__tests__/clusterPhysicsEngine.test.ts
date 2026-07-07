@@ -3,6 +3,7 @@ import {
   ClusterPhysicsEngine,
   getRatedTDP,
   deriveThermalSeverity,
+  heatWattsFraction,
 } from "../clusterPhysicsEngine";
 import type { GPU } from "@/types/hardware";
 
@@ -285,6 +286,56 @@ describe("ClusterPhysicsEngine", () => {
       .getThresholdEvents()
       .find((e) => e.type === "ecc-accumulation");
     expect(eccEvent?.gpuUuid).toBe("GPU-NODE3-0");
+  });
+});
+
+describe("heatWattsFraction", () => {
+  // tickGPU's loadRatio is computed from the fault-inflated newPowerDraw, so
+  // a fault's heat drives temperature through BOTH the load-ratio term and
+  // the fault-ratio term for a near-idle GPU. heatWattsFraction must invert
+  // BOTH channels together so an authored `targetTemp` (e.g. narrativeScenarios
+  // .json's 83/85/92) actually converges near that temperature instead of
+  // every authored fault collapsing to the same THERMAL_CEILING.
+  function convergeTempForTargetTemp(targetTemp: number): number {
+    const engine = new ClusterPhysicsEngine();
+    const gpuName = "NVIDIA A100-SXM4-80GB";
+    let gpu = createTestGPU({
+      name: gpuName,
+      temperature: 35,
+      powerDraw: 60,
+      powerLimit: 400,
+      utilization: 0, // near-idle: the realistic case when a scenario injects a fault
+      activeFaultHeatWatts:
+        getRatedTDP(gpuName) * heatWattsFraction(targetTemp),
+    });
+    for (let i = 0; i < 200; i++) {
+      gpu = engine.tickGPU(gpu);
+    }
+    return gpu.temperature;
+  }
+
+  it("converges a near-idle GPU close to the authored 83C targetTemp", () => {
+    const temp = convergeTempForTargetTemp(83);
+    expect(temp).toBeGreaterThanOrEqual(80);
+    expect(temp).toBeLessThanOrEqual(86);
+  });
+
+  it("converges a near-idle GPU close to the authored 85C targetTemp", () => {
+    const temp = convergeTempForTargetTemp(85);
+    expect(temp).toBeGreaterThanOrEqual(82);
+    expect(temp).toBeLessThanOrEqual(88);
+  });
+
+  it("distinguishes fault severities instead of collapsing them all to THERMAL_CEILING", () => {
+    const temp83 = convergeTempForTargetTemp(83);
+    const temp85 = convergeTempForTargetTemp(85);
+    const temp92 = convergeTempForTargetTemp(92);
+
+    // Previously all three converged to the same 95C ceiling. Now they must
+    // be measurably distinguishable and monotonically increasing.
+    expect(temp85).toBeGreaterThan(temp83);
+    expect(temp92).toBeGreaterThan(temp85);
+    expect(temp92).toBeLessThanOrEqual(97);
   });
 });
 
