@@ -1094,3 +1094,118 @@ describe("--query-gpu field consolidation (SIM-11 regression)", () => {
     expect(protoResult.output).toContain("Invalid or unsupported query field");
   });
 });
+
+describe("--format requirement and nounits (SIM-10)", () => {
+  let simulator: NvidiaSmiSimulator;
+  let context: CommandContext;
+
+  beforeEach(() => {
+    simulator = new NvidiaSmiSimulator();
+    context = {
+      currentNode: "dgx-00",
+      currentPath: "/root",
+      environment: {},
+      history: [],
+    };
+
+    const gpu: import("@/types/hardware").GPU = {
+      id: 0,
+      uuid: "GPU-sim10-0000-0000-0000-000000000000",
+      name: "NVIDIA H100 80GB HBM3",
+      type: "H100-SXM",
+      pciAddress: "0000:17:00.0",
+      temperature: 45,
+      powerDraw: 250,
+      powerLimit: 700,
+      memoryTotal: 81920,
+      memoryUsed: 1024,
+      utilization: 0,
+      clocksSM: 1980,
+      clocksMem: 2619,
+      eccEnabled: true,
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 0,
+        aggregated: { singleBit: 0, doubleBit: 0 },
+      },
+      migMode: false,
+      migInstances: [],
+      nvlinks: [],
+      healthStatus: "OK",
+      xidErrors: [],
+      persistenceMode: true,
+      computeMode: "Default",
+    };
+
+    const state = {
+      cluster: {
+        nodes: [
+          {
+            id: "dgx-00",
+            hostname: "dgx-node01",
+            systemType: "DGX-H100",
+            healthStatus: "OK",
+            nvidiaDriverVersion: "535.129.03",
+            cudaVersion: "12.2",
+            gpus: [gpu],
+            hcas: [],
+          },
+        ],
+      },
+    };
+    vi.mocked(useSimulationStore.getState).mockReturnValue(state as never);
+  });
+
+  afterEach(() => vi.clearAllMocks());
+
+  it("errors when --query-gpu is used without --format", () => {
+    const result = simulator.execute(
+      parse("nvidia-smi --query-gpu=memory.total"),
+      context,
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toContain("--format");
+  });
+
+  it("succeeds when --format is provided", () => {
+    const result = simulator.execute(
+      parse("nvidia-smi --query-gpu=memory.total --format=csv,noheader"),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("strips unit suffixes when nounits is requested", () => {
+    const result = simulator.execute(
+      parse(
+        "nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits",
+      ),
+      context,
+    );
+    expect(result.output.trim()).toMatch(/^\d+$/);
+  });
+
+  it("keeps unit suffixes when nounits is absent", () => {
+    const result = simulator.execute(
+      parse("nvidia-smi --query-gpu=memory.total --format=csv,noheader"),
+      context,
+    );
+    expect(result.output.trim()).toMatch(/MiB$/);
+  });
+
+  it("strips W and % suffixes too, not just MiB", () => {
+    const powerResult = simulator.execute(
+      parse("nvidia-smi --query-gpu=power.draw --format=csv,noheader,nounits"),
+      context,
+    );
+    expect(powerResult.output.trim()).toMatch(/^\d+$/);
+
+    const utilResult = simulator.execute(
+      parse(
+        "nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits",
+      ),
+      context,
+    );
+    expect(utilResult.output.trim()).toMatch(/^\d+$/);
+  });
+});

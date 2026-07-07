@@ -676,9 +676,17 @@ export class NvidiaSmiSimulator extends BaseSimulator {
     node: { gpus: GPU[]; nvidiaDriverVersion?: string; cudaVersion?: string },
     parsed: ParsedCommand,
   ): CommandResult {
+    const formatValue = this.getFlagString(parsed, ["format"]);
+    if (!formatValue) {
+      return this.createError(
+        "Error: unable to complete this operation. It appears that --format is not specified.\n" +
+          "Please add --format=csv (optionally with noheader and/or nounits) to your command.",
+      );
+    }
+
     const fieldList = fields.split(",").map((f) => f.trim());
-    const formatValue = this.getFlagString(parsed, ["format"]) || "csv";
     const isNoHeader = formatValue.includes("noheader");
+    const isNoUnits = formatValue.includes("nounits");
     const driverVersion = node.nvidiaDriverVersion || "535.129.03";
 
     const invalidFields: string[] = [];
@@ -711,10 +719,18 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       output += headers.join(", ") + "\n";
     }
 
+    const stripUnits = (value: string): string =>
+      value.replace(/ (W|MiB|%|MHz)$/, "");
+
     for (const gpu of node.gpus) {
-      const values = fieldList.map((field) =>
-        QUERY_FIELD_HANDLERS[field.toLowerCase()](gpu, node, driverVersion),
-      );
+      const values = fieldList.map((field) => {
+        const raw = QUERY_FIELD_HANDLERS[field.toLowerCase()](
+          gpu,
+          node,
+          driverVersion,
+        );
+        return isNoUnits ? stripUnits(raw) : raw;
+      });
       output += values.join(", ") + "\n";
     }
 
