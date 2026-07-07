@@ -139,13 +139,14 @@ export function formatDisplayPids(_gpu: GPU, _node?: DGXNode): string {
 export function formatDisplayPerformance(gpu: GPU, _node?: DGXNode): string {
   const pstate =
     gpu.utilization > 50 ? "P0" : gpu.utilization > 10 ? "P2" : "P8";
+  const thresholds = getThermalThresholds(gpu.name || "");
   let output = `    Performance State                     : ${pstate}\n`;
   output += `    Clocks Throttle Reasons\n`;
   output += `        Idle                              : ${gpu.utilization < 5 ? "Active" : "Not Active"}\n`;
   output += `        Applications Clocks Setting       : Not Active\n`;
   output += `        SW Power Cap                      : ${gpu.powerDraw > gpu.powerLimit * 0.95 ? "Active" : "Not Active"}\n`;
   output += `        HW Slowdown                       : Not Active\n`;
-  output += `            HW Thermal Slowdown           : ${gpu.temperature > 80 ? "Active" : "Not Active"}\n`;
+  output += `            HW Thermal Slowdown           : ${gpu.temperature >= thresholds.slowdown ? "Active" : "Not Active"}\n`;
   output += `            HW Power Brake Slowdown       : Not Active\n`;
   output += `        Sync Boost                        : Not Active\n`;
   output += `        SW Thermal Slowdown               : Not Active\n`;
