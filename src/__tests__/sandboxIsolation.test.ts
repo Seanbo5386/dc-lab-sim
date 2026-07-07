@@ -4,6 +4,10 @@ import {
   scenarioContextManager,
 } from "@/store/scenarioContext";
 import { applyFaultsToContext } from "@/utils/scenarioLoader";
+import {
+  getRatedTDP,
+  heatWattsFraction,
+} from "@/simulation/clusterPhysicsEngine";
 import type { FaultInjectionConfig } from "@/types/scenarios";
 import type { ClusterConfig } from "@/types/hardware";
 
@@ -136,13 +140,16 @@ describe("Sandbox Isolation", () => {
     ];
     applyFaultsToContext(faultsA, contextA);
 
-    expect(contextA.getGPU("dgx-00", 0)?.temperature).toBe(95);
+    expect(contextA.getGPU("dgx-00", 0)?.activeFaultHeatWatts).toBe(
+      getRatedTDP("H100-SXM") * heatWattsFraction(95),
+    );
 
     // Create scenario B — should have clean state
     const clusterB = createBaseCluster();
     const contextB = new ScenarioContext("scenario-b", clusterB);
 
     expect(contextB.getGPU("dgx-00", 0)?.temperature).toBe(45);
+    expect(contextB.getGPU("dgx-00", 0)?.activeFaultHeatWatts).toBeFalsy();
     expect(contextB.getMutationCount()).toBe(0);
   });
 
@@ -162,7 +169,9 @@ describe("Sandbox Isolation", () => {
     ];
     applyFaultsToContext(step1Faults, context);
 
-    expect(context.getGPU("dgx-00", 0)?.temperature).toBe(80);
+    expect(context.getGPU("dgx-00", 0)?.activeFaultHeatWatts).toBe(
+      getRatedTDP("H100-SXM") * heatWattsFraction(80),
+    );
     expect(context.getMutationCount()).toBe(1);
 
     // Step 2 faults — add XID error on different GPU
@@ -178,7 +187,9 @@ describe("Sandbox Isolation", () => {
     applyFaultsToContext(step2Faults, context);
 
     // Both faults should be present
-    expect(context.getGPU("dgx-00", 0)?.temperature).toBe(80);
+    expect(context.getGPU("dgx-00", 0)?.activeFaultHeatWatts).toBe(
+      getRatedTDP("H100-SXM") * heatWattsFraction(80),
+    );
     expect(context.getGPU("dgx-00", 1)?.xidErrors).toHaveLength(1);
     expect(context.getMutationCount()).toBe(2);
   });
@@ -303,13 +314,16 @@ describe("Sandbox Isolation", () => {
       context,
     );
 
-    expect(context.getGPU("dgx-00", 0)?.temperature).toBe(95);
+    expect(context.getGPU("dgx-00", 0)?.activeFaultHeatWatts).toBe(
+      getRatedTDP("H100-SXM") * heatWattsFraction(95),
+    );
     expect(context.getMutationCount()).toBe(1);
 
     context.reset();
 
     // After reset, the context re-clones from global store (mocked at 45C default)
     expect(context.getGPU("dgx-00", 0)?.temperature).toBe(45);
+    expect(context.getGPU("dgx-00", 0)?.activeFaultHeatWatts).toBeFalsy();
     expect(context.getMutationCount()).toBe(0);
   });
 });

@@ -138,6 +138,10 @@ import {
   initializeScenario,
 } from "../scenarioLoader";
 import { ScenarioContext } from "@/store/scenarioContext";
+import {
+  getRatedTDP,
+  heatWattsFraction,
+} from "@/simulation/clusterPhysicsEngine";
 
 // ── Tests ─────────────────────────────────────────────────────────
 
@@ -491,7 +495,9 @@ describe("scenarioLoader", () => {
 
       // Context should be updated
       const gpu = context.getGPU("dgx-00", 0);
-      expect(gpu?.temperature).toBe(88);
+      expect(gpu?.activeFaultHeatWatts).toBe(
+        getRatedTDP("H100-SXM") * heatWattsFraction(88),
+      );
 
       // Global store mocks should NOT have been called
       expect(mockUpdateGPU).not.toHaveBeenCalled();

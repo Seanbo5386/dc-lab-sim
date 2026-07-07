@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { applyFaultsToContext } from "../scenarioLoader";
 import { ScenarioContext } from "@/store/scenarioContext";
+import {
+  getRatedTDP,
+  heatWattsFraction,
+} from "@/simulation/clusterPhysicsEngine";
 import type { FaultInjectionConfig } from "@/types/scenarios";
 import type { ClusterConfig } from "@/types/hardware";
 
@@ -159,7 +163,9 @@ describe("applyFaultsToContext", () => {
     applyFaultsToContext(faults, context);
 
     const gpu = context.getGPU("dgx-00", 1);
-    expect(gpu?.temperature).toBe(92);
+    expect(gpu?.activeFaultHeatWatts).toBe(
+      getRatedTDP("H100-SXM") * heatWattsFraction(92),
+    );
   });
 
   it("applies memory-full fault to context", () => {
@@ -256,7 +262,9 @@ describe("applyFaultsToContext", () => {
     applyFaultsToContext(faults, context);
 
     // Context should be mutated
-    expect(context.getGPU("dgx-00", 0)?.temperature).toBe(95);
+    expect(context.getGPU("dgx-00", 0)?.activeFaultHeatWatts).toBe(
+      getRatedTDP("H100-SXM") * heatWattsFraction(95),
+    );
     expect(context.getGPU("dgx-00", 1)?.xidErrors).toHaveLength(1);
 
     // Original cluster should be unchanged (deep clone in ScenarioContext)
@@ -290,7 +298,9 @@ describe("applyFaultsToContext", () => {
 
     applyFaultsToContext(faults, context);
 
-    expect(context.getGPU("dgx-00", 0)?.temperature).toBe(92);
+    expect(context.getGPU("dgx-00", 0)?.activeFaultHeatWatts).toBe(
+      getRatedTDP("H100-SXM") * heatWattsFraction(92),
+    );
     expect(context.getGPU("dgx-00", 1)?.memoryUsed).toBe(79000);
     expect(context.getMutationCount()).toBe(2);
   });

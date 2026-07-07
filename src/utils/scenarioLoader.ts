@@ -8,6 +8,10 @@ import { useSimulationStore } from "@/store/simulationStore";
 import { narrativeToScenario } from "./narrativeAdapter";
 import { createDGXNode } from "./clusterFactory";
 import { logger } from "@/utils/logger";
+import {
+  getRatedTDP,
+  heatWattsFraction,
+} from "@/simulation/clusterPhysicsEngine";
 
 // Cache for loaded scenarios
 let scenarioCache: Map<string, Scenario> | null = null;
@@ -213,9 +217,14 @@ export function applyFaultsToContext(
 
       case "thermal":
         if (gpuId !== undefined) {
-          context.updateGPU(nodeId, gpuId, {
-            temperature: parameters?.targetTemp || 95,
-          });
+          const gpu = context.getGPU(nodeId, gpuId);
+          if (gpu) {
+            context.updateGPU(nodeId, gpuId, {
+              activeFaultHeatWatts:
+                getRatedTDP(gpu.name) *
+                heatWattsFraction(parameters?.targetTemp || 95),
+            });
+          }
         }
         break;
 
