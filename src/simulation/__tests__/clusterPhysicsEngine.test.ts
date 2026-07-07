@@ -378,3 +378,40 @@ describe("deriveThermalSeverity", () => {
     expect(result.severity).toBe("warning");
   });
 });
+
+describe("sustained throttle steady state", () => {
+  it("should not compound the throttle factor tick over tick — power draw settles, it does not keep decaying", () => {
+    // Regression guard: gpu.powerDraw (this tick's input) already has last
+    // tick's throttleFactor baked in. Smoothing directly from it and then
+    // re-applying throttleFactor at the end compounds the reduction every
+    // tick — verified by hand that a stable 0.7 factor applied this way
+    // decays power draw to ~32% of target over time instead of holding at
+    // the intended 70% floor. tickGPU must reconstruct an unthrottled
+    // smoothing baseline each tick so the factor is applied exactly once.
+    const engine = new ClusterPhysicsEngine();
+    let gpu = createTestGPU({
+      temperature: 90,
+      powerDraw: 100,
+      powerLimit: 400,
+      utilization: 100,
+      clocksSM: 1410,
+      activeFaultHeatWatts: 400, // saturating fault holds temp at the ceiling, forcing sustained throttle
+    });
+    for (let i = 0; i < 100; i++) {
+      gpu = engine.tickGPU(gpu);
+    }
+    const settledAt100 = gpu.powerDraw;
+    for (let i = 0; i < 300; i++) {
+      gpu = engine.tickGPU(gpu);
+    }
+    // Power draw must have STOPPED changing (a real steady state), not
+    // continued decaying across hundreds more ticks.
+    expect(Math.abs(gpu.powerDraw - settledAt100)).toBeLessThan(1);
+    // And it must have settled well above the ~32% the compounding bug
+    // produced — this GPU's mild throttle (ceiling caps degrees-over at
+    // 10, so clocks only drop ~100MHz off boost) settles near ~98% of
+    // target here; the load-bearing assertion is "did not keep decaying,"
+    // proven above, with a generous floor here as a second signal.
+    expect(gpu.powerDraw).toBeGreaterThan(300);
+  });
+});

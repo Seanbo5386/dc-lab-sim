@@ -135,6 +135,7 @@ export class ClusterPhysicsEngine {
     const updated = { ...gpu };
     const thresholds = getThermalThresholds(gpu.name || "");
     const faultHeat = gpu.activeFaultHeatWatts ?? 0;
+    const boostClock = getBoostClock(gpu.name);
 
     // Power follows utilization; displayed power draw stays clamped at the
     // rated limit (matches real nvidia-smi — a fault or cap never makes the
@@ -143,8 +144,25 @@ export class ClusterPhysicsEngine {
       gpu.powerLimit *
       (IDLE_POWER_FLOOR + (gpu.utilization / 100) * (1 - IDLE_POWER_FLOOR));
     const targetPower = loadTargetPower + faultHeat;
+
+    // gpu.powerDraw (this tick's input) already has LAST tick's throttle
+    // factor baked in (see updated.powerDraw below) — smoothing directly
+    // from it and then re-applying throttleFactor at the end would
+    // compound the reduction every tick, decaying power draw far below the
+    // intended THROTTLE_POWER_FLOOR_RATIO floor (verified: a stable 0.7
+    // factor applied this way settles at ~32% of target, not 70%).
+    // Reconstruct what the pre-throttle smoothing baseline would have been,
+    // using last tick's clock state (gpu.clocksSM) to recover last tick's
+    // throttle factor, so smoothing starts from an unthrottled baseline
+    // every tick and throttleFactor is applied exactly once.
+    const prevThrottleFactor =
+      THROTTLE_POWER_FLOOR_RATIO +
+      (1 - THROTTLE_POWER_FLOOR_RATIO) * (gpu.clocksSM / boostClock);
+    const prevUnthrottledPowerDraw = gpu.powerDraw / prevThrottleFactor;
+
     let newPowerDraw =
-      gpu.powerDraw + (targetPower - gpu.powerDraw) * POWER_SMOOTHING;
+      prevUnthrottledPowerDraw +
+      (targetPower - prevUnthrottledPowerDraw) * POWER_SMOOTHING;
     newPowerDraw = Math.min(newPowerDraw, gpu.powerLimit);
 
     // Temperature: normal load spans AMBIENT..NORMAL_FULL_LOAD_TEMP linearly
@@ -198,7 +216,6 @@ export class ClusterPhysicsEngine {
 
     // Clock throttling above the per-arch max operating temp, smoothed
     // rather than snapped (matches the "minutes not seconds" settle goal).
-    const boostClock = getBoostClock(gpu.name);
     let targetClock = boostClock;
     if (newTemp > thresholds.maxOp) {
       const degreesOver = newTemp - thresholds.maxOp;

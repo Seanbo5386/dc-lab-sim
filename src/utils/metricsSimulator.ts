@@ -249,9 +249,22 @@ export class MetricsSimulator {
         // "insufficient" for a fault this UI labels as a single-GPU "Thermal
         // Issue" — 48% settles in the mid-80s across architectures instead,
         // squarely in the fault kind its own remediation profile expects.
+        //
+        // That 48% was verified against an IDLE GPU. If this fault is
+        // injected on a GPU already under a training/stress workload, 48%
+        // added on top of near-full load saturates the ceiling (95°C) —
+        // crossing back into "thermal-alert" territory and making
+        // set-power-limit insufficient again, for the exact same reason 60%
+        // was rejected. Scale the added heat down as current utilization
+        // rises (the GPU's own load is already contributing thermal load,
+        // so less additional heat is needed to reach the same target), with
+        // a floor so the fault stays meaningfully diagnosable even under
+        // heavy load.
         return {
           ...gpu,
-          activeFaultHeatWatts: getRatedTDP(gpu.name) * 0.48,
+          activeFaultHeatWatts:
+            getRatedTDP(gpu.name) *
+            (0.2 + 0.28 * Math.max(0, 1 - gpu.utilization / 100)),
           healthStatus: "Warning",
         };
       }
