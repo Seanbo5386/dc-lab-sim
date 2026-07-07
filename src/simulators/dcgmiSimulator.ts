@@ -13,7 +13,7 @@ import {
   BaseSimulator,
   type SimulatorMetadata,
 } from "@/simulators/BaseSimulator";
-import { getThermalThresholds } from "@/simulators/nvidiaSmiFormatters";
+import { getThermalThresholds } from "@/simulation/clusterPhysicsEngine";
 
 export class DcgmiSimulator extends BaseSimulator {
   constructor() {

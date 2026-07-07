@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { MetricsSimulator } from "../metricsSimulator";
+import { ClusterPhysicsEngine } from "@/simulation/clusterPhysicsEngine";
 import type { GPU } from "@/types/hardware";
 
 function createMockGPU(overrides: Partial<GPU> = {}): GPU {
@@ -106,6 +107,37 @@ describe("MetricsSimulator", () => {
       expect(result[0].powerDraw).toBeLessThan(150);
       expect(result[0].temperature).toBeLessThan(55);
     });
+
+    it("should set powerDraw/temperature using the SAME equilibrium formula tickGPU converges toward (no post-apply re-jump)", () => {
+      // Regression guard for the Phase-3 model split: if this snapshot used
+      // a different formula than tickGPU's steady state, applying a
+      // workload would visibly jump to one value then re-settle at another
+      // within a few ticks.
+      const gpus = [
+        createMockGPU({
+          powerLimit: 400,
+          powerDraw: 60,
+          temperature: 35,
+          utilization: 0,
+        }),
+      ];
+      const [snapshot] = simulator.simulateWorkload(gpus, "training");
+
+      const engine = new ClusterPhysicsEngine();
+      let converged = { ...snapshot };
+      for (let i = 0; i < 50; i++) {
+        converged = engine.tickGPU(converged);
+      }
+      // Ticking the snapshot forward should barely move it (within a few
+      // degrees/watts of noise), not drift toward a materially different
+      // equilibrium.
+      expect(
+        Math.abs(converged.temperature - snapshot.temperature),
+      ).toBeLessThan(6);
+      expect(Math.abs(converged.powerDraw - snapshot.powerDraw)).toBeLessThan(
+        40,
+      );
+    });
   });
 
   describe("injectFault", () => {
@@ -126,25 +158,54 @@ describe("MetricsSimulator", () => {
       expect(result.healthStatus).toBe("Critical");
     });
 
-    it("should inject thermal throttling with reduced clocks", () => {
-      const gpu = createMockGPU({ temperature: 40, clocksSM: 1410 });
-      const result = simulator.injectFault(gpu, "thermal");
+    it("should inject a persistent thermal fault that gradually drives temperature up and throttles clocks (not a one-shot snap)", () => {
+      // Post-Phase-3: injectFault no longer snaps temperature/clocksSM
+      // directly (that self-erased within a few ticks once the next
+      // physics pass pulled it back toward the unaffected load-derived
+      // target — PHYS-9/LIVE-2). It sets a persistent activeFaultHeatWatts
+      // term instead, so the returned GPU is unchanged until the physics
+      // engine ticks it forward.
+      const gpu = createMockGPU({
+        temperature: 40,
+        clocksSM: 1410,
+        powerLimit: 400,
+      });
+      const faulted = simulator.injectFault(gpu, "thermal");
 
-      expect(result.temperature).toBe(85);
-      expect(result.clocksSM).toBeLessThan(1410);
-      expect(result.healthStatus).toBe("Warning");
+      expect(faulted.healthStatus).toBe("Warning");
+      expect(faulted.activeFaultHeatWatts).toBeGreaterThan(0);
+      expect(faulted.temperature).toBe(40);
+      expect(faulted.clocksSM).toBe(1410);
+
+      const engine = new ClusterPhysicsEngine();
+      let state = faulted;
+      for (let i = 0; i < 60; i++) {
+        state = engine.tickGPU(state);
+      }
+      // Sustained fault heat should push temperature well past the A100's
+      // ~85°C throttle threshold and pull clocks down from boost.
+      expect(state.temperature).toBeGreaterThan(70);
+      expect(state.clocksSM).toBeLessThan(1410);
     });
 
     it("should use architecture-appropriate boost clock for thermal throttle", () => {
       const h100Gpu = createMockGPU({
         name: "NVIDIA H100-SXM5-80GB",
         clocksSM: 1980,
+        temperature: 40,
+        powerLimit: 700,
       });
-      const result = simulator.injectFault(h100Gpu, "thermal");
+      const faulted = simulator.injectFault(h100Gpu, "thermal");
 
-      // H100 boost is 1980 MHz; at 85°C: 1980 - (85-70)*10 = 1830
-      expect(result.clocksSM).toBe(1830);
-      expect(result.clocksSM).toBeLessThan(1980);
+      const engine = new ClusterPhysicsEngine();
+      let state = faulted;
+      for (let i = 0; i < 60; i++) {
+        state = engine.tickGPU(state);
+      }
+      // H100 boost is 1980 MHz; sustained fault heat should push it past
+      // the H100's ~83°C throttle threshold and pull clocks down from boost.
+      expect(state.temperature).toBeGreaterThan(80);
+      expect(state.clocksSM).toBeLessThan(1980);
     });
 
     it("should inject NVLink failure", () => {
@@ -180,6 +241,19 @@ describe("MetricsSimulator", () => {
 
       expect(result.powerDraw).toBe(400 * 0.95);
       expect(result.healthStatus).toBe("Warning");
+    });
+  });
+
+  describe("injectFault thermal persistence", () => {
+    it("should set activeFaultHeatWatts instead of a one-shot temperature/clock snap", () => {
+      const gpu = createMockGPU({
+        temperature: 40,
+        clocksSM: 1410,
+        powerLimit: 400,
+      });
+      const faulted = simulator.injectFault(gpu, "thermal");
+      expect(faulted.activeFaultHeatWatts).toBeGreaterThan(0);
+      expect(faulted.healthStatus).toBe("Warning");
     });
   });
 

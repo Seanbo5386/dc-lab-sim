@@ -5,6 +5,7 @@ import {
   formatDisplayECC,
   formatDisplayTemperature,
   formatDisplayPids,
+  formatDisplayPerformance,
   DISPLAY_FORMATTERS,
 } from "../nvidiaSmiFormatters";
 
@@ -102,6 +103,18 @@ describe("nvidiaSmiFormatters", () => {
       const gpu = makeGpu({ temperature: 45 });
       const output = formatDisplayTemperature(gpu);
       expect(output).toContain("Memory Current Temp               : 50 C");
+    });
+  });
+
+  describe("formatDisplayPerformance", () => {
+    it("should use the GPU's per-arch slowdown threshold for HW Thermal Slowdown, not a flat 80C", () => {
+      // H100's slowdown threshold (90C) differs from A100's (89C) and from
+      // the old flat hardcoded 80C this line used regardless of temperature.
+      const h100 = makeGpu({ name: "NVIDIA H100-SXM5-80GB", temperature: 85 });
+      const output = formatDisplayPerformance(h100);
+      // 85C is below H100's 90C slowdown threshold -> must read Not Active,
+      // where the OLD hardcoded ">80" check would have wrongly said Active.
+      expect(output).toContain("HW Thermal Slowdown           : Not Active");
     });
   });
 

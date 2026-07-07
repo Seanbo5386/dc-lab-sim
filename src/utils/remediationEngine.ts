@@ -100,7 +100,7 @@ const PROFILES: Record<FaultKind, FaultProfile> = {
     resolvedBy: ["set-power-limit"],
     escalateFrom: [],
     escalateHint: "",
-    healthyUpdates: () => ({ temperature: 65, healthStatus: "OK" }),
+    healthyUpdates: () => ({ activeFaultHeatWatts: 0, healthStatus: "OK" }),
   },
   power: {
     resolvedBy: ["set-power-limit"],
@@ -150,7 +150,7 @@ const PROFILES: Record<FaultKind, FaultProfile> = {
     escalateFrom: ["set-power-limit"],
     escalateHint:
       "Node-wide overheat — power-cycle the node: ipmitool chassis power cycle",
-    healthyUpdates: () => ({ temperature: 65, healthStatus: "OK" }),
+    healthyUpdates: () => ({ activeFaultHeatWatts: 0, healthStatus: "OK" }),
   },
   rma: {
     resolvedBy: ["rma"],

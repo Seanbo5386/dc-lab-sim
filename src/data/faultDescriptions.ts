@@ -78,13 +78,13 @@ export const BASIC_FAULT_DESCRIPTIONS: FaultDescription[] = [
     type: "thermal",
     title: "Thermal Throttling",
     whatHappens:
-      "Raises GPU temperature to 85\u00B0C. SM clocks throttled. GPU marked Warning.",
+      "Adds a persistent cooling-deficit heat source \u2014 GPU temperature climbs over several seconds and holds elevated until remediated. SM clocks throttle once it crosses the architecture's max operating temperature. GPU marked Warning.",
     whyItMatters:
       "Thermal management is critical in DGX systems. The exam covers how to identify thermal throttling, check cooling systems, and understand the relationship between temperature, power, and clock speeds.",
     dashboardIndicators: [
       "Yellow 'Warning' health badge",
-      "Temperature display turns red with \u2715 symbol at ~85\u00B0C",
-      "Power draw increases with temperature",
+      "Temperature display turns red once it crosses the GPU's max operating temperature",
+      "SM clocks drop once throttling engages",
     ],
     suggestedCommands: [
       "nvidia-smi -q -d TEMPERATURE",

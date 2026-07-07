@@ -431,7 +431,9 @@ describe("FaultInjection", () => {
       expect(
         screen.getByText("XID 79 - GPU fallen off bus"),
       ).toBeInTheDocument();
-      expect(screen.getByText(/All GPUs running hot/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/All GPUs climb to max temp/),
+      ).toBeInTheDocument();
       expect(
         screen.getByText(/Uncorrectable - GPU replacement needed/),
       ).toBeInTheDocument();
@@ -870,8 +872,7 @@ describe("FaultInjection", () => {
       for (const call of mockUpdateGPU.mock.calls) {
         expect(call[0]).toBe("dgx-00");
         const updates = call[2];
-        expect(updates.temperature).toBeGreaterThanOrEqual(90);
-        expect(updates.temperature).toBeLessThanOrEqual(100);
+        expect(updates.activeFaultHeatWatts).toBe(400);
         expect(updates.healthStatus).toBe("Warning");
       }
     });

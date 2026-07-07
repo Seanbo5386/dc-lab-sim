@@ -4,6 +4,7 @@ import {
   resolveEffectiveCluster,
   resolveEffectiveMutator,
 } from "@/utils/effectiveState";
+import { getRatedTDP } from "@/simulation/clusterPhysicsEngine";
 import { MetricsSimulator } from "@/utils/metricsSimulator";
 import { useFaultToastStore } from "@/store/faultToastStore";
 import {
@@ -299,9 +300,16 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
         break;
       }
       case "thermal-alert": {
+        // Severe, node-wide cooling-deficit fault — heat term at 100% of
+        // each GPU's RATED TDP saturates the effective ratio, pushing
+        // temperature to the physical ceiling regardless of current load
+        // (persists until "power-cycle" remediation clears it, matching
+        // real node-wide-overheat behavior instead of a one-shot
+        // temperature snap that self-erased within seconds). Uses
+        // getRatedTDP, not gpu.powerLimit — see Task 2's formula note.
         node.gpus.forEach((gpu) => {
           mutator.updateGPU(selectedNode, gpu.id, {
-            temperature: 90 + Math.random() * 10,
+            activeFaultHeatWatts: getRatedTDP(gpu.name) * 1.0,
             healthStatus: "Warning",
           });
         });
@@ -401,6 +409,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
           txErrors: 0,
           rxErrors: 0,
         })),
+        activeFaultHeatWatts: 0,
         temperature: 65,
         powerDraw: gpu.powerLimit * 0.3,
         utilization: 5,
@@ -1097,7 +1106,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
               <div>
                 <div className="font-medium text-orange-400">Thermal Alert</div>
                 <div className="text-xs text-gray-400">
-                  All GPUs running hot (90-100°C)
+                  All GPUs climb to max temp, hold until remediated
                 </div>
               </div>
             </button>

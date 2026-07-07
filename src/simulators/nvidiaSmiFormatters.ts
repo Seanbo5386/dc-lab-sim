@@ -1,5 +1,6 @@
 import type { GPU, DGXNode } from "@/types/hardware";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
+import { getThermalThresholds } from "@/simulation/clusterPhysicsEngine";
 
 export type DisplayFormatter = (gpu: GPU, node?: DGXNode) => string;
 
@@ -53,25 +54,6 @@ export function formatDisplayECC(gpu: GPU, _node?: DGXNode): string {
   output += `            DRAM Correctable              : ${gpu.eccErrors.aggregated.singleBit}\n`;
   output += `            DRAM Uncorrectable            : ${gpu.eccErrors.aggregated.doubleBit}\n`;
   return output;
-}
-
-export function getThermalThresholds(gpuName: string): {
-  shutdown: number;
-  slowdown: number;
-  maxOp: number;
-} {
-  if (gpuName.includes("H100") || gpuName.includes("H200")) {
-    return { shutdown: 95, slowdown: 90, maxOp: 83 };
-  }
-  if (
-    gpuName.includes("B200") ||
-    gpuName.includes("GB200") ||
-    gpuName.includes("R200")
-  ) {
-    return { shutdown: 95, slowdown: 90, maxOp: 83 };
-  }
-  // A100 default
-  return { shutdown: 92, slowdown: 89, maxOp: 85 };
 }
 
 export function formatDisplayTemperature(gpu: GPU, _node?: DGXNode): string {
@@ -157,13 +139,14 @@ export function formatDisplayPids(_gpu: GPU, _node?: DGXNode): string {
 export function formatDisplayPerformance(gpu: GPU, _node?: DGXNode): string {
   const pstate =
     gpu.utilization > 50 ? "P0" : gpu.utilization > 10 ? "P2" : "P8";
+  const thresholds = getThermalThresholds(gpu.name || "");
   let output = `    Performance State                     : ${pstate}\n`;
   output += `    Clocks Throttle Reasons\n`;
   output += `        Idle                              : ${gpu.utilization < 5 ? "Active" : "Not Active"}\n`;
   output += `        Applications Clocks Setting       : Not Active\n`;
   output += `        SW Power Cap                      : ${gpu.powerDraw > gpu.powerLimit * 0.95 ? "Active" : "Not Active"}\n`;
   output += `        HW Slowdown                       : Not Active\n`;
-  output += `            HW Thermal Slowdown           : ${gpu.temperature > 80 ? "Active" : "Not Active"}\n`;
+  output += `            HW Thermal Slowdown           : ${gpu.temperature >= thresholds.slowdown ? "Active" : "Not Active"}\n`;
   output += `            HW Power Brake Slowdown       : Not Active\n`;
   output += `        Sync Boost                        : Not Active\n`;
   output += `        SW Thermal Slowdown               : Not Active\n`;

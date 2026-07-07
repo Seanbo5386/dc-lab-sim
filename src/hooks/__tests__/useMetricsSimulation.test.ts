@@ -72,18 +72,25 @@ describe("useMetricsSimulation", () => {
     const ctx = scenarioContextManager.createContext("phase2-threshold-test");
     scenarioContextManager.setActiveContext("phase2-threshold-test");
 
-    // Push GPU 0 right up to the 83°C throttle threshold so one tick's
-    // smoothing crosses it deterministically.
+    // Post-Phase-3: sustained load alone converges to NORMAL_FULL_LOAD_TEMP
+    // (72°C) — comfortably under any architecture's throttle threshold by
+    // design (PHYS-1's fix for "every sustained workload throttles
+    // forever"). Only a persistent fault's activeFaultHeatWatts term can
+    // push temperature into throttle range now, so this test injects one
+    // (same 60%-of-rated-TDP convention as injectFault's "thermal" case)
+    // and ticks forward far enough for TEMP_SMOOTHING's gradual convergence
+    // to cross the default A100's 85°C maxOp threshold.
     ctx.updateGPU(nodeId, 0, {
       utilization: 100,
       allocatedJobId: 999,
       powerDraw: 400,
-      temperature: 82.9,
+      temperature: 40,
+      activeFaultHeatWatts: 400 * 0.6,
     });
 
     renderHook(() => useMetricsSimulation(true));
     act(() => {
-      vi.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(20000);
     });
 
     const thermalEvents = ctx.getEventLog().getByType("thermal");
