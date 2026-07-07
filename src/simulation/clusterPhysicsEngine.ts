@@ -56,6 +56,25 @@ export function getThermalThresholds(gpuName: string): {
   return { shutdown: 92, slowdown: 89, maxOp: 85 };
 }
 
+/**
+ * Single source of truth for "how severe is this temperature," used by both
+ * Dashboard's temperature icon and (separately) fault-injection/remediation
+ * code that sets healthStatus — so the two stop disagreeing (LIVE-4).
+ */
+export function deriveThermalSeverity(
+  temperature: number,
+  gpuName: string,
+): { severity: "ok" | "warning" | "critical"; label: string } {
+  const thresholds = getThermalThresholds(gpuName);
+  if (temperature >= thresholds.shutdown) {
+    return { severity: "critical", label: "Critical" };
+  }
+  if (temperature >= thresholds.maxOp) {
+    return { severity: "warning", label: "Warm" };
+  }
+  return { severity: "ok", label: "OK" };
+}
+
 /** Look up the boost clock for a GPU by its model name. Falls back to A100's 1410 MHz. */
 export function getBoostClock(gpuName: string): number {
   for (const spec of Object.values(HARDWARE_SPECS)) {

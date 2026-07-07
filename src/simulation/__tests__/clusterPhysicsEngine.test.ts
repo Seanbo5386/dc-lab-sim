@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { ClusterPhysicsEngine, getRatedTDP } from "../clusterPhysicsEngine";
+import {
+  ClusterPhysicsEngine,
+  getRatedTDP,
+  deriveThermalSeverity,
+} from "../clusterPhysicsEngine";
 import type { GPU } from "@/types/hardware";
 
 function createTestGPU(overrides: Partial<GPU> = {}): GPU {
@@ -293,5 +297,31 @@ describe("getRatedTDP", () => {
     // H100 (700W) must not collapse to A100's fallback value — this is
     // what makes the per-arch power-capping math in Task 2 correct.
     expect(getRatedTDP("NVIDIA H100-SXM5-80GB")).toBe(700);
+  });
+});
+
+describe("deriveThermalSeverity", () => {
+  it("returns ok below the per-arch max operating temp", () => {
+    const result = deriveThermalSeverity(50, "NVIDIA A100-SXM4-80GB");
+    expect(result.severity).toBe("ok");
+  });
+
+  it("returns warning at or above the per-arch max operating temp", () => {
+    // A100 maxOp = 85
+    const result = deriveThermalSeverity(86, "NVIDIA A100-SXM4-80GB");
+    expect(result.severity).toBe("warning");
+  });
+
+  it("returns critical at or above the per-arch shutdown temp", () => {
+    // A100 shutdown = 92
+    const result = deriveThermalSeverity(93, "NVIDIA A100-SXM4-80GB");
+    expect(result.severity).toBe("critical");
+  });
+
+  it("uses H100's higher thresholds, not A100's", () => {
+    // H100 maxOp = 83, shutdown = 95 — 90C is warning for H100 (below its
+    // 95C shutdown) but would be critical for an A100 (above its 92C).
+    const result = deriveThermalSeverity(90, "NVIDIA H100-SXM5-80GB");
+    expect(result.severity).toBe("warning");
   });
 });

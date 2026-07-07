@@ -8,6 +8,7 @@ import React, {
 import { useSimulationStore } from "@/store/simulationStore";
 import { scenarioContextManager } from "@/store/scenarioContext";
 import { resolveEffectiveCluster } from "@/utils/effectiveState";
+import { deriveThermalSeverity } from "@/simulation/clusterPhysicsEngine";
 import {
   Activity,
   HardDrive,
@@ -110,24 +111,25 @@ const HealthIndicator: React.FC<{ status: HealthStatus }> = ({ status }) => {
 const GPUCard: React.FC<{ gpu: GPU; nodeId: string }> = ({ gpu }) => {
   // Temperature status with color AND text alternatives for accessibility (WCAG 1.4.1)
   const getTempStatus = (temp: number) => {
-    if (temp > 80)
+    const { severity, label } = deriveThermalSeverity(temp, gpu.name);
+    if (severity === "critical")
       return {
         color: "text-red-500",
         symbol: "✕",
-        label: "Critical",
+        label,
         ariaLabel: `Temperature critical: ${Math.round(temp)} degrees Celsius`,
       };
-    if (temp > 70)
+    if (severity === "warning")
       return {
         color: "text-yellow-500",
         symbol: "⚠",
-        label: "Warm",
+        label,
         ariaLabel: `Temperature warning: ${Math.round(temp)} degrees Celsius`,
       };
     return {
       color: "text-green-500",
       symbol: "✓",
-      label: "OK",
+      label,
       ariaLabel: `Temperature normal: ${Math.round(temp)} degrees Celsius`,
     };
   };
