@@ -36,6 +36,7 @@ const makeGpu = (overrides?: Partial<GPU>): GPU => ({
   healthStatus: "OK",
   xidErrors: [],
   persistenceMode: false,
+  computeMode: "Default",
   ...overrides,
 });
 

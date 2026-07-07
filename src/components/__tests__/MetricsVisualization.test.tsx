@@ -1,129 +1,152 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { SparklineChart, MultiSparkline, ThresholdSparkline } from '../SparklineChart';
-import { ClusterHeatmap } from '../ClusterHeatmap';
-import { NCCLBenchmarkChart } from '../NCCLBenchmarkChart';
-import { PerformanceComparison } from '../PerformanceComparison';
-import type { DGXNode, GPU, InfiniBandHCA, InfiniBandPort } from '@/types/hardware';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
+import {
+  SparklineChart,
+  MultiSparkline,
+  ThresholdSparkline,
+} from "../SparklineChart";
+import { ClusterHeatmap } from "../ClusterHeatmap";
+import { NCCLBenchmarkChart } from "../NCCLBenchmarkChart";
+import { PerformanceComparison } from "../PerformanceComparison";
+import type {
+  DGXNode,
+  GPU,
+  InfiniBandHCA,
+  InfiniBandPort,
+} from "@/types/hardware";
 
 // Mock Recharts components
-vi.mock('recharts', () => ({
-  LineChart: vi.fn(({ children }) => <div data-testid="line-chart">{children}</div>),
+vi.mock("recharts", () => ({
+  LineChart: vi.fn(({ children }) => (
+    <div data-testid="line-chart">{children}</div>
+  )),
   Line: vi.fn(() => null),
   XAxis: vi.fn(() => null),
   YAxis: vi.fn(() => null),
   CartesianGrid: vi.fn(() => null),
   Tooltip: vi.fn(() => null),
   Legend: vi.fn(() => null),
-  ResponsiveContainer: vi.fn(({ children }) => <div data-testid="responsive-container">{children}</div>),
+  ResponsiveContainer: vi.fn(({ children }) => (
+    <div data-testid="responsive-container">{children}</div>
+  )),
   ReferenceLine: vi.fn(() => null),
   Area: vi.fn(() => null),
-  ComposedChart: vi.fn(({ children }) => <div data-testid="composed-chart">{children}</div>),
-  BarChart: vi.fn(({ children }) => <div data-testid="bar-chart">{children}</div>),
+  ComposedChart: vi.fn(({ children }) => (
+    <div data-testid="composed-chart">{children}</div>
+  )),
+  BarChart: vi.fn(({ children }) => (
+    <div data-testid="bar-chart">{children}</div>
+  )),
   Bar: vi.fn(() => null),
   Cell: vi.fn(() => null),
 }));
 
-describe('SparklineChart', () => {
-  describe('Basic Rendering', () => {
-    it('should render SVG sparkline with data', () => {
+describe("SparklineChart", () => {
+  describe("Basic Rendering", () => {
+    it("should render SVG sparkline with data", () => {
       const data = [10, 20, 30, 40, 50];
       const { container } = render(<SparklineChart data={data} />);
 
-      const svg = container.querySelector('svg');
+      const svg = container.querySelector("svg");
       expect(svg).toBeInTheDocument();
     });
 
-    it('should render placeholder when data has fewer than 2 points', () => {
+    it("should render placeholder when data has fewer than 2 points", () => {
       const { container } = render(<SparklineChart data={[50]} />);
 
-      expect(container.textContent).toBe('--');
+      expect(container.textContent).toBe("--");
     });
 
-    it('should render placeholder for empty data', () => {
+    it("should render placeholder for empty data", () => {
       const { container } = render(<SparklineChart data={[]} />);
 
-      expect(container.textContent).toBe('--');
+      expect(container.textContent).toBe("--");
     });
 
-    it('should render with custom dimensions', () => {
-      const { container } = render(<SparklineChart data={[10, 20, 30]} width={100} height={30} />);
+    it("should render with custom dimensions", () => {
+      const { container } = render(
+        <SparklineChart data={[10, 20, 30]} width={100} height={30} />,
+      );
 
-      const svg = container.querySelector('svg');
-      expect(svg).toHaveAttribute('width', '100');
-      expect(svg).toHaveAttribute('height', '30');
+      const svg = container.querySelector("svg");
+      expect(svg).toHaveAttribute("width", "100");
+      expect(svg).toHaveAttribute("height", "30");
     });
 
-    it('should render with custom color', () => {
-      const { container } = render(<SparklineChart data={[10, 20, 30]} color="#FF0000" />);
+    it("should render with custom color", () => {
+      const { container } = render(
+        <SparklineChart data={[10, 20, 30]} color="#FF0000" />,
+      );
 
       // Get the line path (second path, the first is the fill area)
-      const paths = container.querySelectorAll('path');
+      const paths = container.querySelectorAll("path");
       const linePath = paths[1]; // Line path has stroke attribute
-      expect(linePath).toHaveAttribute('stroke', '#FF0000');
+      expect(linePath).toHaveAttribute("stroke", "#FF0000");
     });
 
-    it('should show range when showRange is true', () => {
-      const { container } = render(<SparklineChart data={[10, 50, 30]} showRange />);
+    it("should show range when showRange is true", () => {
+      const { container } = render(
+        <SparklineChart data={[10, 50, 30]} showRange />,
+      );
 
-      expect(container.textContent).toContain('10');
-      expect(container.textContent).toContain('50');
+      expect(container.textContent).toContain("10");
+      expect(container.textContent).toContain("50");
     });
   });
 });
 
-describe('MultiSparkline', () => {
-  it('should render multiple lines', () => {
+describe("MultiSparkline", () => {
+  it("should render multiple lines", () => {
     const datasets = [
-      { data: [10, 20, 30], color: '#FF0000', label: 'Series 1' },
-      { data: [15, 25, 35], color: '#00FF00', label: 'Series 2' },
+      { data: [10, 20, 30], color: "#FF0000", label: "Series 1" },
+      { data: [15, 25, 35], color: "#00FF00", label: "Series 2" },
     ];
 
     const { container } = render(<MultiSparkline datasets={datasets} />);
 
-    const paths = container.querySelectorAll('path');
+    const paths = container.querySelectorAll("path");
     expect(paths.length).toBe(2);
   });
 
-  it('should handle empty datasets', () => {
+  it("should handle empty datasets", () => {
     const { container } = render(<MultiSparkline datasets={[]} />);
 
-    expect(container.textContent).toBe('--');
+    expect(container.textContent).toBe("--");
   });
 });
 
-describe('ThresholdSparkline', () => {
-  it('should render threshold line', () => {
+describe("ThresholdSparkline", () => {
+  it("should render threshold line", () => {
     const { container } = render(
-      <ThresholdSparkline data={[60, 70, 80, 90, 85]} threshold={80} />
+      <ThresholdSparkline data={[60, 70, 80, 90, 85]} threshold={80} />,
     );
 
-    const lines = container.querySelectorAll('line');
+    const lines = container.querySelectorAll("line");
     expect(lines.length).toBeGreaterThan(0);
   });
 
-  it('should use warning color for values above threshold', () => {
+  it("should use warning color for values above threshold", () => {
     const { container } = render(
       <ThresholdSparkline
         data={[60, 70, 90, 95]}
         threshold={80}
         normalColor="#00FF00"
         warningColor="#FF0000"
-      />
+      />,
     );
 
-    const paths = container.querySelectorAll('path');
-    const colors = Array.from(paths).map(p => p.getAttribute('stroke'));
-    expect(colors).toContain('#FF0000');
+    const paths = container.querySelectorAll("path");
+    const colors = Array.from(paths).map((p) => p.getAttribute("stroke"));
+    expect(colors).toContain("#FF0000");
   });
 });
 
-describe('ClusterHeatmap', () => {
+describe("ClusterHeatmap", () => {
   const createMockGPU = (id: number, utilization: number = 50): GPU => ({
     id,
     uuid: `GPU-${id}-0000-0000-0000`,
-    name: 'A100-SXM4-80GB',
-    type: 'A100-80GB',
+    name: "A100-SXM4-80GB",
+    type: "A100-80GB",
     pciAddress: `0000:${(0x10 + id).toString(16)}:00.0`,
     temperature: 45 + id * 5,
     powerDraw: 200 + id * 20,
@@ -134,23 +157,28 @@ describe('ClusterHeatmap', () => {
     clocksSM: 1410,
     clocksMem: 1215,
     eccEnabled: true,
-    eccErrors: { singleBit: 0, doubleBit: 0, aggregated: { singleBit: 0, doubleBit: 0 } },
+    eccErrors: {
+      singleBit: 0,
+      doubleBit: 0,
+      aggregated: { singleBit: 0, doubleBit: 0 },
+    },
     migMode: false,
     migInstances: [],
     nvlinks: [],
-    healthStatus: 'OK',
+    healthStatus: "OK",
     xidErrors: [],
     persistenceMode: true,
+    computeMode: "Default",
   });
 
   const createMockPort = (portNumber: number): InfiniBandPort => ({
     portNumber,
-    state: 'Active',
-    physicalState: 'LinkUp',
+    state: "Active",
+    physicalState: "LinkUp",
     rate: 400,
     lid: portNumber,
-    guid: `0x${portNumber.toString(16).padStart(16, '0')}`,
-    linkLayer: 'InfiniBand',
+    guid: `0x${portNumber.toString(16).padStart(16, "0")}`,
+    linkLayer: "InfiniBand",
     errors: {
       symbolErrors: 0,
       linkDowned: 0,
@@ -164,63 +192,63 @@ describe('ClusterHeatmap', () => {
     id,
     devicePath: `/dev/infiniband/umad${id}`,
     pciAddress: `0000:${(0xc1 + id).toString(16)}:00.0`,
-    caType: 'ConnectX-7',
-    firmwareVersion: '22.35.1012',
+    caType: "ConnectX-7",
+    firmwareVersion: "22.35.1012",
     ports: [createMockPort(1), createMockPort(2)],
   });
 
   const mockNodes: DGXNode[] = [
     {
-      id: 'dgx-00',
-      hostname: 'dgx-00.local',
-      systemType: 'DGX-A100',
+      id: "dgx-00",
+      hostname: "dgx-00.local",
+      systemType: "DGX-A100",
       gpus: Array.from({ length: 8 }, (_, i) => createMockGPU(i)),
       dpus: [],
       hcas: [createMockHCA(0)],
       bmc: {
-        ipAddress: '192.168.0.100',
-        macAddress: '00:00:00:00:00:01',
-        firmwareVersion: '1.2.3',
-        manufacturer: 'NVIDIA',
+        ipAddress: "192.168.0.100",
+        macAddress: "00:00:00:00:00:01",
+        firmwareVersion: "1.2.3",
+        manufacturer: "NVIDIA",
         sensors: [],
-        powerState: 'On',
+        powerState: "On",
       },
-      cpuModel: 'AMD EPYC 7742',
+      cpuModel: "AMD EPYC 7742",
       cpuCount: 128,
       ramTotal: 2048,
       ramUsed: 256,
-      osVersion: 'Ubuntu 22.04',
-      kernelVersion: '5.15.0',
-      nvidiaDriverVersion: '535.104.05',
-      cudaVersion: '12.2',
-      healthStatus: 'OK',
-      slurmState: 'idle',
+      osVersion: "Ubuntu 22.04",
+      kernelVersion: "5.15.0",
+      nvidiaDriverVersion: "535.104.05",
+      cudaVersion: "12.2",
+      healthStatus: "OK",
+      slurmState: "idle",
     },
     {
-      id: 'dgx-01',
-      hostname: 'dgx-01.local',
-      systemType: 'DGX-A100',
+      id: "dgx-01",
+      hostname: "dgx-01.local",
+      systemType: "DGX-A100",
       gpus: Array.from({ length: 8 }, (_, i) => createMockGPU(i + 8, 75)),
       dpus: [],
       hcas: [createMockHCA(1)],
       bmc: {
-        ipAddress: '192.168.0.101',
-        macAddress: '00:00:00:00:00:02',
-        firmwareVersion: '1.2.3',
-        manufacturer: 'NVIDIA',
+        ipAddress: "192.168.0.101",
+        macAddress: "00:00:00:00:00:02",
+        firmwareVersion: "1.2.3",
+        manufacturer: "NVIDIA",
         sensors: [],
-        powerState: 'On',
+        powerState: "On",
       },
-      cpuModel: 'AMD EPYC 7742',
+      cpuModel: "AMD EPYC 7742",
       cpuCount: 128,
       ramTotal: 2048,
       ramUsed: 512,
-      osVersion: 'Ubuntu 22.04',
-      kernelVersion: '5.15.0',
-      nvidiaDriverVersion: '535.104.05',
-      cudaVersion: '12.2',
-      healthStatus: 'OK',
-      slurmState: 'alloc',
+      osVersion: "Ubuntu 22.04",
+      kernelVersion: "5.15.0",
+      nvidiaDriverVersion: "535.104.05",
+      cudaVersion: "12.2",
+      healthStatus: "OK",
+      slurmState: "alloc",
     },
   ];
 
@@ -228,14 +256,14 @@ describe('ClusterHeatmap', () => {
     vi.clearAllMocks();
   });
 
-  describe('Rendering', () => {
-    it('should render the heatmap title', () => {
+  describe("Rendering", () => {
+    it("should render the heatmap title", () => {
       render(<ClusterHeatmap nodes={mockNodes} />);
 
       expect(screen.getByText(/Cluster Heatmap/)).toBeInTheDocument();
     });
 
-    it('should render GPU cells for each node', () => {
+    it("should render GPU cells for each node", () => {
       const { container } = render(<ClusterHeatmap nodes={mockNodes} />);
 
       // Should have cells for all GPUs (16 total)
@@ -243,49 +271,59 @@ describe('ClusterHeatmap', () => {
       expect(cells.length).toBeGreaterThanOrEqual(16);
     });
 
-    it('should show node IDs', () => {
+    it("should show node IDs", () => {
       render(<ClusterHeatmap nodes={mockNodes} />);
 
-      expect(screen.getByText('dgx-00')).toBeInTheDocument();
-      expect(screen.getByText('dgx-01')).toBeInTheDocument();
+      expect(screen.getByText("dgx-00")).toBeInTheDocument();
+      expect(screen.getByText("dgx-01")).toBeInTheDocument();
     });
   });
 
-  describe('Metric Selector', () => {
-    it('should show all metric options', () => {
+  describe("Metric Selector", () => {
+    it("should show all metric options", () => {
       render(<ClusterHeatmap nodes={mockNodes} />);
 
       // Use getByRole with button to be specific
-      expect(screen.getByRole('button', { name: /Utilization/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Temperature/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Power Draw/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Memory Usage/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Utilization/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Temperature/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Power Draw/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Memory Usage/i }),
+      ).toBeInTheDocument();
     });
 
-    it('should switch metrics on click', () => {
+    it("should switch metrics on click", () => {
       render(<ClusterHeatmap nodes={mockNodes} />);
 
-      const tempButton = screen.getByRole('button', { name: /Temperature/i });
+      const tempButton = screen.getByRole("button", { name: /Temperature/i });
       fireEvent.click(tempButton);
 
       // Button should now be active (has nvidia-green background)
-      expect(tempButton.className).toContain('bg-nvidia-green');
+      expect(tempButton.className).toContain("bg-nvidia-green");
     });
   });
 
-  describe('Legend', () => {
-    it('should show color scale legend', () => {
+  describe("Legend", () => {
+    it("should show color scale legend", () => {
       render(<ClusterHeatmap nodes={mockNodes} />);
 
-      expect(screen.getByText('Low')).toBeInTheDocument();
-      expect(screen.getByText('High')).toBeInTheDocument();
+      expect(screen.getByText("Low")).toBeInTheDocument();
+      expect(screen.getByText("High")).toBeInTheDocument();
     });
   });
 
-  describe('Callbacks', () => {
-    it('should call onGPUClick when GPU cell is clicked', () => {
+  describe("Callbacks", () => {
+    it("should call onGPUClick when GPU cell is clicked", () => {
       const onGPUClick = vi.fn();
-      const { container } = render(<ClusterHeatmap nodes={mockNodes} onGPUClick={onGPUClick} />);
+      const { container } = render(
+        <ClusterHeatmap nodes={mockNodes} onGPUClick={onGPUClick} />,
+      );
 
       // Find and click a GPU cell
       const cells = container.querySelectorAll('[style*="background-color"]');
@@ -297,77 +335,77 @@ describe('ClusterHeatmap', () => {
   });
 });
 
-describe('NCCLBenchmarkChart', () => {
+describe("NCCLBenchmarkChart", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('Rendering', () => {
-    it('should render the chart title', () => {
+  describe("Rendering", () => {
+    it("should render the chart title", () => {
       render(<NCCLBenchmarkChart />);
 
       expect(screen.getByText(/NCCL All-Reduce Bandwidth/)).toBeInTheDocument();
     });
 
-    it('should show bandwidth and latency toggle buttons', () => {
+    it("should show bandwidth and latency toggle buttons", () => {
       render(<NCCLBenchmarkChart />);
 
-      expect(screen.getByText('Bandwidth')).toBeInTheDocument();
-      expect(screen.getByText('Latency')).toBeInTheDocument();
+      expect(screen.getByText("Bandwidth")).toBeInTheDocument();
+      expect(screen.getByText("Latency")).toBeInTheDocument();
     });
 
-    it('should show running indicator when isRunning', () => {
+    it("should show running indicator when isRunning", () => {
       render(<NCCLBenchmarkChart isRunning />);
 
-      expect(screen.getByText('Running')).toBeInTheDocument();
+      expect(screen.getByText("Running")).toBeInTheDocument();
     });
 
-    it('should render chart container', () => {
+    it("should render chart container", () => {
       render(<NCCLBenchmarkChart />);
 
-      expect(screen.getByTestId('responsive-container')).toBeInTheDocument();
-    });
-  });
-
-  describe('Stats Display', () => {
-    it('should show peak bandwidth stat', () => {
-      render(<NCCLBenchmarkChart />);
-
-      expect(screen.getByText('Peak Bandwidth')).toBeInTheDocument();
-    });
-
-    it('should show average bandwidth stat', () => {
-      render(<NCCLBenchmarkChart />);
-
-      expect(screen.getByText('Average Bandwidth')).toBeInTheDocument();
-    });
-
-    it('should show bus efficiency stat', () => {
-      render(<NCCLBenchmarkChart />);
-
-      expect(screen.getByText('Bus Efficiency')).toBeInTheDocument();
+      expect(screen.getByTestId("responsive-container")).toBeInTheDocument();
     });
   });
 
-  describe('Toggle', () => {
-    it('should switch to latency view on click', () => {
+  describe("Stats Display", () => {
+    it("should show peak bandwidth stat", () => {
       render(<NCCLBenchmarkChart />);
 
-      const latencyButton = screen.getByText('Latency');
+      expect(screen.getByText("Peak Bandwidth")).toBeInTheDocument();
+    });
+
+    it("should show average bandwidth stat", () => {
+      render(<NCCLBenchmarkChart />);
+
+      expect(screen.getByText("Average Bandwidth")).toBeInTheDocument();
+    });
+
+    it("should show bus efficiency stat", () => {
+      render(<NCCLBenchmarkChart />);
+
+      expect(screen.getByText("Bus Efficiency")).toBeInTheDocument();
+    });
+  });
+
+  describe("Toggle", () => {
+    it("should switch to latency view on click", () => {
+      render(<NCCLBenchmarkChart />);
+
+      const latencyButton = screen.getByText("Latency");
       fireEvent.click(latencyButton);
 
       // The button should now be active (has nvidia-green background)
-      expect(latencyButton.className).toContain('bg-nvidia-green');
+      expect(latencyButton.className).toContain("bg-nvidia-green");
     });
   });
 });
 
-describe('PerformanceComparison', () => {
+describe("PerformanceComparison", () => {
   const createMockGPU = (id: number): GPU => ({
     id,
     uuid: `GPU-${id}-0000-0000-0000`,
-    name: 'A100-SXM4-80GB',
-    type: 'A100-80GB',
+    name: "A100-SXM4-80GB",
+    type: "A100-80GB",
     pciAddress: `0000:${(0x10 + id).toString(16)}:00.0`,
     temperature: 45,
     powerDraw: 250,
@@ -378,30 +416,35 @@ describe('PerformanceComparison', () => {
     clocksSM: 1410,
     clocksMem: 1215,
     eccEnabled: true,
-    eccErrors: { singleBit: 0, doubleBit: 0, aggregated: { singleBit: 0, doubleBit: 0 } },
+    eccErrors: {
+      singleBit: 0,
+      doubleBit: 0,
+      aggregated: { singleBit: 0, doubleBit: 0 },
+    },
     migMode: false,
     migInstances: [],
     nvlinks: Array.from({ length: 6 }, (_, j) => ({
       linkId: j,
-      status: 'Active' as const,
+      status: "Active" as const,
       speed: 50,
       txErrors: 0,
       rxErrors: 0,
       replayErrors: 0,
     })),
-    healthStatus: 'OK',
+    healthStatus: "OK",
     xidErrors: [],
     persistenceMode: true,
+    computeMode: "Default",
   });
 
   const createMockPort = (portNumber: number): InfiniBandPort => ({
     portNumber,
-    state: 'Active',
-    physicalState: 'LinkUp',
+    state: "Active",
+    physicalState: "LinkUp",
     rate: 400,
     lid: portNumber,
-    guid: `0x${portNumber.toString(16).padStart(16, '0')}`,
-    linkLayer: 'InfiniBand',
+    guid: `0x${portNumber.toString(16).padStart(16, "0")}`,
+    linkLayer: "InfiniBand",
     errors: {
       symbolErrors: 0,
       linkDowned: 0,
@@ -415,37 +458,37 @@ describe('PerformanceComparison', () => {
     id,
     devicePath: `/dev/infiniband/umad${id}`,
     pciAddress: `0000:${(0xc1 + id).toString(16)}:00.0`,
-    caType: 'ConnectX-7',
-    firmwareVersion: '22.35.1012',
+    caType: "ConnectX-7",
+    firmwareVersion: "22.35.1012",
     ports: [createMockPort(1), createMockPort(2)],
   });
 
   const mockNodes: DGXNode[] = [
     {
-      id: 'dgx-00',
-      hostname: 'dgx-00.local',
-      systemType: 'DGX-A100',
+      id: "dgx-00",
+      hostname: "dgx-00.local",
+      systemType: "DGX-A100",
       gpus: Array.from({ length: 4 }, (_, i) => createMockGPU(i)),
       dpus: [],
       hcas: [createMockHCA(0)],
       bmc: {
-        ipAddress: '192.168.0.100',
-        macAddress: '00:00:00:00:00:01',
-        firmwareVersion: '1.2.3',
-        manufacturer: 'NVIDIA',
+        ipAddress: "192.168.0.100",
+        macAddress: "00:00:00:00:00:01",
+        firmwareVersion: "1.2.3",
+        manufacturer: "NVIDIA",
         sensors: [],
-        powerState: 'On',
+        powerState: "On",
       },
-      cpuModel: 'AMD EPYC 7742',
+      cpuModel: "AMD EPYC 7742",
       cpuCount: 128,
       ramTotal: 2048,
       ramUsed: 256,
-      osVersion: 'Ubuntu 22.04',
-      kernelVersion: '5.15.0',
-      nvidiaDriverVersion: '535.104.05',
-      cudaVersion: '12.2',
-      healthStatus: 'OK',
-      slurmState: 'idle',
+      osVersion: "Ubuntu 22.04",
+      kernelVersion: "5.15.0",
+      nvidiaDriverVersion: "535.104.05",
+      cudaVersion: "12.2",
+      healthStatus: "OK",
+      slurmState: "idle",
     },
   ];
 
@@ -453,66 +496,68 @@ describe('PerformanceComparison', () => {
     vi.clearAllMocks();
   });
 
-  describe('Rendering', () => {
-    it('should render the comparison title', () => {
+  describe("Rendering", () => {
+    it("should render the comparison title", () => {
       render(<PerformanceComparison nodes={mockNodes} />);
 
       expect(screen.getByText(/Actual vs Expected/)).toBeInTheDocument();
     });
 
-    it('should show expected baseline', () => {
+    it("should show expected baseline", () => {
       render(<PerformanceComparison nodes={mockNodes} />);
 
-      expect(screen.getByText('Expected')).toBeInTheDocument();
+      expect(screen.getByText("Expected")).toBeInTheDocument();
     });
 
-    it('should show efficiency stats', () => {
+    it("should show efficiency stats", () => {
       render(<PerformanceComparison nodes={mockNodes} />);
 
-      expect(screen.getByText('Avg Efficiency')).toBeInTheDocument();
-      expect(screen.getByText('Min Efficiency')).toBeInTheDocument();
+      expect(screen.getByText("Avg Efficiency")).toBeInTheDocument();
+      expect(screen.getByText("Min Efficiency")).toBeInTheDocument();
     });
 
-    it('should render bar chart', () => {
+    it("should render bar chart", () => {
       render(<PerformanceComparison nodes={mockNodes} />);
 
-      expect(screen.getByTestId('bar-chart')).toBeInTheDocument();
+      expect(screen.getByTestId("bar-chart")).toBeInTheDocument();
     });
   });
 
-  describe('Metric Types', () => {
-    it('should render bandwidth comparison by default', () => {
+  describe("Metric Types", () => {
+    it("should render bandwidth comparison by default", () => {
       render(<PerformanceComparison nodes={mockNodes} />);
 
       expect(screen.getByText(/NVLink Bandwidth/)).toBeInTheDocument();
     });
 
-    it('should render compute comparison', () => {
+    it("should render compute comparison", () => {
       render(<PerformanceComparison nodes={mockNodes} metricType="compute" />);
 
       expect(screen.getByText(/GPU Compute/)).toBeInTheDocument();
     });
 
-    it('should render memory comparison', () => {
+    it("should render memory comparison", () => {
       render(<PerformanceComparison nodes={mockNodes} metricType="memory" />);
 
       expect(screen.getByText(/Memory Bandwidth/)).toBeInTheDocument();
     });
 
-    it('should render power comparison', () => {
+    it("should render power comparison", () => {
       render(<PerformanceComparison nodes={mockNodes} metricType="power" />);
 
       expect(screen.getByText(/Power Efficiency/)).toBeInTheDocument();
     });
   });
 
-  describe('Status Indicators', () => {
-    it('should show all GPUs within tolerance message when no issues', () => {
+  describe("Status Indicators", () => {
+    it("should show all GPUs within tolerance message when no issues", () => {
       // This might not always be true due to random data, but the component should handle it
       render(<PerformanceComparison nodes={mockNodes} />);
 
       // Either shows issues or success message
-      const hasStatus = screen.queryByText(/issue/) || screen.queryByText(/All GPUs within tolerance/);
+      const hasStatus =
+        screen.queryByText(/issue/) ||
+        screen.queryByText(/All GPUs within tolerance/);
       expect(hasStatus).toBeInTheDocument();
     });
   });

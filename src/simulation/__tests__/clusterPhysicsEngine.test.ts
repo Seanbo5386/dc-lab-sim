@@ -36,6 +36,7 @@ function createTestGPU(overrides: Partial<GPU> = {}): GPU {
     healthStatus: "OK",
     xidErrors: [],
     persistenceMode: true,
+    computeMode: "Default",
     ...overrides,
   };
 }

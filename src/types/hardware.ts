@@ -90,6 +90,11 @@ export interface GPU {
   healthStatus: HealthStatus;
   xidErrors: XIDError[];
   persistenceMode: boolean;
+  computeMode:
+    | "Default"
+    | "Exclusive_Thread"
+    | "Prohibited"
+    | "Exclusive_Process";
   allocatedJobId?: number; // Slurm job ID if GPU is allocated
   rmaStatus?: "none" | "pending"; // set to "pending" when flagged for RMA
   activeFaultHeatWatts?: number; // persistent cooling-deficit/heat-source term from an active thermal fault; added to load-driven power every tick until a remediation clears it

@@ -1,4 +1,9 @@
-import type { CommandDefinition, CommandCategory, CommandOption, UsagePattern } from "./types";
+import type {
+  CommandDefinition,
+  CommandCategory,
+  CommandOption,
+  UsagePattern,
+} from "./types";
 import {
   CommandDefinitionLoader,
   getCommandDefinitionLoader,
@@ -282,30 +287,47 @@ export class CommandDefinitionRegistry {
 
     const schema = new Map<string, boolean>();
 
-    const processOptions = (options: CommandOption[]) => {
+    // `protectExisting` stops a later subcommand's flag definition from
+    // silently overwriting an earlier one for the same short/long name.
+    // Without it, two subcommands (or a subcommand and the global options)
+    // that happen to reuse the same letter for different purposes (e.g.
+    // nvidia-smi's global `-c`/--compute-mode= takes a value, while the
+    // unrelated `vgpu` subcommand's `-c`/--capabilities is boolean) get
+    // merged into one flat map and whichever is processed last wins
+    // regardless of correctness. Global options are the ones actually in
+    // effect when no subcommand is present, so they must take priority;
+    // among subcommands, first-defined wins for the same reason.
+    const processOptions = (
+      options: CommandOption[],
+      protectExisting: boolean,
+    ) => {
       for (const opt of options) {
         const takesValue = !!opt.arguments;
+        const setIfAllowed = (key: string) => {
+          if (protectExisting && schema.has(key)) return;
+          schema.set(key, takesValue);
+        };
 
         if (opt.short) {
-          schema.set(opt.short.replace(/^-+/, ''), takesValue);
+          setIfAllowed(opt.short.replace(/^-+/, ""));
         }
         if (opt.long) {
-          schema.set(opt.long.replace(/^-+/, '').replace(/=$/, ''), takesValue);
+          setIfAllowed(opt.long.replace(/^-+/, "").replace(/=$/, ""));
         }
         if (opt.flag) {
-          schema.set(opt.flag.replace(/^-+/, '').replace(/=$/, ''), takesValue);
+          setIfAllowed(opt.flag.replace(/^-+/, "").replace(/=$/, ""));
         }
       }
     };
 
     if (def.global_options) {
-      processOptions(def.global_options);
+      processOptions(def.global_options, false);
     }
 
     if (def.subcommands) {
       for (const sub of def.subcommands) {
         if (sub.options) {
-          processOptions(sub.options);
+          processOptions(sub.options, true);
         }
       }
     }

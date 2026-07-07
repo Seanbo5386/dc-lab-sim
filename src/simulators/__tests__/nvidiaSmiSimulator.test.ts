@@ -850,3 +850,101 @@ describe("-e / --ecc-config", () => {
     expect(queryResult.output).toContain("Disabled");
   });
 });
+
+describe("-c / --compute-mode", () => {
+  let simulator: NvidiaSmiSimulator;
+  let context: CommandContext;
+
+  beforeEach(() => {
+    simulator = new NvidiaSmiSimulator();
+    context = {
+      currentNode: "dgx-00",
+      currentPath: "/root",
+      environment: {},
+      history: [],
+    };
+
+    // A single-GPU node with a real updateGPU implementation (not just a
+    // spy) so the "reflects it in a later query" test below can observe a
+    // subsequent query reflecting the mutation, mirroring how the real
+    // StateMutator/store round-trip behaves. Same pattern as the
+    // -e/--ecc-config describe block above.
+    const gpu: import("@/types/hardware").GPU = {
+      id: 0,
+      uuid: "GPU-compute-mode-0",
+      name: "NVIDIA H100-SXM5-80GB",
+      type: "H100-SXM",
+      pciAddress: "0000:17:00.0",
+      temperature: 45,
+      powerDraw: 250,
+      powerLimit: 700,
+      memoryTotal: 81920,
+      memoryUsed: 1024,
+      utilization: 0,
+      clocksSM: 1980,
+      clocksMem: 2619,
+      eccEnabled: true,
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 0,
+        aggregated: { singleBit: 0, doubleBit: 0 },
+      },
+      migMode: false,
+      migInstances: [],
+      nvlinks: [],
+      healthStatus: "OK",
+      xidErrors: [],
+      persistenceMode: true,
+      computeMode: "Default",
+    };
+
+    const state = {
+      cluster: {
+        nodes: [
+          {
+            id: "dgx-00",
+            hostname: "dgx-node01",
+            systemType: "DGX-H100",
+            healthStatus: "OK",
+            slurmState: "idle",
+            gpus: [gpu],
+            hcas: [],
+          },
+        ],
+      },
+      updateGPU: vi.fn(
+        (
+          nodeId: string,
+          gpuId: number,
+          updates: Partial<import("@/types/hardware").GPU>,
+        ) => {
+          const node = state.cluster.nodes.find((n) => n.id === nodeId);
+          if (node) {
+            Object.assign(node.gpus[gpuId], updates);
+          }
+        },
+      ),
+    };
+    vi.mocked(useSimulationStore.getState).mockReturnValue(state as never);
+  });
+
+  afterEach(() => vi.clearAllMocks());
+
+  it("sets compute mode to Exclusive_Process and reflects it in a later query", () => {
+    const result = simulator.execute(parse("nvidia-smi -i 0 -c 3"), context);
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("Exclusive_Process");
+
+    const queryResult = simulator.execute(
+      parse("nvidia-smi --query-gpu=compute_mode --format=csv,noheader"),
+      context,
+    );
+    expect(queryResult.output).toContain("Exclusive_Process");
+  });
+
+  it("rejects an out-of-range mode value", () => {
+    const result = simulator.execute(parse("nvidia-smi -i 0 -c 9"), context);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toContain("Invalid compute mode");
+  });
+});

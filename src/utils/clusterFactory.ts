@@ -135,6 +135,7 @@ function createGPU(id: number, specs: HardwareSpec): GPU {
     healthStatus: "OK",
     xidErrors: [],
     persistenceMode: true,
+    computeMode: "Default",
   };
 }
 

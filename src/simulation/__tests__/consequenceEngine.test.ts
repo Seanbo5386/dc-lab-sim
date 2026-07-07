@@ -33,6 +33,7 @@ function createTestNode(overrides: Partial<DGXNode> = {}): DGXNode {
       healthStatus: "OK" as const,
       xidErrors: [],
       persistenceMode: true,
+      computeMode: "Default" as const,
     })),
     dpus: [],
     hcas: [],

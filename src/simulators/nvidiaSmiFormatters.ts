@@ -126,7 +126,7 @@ export function formatDisplayClocks(gpu: GPU, _node?: DGXNode): string {
 }
 
 export function formatDisplayCompute(gpu: GPU, _node?: DGXNode): string {
-  let output = `    Compute Mode                          : Default\n`;
+  let output = `    Compute Mode                          : ${gpu.computeMode}\n`;
   output += `    MIG Mode\n`;
   output += `        Current                           : ${gpu.migMode ? "Enabled" : "Disabled"}\n`;
   output += `        Pending                           : ${gpu.migMode ? "Enabled" : "Disabled"}\n`;

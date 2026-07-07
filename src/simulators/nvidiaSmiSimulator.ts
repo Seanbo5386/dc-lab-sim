@@ -262,6 +262,11 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       return this.handleEccConfig(parsed, context);
     }
 
+    // Handle compute-mode setting
+    if (this.hasAnyFlag(parsed, ["c", "compute-mode"])) {
+      return this.handleComputeMode(parsed, context);
+    }
+
     // Handle persistence mode
     if (parsed.flags.has("pm")) {
       return this.handlePersistenceMode(parsed, context);
@@ -761,7 +766,7 @@ export class NvidiaSmiSimulator extends BaseSimulator {
 
       // Compute & Display Mode
       case "compute_mode":
-        return "Default";
+        return gpu.computeMode;
       case "display_mode":
         return "Disabled";
       case "display_active":
@@ -934,6 +939,47 @@ export class NvidiaSmiSimulator extends BaseSimulator {
     return this.createSuccess(
       `ECC support ${enable ? "enabled" : "disabled"} for GPU ${gpuId}.\n` +
         `All GPUs must be reset (or the machine rebooted) for this setting to take effect.`,
+    );
+  }
+
+  private static readonly COMPUTE_MODES: Record<string, GPU["computeMode"]> = {
+    "0": "Default",
+    "1": "Exclusive_Thread",
+    "2": "Prohibited",
+    "3": "Exclusive_Process",
+  };
+
+  /**
+   * Handle compute-mode setting via -c/--compute-mode. Same short/long
+   * flag-reading pattern as -p/--reset-ecc-errors and -e/--ecc-config.
+   */
+  private handleComputeMode(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    const node = this.getNode(context);
+    if (!node) {
+      return this.createError("Error: Unable to determine current node");
+    }
+
+    const gpuId = this.getFlagNumber(parsed, ["i", "id"], 0);
+    const modeValue = String(
+      parsed.flags.get("c") ?? parsed.flags.get("compute-mode") ?? "",
+    );
+    const newMode = NvidiaSmiSimulator.COMPUTE_MODES[modeValue];
+    if (!newMode) {
+      return this.createError(
+        `Error: Invalid compute mode value: ${modeValue}\n` +
+          `Valid values: 0 (Default), 1 (Exclusive_Thread), 2 (Prohibited), 3 (Exclusive_Process)`,
+      );
+    }
+
+    this.resolveMutator(context).updateGPU(node.id, gpuId, {
+      computeMode: newMode,
+    });
+
+    return this.createSuccess(
+      `Compute mode for GPU ${gpuId} set to ${newMode}`,
     );
   }
 
@@ -1613,7 +1659,7 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       output += `    Used                                  : 1 MiB\n`;
       output += `    Free                                  : ${specs.gpu.bar1MemoryMiB - 1} MiB\n\n`;
 
-      output += `Compute Mode                              : Default\n\n`;
+      output += `Compute Mode                              : ${g.computeMode}\n\n`;
 
       const isCritical = g.healthStatus === "Critical";
 
