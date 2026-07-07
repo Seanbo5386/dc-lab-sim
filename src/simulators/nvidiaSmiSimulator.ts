@@ -22,6 +22,187 @@ function getArchitecture(systemType?: string): string {
   return specs.system.generation;
 }
 
+type QueryFieldHandler = (
+  gpu: GPU,
+  node: {
+    gpus: GPU[];
+    nvidiaDriverVersion?: string;
+    cudaVersion?: string;
+  } | null,
+  driverVersion: string,
+) => string;
+
+/**
+ * Single source of truth for every --query-gpu field this simulator
+ * supports. Replaces a previously separate allowlist (isValidQueryField)
+ * and switch (getGpuFieldValue) that had drifted apart — several fields
+ * allowlisted here had no implementation (SIM-11: pcie.link.* used the
+ * wrong prefix internally, nvlink.link4/5.state had no case at all), and
+ * several implemented fields were never allowlisted (power.min_limit,
+ * ecc.mode.pending), making them permanently unreachable. A field now
+ * exists in exactly one place.
+ */
+const QUERY_FIELD_HANDLERS: Record<string, QueryFieldHandler> = {
+  // Driver & System Info
+  driver_version: (_gpu, _node, driverVersion) => driverVersion,
+  cuda_version: (_gpu, node) => node?.cudaVersion || "12.2",
+  vbios_version: () => "96.00.89.00.01",
+  serial: (gpu) => gpu.uuid.split("-")[1] || "N/A",
+
+  // GPU Identification
+  gpu_name: (gpu) => gpu.name,
+  name: (gpu) => gpu.name,
+  gpu_uuid: (gpu) => gpu.uuid,
+  uuid: (gpu) => gpu.uuid,
+  index: (gpu) => gpu.id.toString(),
+  gpu_bus_id: (gpu) => gpu.pciAddress,
+  "pci.bus_id": (gpu) => gpu.pciAddress,
+
+  // MIG Mode
+  "mig.mode.current": (gpu) => (gpu.migMode ? "Enabled" : "Disabled"),
+  "mig.mode.pending": (gpu) => (gpu.migMode ? "Enabled" : "Disabled"),
+
+  // Memory
+  "memory.total": (gpu) => `${gpu.memoryTotal} MiB`,
+  "memory.used": (gpu) => `${gpu.memoryUsed} MiB`,
+  "memory.free": (gpu) => `${gpu.memoryTotal - gpu.memoryUsed} MiB`,
+  "memory.reserved": (gpu) => `${Math.round(gpu.memoryTotal * 0.02)} MiB`,
+
+  // Utilization
+  "utilization.gpu": (gpu) => `${Math.round(gpu.utilization)} %`,
+  "utilization.memory": (gpu) =>
+    `${Math.round((gpu.memoryUsed / gpu.memoryTotal) * 100)} %`,
+  "utilization.encoder": () => `${Math.floor(Math.random() * 10)} %`,
+  "utilization.decoder": () => `${Math.floor(Math.random() * 5)} %`,
+
+  // Temperature
+  "temperature.gpu": (gpu) => `${Math.round(gpu.temperature)}`,
+  "temperature.memory": (gpu) => `${Math.round(gpu.temperature + 5)}`,
+  "temperature.gpu_tlimit": () => "83",
+  "temperature.memory_max": () => "95",
+
+  // Power
+  "power.draw": (gpu) => `${Math.round(gpu.powerDraw)} W`,
+  "power.draw.average": (gpu) => `${Math.round(gpu.powerDraw * 0.95)} W`,
+  "power.draw.instant": (gpu) =>
+    `${Math.round(gpu.powerDraw + (Math.random() - 0.5) * 10)} W`,
+  "power.limit": (gpu) => `${Math.round(gpu.powerLimit)} W`,
+  "power.default_limit": (gpu) => `${Math.round(gpu.powerLimit)} W`,
+  "power.min_limit": (gpu) =>
+    `${Math.round(getPowerLimitBounds(gpu.name).min)} W`,
+  "power.max_limit": (gpu) =>
+    `${Math.round(getPowerLimitBounds(gpu.name).max)} W`,
+  "power.management": () => "Supported",
+  "enforced.power.limit": (gpu) => `${Math.round(gpu.powerLimit)} W`,
+
+  // PCIe
+  "pci.domain": () => "0x0000",
+  "pci.bus": (gpu) => gpu.pciAddress.split(":")[0] || "00",
+  "pci.device": (gpu) => gpu.pciAddress.split(":")[1]?.split(".")[0] || "00",
+  "pci.device_id": () => "0x233010DE",
+  "pci.sub_device_id": () => "0x16C110DE",
+  "pcie.link.gen.current": () => "4",
+  "pcie.link.gen.max": () => "4",
+  "pcie.link.gen.gpucurrent": () => "4",
+  "pcie.link.gen.gpumax": () => "4",
+  "pcie.link.width.current": () => "16",
+  "pcie.link.width.max": () => "16",
+
+  // Clocks
+  "clocks.current.graphics": (gpu) => `${gpu.clocksSM} MHz`,
+  "clocks.current.sm": (gpu) => `${gpu.clocksSM} MHz`,
+  "clocks.sm": (gpu) => `${gpu.clocksSM} MHz`,
+  "clocks.current.memory": (gpu) => `${gpu.clocksMem} MHz`,
+  "clocks.mem": (gpu) => `${gpu.clocksMem} MHz`,
+  "clocks.current.video": (gpu) => `${Math.round(gpu.clocksSM * 0.9)} MHz`,
+  "clocks.max.graphics": (gpu) => `${Math.round(gpu.clocksSM * 1.2)} MHz`,
+  "clocks.max.sm": (gpu) => `${Math.round(gpu.clocksSM * 1.2)} MHz`,
+  "clocks.max.memory": (gpu) => `${Math.round(gpu.clocksMem * 1.1)} MHz`,
+  "clocks.applications.graphics": (gpu) => `${gpu.clocksSM} MHz`,
+  "clocks.applications.memory": (gpu) => `${gpu.clocksMem} MHz`,
+
+  // ECC
+  "ecc.mode.current": (gpu) => (gpu.eccEnabled ? "Enabled" : "Disabled"),
+  "ecc.mode.pending": (gpu) => (gpu.eccEnabled ? "Enabled" : "Disabled"),
+  "ecc.errors.corrected.volatile.device_memory": (gpu) =>
+    gpu.eccErrors.singleBit.toString(),
+  "ecc.errors.corrected.volatile.dram": (gpu) =>
+    gpu.eccErrors.singleBit.toString(),
+  "ecc.errors.corrected.volatile.sram": () => "0",
+  "ecc.errors.corrected.volatile.total": (gpu) =>
+    gpu.eccErrors.singleBit.toString(),
+  "ecc.errors.corrected.aggregate.device_memory": (gpu) =>
+    gpu.eccErrors.aggregated.singleBit.toString(),
+  "ecc.errors.corrected.aggregate.dram": (gpu) =>
+    gpu.eccErrors.aggregated.singleBit.toString(),
+  "ecc.errors.corrected.aggregate.sram": () => "0",
+  "ecc.errors.corrected.aggregate.total": (gpu) =>
+    gpu.eccErrors.aggregated.singleBit.toString(),
+  "ecc.errors.uncorrected.volatile.device_memory": (gpu) =>
+    gpu.eccErrors.doubleBit.toString(),
+  "ecc.errors.uncorrected.volatile.dram": (gpu) =>
+    gpu.eccErrors.doubleBit.toString(),
+  "ecc.errors.uncorrected.volatile.sram": () => "0",
+  "ecc.errors.uncorrected.volatile.total": (gpu) =>
+    gpu.eccErrors.doubleBit.toString(),
+  "ecc.errors.uncorrected.aggregate.device_memory": (gpu) =>
+    gpu.eccErrors.aggregated.doubleBit.toString(),
+  "ecc.errors.uncorrected.aggregate.dram": (gpu) =>
+    gpu.eccErrors.aggregated.doubleBit.toString(),
+  "ecc.errors.uncorrected.aggregate.sram": () => "0",
+  "ecc.errors.uncorrected.aggregate.total": (gpu) =>
+    gpu.eccErrors.aggregated.doubleBit.toString(),
+
+  // Retired Pages
+  "retired_pages.single_bit_ecc.count": (gpu) =>
+    Math.floor(gpu.eccErrors.aggregated.singleBit / 10).toString(),
+  "retired_pages.sbe": (gpu) =>
+    Math.floor(gpu.eccErrors.aggregated.singleBit / 10).toString(),
+  "retired_pages.double_bit.count": (gpu) =>
+    gpu.eccErrors.aggregated.doubleBit.toString(),
+  "retired_pages.dbe": (gpu) => gpu.eccErrors.aggregated.doubleBit.toString(),
+  "retired_pages.pending": (gpu) =>
+    gpu.eccErrors.doubleBit > 0 ? "Yes" : "No",
+
+  // Compute & Display Mode
+  compute_mode: (gpu) => gpu.computeMode,
+  display_mode: () => "Disabled",
+  display_active: () => "Disabled",
+  persistence_mode: (gpu) => (gpu.persistenceMode ? "Enabled" : "Disabled"),
+
+  // Performance State
+  pstate: (gpu) =>
+    gpu.utilization > 50 ? "P0" : gpu.utilization > 10 ? "P2" : "P8",
+  performance_state: (gpu) =>
+    gpu.utilization > 50 ? "P0" : gpu.utilization > 10 ? "P2" : "P8",
+
+  // Fan
+  "fan.speed": (gpu) =>
+    `${Math.min(100, Math.round(30 + gpu.temperature * 0.7))} %`,
+
+  // Count/timestamp
+  count: (_gpu, node) => (node?.gpus.length ?? 8).toString(),
+  timestamp: () => new Date().toISOString(),
+
+  // NVLink
+  "nvlink.link0.state": (gpu) =>
+    gpu.nvlinks.length > 0 ? "Active" : "Inactive",
+  "nvlink.link1.state": (gpu) =>
+    gpu.nvlinks.length > 0 ? "Active" : "Inactive",
+  "nvlink.link2.state": (gpu) =>
+    gpu.nvlinks.length > 0 ? "Active" : "Inactive",
+  "nvlink.link3.state": (gpu) =>
+    gpu.nvlinks.length > 0 ? "Active" : "Inactive",
+  "nvlink.link4.state": (gpu) =>
+    gpu.nvlinks.length > 0 ? "Active" : "Inactive",
+  "nvlink.link5.state": (gpu) =>
+    gpu.nvlinks.length > 0 ? "Active" : "Inactive",
+
+  // Accounting mode
+  "accounting.mode": () => "Disabled",
+  "accounting.buffer_size": () => "4000",
+};
+
 export class NvidiaSmiSimulator extends BaseSimulator {
   constructor() {
     super();
@@ -492,17 +673,17 @@ export class NvidiaSmiSimulator extends BaseSimulator {
    */
   private handleQueryGpu(
     fields: string,
-    node: { gpus: GPU[] },
+    node: { gpus: GPU[]; nvidiaDriverVersion?: string; cudaVersion?: string },
     parsed: ParsedCommand,
   ): CommandResult {
     const fieldList = fields.split(",").map((f) => f.trim());
     const formatValue = this.getFlagString(parsed, ["format"]) || "csv";
     const isNoHeader = formatValue.includes("noheader");
+    const driverVersion = node.nvidiaDriverVersion || "535.129.03";
 
-    // Validate all fields first - check for invalid metrics
     const invalidFields: string[] = [];
     for (const field of fieldList) {
-      if (!this.isValidQueryField(field)) {
+      if (!(field.toLowerCase() in QUERY_FIELD_HANDLERS)) {
         invalidFields.push(field);
       }
     }
@@ -513,325 +694,26 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       );
     }
 
-    // Build header row
-    const headers = fieldList.map((f) => {
-      // Convert field name to display header (remove dots, capitalize)
-      return f
+    const headers = fieldList.map((f) =>
+      f
         .split(".")
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ");
-    });
+        .join(" "),
+    );
 
     let output = "";
     if (!isNoHeader) {
       output += headers.join(", ") + "\n";
     }
 
-    // Build data rows for each GPU
     for (const gpu of node.gpus) {
       const values = fieldList.map((field) =>
-        this.getGpuFieldValue(gpu, field),
+        QUERY_FIELD_HANDLERS[field.toLowerCase()](gpu, node, driverVersion),
       );
       output += values.join(", ") + "\n";
     }
 
     return this.createSuccess(output);
-  }
-
-  /**
-   * Check if a query field is valid/supported
-   */
-  private isValidQueryField(field: string): boolean {
-    const validFields = new Set([
-      "driver_version",
-      "cuda_version",
-      "vbios_version",
-      "serial",
-      "gpu_name",
-      "name",
-      "gpu_uuid",
-      "uuid",
-      "index",
-      "gpu_bus_id",
-      "pci.bus_id",
-      "mig.mode.current",
-      "mig.mode.pending",
-      "memory.total",
-      "memory.used",
-      "memory.free",
-      "memory.reserved",
-      "utilization.gpu",
-      "utilization.memory",
-      "temperature.gpu",
-      "temperature.memory",
-      "power.draw",
-      "power.limit",
-      "power.default_limit",
-      "power.max_limit",
-      "clocks.current.graphics",
-      "clocks.current.sm",
-      "clocks.current.memory",
-      "clocks.max.graphics",
-      "clocks.max.sm",
-      "clocks.max.memory",
-      "pcie.link.gen.current",
-      "pcie.link.gen.max",
-      "pcie.link.width.current",
-      "pcie.link.width.max",
-      "fan.speed",
-      "pstate",
-      "compute_mode",
-      "persistence_mode",
-      "ecc.mode.current",
-      "ecc.errors.corrected.volatile.total",
-      "ecc.errors.uncorrected.volatile.total",
-      "ecc.errors.corrected.aggregate.total",
-      "ecc.errors.uncorrected.aggregate.total",
-      "retired_pages.pending",
-      "retired_pages.sbe",
-      "retired_pages.dbe",
-      "timestamp",
-      "nvlink.link0.state",
-      "nvlink.link1.state",
-      "nvlink.link2.state",
-      "nvlink.link3.state",
-      "nvlink.link4.state",
-      "nvlink.link5.state",
-    ]);
-    return validFields.has(field.toLowerCase());
-  }
-
-  /**
-   * Get a specific field value from a GPU for --query-gpu output
-   */
-  private getGpuFieldValue(gpu: GPU, field: string): string {
-    const node = this.getNode({
-      currentNode: "",
-      currentPath: "",
-      environment: {},
-      history: [],
-    });
-    const driverVersion = node?.nvidiaDriverVersion || "535.129.03";
-
-    switch (field.toLowerCase()) {
-      // Driver & System Info
-      case "driver_version":
-        return driverVersion;
-      case "cuda_version":
-        return node?.cudaVersion || "12.2";
-      case "vbios_version":
-        return "96.00.89.00.01";
-      case "serial":
-        return gpu.uuid.split("-")[1] || "N/A";
-
-      // GPU Identification
-      case "gpu_name":
-      case "name":
-        return gpu.name;
-      case "gpu_uuid":
-      case "uuid":
-        return gpu.uuid;
-      case "index":
-        return gpu.id.toString();
-      case "gpu_bus_id":
-      case "pci.bus_id":
-        return gpu.pciAddress;
-
-      // MIG Mode
-      case "mig.mode.current":
-        return gpu.migMode ? "Enabled" : "Disabled";
-      case "mig.mode.pending":
-        return gpu.migMode ? "Enabled" : "Disabled";
-
-      // Memory
-      case "memory.total":
-        return `${gpu.memoryTotal} MiB`;
-      case "memory.used":
-        return `${gpu.memoryUsed} MiB`;
-      case "memory.free":
-        return `${gpu.memoryTotal - gpu.memoryUsed} MiB`;
-      case "memory.reserved":
-        return `${Math.round(gpu.memoryTotal * 0.02)} MiB`;
-
-      // Utilization
-      case "utilization.gpu":
-        return `${Math.round(gpu.utilization)} %`;
-      case "utilization.memory":
-        return `${Math.round((gpu.memoryUsed / gpu.memoryTotal) * 100)} %`;
-      case "utilization.encoder":
-        return `${Math.floor(Math.random() * 10)} %`;
-      case "utilization.decoder":
-        return `${Math.floor(Math.random() * 5)} %`;
-
-      // Temperature
-      case "temperature.gpu":
-        return `${Math.round(gpu.temperature)}`;
-      case "temperature.memory":
-        return `${Math.round(gpu.temperature + 5)}`;
-      case "temperature.gpu_tlimit":
-        return "83";
-      case "temperature.memory_max":
-        return "95";
-
-      // Power
-      case "power.draw":
-        return `${Math.round(gpu.powerDraw)} W`;
-      case "power.draw.average":
-        return `${Math.round(gpu.powerDraw * 0.95)} W`;
-      case "power.draw.instant":
-        return `${Math.round(gpu.powerDraw + (Math.random() - 0.5) * 10)} W`;
-      case "power.limit":
-        return `${Math.round(gpu.powerLimit)} W`;
-      case "power.default_limit":
-        return `${Math.round(gpu.powerLimit)} W`;
-      case "power.min_limit": {
-        const bounds = getPowerLimitBounds(gpu.name);
-        return `${Math.round(bounds.min)} W`;
-      }
-      case "power.max_limit": {
-        const bounds = getPowerLimitBounds(gpu.name);
-        return `${Math.round(bounds.max)} W`;
-      }
-      case "power.management":
-        return "Supported";
-      case "enforced.power.limit":
-        return `${Math.round(gpu.powerLimit)} W`;
-
-      // PCIe
-      case "pci.domain":
-        return "0x0000";
-      case "pci.bus":
-        return gpu.pciAddress.split(":")[0] || "00";
-      case "pci.device":
-        return gpu.pciAddress.split(":")[1]?.split(".")[0] || "00";
-      case "pci.device_id":
-        return "0x233010DE";
-      case "pci.sub_device_id":
-        return "0x16C110DE";
-      case "pci.link.gen.current":
-        return "4";
-      case "pci.link.gen.max":
-        return "4";
-      case "pci.link.gen.gpucurrent":
-        return "4";
-      case "pci.link.gen.gpumax":
-        return "4";
-      case "pci.link.width.current":
-        return "16";
-      case "pci.link.width.max":
-        return "16";
-
-      // Clocks
-      case "clocks.current.graphics":
-      case "clocks.current.sm":
-      case "clocks.sm":
-        return `${gpu.clocksSM} MHz`;
-      case "clocks.current.memory":
-      case "clocks.mem":
-        return `${gpu.clocksMem} MHz`;
-      case "clocks.current.video":
-        return `${Math.round(gpu.clocksSM * 0.9)} MHz`;
-      case "clocks.max.graphics":
-      case "clocks.max.sm":
-        return `${Math.round(gpu.clocksSM * 1.2)} MHz`;
-      case "clocks.max.memory":
-      case "clocks.max.mem":
-        return `${Math.round(gpu.clocksMem * 1.1)} MHz`;
-      case "clocks.applications.graphics":
-        return `${gpu.clocksSM} MHz`;
-      case "clocks.applications.memory":
-        return `${gpu.clocksMem} MHz`;
-
-      // ECC
-      case "ecc.mode.current":
-        return gpu.eccEnabled ? "Enabled" : "Disabled";
-      case "ecc.mode.pending":
-        return gpu.eccEnabled ? "Enabled" : "Disabled";
-      case "ecc.errors.corrected.volatile.device_memory":
-        return gpu.eccErrors.singleBit.toString();
-      case "ecc.errors.corrected.volatile.dram":
-        return gpu.eccErrors.singleBit.toString();
-      case "ecc.errors.corrected.volatile.sram":
-        return "0";
-      case "ecc.errors.corrected.volatile.total":
-        return gpu.eccErrors.singleBit.toString();
-      case "ecc.errors.corrected.aggregate.device_memory":
-        return gpu.eccErrors.aggregated.singleBit.toString();
-      case "ecc.errors.corrected.aggregate.dram":
-        return gpu.eccErrors.aggregated.singleBit.toString();
-      case "ecc.errors.corrected.aggregate.sram":
-        return "0";
-      case "ecc.errors.corrected.aggregate.total":
-        return gpu.eccErrors.aggregated.singleBit.toString();
-      case "ecc.errors.uncorrected.volatile.device_memory":
-        return gpu.eccErrors.doubleBit.toString();
-      case "ecc.errors.uncorrected.volatile.dram":
-        return gpu.eccErrors.doubleBit.toString();
-      case "ecc.errors.uncorrected.volatile.sram":
-        return "0";
-      case "ecc.errors.uncorrected.volatile.total":
-        return gpu.eccErrors.doubleBit.toString();
-      case "ecc.errors.uncorrected.aggregate.device_memory":
-        return gpu.eccErrors.aggregated.doubleBit.toString();
-      case "ecc.errors.uncorrected.aggregate.dram":
-        return gpu.eccErrors.aggregated.doubleBit.toString();
-      case "ecc.errors.uncorrected.aggregate.sram":
-        return "0";
-      case "ecc.errors.uncorrected.aggregate.total":
-        return gpu.eccErrors.aggregated.doubleBit.toString();
-
-      // Retired Pages
-      case "retired_pages.single_bit_ecc.count":
-      case "retired_pages.sbe":
-        return Math.floor(gpu.eccErrors.aggregated.singleBit / 10).toString();
-      case "retired_pages.double_bit.count":
-      case "retired_pages.dbe":
-        return gpu.eccErrors.aggregated.doubleBit.toString();
-      case "retired_pages.pending":
-        return gpu.eccErrors.doubleBit > 0 ? "Yes" : "No";
-
-      // Compute & Display Mode
-      case "compute_mode":
-        return gpu.computeMode;
-      case "display_mode":
-        return "Disabled";
-      case "display_active":
-        return "Disabled";
-      case "persistence_mode":
-        return gpu.persistenceMode ? "Enabled" : "Disabled";
-
-      // Performance State
-      case "pstate":
-        return gpu.utilization > 50 ? "P0" : gpu.utilization > 10 ? "P2" : "P8";
-      case "performance_state":
-        return gpu.utilization > 50 ? "P0" : gpu.utilization > 10 ? "P2" : "P8";
-
-      // Fan
-      case "fan.speed":
-        return `${Math.min(100, Math.round(30 + gpu.temperature * 0.7))} %`;
-
-      // Count/timestamp
-      case "count":
-        return node?.gpus.length.toString() || "8";
-      case "timestamp":
-        return new Date().toISOString();
-
-      // NVLink
-      case "nvlink.link0.state":
-      case "nvlink.link1.state":
-      case "nvlink.link2.state":
-      case "nvlink.link3.state":
-        return gpu.nvlinks.length > 0 ? "Active" : "Inactive";
-
-      // Accounting mode
-      case "accounting.mode":
-        return "Disabled";
-      case "accounting.buffer_size":
-        return "4000";
-
-      default:
-        return "[Not Supported]";
-    }
   }
 
   /**

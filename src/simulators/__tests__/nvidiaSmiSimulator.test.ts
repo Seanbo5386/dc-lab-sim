@@ -971,3 +971,55 @@ describe("-c / --compute-mode", () => {
     expect(result.output).toContain("Invalid compute mode");
   });
 });
+
+describe("--query-gpu field consolidation (SIM-11 regression)", () => {
+  let simulator: NvidiaSmiSimulator;
+  let context: CommandContext;
+
+  beforeEach(() => {
+    simulator = new NvidiaSmiSimulator();
+    context = {
+      currentNode: "dgx-00",
+      currentPath: "/root",
+      environment: {},
+      history: [],
+    };
+  });
+
+  it("serves pcie.link.gen.current (was allowlisted but unimplemented under the pci. prefix)", () => {
+    const result = simulator.execute(
+      parse(
+        "nvidia-smi --query-gpu=pcie.link.gen.current --format=csv,noheader",
+      ),
+      context,
+    );
+    expect(result.output.trim()).toBe("4");
+  });
+
+  it("serves nvlink.link5.state (was allowlisted but had no switch case)", () => {
+    const result = simulator.execute(
+      parse("nvidia-smi --query-gpu=nvlink.link5.state --format=csv,noheader"),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.output.trim()).not.toBe("[Not Supported]");
+  });
+
+  it("serves power.min_limit (was implemented but never allowlisted)", () => {
+    const result = simulator.execute(
+      parse("nvidia-smi --query-gpu=power.min_limit --format=csv,noheader"),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.output.trim()).toContain("W");
+  });
+
+  it("still rejects a genuinely unsupported field", () => {
+    const result = simulator.execute(
+      parse("nvidia-smi --query-gpu=not.a.real.field --format=csv,noheader"),
+      context,
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toContain("Invalid or unsupported query field");
+  });
+});
