@@ -4,6 +4,7 @@ import {
   getRatedTDP,
   getPowerLimitBounds,
   deriveThermalSeverity,
+  deriveThrottleReasons,
   heatWattsFraction,
 } from "../clusterPhysicsEngine";
 import type { GPU } from "@/types/hardware";
@@ -397,6 +398,28 @@ describe("deriveThermalSeverity", () => {
     // disagree is what proves gpuName is dispatched, not ignored.
     const result = deriveThermalSeverity(93, "NVIDIA H100-SXM5-80GB");
     expect(result.severity).toBe("warning");
+  });
+});
+
+describe("deriveThrottleReasons", () => {
+  it("reports hwSlowdown true whenever hwThermalSlowdown is true (never a contradicted parent/child)", () => {
+    const hotGpu = createTestGPU({
+      temperature: 91,
+      name: "NVIDIA A100-SXM4-80GB",
+    });
+    const reasons = deriveThrottleReasons(hotGpu);
+    expect(reasons.hwThermalSlowdown).toBe(true);
+    expect(reasons.hwSlowdown).toBe(true);
+  });
+
+  it("reports both false for a cool, idle GPU", () => {
+    const coolGpu = createTestGPU({
+      temperature: 40,
+      name: "NVIDIA A100-SXM4-80GB",
+    });
+    const reasons = deriveThrottleReasons(coolGpu);
+    expect(reasons.hwThermalSlowdown).toBe(false);
+    expect(reasons.hwSlowdown).toBe(false);
   });
 });
 

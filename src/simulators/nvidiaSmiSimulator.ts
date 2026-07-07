@@ -12,6 +12,7 @@ import { DISPLAY_FORMATTERS } from "@/simulators/nvidiaSmiFormatters";
 import {
   getThermalThresholds,
   getPowerLimitBounds,
+  deriveThrottleReasons,
 } from "@/simulation/clusterPhysicsEngine";
 import { applyRemediation } from "@/utils/remediationEngine";
 
@@ -1553,18 +1554,20 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       output += `            Max                           : 16x\n`;
       output += `            Current                       : 16x\n\n`;
 
+      const reasons = deriveThrottleReasons(g);
+      const active = (v: boolean) => (v ? "Active" : "Not Active");
       output += `Fan Speed                                 : N/A\n`;
       output += `Performance State                         : P0\n`;
       output += `Clocks Throttle Reasons\n`;
-      output += `    Idle                                  : Not Active\n`;
-      output += `    Applications Clocks Setting           : Not Active\n`;
-      output += `    SW Power Cap                          : Not Active\n`;
-      output += `    HW Slowdown                           : Not Active\n`;
-      output += `    HW Thermal Slowdown                   : Not Active\n`;
-      output += `    HW Power Brake Slowdown               : Not Active\n`;
-      output += `    Sync Boost                            : Not Active\n`;
-      output += `    SW Thermal Slowdown                   : Not Active\n`;
-      output += `    Display Clock Setting                 : Not Active\n\n`;
+      output += `    Idle                                  : ${active(reasons.idle)}\n`;
+      output += `    Applications Clocks Setting           : ${active(reasons.appClocksSetting)}\n`;
+      output += `    SW Power Cap                          : ${active(reasons.swPowerCap)}\n`;
+      output += `    HW Slowdown                           : ${active(reasons.hwSlowdown)}\n`;
+      output += `    HW Thermal Slowdown                   : ${active(reasons.hwThermalSlowdown)}\n`;
+      output += `    HW Power Brake Slowdown               : ${active(reasons.hwPowerBrakeSlowdown)}\n`;
+      output += `    Sync Boost                            : ${active(reasons.syncBoost)}\n`;
+      output += `    SW Thermal Slowdown                   : ${active(reasons.swThermalSlowdown)}\n`;
+      output += `    Display Clock Setting                 : ${active(reasons.displayClockSetting)}\n\n`;
 
       output += `FB Memory Usage\n`;
       output += `    Total                                 : ${g.memoryTotal} MiB\n`;

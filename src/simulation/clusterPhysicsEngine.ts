@@ -89,6 +89,46 @@ export function deriveThermalSeverity(
   return { severity: "ok", label: "OK" };
 }
 
+export interface ThrottleReasons {
+  idle: boolean;
+  appClocksSetting: boolean;
+  swPowerCap: boolean;
+  hwThermalSlowdown: boolean;
+  hwPowerBrakeSlowdown: boolean;
+  /** True whenever any HW-prefixed reason above is true — a child reason
+   * being active while its parent reports inactive is a self-contradiction
+   * real nvidia-smi never produces (PHYS-3). */
+  hwSlowdown: boolean;
+  syncBoost: boolean;
+  swThermalSlowdown: boolean;
+  displayClockSetting: boolean;
+}
+
+/**
+ * Single source of truth for "Clocks Throttle Reasons," used by both
+ * `nvidia-smi -q`'s formatQuery and its -d PERFORMANCE display path
+ * (formatDisplayPerformance) — previously two independent hardcoded
+ * implementations that could (and did) disagree.
+ */
+export function deriveThrottleReasons(gpu: GPU): ThrottleReasons {
+  const thresholds = getThermalThresholds(gpu.name || "");
+  const hwThermalSlowdown = gpu.temperature >= thresholds.slowdown;
+  // No modeled power-brake-triggering fault exists yet — always false,
+  // same as every other simulated GPU's current (correct) value.
+  const hwPowerBrakeSlowdown = false;
+  return {
+    idle: gpu.utilization < 5,
+    appClocksSetting: false,
+    swPowerCap: gpu.powerDraw > gpu.powerLimit * 0.95,
+    hwThermalSlowdown,
+    hwPowerBrakeSlowdown,
+    hwSlowdown: hwThermalSlowdown || hwPowerBrakeSlowdown,
+    syncBoost: false,
+    swThermalSlowdown: false,
+    displayClockSetting: false,
+  };
+}
+
 /** Look up the boost clock for a GPU by its model name. Falls back to A100's 1410 MHz. */
 export function getBoostClock(gpuName: string): number {
   for (const spec of Object.values(HARDWARE_SPECS)) {
