@@ -431,7 +431,9 @@ describe("FaultInjection", () => {
       expect(
         screen.getByText("XID 79 - GPU fallen off bus"),
       ).toBeInTheDocument();
-      expect(screen.getByText(/All GPUs running hot/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/All GPUs climb to max temp/),
+      ).toBeInTheDocument();
       expect(
         screen.getByText(/Uncorrectable - GPU replacement needed/),
       ).toBeInTheDocument();

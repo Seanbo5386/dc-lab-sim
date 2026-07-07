@@ -1106,7 +1106,7 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
               <div>
                 <div className="font-medium text-orange-400">Thermal Alert</div>
                 <div className="text-xs text-gray-400">
-                  All GPUs running hot (90-100°C)
+                  All GPUs climb to max temp, hold until remediated
                 </div>
               </div>
             </button>
