@@ -491,6 +491,29 @@ describe("NvidiaSmiSimulator", () => {
       expect(result.output).not.toContain("80MiB");
     });
   });
+
+  describe("unsupported flags rejected explicitly (not silently ignored)", () => {
+    it("rejects -lgc instead of falling through to the default GPU table", () => {
+      const result = simulator.execute(
+        parse("nvidia-smi -lgc 1200,1500"),
+        context,
+      );
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain("not supported in this simulator");
+    });
+
+    it("rejects -rgc instead of falling through to the default GPU table", () => {
+      const result = simulator.execute(parse("nvidia-smi -rgc"), context);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain("not supported in this simulator");
+    });
+
+    it("rejects -x instead of falling through to the default GPU table", () => {
+      const result = simulator.execute(parse("nvidia-smi -x -q"), context);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain("not supported in this simulator");
+    });
+  });
 });
 
 describe("remediation routing", () => {

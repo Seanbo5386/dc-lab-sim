@@ -267,6 +267,32 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       return this.handleComputeMode(parsed, context);
     }
 
+    // -lgc/-rgc (clock locking) and -x (XML output) are documented in
+    // --help for exam reference (they are real nvidia-smi flags) but this
+    // simulator does not model locked-clock state or XML rendering. Reject
+    // explicitly instead of silently falling through to the default GPU
+    // table, which would look like success (SIM-8).
+    if (
+      this.hasAnyFlag(parsed, [
+        "lgc",
+        "lock-gpu-clocks",
+        "rgc",
+        "reset-gpu-clocks",
+      ])
+    ) {
+      return this.createError(
+        "Error: GPU clock locking (-lgc/-rgc) is not supported in this simulator.\n" +
+          "The flag is documented accurately in --help for exam reference, but does not change simulated GPU state here.",
+      );
+    }
+
+    if (this.hasAnyFlag(parsed, ["x", "xml-format"])) {
+      return this.createError(
+        "Error: XML output (-x) is not supported in this simulator.\n" +
+          "Use -q for human-readable output or --query-gpu for CSV output.",
+      );
+    }
+
     // Handle persistence mode
     if (parsed.flags.has("pm")) {
       return this.handlePersistenceMode(parsed, context);
