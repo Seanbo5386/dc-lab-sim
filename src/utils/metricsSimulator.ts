@@ -229,7 +229,7 @@ export class MetricsSimulator {
         };
 
       case "thermal": {
-        // A moderate persistent fault (60% of RATED TDP as extra heat, on
+        // A moderate persistent fault (48% of RATED TDP as extra heat, on
         // top of whatever load-driven power already exists) — replaces the
         // old one-shot `temperature: 85` snap, which self-erased within a
         // few ticks once the next physics pass pulled it back toward the
@@ -238,9 +238,20 @@ export class MetricsSimulator {
         // RATED TDP (not the current, possibly-capped powerLimit) so the
         // fault's severity matches what tickGPU's faultRatio calculation
         // expects — see the formula note in Task 2.
+        //
+        // 48% (not 60%) is deliberate: this represents a SINGLE-GPU cooling
+        // fault (e.g. degraded fan/paste) — remediationEngine's
+        // classifyFault() treats it as recoverable via `set-power-limit`
+        // ("thermal", 85-89.9°C) as opposed to a node-wide "thermal-alert"
+        // (>=90°C) that demands a power-cycle. At 60%, a lone idle GPU's
+        // equilibrium temperature overshoots past 90°C and into
+        // "thermal-alert" territory, making `set-power-limit` always
+        // "insufficient" for a fault this UI labels as a single-GPU "Thermal
+        // Issue" — 48% settles in the mid-80s across architectures instead,
+        // squarely in the fault kind its own remediation profile expects.
         return {
           ...gpu,
-          activeFaultHeatWatts: getRatedTDP(gpu.name) * 0.6,
+          activeFaultHeatWatts: getRatedTDP(gpu.name) * 0.48,
           healthStatus: "Warning",
         };
       }
