@@ -750,3 +750,103 @@ describe("remediation routing", () => {
     expect(result.output.trim()).toBe("700 W");
   });
 });
+
+describe("-e / --ecc-config", () => {
+  let simulator: NvidiaSmiSimulator;
+  let context: CommandContext;
+
+  beforeEach(() => {
+    simulator = new NvidiaSmiSimulator();
+    context = {
+      currentNode: "dgx-00",
+      currentPath: "/root",
+      environment: {},
+      history: [],
+    };
+
+    // A single-GPU node with a real updateGPU implementation (not just a
+    // spy) so the "persists" test below can observe a subsequent query
+    // reflecting the mutation, mirroring how the real StateMutator/store
+    // round-trip behaves.
+    const gpu: import("@/types/hardware").GPU = {
+      id: 0,
+      uuid: "GPU-ecc-config-0",
+      name: "NVIDIA H100-SXM5-80GB",
+      type: "H100-SXM",
+      pciAddress: "0000:17:00.0",
+      temperature: 45,
+      powerDraw: 250,
+      powerLimit: 700,
+      memoryTotal: 81920,
+      memoryUsed: 1024,
+      utilization: 0,
+      clocksSM: 1980,
+      clocksMem: 2619,
+      eccEnabled: true,
+      eccErrors: {
+        singleBit: 0,
+        doubleBit: 0,
+        aggregated: { singleBit: 0, doubleBit: 0 },
+      },
+      migMode: false,
+      migInstances: [],
+      nvlinks: [],
+      healthStatus: "OK",
+      xidErrors: [],
+      persistenceMode: true,
+    };
+
+    const state = {
+      cluster: {
+        nodes: [
+          {
+            id: "dgx-00",
+            hostname: "dgx-node01",
+            systemType: "DGX-H100",
+            healthStatus: "OK",
+            slurmState: "idle",
+            gpus: [gpu],
+            hcas: [],
+          },
+        ],
+      },
+      updateGPU: vi.fn(
+        (
+          nodeId: string,
+          gpuId: number,
+          updates: Partial<import("@/types/hardware").GPU>,
+        ) => {
+          const node = state.cluster.nodes.find((n) => n.id === nodeId);
+          if (node) {
+            Object.assign(node.gpus[gpuId], updates);
+          }
+        },
+      ),
+    };
+    vi.mocked(useSimulationStore.getState).mockReturnValue(state as never);
+  });
+
+  afterEach(() => vi.clearAllMocks());
+
+  it("enables ECC and reports the reboot requirement", () => {
+    const result = simulator.execute(parse("nvidia-smi -i 0 -e 1"), context);
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("ECC support enabled");
+    expect(result.output).toContain("reset");
+  });
+
+  it("disables ECC", () => {
+    const result = simulator.execute(parse("nvidia-smi -i 0 -e 0"), context);
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("ECC support disabled");
+  });
+
+  it("persists the change so a subsequent query reflects it", () => {
+    simulator.execute(parse("nvidia-smi -i 0 -e 0"), context);
+    const queryResult = simulator.execute(
+      parse("nvidia-smi --query-gpu=ecc.mode.current --format=csv,noheader"),
+      context,
+    );
+    expect(queryResult.output).toContain("Disabled");
+  });
+});

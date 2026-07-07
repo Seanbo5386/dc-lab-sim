@@ -257,6 +257,11 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       return this.handleResetEcc(parsed, context);
     }
 
+    // Handle ECC mode setting
+    if (this.hasAnyFlag(parsed, ["e", "ecc-config"])) {
+      return this.handleEccConfig(parsed, context);
+    }
+
     // Handle persistence mode
     if (parsed.flags.has("pm")) {
       return this.handlePersistenceMode(parsed, context);
@@ -901,6 +906,34 @@ export class NvidiaSmiSimulator extends BaseSimulator {
       result.outcome === "fixed"
         ? `Power limit for GPU ${gpuId} set to ${powerLimit} W\n${result.message}`
         : `Power limit for GPU ${gpuId} set to ${powerLimit} W`,
+    );
+  }
+
+  /**
+   * Handle ECC mode setting via -e/--ecc-config. Mirrors the -p/--reset-ecc-errors
+   * pattern for reading a flag with both a short and long form (the parser
+   * does not normalize short -> long, see the comment at that call site).
+   */
+  private handleEccConfig(
+    parsed: ParsedCommand,
+    context: CommandContext,
+  ): CommandResult {
+    const node = this.getNode(context);
+    if (!node) {
+      return this.createError("Error: Unable to determine current node");
+    }
+
+    const gpuId = this.getFlagNumber(parsed, ["i", "id"], 0);
+    const eccValue = parsed.flags.get("e") ?? parsed.flags.get("ecc-config");
+    const enable = eccValue === "1" || eccValue === true;
+
+    this.resolveMutator(context).updateGPU(node.id, gpuId, {
+      eccEnabled: enable,
+    });
+
+    return this.createSuccess(
+      `ECC support ${enable ? "enabled" : "disabled"} for GPU ${gpuId}.\n` +
+        `All GPUs must be reset (or the machine rebooted) for this setting to take effect.`,
     );
   }
 
