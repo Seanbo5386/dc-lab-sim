@@ -319,9 +319,11 @@ describe("deriveThermalSeverity", () => {
   });
 
   it("uses H100's higher thresholds, not A100's", () => {
-    // H100 maxOp = 83, shutdown = 95 — 90C is warning for H100 (below its
-    // 95C shutdown) but would be critical for an A100 (above its 92C).
-    const result = deriveThermalSeverity(90, "NVIDIA H100-SXM5-80GB");
+    // H100 maxOp = 83, shutdown = 95 — 93C is warning for H100 (below its
+    // 95C shutdown) but would be critical for an A100 (at or above its 92C
+    // shutdown). Picking a temperature where the two architectures actually
+    // disagree is what proves gpuName is dispatched, not ignored.
+    const result = deriveThermalSeverity(93, "NVIDIA H100-SXM5-80GB");
     expect(result.severity).toBe("warning");
   });
 });
