@@ -48,6 +48,7 @@ describe("NetworkNodeDetail", () => {
       healthStatus: "OK",
       xidErrors: [],
       persistenceMode: true,
+      computeMode: "Default",
     },
   };
 

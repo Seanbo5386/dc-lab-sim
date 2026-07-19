@@ -40,6 +40,7 @@ function createBaseCluster(): ClusterConfig {
             healthStatus: "OK",
             xidErrors: [],
             persistenceMode: true,
+            computeMode: "Default",
           },
         ],
         dpus: [],

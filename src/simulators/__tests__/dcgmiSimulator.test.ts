@@ -419,6 +419,33 @@ describe("DcgmiSimulator", () => {
     });
   });
 
+  describe("Group Command", () => {
+    it("creates a named group with 'dcgmi group -c <name>' via the schema-aware parser (regression: -c must resolve as value-taking, not boolean)", async () => {
+      // dcgmi.json defines -c six times across subcommands with mixed
+      // semantics: discovery's boolean -c/--compute-instances is defined
+      // FIRST in the file, while group's value-taking -c/--create (plus
+      // diag/dmon/fieldgroup's value-taking -c) come later. getFlagSchema
+      // must preserve last-write-wins among subcommands so group's -c
+      // resolves as value-taking here — this is exactly the ordering the
+      // real dcgmi tool relies on. Wait for the async definition registry
+      // to finish loading so execute() takes the schema-aware
+      // parseWithSchema path instead of the heuristic fallback parser.
+      await vi.waitFor(
+        () => {
+          expect(simulator["definitionRegistry"]).not.toBeNull();
+        },
+        { timeout: 5000 },
+      );
+
+      const parsed = parse("dcgmi group -c my-group");
+      const result = simulator.execute(parsed, context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain('Successfully created group "my-group"');
+      expect(result.output).not.toContain("default-group");
+    });
+  });
+
   describe("CommandDefinitionRegistry Integration", () => {
     it("should have definition registry initialized after construction", async () => {
       // Wait for async initialization (lazy-loaded JSON imports may take longer)

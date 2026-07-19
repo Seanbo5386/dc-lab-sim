@@ -6,6 +6,7 @@ import {
   formatDisplayTemperature,
   formatDisplayPids,
   formatDisplayPerformance,
+  formatDisplayPower,
   DISPLAY_FORMATTERS,
 } from "../nvidiaSmiFormatters";
 
@@ -35,6 +36,7 @@ const makeGpu = (overrides?: Partial<GPU>): GPU => ({
   healthStatus: "OK",
   xidErrors: [],
   persistenceMode: false,
+  computeMode: "Default",
   ...overrides,
 });
 
@@ -115,6 +117,19 @@ describe("nvidiaSmiFormatters", () => {
       // 85C is below H100's 90C slowdown threshold -> must read Not Active,
       // where the OLD hardcoded ">80" check would have wrongly said Active.
       expect(output).toContain("HW Thermal Slowdown           : Not Active");
+    });
+  });
+
+  describe("formatDisplayPower", () => {
+    it("reports the fixed architecture Min/Max Power Limit, not values derived from the current (capped) limit", () => {
+      // A prior -pl already lowered the current limit to 150W (well below
+      // A100's real fixed ceiling of 400W). Min/Max Power Limit must still
+      // reflect the fixed 100-400W bounds, not "75.00 W" / "150.00 W"
+      // derived from the current (capped) powerLimit (SIM-2).
+      const gpu = makeGpu({ powerLimit: 150 });
+      const output = formatDisplayPower(gpu);
+      expect(output).toContain("Min Power Limit                   : 100.00 W");
+      expect(output).toContain("Max Power Limit                   : 400.00 W");
     });
   });
 

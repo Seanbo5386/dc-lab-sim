@@ -58,6 +58,7 @@ function createTestCluster(): ClusterConfig {
             healthStatus: "OK",
             xidErrors: [],
             persistenceMode: true,
+            computeMode: "Default",
           },
           {
             id: 1,
@@ -85,6 +86,7 @@ function createTestCluster(): ClusterConfig {
             healthStatus: "OK",
             xidErrors: [],
             persistenceMode: true,
+            computeMode: "Default",
           },
         ],
         dpus: [],

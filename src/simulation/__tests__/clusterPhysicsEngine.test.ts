@@ -2,7 +2,9 @@ import { describe, it, expect } from "vitest";
 import {
   ClusterPhysicsEngine,
   getRatedTDP,
+  getPowerLimitBounds,
   deriveThermalSeverity,
+  deriveThrottleReasons,
   heatWattsFraction,
 } from "../clusterPhysicsEngine";
 import type { GPU } from "@/types/hardware";
@@ -34,6 +36,7 @@ function createTestGPU(overrides: Partial<GPU> = {}): GPU {
     healthStatus: "OK",
     xidErrors: [],
     persistenceMode: true,
+    computeMode: "Default",
     ...overrides,
   };
 }
@@ -351,6 +354,26 @@ describe("getRatedTDP", () => {
   });
 });
 
+describe("getPowerLimitBounds", () => {
+  it("returns fixed A100 bounds regardless of the GPU's current (capped) powerLimit", () => {
+    expect(getPowerLimitBounds("NVIDIA A100-SXM4-80GB")).toEqual({
+      min: 100,
+      max: 400,
+    });
+  });
+
+  it("returns fixed H100 bounds", () => {
+    expect(getPowerLimitBounds("NVIDIA H100-SXM5-80GB")).toEqual({
+      min: 200,
+      max: 700,
+    });
+  });
+
+  it("falls back to A100 bounds for an unknown GPU name", () => {
+    expect(getPowerLimitBounds("unknown-gpu")).toEqual({ min: 100, max: 400 });
+  });
+});
+
 describe("deriveThermalSeverity", () => {
   it("returns ok below the per-arch max operating temp", () => {
     const result = deriveThermalSeverity(50, "NVIDIA A100-SXM4-80GB");
@@ -376,6 +399,28 @@ describe("deriveThermalSeverity", () => {
     // disagree is what proves gpuName is dispatched, not ignored.
     const result = deriveThermalSeverity(93, "NVIDIA H100-SXM5-80GB");
     expect(result.severity).toBe("warning");
+  });
+});
+
+describe("deriveThrottleReasons", () => {
+  it("reports hwSlowdown true whenever hwThermalSlowdown is true (never a contradicted parent/child)", () => {
+    const hotGpu = createTestGPU({
+      temperature: 91,
+      name: "NVIDIA A100-SXM4-80GB",
+    });
+    const reasons = deriveThrottleReasons(hotGpu);
+    expect(reasons.hwThermalSlowdown).toBe(true);
+    expect(reasons.hwSlowdown).toBe(true);
+  });
+
+  it("reports both false for a cool, idle GPU", () => {
+    const coolGpu = createTestGPU({
+      temperature: 40,
+      name: "NVIDIA A100-SXM4-80GB",
+    });
+    const reasons = deriveThrottleReasons(coolGpu);
+    expect(reasons.hwThermalSlowdown).toBe(false);
+    expect(reasons.hwSlowdown).toBe(false);
   });
 });
 

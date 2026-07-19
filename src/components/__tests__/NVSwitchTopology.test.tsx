@@ -79,6 +79,7 @@ describe("NVSwitchTopology", () => {
     healthStatus: health,
     xidErrors: [],
     persistenceMode: true,
+    computeMode: "Default",
   });
 
   const mockNode: DGXNode = {

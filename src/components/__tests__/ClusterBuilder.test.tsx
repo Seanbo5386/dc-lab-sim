@@ -73,6 +73,7 @@ function makeNode(id: string, gpuCount: number): DGXNode {
       healthStatus: "OK" as const,
       xidErrors: [],
       persistenceMode: true,
+      computeMode: "Default" as const,
     })),
     dpus: [],
     hcas: Array.from({ length: 8 }, (_, i) => ({

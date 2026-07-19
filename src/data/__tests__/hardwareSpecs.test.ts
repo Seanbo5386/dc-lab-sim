@@ -123,4 +123,23 @@ describe("hardwareSpecs", () => {
       expect(specs.network.portRateGbs).toBe(800);
     });
   });
+
+  describe("power-limit bounds", () => {
+    it("has a positive min below max, and max equal to the rated TDP, for every architecture", () => {
+      for (const [systemType, spec] of Object.entries(HARDWARE_SPECS)) {
+        expect(
+          spec.gpu.minPowerLimitW,
+          `${systemType} minPowerLimitW`,
+        ).toBeGreaterThan(0);
+        expect(
+          spec.gpu.minPowerLimitW,
+          `${systemType} minPowerLimitW < maxPowerLimitW`,
+        ).toBeLessThan(spec.gpu.maxPowerLimitW);
+        expect(
+          spec.gpu.maxPowerLimitW,
+          `${systemType} maxPowerLimitW === tdpWatts`,
+        ).toBe(spec.gpu.tdpWatts);
+      }
+    });
+  });
 });

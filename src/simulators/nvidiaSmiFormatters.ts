@@ -1,6 +1,10 @@
 import type { GPU, DGXNode } from "@/types/hardware";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
-import { getThermalThresholds } from "@/simulation/clusterPhysicsEngine";
+import {
+  getThermalThresholds,
+  getPowerLimitBounds,
+  deriveThrottleReasons,
+} from "@/simulation/clusterPhysicsEngine";
 
 export type DisplayFormatter = (gpu: GPU, node?: DGXNode) => string;
 
@@ -75,17 +79,15 @@ export function formatDisplayTemperature(gpu: GPU, _node?: DGXNode): string {
 export function formatDisplayPower(gpu: GPU, _node?: DGXNode): string {
   const powerDraw = Math.round(gpu.powerDraw);
   const powerLimit = Math.round(gpu.powerLimit);
-  const minLimit = Math.round(gpu.powerLimit * 0.5);
-  const isSXM = gpu.name?.includes("SXM") || false;
-  const maxLimit = isSXM ? powerLimit : Math.round(gpu.powerLimit * 1.05);
+  const bounds = getPowerLimitBounds(gpu.name);
   let output = `    GPU Power Readings\n`;
   output += `        Power Management                  : Supported\n`;
   output += `        Power Draw                        : ${powerDraw}.00 W\n`;
   output += `        Current Power Limit               : ${powerLimit}.00 W\n`;
   output += `        Requested Power Limit             : ${powerLimit}.00 W\n`;
   output += `        Default Power Limit               : ${powerLimit}.00 W\n`;
-  output += `        Min Power Limit                   : ${minLimit}.00 W\n`;
-  output += `        Max Power Limit                   : ${maxLimit}.00 W\n`;
+  output += `        Min Power Limit                   : ${bounds.min}.00 W\n`;
+  output += `        Max Power Limit                   : ${bounds.max}.00 W\n`;
   output += `    Module Power Readings\n`;
   output += `        Power Draw                        : N/A\n`;
   output += `        Current Power Limit               : N/A\n`;
@@ -124,7 +126,7 @@ export function formatDisplayClocks(gpu: GPU, _node?: DGXNode): string {
 }
 
 export function formatDisplayCompute(gpu: GPU, _node?: DGXNode): string {
-  let output = `    Compute Mode                          : Default\n`;
+  let output = `    Compute Mode                          : ${gpu.computeMode}\n`;
   output += `    MIG Mode\n`;
   output += `        Current                           : ${gpu.migMode ? "Enabled" : "Disabled"}\n`;
   output += `        Pending                           : ${gpu.migMode ? "Enabled" : "Disabled"}\n`;
@@ -139,18 +141,19 @@ export function formatDisplayPids(_gpu: GPU, _node?: DGXNode): string {
 export function formatDisplayPerformance(gpu: GPU, _node?: DGXNode): string {
   const pstate =
     gpu.utilization > 50 ? "P0" : gpu.utilization > 10 ? "P2" : "P8";
-  const thresholds = getThermalThresholds(gpu.name || "");
+  const reasons = deriveThrottleReasons(gpu);
+  const active = (v: boolean) => (v ? "Active" : "Not Active");
   let output = `    Performance State                     : ${pstate}\n`;
   output += `    Clocks Throttle Reasons\n`;
-  output += `        Idle                              : ${gpu.utilization < 5 ? "Active" : "Not Active"}\n`;
-  output += `        Applications Clocks Setting       : Not Active\n`;
-  output += `        SW Power Cap                      : ${gpu.powerDraw > gpu.powerLimit * 0.95 ? "Active" : "Not Active"}\n`;
-  output += `        HW Slowdown                       : Not Active\n`;
-  output += `            HW Thermal Slowdown           : ${gpu.temperature >= thresholds.slowdown ? "Active" : "Not Active"}\n`;
-  output += `            HW Power Brake Slowdown       : Not Active\n`;
-  output += `        Sync Boost                        : Not Active\n`;
-  output += `        SW Thermal Slowdown               : Not Active\n`;
-  output += `        Display Clock Setting             : Not Active\n`;
+  output += `        Idle                              : ${active(reasons.idle)}\n`;
+  output += `        Applications Clocks Setting       : ${active(reasons.appClocksSetting)}\n`;
+  output += `        SW Power Cap                      : ${active(reasons.swPowerCap)}\n`;
+  output += `        HW Slowdown                       : ${active(reasons.hwSlowdown)}\n`;
+  output += `            HW Thermal Slowdown           : ${active(reasons.hwThermalSlowdown)}\n`;
+  output += `            HW Power Brake Slowdown       : ${active(reasons.hwPowerBrakeSlowdown)}\n`;
+  output += `        Sync Boost                        : ${active(reasons.syncBoost)}\n`;
+  output += `        SW Thermal Slowdown               : ${active(reasons.swThermalSlowdown)}\n`;
+  output += `        Display Clock Setting             : ${active(reasons.displayClockSetting)}\n`;
   return output;
 }
 

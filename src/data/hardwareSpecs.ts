@@ -36,6 +36,8 @@ export interface HardwareSpec {
     memoryType: string;
     memoryBandwidthTBs: number;
     tdpWatts: number;
+    minPowerLimitW: number;
+    maxPowerLimitW: number;
     fp16Tflops: number;
     tf32Tflops: number;
     fp64Tflops: number;
@@ -90,6 +92,8 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       memoryType: "HBM2e",
       memoryBandwidthTBs: 2.039,
       tdpWatts: 400,
+      minPowerLimitW: 100,
+      maxPowerLimitW: 400,
       fp16Tflops: 312,
       tf32Tflops: 156,
       fp64Tflops: 19.5,
@@ -143,6 +147,8 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       memoryType: "HBM3",
       memoryBandwidthTBs: 3.35,
       tdpWatts: 700,
+      minPowerLimitW: 200,
+      maxPowerLimitW: 700,
       fp16Tflops: 1979,
       tf32Tflops: 989,
       fp64Tflops: 34,
@@ -196,6 +202,8 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       memoryType: "HBM3e",
       memoryBandwidthTBs: 4.8,
       tdpWatts: 700,
+      minPowerLimitW: 200,
+      maxPowerLimitW: 700,
       fp16Tflops: 1979,
       tf32Tflops: 989,
       fp64Tflops: 34,
@@ -249,6 +257,8 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       memoryType: "HBM3e",
       memoryBandwidthTBs: 7.7,
       tdpWatts: 1000,
+      minPowerLimitW: 300,
+      maxPowerLimitW: 1000,
       fp16Tflops: 2250,
       tf32Tflops: 1200,
       fp64Tflops: 40,
@@ -302,6 +312,8 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       memoryType: "HBM3e",
       memoryBandwidthTBs: 7.7,
       tdpWatts: 1000,
+      minPowerLimitW: 300,
+      maxPowerLimitW: 1000,
       fp16Tflops: 2250,
       tf32Tflops: 1200,
       fp64Tflops: 40,
@@ -355,6 +367,8 @@ export const HARDWARE_SPECS: Record<SystemType, HardwareSpec> = {
       memoryType: "HBM4",
       memoryBandwidthTBs: 22.0,
       tdpWatts: 1800,
+      minPowerLimitW: 500,
+      maxPowerLimitW: 1800,
       fp16Tflops: 8000,
       tf32Tflops: 4000,
       fp64Tflops: 90,
