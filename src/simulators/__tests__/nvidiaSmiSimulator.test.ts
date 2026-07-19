@@ -1067,6 +1067,133 @@ describe("--query-gpu field consolidation (SIM-11 regression)", () => {
     expect(result.output.trim()).toContain("W");
   });
 
+  it("resolves every supported --query-gpu field to a real value, not [Not Supported]", () => {
+    // Every key currently declared in QUERY_FIELD_HANDLERS. If a handler is
+    // added or removed, update this list (and the count below) to match --
+    // the point of this test is that each declared field resolves to a real
+    // value instead of silently falling through to a placeholder.
+    const allFields = [
+      "driver_version",
+      "cuda_version",
+      "vbios_version",
+      "serial",
+      "gpu_name",
+      "name",
+      "gpu_uuid",
+      "uuid",
+      "index",
+      "gpu_bus_id",
+      "pci.bus_id",
+      "mig.mode.current",
+      "mig.mode.pending",
+      "memory.total",
+      "memory.used",
+      "memory.free",
+      "memory.reserved",
+      "utilization.gpu",
+      "utilization.memory",
+      "utilization.encoder",
+      "utilization.decoder",
+      "temperature.gpu",
+      "temperature.memory",
+      "temperature.gpu_tlimit",
+      "temperature.memory_max",
+      "power.draw",
+      "power.draw.average",
+      "power.draw.instant",
+      "power.limit",
+      "power.default_limit",
+      "power.min_limit",
+      "power.max_limit",
+      "power.management",
+      "enforced.power.limit",
+      "pci.domain",
+      "pci.bus",
+      "pci.device",
+      "pci.device_id",
+      "pci.sub_device_id",
+      "pcie.link.gen.current",
+      "pcie.link.gen.max",
+      "pcie.link.gen.gpucurrent",
+      "pcie.link.gen.gpumax",
+      "pcie.link.width.current",
+      "pcie.link.width.max",
+      "clocks.current.graphics",
+      "clocks.current.sm",
+      "clocks.sm",
+      "clocks.current.memory",
+      "clocks.mem",
+      "clocks.current.video",
+      "clocks.max.graphics",
+      "clocks.max.sm",
+      "clocks.max.memory",
+      "clocks.applications.graphics",
+      "clocks.applications.memory",
+      "ecc.mode.current",
+      "ecc.mode.pending",
+      "ecc.errors.corrected.volatile.device_memory",
+      "ecc.errors.corrected.volatile.dram",
+      "ecc.errors.corrected.volatile.sram",
+      "ecc.errors.corrected.volatile.total",
+      "ecc.errors.corrected.aggregate.device_memory",
+      "ecc.errors.corrected.aggregate.dram",
+      "ecc.errors.corrected.aggregate.sram",
+      "ecc.errors.corrected.aggregate.total",
+      "ecc.errors.uncorrected.volatile.device_memory",
+      "ecc.errors.uncorrected.volatile.dram",
+      "ecc.errors.uncorrected.volatile.sram",
+      "ecc.errors.uncorrected.volatile.total",
+      "ecc.errors.uncorrected.aggregate.device_memory",
+      "ecc.errors.uncorrected.aggregate.dram",
+      "ecc.errors.uncorrected.aggregate.sram",
+      "ecc.errors.uncorrected.aggregate.total",
+      "retired_pages.single_bit_ecc.count",
+      "retired_pages.sbe",
+      "retired_pages.double_bit.count",
+      "retired_pages.dbe",
+      "retired_pages.pending",
+      "compute_mode",
+      "display_mode",
+      "display_active",
+      "persistence_mode",
+      "pstate",
+      "performance_state",
+      "fan.speed",
+      "count",
+      "timestamp",
+      "nvlink.link0.state",
+      "nvlink.link1.state",
+      "nvlink.link2.state",
+      "nvlink.link3.state",
+      "nvlink.link4.state",
+      "nvlink.link5.state",
+      "accounting.mode",
+      "accounting.buffer_size",
+    ];
+    expect(allFields).toHaveLength(96);
+
+    const result = simulator.execute(
+      parse(
+        `nvidia-smi --query-gpu=${allFields.join(",")} --format=csv,noheader`,
+      ),
+      context,
+    );
+
+    expect(result.exitCode).toBe(0);
+    // A missing or broken handler would surface as the [Not Supported]
+    // placeholder (the old getGpuFieldValue fallback) -- none may appear.
+    expect(result.output).not.toContain("[Not Supported]");
+
+    // One row for the single mocked GPU: exactly one value per field, each
+    // non-empty. A dropped field or a value containing an embedded ", "
+    // would change the count.
+    const values = result.output.trim().split(", ");
+    expect(values).toHaveLength(allFields.length);
+    for (const value of values) {
+      expect(value).not.toBe("");
+    }
+  });
+
   it("still rejects a genuinely unsupported field", () => {
     const result = simulator.execute(
       parse("nvidia-smi --query-gpu=not.a.real.field --format=csv,noheader"),
