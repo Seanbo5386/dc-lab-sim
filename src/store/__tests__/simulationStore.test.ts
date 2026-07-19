@@ -284,6 +284,31 @@ describe("persistence merge (rehydrate sanitizes corrupted cluster, F5)", () => 
     expect(state.cluster.name).toBe("KEPT-CLUSTER");
     expect(state.systemType).toBe("DGX-H100");
   });
+
+  it("backfills computeMode on GPUs persisted before that field existed", async () => {
+    // A pre-computeMode localStorage blob is still shape-valid (isValidCluster
+    // only checks id/gpus array presence), so it survives merge() verbatim
+    // unless individually backfilled. Without the backfill, gpu.computeMode
+    // is undefined and the compute_mode query / -c verification path breaks
+    // for any returning user with a v1 blob predating that field.
+    const cluster = corruptCluster((c) => {
+      for (const node of c.nodes as { gpus: Record<string, unknown>[] }[]) {
+        for (const gpu of node.gpus) {
+          delete gpu.computeMode;
+        }
+      }
+    });
+    seed({ cluster, systemType: "DGX-A100" });
+
+    await useSimulationStore.persist.rehydrate();
+
+    const state = useSimulationStore.getState();
+    expect(
+      state.cluster.nodes.every((n) =>
+        n.gpus.every((g) => g.computeMode === "Default"),
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("setSystemType scenario guard (F8)", () => {

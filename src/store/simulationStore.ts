@@ -765,8 +765,20 @@ export const useSimulationStore = create<SimulationState>()(
       merge: (persisted, current) => {
         const c = current as SimulationState;
         const p = (persisted ?? {}) as Partial<SimulationState>;
+        // Backfill fields added after a user's cluster was first persisted
+        // (e.g. GPU.computeMode) so isValidCluster's shape-only check doesn't
+        // let older blobs through with those fields silently undefined.
         const safeCluster = isValidCluster(p.cluster)
-          ? p.cluster
+          ? {
+              ...p.cluster,
+              nodes: p.cluster.nodes.map((node) => ({
+                ...node,
+                gpus: node.gpus.map((gpu) => ({
+                  ...gpu,
+                  computeMode: gpu.computeMode ?? "Default",
+                })),
+              })),
+            }
           : createCustomCluster(8, p.systemType ?? c.systemType);
         return { ...c, ...p, cluster: safeCluster };
       },

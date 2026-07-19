@@ -772,6 +772,13 @@ describe("remediation routing", () => {
     expect(result.exitCode).toBe(0);
     expect(result.output.trim()).toBe("700 W");
   });
+
+  it("-pl rejects an out-of-range GPU index instead of crashing on node.gpus[gpuId].name", () => {
+    buildContextWithSpy({});
+    const result = simulator.execute(parse("nvidia-smi -i 5 -pl 300"), context);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toContain("Invalid GPU index");
+  });
 });
 
 describe("-e / --ecc-config", () => {
@@ -872,6 +879,18 @@ describe("-e / --ecc-config", () => {
     );
     expect(queryResult.output).toContain("Disabled");
   });
+
+  it("rejects an out-of-range GPU index instead of silently no-oping", () => {
+    const result = simulator.execute(parse("nvidia-smi -i 5 -e 1"), context);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toContain("Invalid GPU index");
+  });
+
+  it("rejects a non-0/1 ECC value instead of silently disabling ECC", () => {
+    const result = simulator.execute(parse("nvidia-smi -i 0 -e 2"), context);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toContain("Invalid ECC config value");
+  });
 });
 
 describe("-c / --compute-mode", () => {
@@ -969,6 +988,21 @@ describe("-c / --compute-mode", () => {
     const result = simulator.execute(parse("nvidia-smi -i 0 -c 9"), context);
     expect(result.exitCode).not.toBe(0);
     expect(result.output).toContain("Invalid compute mode");
+  });
+
+  it("rejects an out-of-range GPU index instead of silently no-oping", () => {
+    const result = simulator.execute(parse("nvidia-smi -i 5 -c 3"), context);
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toContain("Invalid GPU index");
+  });
+
+  it("reflects a changed compute mode in the default (no-flag) table output", () => {
+    simulator.execute(parse("nvidia-smi -i 0 -c 3"), context);
+    const result = simulator.execute(parse("nvidia-smi"), context);
+    expect(result.exitCode).toBe(0);
+    // The compact table column abbreviates Exclusive_Process to "E. Process"
+    // (matching real nvidia-smi) rather than truncating it mid-word.
+    expect(result.output).toContain("E. Process");
   });
 });
 

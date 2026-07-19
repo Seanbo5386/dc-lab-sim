@@ -820,6 +820,10 @@ export class NvidiaSmiSimulator extends BaseSimulator {
 
     const gpuId = this.getFlagNumber(parsed, ["i", "id"], 0);
     const powerLimit = this.getFlagNumber(parsed, ["pl"], 0);
+    const indexCheck = this.validateGpuIndex(gpuId, node.gpus.length);
+    if (!indexCheck.valid) {
+      return this.createError(`Error: ${indexCheck.error}`);
+    }
     const gpu = node.gpus[gpuId];
     const bounds = getPowerLimitBounds(gpu.name);
 
@@ -858,7 +862,18 @@ export class NvidiaSmiSimulator extends BaseSimulator {
     }
 
     const gpuId = this.getFlagNumber(parsed, ["i", "id"], 0);
+    const indexCheck = this.validateGpuIndex(gpuId, node.gpus.length);
+    if (!indexCheck.valid) {
+      return this.createError(`Error: ${indexCheck.error}`);
+    }
+
     const eccValue = parsed.flags.get("e") ?? parsed.flags.get("ecc-config");
+    if (eccValue !== "0" && eccValue !== "1" && eccValue !== true) {
+      return this.createError(
+        `Error: Invalid ECC config value: ${String(eccValue)}\n` +
+          `Valid values: 0 (disable), 1 (enable)`,
+      );
+    }
     const enable = eccValue === "1" || eccValue === true;
 
     this.resolveMutator(context).updateGPU(node.id, gpuId, {
@@ -878,6 +893,18 @@ export class NvidiaSmiSimulator extends BaseSimulator {
     "3": "Exclusive_Process",
   };
 
+  // Real nvidia-smi abbreviates these in the compact default-table column
+  // (22 chars wide) rather than truncating the full enum value mid-word.
+  private static readonly COMPUTE_MODE_TABLE_DISPLAY: Record<
+    GPU["computeMode"],
+    string
+  > = {
+    Default: "Default",
+    Exclusive_Thread: "E. Thread",
+    Prohibited: "Prohibited",
+    Exclusive_Process: "E. Process",
+  };
+
   /**
    * Handle compute-mode setting via -c/--compute-mode. Same short/long
    * flag-reading pattern as -p/--reset-ecc-errors and -e/--ecc-config.
@@ -892,6 +919,11 @@ export class NvidiaSmiSimulator extends BaseSimulator {
     }
 
     const gpuId = this.getFlagNumber(parsed, ["i", "id"], 0);
+    const indexCheck = this.validateGpuIndex(gpuId, node.gpus.length);
+    if (!indexCheck.valid) {
+      return this.createError(`Error: ${indexCheck.error}`);
+    }
+
     const modeValue = String(
       parsed.flags.get("c") ?? parsed.flags.get("compute-mode") ?? "",
     );
@@ -1445,7 +1477,12 @@ export class NvidiaSmiSimulator extends BaseSimulator {
 
       const col1_r2 = ` N/A   ${temp.padStart(4)}    P0    ${pwr}W / ${pwrMax}W `;
       const col2_r2 = `   ${memUsed}MiB / ${memTotal}MiB `;
-      const col3_r2 = `     ${util.padStart(4)}      Default `;
+      // 3-space gap (not 6) so the longest abbreviation ("Prohibited" /
+      // "E. Process", 10 chars) still fits within COL_3 (22) alongside the
+      // fixed "     " + util(4) prefix, instead of being truncated mid-word.
+      const computeModeDisplay =
+        NvidiaSmiSimulator.COMPUTE_MODE_TABLE_DISPLAY[gpu.computeMode];
+      const col3_r2 = `     ${util.padStart(4)}   ${computeModeDisplay}`;
       output +=
         "|" +
         padCol(col1_r2, COL_1) +
