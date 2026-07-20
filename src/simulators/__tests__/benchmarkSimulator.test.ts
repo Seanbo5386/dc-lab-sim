@@ -3,9 +3,93 @@ import { BenchmarkSimulator } from "../benchmarkSimulator";
 import { parse } from "@/utils/commandParser";
 import type { CommandContext } from "@/types/commands";
 import { useSimulationStore } from "@/store/simulationStore";
+import type { GPU, DGXNode } from "@/types/hardware";
+import type { SystemType } from "@/data/hardwareSpecs";
 
 // Mock the store
 vi.mock("@/store/simulationStore");
+
+// The ONE fixture-construction helper this plan adds to this file. Tasks 4-8
+// reuse it verbatim rather than writing a parallel helper (PHYS-6+).
+function buildContextWithGpu(
+  gpuOverrides: Partial<GPU> = {},
+  systemType: SystemType = "DGX-H100",
+  gpuCount = 1,
+): {
+  context: CommandContext;
+  node: DGXNode;
+  updateGPU: ReturnType<typeof vi.fn>;
+} {
+  const baseGpu: GPU = {
+    id: 0,
+    uuid: "GPU-bench-0",
+    name: "NVIDIA H100-SXM5-80GB",
+    type: "H100-SXM",
+    pciAddress: "0000:17:00.0",
+    temperature: 45,
+    powerDraw: 250,
+    powerLimit: 700,
+    memoryTotal: 81920,
+    memoryUsed: 1024,
+    utilization: 0,
+    clocksSM: 1980,
+    clocksMem: 2619,
+    eccEnabled: true,
+    eccErrors: {
+      singleBit: 0,
+      doubleBit: 0,
+      aggregated: { singleBit: 0, doubleBit: 0 },
+    },
+    migMode: false,
+    migInstances: [],
+    nvlinks: [],
+    healthStatus: "OK",
+    xidErrors: [],
+    persistenceMode: true,
+    computeMode: "Default",
+    ...gpuOverrides,
+  };
+  // Only GPU 0 gets gpuOverrides applied above; additional GPUs (gpuCount > 1)
+  // start as plain healthy copies with a fresh id/uuid -- tests needing a
+  // SPECIFIC other GPU's fields (e.g. Task 7's per-pair NVLink test) mutate
+  // `node.gpus[i]` directly on the returned `node` after construction.
+  const gpus: GPU[] = Array.from({ length: gpuCount }, (_, i) =>
+    i === 0
+      ? baseGpu
+      : {
+          ...baseGpu,
+          id: i,
+          uuid: `GPU-bench-${i}`,
+          name: baseGpu.name,
+        },
+  );
+  const node: DGXNode = {
+    id: "dgx-00",
+    hostname: "dgx-node01",
+    systemType,
+    healthStatus: "OK",
+    slurmState: "idle",
+    nvidiaDriverVersion: "535.129.03",
+    cudaVersion: "12.2",
+    gpus,
+    hcas: [],
+  };
+  const updateGPU = vi.fn(
+    (nodeId: string, gpuId: number, updates: Partial<GPU>) => {
+      const g = node.gpus.find((x) => x.id === gpuId);
+      if (g) Object.assign(g, updates);
+    },
+  );
+  const state = { cluster: { nodes: [node] }, updateGPU };
+  vi.mocked(useSimulationStore.getState).mockReturnValue(state as never);
+  const context: CommandContext = {
+    currentNode: "dgx-00",
+    currentPath: "/root",
+    environment: {},
+    history: [],
+  };
+  return { context, node, updateGPU };
+}
 
 describe("BenchmarkSimulator", () => {
   let simulator: BenchmarkSimulator;
@@ -34,7 +118,7 @@ describe("BenchmarkSimulator", () => {
             gpus: [
               {
                 id: 0,
-                name: "NVIDIA H100 80GB HBM3",
+                name: "NVIDIA H100-SXM5-80GB",
                 type: "H100-SXM",
                 uuid: "GPU-12345678-1234-1234-1234-123456789012",
                 pciAddress: "0000:17:00.0",
@@ -61,7 +145,7 @@ describe("BenchmarkSimulator", () => {
               },
               {
                 id: 1,
-                name: "NVIDIA H100 80GB HBM3",
+                name: "NVIDIA H100-SXM5-80GB",
                 type: "H100-SXM",
                 uuid: "GPU-12345678-1234-1234-1234-123456789013",
                 pciAddress: "0000:18:00.0",
@@ -387,6 +471,50 @@ describe("BenchmarkSimulator", () => {
         expect(stdDev).toBeGreaterThan(0);
       }
     });
+
+    it("HPL: a throttled/capped GPU measurably underperforms a healthy one (PHYS-6)", () => {
+      const healthy = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        clocksSM: 1980,
+        powerLimit: 700,
+      });
+      const healthyResult = simulator.execute(
+        parse("hpl --gpus-per-node 1 --nodes 1"),
+        healthy.context,
+      );
+      const achievedHealthy = parseFloat(
+        healthyResult.output.match(/Achieved:\s+([\d.]+) TFLOPS/)![1],
+      );
+
+      const throttled = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        clocksSM: 990, // half boost clock
+        powerLimit: 350, // half rated TDP
+      });
+      const throttledResult = simulator.execute(
+        parse("hpl --gpus-per-node 1 --nodes 1"),
+        throttled.context,
+      );
+      const achievedThrottled = parseFloat(
+        throttledResult.output.match(/Achieved:\s+([\d.]+) TFLOPS/)![1],
+      );
+
+      expect(achievedThrottled).toBeLessThan(achievedHealthy * 0.6);
+    });
+
+    it("HPL: the low-efficiency warning branch is reachable for a sufficiently degraded GPU", () => {
+      const degraded = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        clocksSM: 500,
+        powerLimit: 200,
+      });
+      const result = simulator.execute(
+        parse("hpl --gpus-per-node 1 --nodes 1"),
+        degraded.context,
+      );
+      expect(result.output).toContain("WARNING - Low efficiency");
+      expect(result.output).toContain("Efficiency below 80%");
+    });
   });
 
   describe("GPU Burn Tests", () => {
@@ -428,7 +556,7 @@ describe("BenchmarkSimulator", () => {
       const result = simulator.execute(parsed, context);
 
       expect(result.exitCode).toBe(0);
-      expect(result.output).toContain("NVIDIA H100 80GB HBM3");
+      expect(result.output).toContain("NVIDIA H100-SXM5-80GB");
     });
 
     it("should include out-of-place and in-place columns", () => {

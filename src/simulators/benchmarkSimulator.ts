@@ -13,6 +13,10 @@ import type { ParsedCommand } from "@/utils/commandParser";
 import type { GPU, DGXNode } from "@/types/hardware";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
 import type { SystemType } from "@/data/hardwareSpecs";
+import {
+  getClockRatio,
+  getPowerCapRatio,
+} from "@/simulation/clusterPhysicsEngine";
 
 const ncclBaselineBandwidthGBs: Record<SystemType, number> = {
   "DGX-A100": 240,
@@ -407,8 +411,27 @@ export class BenchmarkSimulator extends BaseSimulator {
 
     const theoreticalPeak = tflopsPerGPU * totalGPUs;
 
-    // Efficiency: 85-92% is realistic for well-tuned HPL
-    const efficiency = 0.85 + Math.random() * 0.07;
+    // A cluster-wide job runs at the pace of its worst-performing GPU
+    // (the pedagogically important "detect the sick node" behavior --
+    // PHYS-6): take the minimum degradation ratio across every GPU
+    // actually involved in the run, not an average.
+    const gpusInvolved = this.resolveAllNodes(context)
+      .slice(0, nodes)
+      .flatMap((n) => n.gpus.slice(0, gpusPerNode));
+    const computeRatio =
+      gpusInvolved.length === 0
+        ? 1
+        : Math.min(
+            ...gpusInvolved.map((gpu) =>
+              Math.min(getClockRatio(gpu), getPowerCapRatio(gpu)),
+            ),
+          );
+
+    // Efficiency: 85-92% is realistic for a well-tuned, healthy HPL run;
+    // degraded hardware (throttled clocks, a capped power limit) scales
+    // this down further, making the low-efficiency warning branch below
+    // genuinely reachable instead of dead code.
+    const efficiency = (0.85 + Math.random() * 0.07) * computeRatio;
     const achievedTFLOPS = theoreticalPeak * efficiency;
 
     // Execution time estimate (scales with problem size^3 and inversely with FLOPS)
