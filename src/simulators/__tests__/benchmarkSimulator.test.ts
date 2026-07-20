@@ -451,6 +451,68 @@ describe("BenchmarkSimulator", () => {
     });
   });
 
+  describe("NCCL busbw/algbw math (PHYS-5 regression)", () => {
+    beforeEach(() => {
+      // The PHYS-5 ceiling assertions reference DGX-A100's documented
+      // ~240 GB/s achieved busbw (ncclBaselineBandwidthGBs); the default
+      // mock node is DGX-H100, so switch the systemType for these tests.
+      useSimulationStore.getState().cluster.nodes[0].systemType = "DGX-A100";
+    });
+
+    it("nccl-test all_reduce: busbw never exceeds the architecture's real achieved-bandwidth ceiling", () => {
+      // DGX-A100's real achieved busbw ceiling is ~240 GB/s (ncclBaselineBandwidthGBs).
+      // The old code multiplied an already-busbw-scale baseline by the ring
+      // factor a second time, producing ~359 GB/s -- physically impossible.
+      const result = simulator.execute(
+        parse("nccl-test -b 128M -e 128M -g 8"),
+        context,
+      );
+      expect(result.exitCode).toBe(0);
+      const busbwMatches = [
+        ...result.output.matchAll(/\s(\d+\.\d{2})\s+\d+e\+00/g),
+      ];
+      expect(busbwMatches.length).toBeGreaterThan(0);
+      for (const m of busbwMatches) {
+        expect(parseFloat(m[1])).toBeLessThanOrEqual(240 * 1.05); // small headroom for the size-efficiency curve
+      }
+    });
+
+    it("nccl-test all_reduce: printed busbw = printed algbw * ring factor (8 GPUs: 2*(8-1)/8 = 1.75x)", () => {
+      const result = simulator.execute(
+        parse("nccl-test -b 128M -e 128M -g 8"),
+        context,
+      );
+      expect(result.exitCode).toBe(0);
+      // Data row: "        128M <count>   float     sum   <time> <algbw> <busbw>  0e+00 ..."
+      const row = result.output.split("\n").find((l) => /^\s*128M\s/.test(l));
+      expect(row).toBeDefined();
+      const nums = row!.trim().split(/\s+/);
+      // columns: size count type redop time algbw busbw error time algbw busbw error
+      const algbw = parseFloat(nums[5]);
+      const busbw = parseFloat(nums[6]);
+      expect(busbw).toBeCloseTo(algbw * 1.75, 1);
+      expect(busbw).toBeLessThanOrEqual(240 * 1.05);
+    });
+
+    it("mpirun all_reduce_perf (handleAllReducePerf path): busbw = algbw * ring factor, not double-scaled", () => {
+      const result = simulator.execute(
+        parse("mpirun -np 8 ./all_reduce_perf -b 128M -e 128M -g 8"),
+        context,
+      );
+      expect(result.exitCode).toBe(0);
+      const row = result.output
+        .split("\n")
+        .find((l) => /^\s*134217728\s/.test(l));
+      expect(row).toBeDefined();
+      const nums = row!.trim().split(/\s+/);
+      // columns here: size count type redop root time algbw busbw #wrong ...
+      const algbw = parseFloat(nums[6]);
+      const busbw = parseFloat(nums[7]);
+      expect(busbw).toBeCloseTo(algbw * 1.75, 1);
+      expect(busbw).toBeLessThanOrEqual(240 * 1.05);
+    });
+  });
+
   describe("mpirun Tests", () => {
     it("should error when no executable is specified", () => {
       const parsed = parse("mpirun");

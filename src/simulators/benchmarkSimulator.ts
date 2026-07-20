@@ -672,7 +672,15 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
 
     let totalBusBW = 0;
     sizes.forEach((sizeBytes) => {
-      const bandwidth = this.calculateNCCLBandwidthMultiNode(
+      // calculateNCCLBandwidthMultiNode already returns a real-world
+      // ACHIEVED BUS-BANDWIDTH ceiling (ncclBaselineBandwidthGBs is a
+      // documented busbw figure, not algbw) -- so busBW is that value
+      // directly, and algbw is DERIVED by dividing out the collective's
+      // ring factor (busbw = algbw * ringFactor is the real NCCL-tests
+      // relationship). The old code multiplied the busbw-scale baseline
+      // by the ring factor a SECOND time, inflating results ~1.75x for
+      // all_reduce (PHYS-5).
+      const busBW = this.calculateNCCLBandwidthMultiNode(
         sizeBytes,
         ngpus,
         numNodes,
@@ -685,24 +693,22 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         node.systemType,
       );
 
-      // Bus bandwidth depends on collective type
-      let busBW: number;
+      let ringFactor: number;
       switch (operation) {
         case "all_reduce":
-          busBW = (bandwidth * 2 * (totalGPUs - 1)) / totalGPUs; // Ring all-reduce
+          ringFactor = (2 * (totalGPUs - 1)) / totalGPUs;
           break;
         case "all_gather":
-          busBW = (bandwidth * (totalGPUs - 1)) / totalGPUs;
-          break;
         case "reduce_scatter":
-          busBW = (bandwidth * (totalGPUs - 1)) / totalGPUs;
+          ringFactor = (totalGPUs - 1) / totalGPUs;
           break;
         case "broadcast":
-          busBW = bandwidth;
+          ringFactor = 1;
           break;
         default:
-          busBW = bandwidth * 2;
+          ringFactor = 2;
       }
+      const algBW = busBW / ringFactor;
 
       totalBusBW += busBW;
 
@@ -711,7 +717,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         .toString()
         .padStart(12); // Assuming float32
       const timeStr = latency.toFixed(1).padStart(8);
-      const algbwStr = bandwidth.toFixed(2).padStart(7);
+      const algbwStr = algBW.toFixed(2).padStart(7);
       const busbwStr = busBW.toFixed(2).padStart(7);
 
       output += `${sizeStr} ${countStr}   float     sum   ${timeStr} ${algbwStr} ${busbwStr}  0e+00   ${timeStr} ${algbwStr} ${busbwStr}  0e+00\n`;
@@ -962,7 +968,10 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
 
     let totalBusBW = 0;
     sizes.forEach((sizeBytes) => {
-      const bandwidth = this.calculateNCCLBandwidthMultiNode(
+      // Same fix as handleRegularTest above: the baseline is already
+      // busbw-scale, so busBW is the direct value and algbw is derived by
+      // dividing out the ring factor (this handler is always all_reduce).
+      const busBW = this.calculateNCCLBandwidthMultiNode(
         sizeBytes,
         ngpus,
         1,
@@ -974,7 +983,8 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         1,
         node.systemType,
       );
-      const busBW = (bandwidth * 2 * (ngpus - 1)) / ngpus;
+      const ringFactor = (2 * (ngpus - 1)) / ngpus;
+      const algBW = busBW / ringFactor;
       totalBusBW += busBW;
 
       const sizeStr = sizeBytes.toString().padStart(12);
@@ -982,7 +992,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         .toString()
         .padStart(12);
       const timeStr = latency.toFixed(2).padStart(9);
-      const algbwStr = bandwidth.toFixed(2).padStart(7);
+      const algbwStr = algBW.toFixed(2).padStart(7);
       const busbwStr = busBW.toFixed(2).padStart(7);
 
       output += `${sizeStr} ${countStr}     float     sum      -1  ${timeStr} ${algbwStr} ${busbwStr}      0  ${timeStr} ${algbwStr} ${busbwStr}      0\n`;
