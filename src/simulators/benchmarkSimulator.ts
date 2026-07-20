@@ -27,15 +27,6 @@ const ncclBaselineBandwidthGBs: Record<SystemType, number> = {
   "DGX-VR200": 1520,
 };
 
-const hplBaselineTflops: Record<SystemType, number> = {
-  "DGX-A100": 135,
-  "DGX-H100": 240,
-  "DGX-H200": 240,
-  "DGX-B200": 312,
-  "DGX-GB200": 312,
-  "DGX-VR200": 500,
-};
-
 export class BenchmarkSimulator extends BaseSimulator {
   constructor() {
     super();
@@ -514,12 +505,24 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     output += `Each iteration takes approximately 2-3 minutes\n\n`;
 
     // Simulate burn-in iterations
-    const baseline =
-      hplBaselineTflops[node.systemType as SystemType] ??
-      hplBaselineTflops["DGX-A100"];
+    // Same source of truth as the non-burn-in HPL path (handleHPL) and
+    // the same degradation ratios -- previously this read a second,
+    // independent, hand-maintained table that disagreed with
+    // hardwareSpecs.gpu.fp64Tflops and never reflected live GPU state
+    // (PHYS-13).
+    const burnInSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
+    const computeRatio =
+      node.gpus.length === 0
+        ? 1
+        : Math.min(
+            ...node.gpus.map((gpu) =>
+              Math.min(getClockRatio(gpu), getPowerCapRatio(gpu)),
+            ),
+          );
+    const baseline = burnInSpecs.gpu.fp64Tflops * node.gpus.length;
     const tflopsValues: number[] = [];
     for (let i = 1; i <= Math.min(5, iterations); i++) {
-      const gflops = baseline * (0.9 + Math.random() * 0.1);
+      const gflops = baseline * (0.9 + Math.random() * 0.1) * computeRatio;
       tflopsValues.push(gflops);
       output += `Iteration ${i}/${iterations}: ${gflops.toFixed(2)} TFLOPS\n`;
     }
@@ -528,7 +531,9 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       output += `... (${iterations - 5} more iterations)\n`;
       // Generate additional TFLOPS values for statistics
       for (let i = 6; i <= iterations; i++) {
-        tflopsValues.push(baseline * (0.9 + Math.random() * 0.1));
+        tflopsValues.push(
+          baseline * (0.9 + Math.random() * 0.1) * computeRatio,
+        );
       }
     }
 

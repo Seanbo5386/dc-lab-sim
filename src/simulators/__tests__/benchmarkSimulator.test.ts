@@ -310,6 +310,17 @@ describe("BenchmarkSimulator", () => {
   });
 
   describe("HPL Tests", () => {
+    // The shared `context` fixture from the outer beforeEach models a
+    // DGX-H100 node with exactly 2 GPUs (not the usual 8). handleHPLBurnIn's
+    // baseline is now `fp64Tflops * node.gpus.length` (PHYS-13, unified with
+    // hardwareSpecs -- see Task 2/3/4), so for THIS fixture the 90-100%
+    // burn-in band is 2*67 TFLOPS, not the old disconnected table's flat 240
+    // (which never scaled with GPU count). Shared here so the two
+    // pre-existing band assertions below don't drift independently.
+    const H100_BURN_IN_2GPU_BASELINE = 2 * 67;
+    const H100_BURN_IN_2GPU_MIN = H100_BURN_IN_2GPU_BASELINE * 0.9;
+    const H100_BURN_IN_2GPU_MAX = H100_BURN_IN_2GPU_BASELINE * 1.0;
+
     it("should run HPL benchmark", () => {
       const parsed = parse("hpl");
       const result = simulator.execute(parsed, context);
@@ -408,6 +419,30 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).not.toContain("more iterations");
     });
 
+    it("HPL burn-in: baseline TFLOPS matches hardwareSpecs.gpu.fp64Tflops (unified source, PHYS-13)", () => {
+      // H100's corrected dense FP64 Tensor-Core rate is 67 TFLOPS/GPU (Task 2);
+      // with 8 healthy GPUs on the node, burn-in's 90-100%-of-baseline band
+      // should center near 8*67=536, not the old disconnected table's 240.
+      // The shared `context` fixture from the outer beforeEach only models 2
+      // GPUs, so this test builds its own 8-GPU node via buildContextWithGpu
+      // (Task 3's shared fixture helper) to exercise the per-GPU-count math.
+      const eightGpu = buildContextWithGpu({}, "DGX-H100", 8);
+      const result = simulator.execute(
+        parse("hpl --burn-in --iterations 5"),
+        eightGpu.context,
+      );
+      expect(result.exitCode).toBe(0);
+      const iterationLines = [
+        ...result.output.matchAll(/Iteration \d+\/\d+: ([\d.]+) TFLOPS/g),
+      ];
+      expect(iterationLines.length).toBe(5);
+      for (const m of iterationLines) {
+        const tf = parseFloat(m[1]);
+        expect(tf).toBeGreaterThanOrEqual(8 * 67 * 0.9 * 0.95); // 5% headroom for the degradation ratio on a healthy fixture
+        expect(tf).toBeLessThanOrEqual(8 * 67 * 1.0 * 1.05);
+      }
+    });
+
     it("should report performance within expected range for system type", () => {
       const parsed = parse("hpl --burn-in --iterations 10");
       const result = simulator.execute(parsed, context);
@@ -422,10 +457,11 @@ describe("BenchmarkSimulator", () => {
         parseFloat(match[1]),
       );
 
-      // DGX-H100 baseline is 240 TFLOPS; range is 90-100% of baseline
+      // DGX-H100 baseline is fp64Tflops(67) * 2 GPUs on this fixture = 134
+      // TFLOPS (PHYS-13, unified source); range is 90-100% of baseline.
       tflopsValues.forEach((tf) => {
-        expect(tf).toBeGreaterThanOrEqual(200);
-        expect(tf).toBeLessThanOrEqual(260);
+        expect(tf).toBeGreaterThanOrEqual(H100_BURN_IN_2GPU_MIN);
+        expect(tf).toBeLessThanOrEqual(H100_BURN_IN_2GPU_MAX);
       });
     });
 
@@ -464,9 +500,10 @@ describe("BenchmarkSimulator", () => {
         expect(min).toBeLessThanOrEqual(avg);
         // Max should be greater than or equal to average
         expect(max).toBeGreaterThanOrEqual(avg);
-        // DGX-H100 baseline 240 TFLOPS at 90-100%
-        expect(min).toBeGreaterThanOrEqual(200);
-        expect(max).toBeLessThanOrEqual(260);
+        // DGX-H100 baseline fp64Tflops(67) * 2 GPUs = 134 TFLOPS at 90-100%
+        // (PHYS-13, unified source)
+        expect(min).toBeGreaterThanOrEqual(H100_BURN_IN_2GPU_MIN);
+        expect(max).toBeLessThanOrEqual(H100_BURN_IN_2GPU_MAX);
         // Std deviation should be positive
         expect(stdDev).toBeGreaterThan(0);
       }
