@@ -678,6 +678,79 @@ describe("BenchmarkSimulator", () => {
     });
   });
 
+  describe("NCCL bandwidth reflects NVLink health (PHYS-6)", () => {
+    it("single-node all_reduce_perf busbw drops when a GPU's NVLink is Down", () => {
+      const healthy = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        nvlinks: [
+          {
+            linkId: 0,
+            status: "Active",
+            speed: 25,
+            txErrors: 0,
+            rxErrors: 0,
+            replayErrors: 0,
+          },
+        ],
+      });
+      const healthyResult = simulator.execute(
+        parse("all_reduce_perf -b 128M -e 128M -g 8"),
+        healthy.context,
+      );
+      const healthyBusbw = parseFloat(
+        healthyResult.output.match(/Avg bus bandwidth\s*:\s*([\d.]+)/)![1],
+      );
+
+      const degraded = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        nvlinks: [
+          {
+            linkId: 0,
+            status: "Down",
+            speed: 25,
+            txErrors: 100,
+            rxErrors: 0,
+            replayErrors: 0,
+          },
+        ],
+      });
+      const degradedResult = simulator.execute(
+        parse("all_reduce_perf -b 128M -e 128M -g 8"),
+        degraded.context,
+      );
+      const degradedBusbw = parseFloat(
+        degradedResult.output.match(/Avg bus bandwidth\s*:\s*([\d.]+)/)![1],
+      );
+
+      expect(degradedBusbw).toBeLessThan(healthyBusbw * 0.6);
+    });
+
+    // NOTE: all_reduce_perf's handler (handleAllReducePerf) has no "nodes"
+    // flag at all -- it always calls calculateNCCLBandwidthMultiNode with a
+    // hardcoded numNodes=1, so "all_reduce_perf ... --nodes 4" (as the PHYS-6
+    // plan draft assumed) would silently stay on the single-node branch and
+    // never touch the NIC-ceiling code path this test is meant to lock in.
+    // "nccl-test" (-> handleRegularTest) is the command that actually
+    // supports -n/--nodes and reaches the numNodes > 1 branch (see the
+    // PHYS-5 regression describe block above, which uses the same command
+    // for its single-node ceiling check).
+    it("multi-node busbw never exceeds the architecture's real NIC ceiling (already-correct behavior, now locked in)", () => {
+      const result = simulator.execute(
+        parse("nccl-test -b 128M -e 128M -g 8 -n 4"),
+        context,
+      );
+      expect(result.exitCode).toBe(0);
+      // DGX-H100: interNodeBandwidthGBs 50 * hcaCount 8 = 400 GB/s ceiling
+      const busbwMatches = [
+        ...result.output.matchAll(/\s(\d+\.\d{2})\s+\d+e\+00/g),
+      ];
+      expect(busbwMatches.length).toBeGreaterThan(0);
+      for (const m of busbwMatches) {
+        expect(parseFloat(m[1])).toBeLessThanOrEqual(400 * 1.05);
+      }
+    });
+  });
+
   describe("mpirun Tests", () => {
     it("should error when no executable is specified", () => {
       const parsed = parse("mpirun");

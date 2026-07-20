@@ -16,6 +16,7 @@ import type { SystemType } from "@/data/hardwareSpecs";
 import {
   getClockRatio,
   getPowerCapRatio,
+  getNvlinkHealthRatio,
 } from "@/simulation/clusterPhysicsEngine";
 
 const ncclBaselineBandwidthGBs: Record<SystemType, number> = {
@@ -710,7 +711,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       // all_reduce (PHYS-5).
       const busBW = this.calculateNCCLBandwidthMultiNode(
         sizeBytes,
-        ngpus,
+        node.gpus.slice(0, ngpus),
         numNodes,
         node.systemType,
       );
@@ -1001,7 +1002,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       // dividing out the ring factor (this handler is always all_reduce).
       const busBW = this.calculateNCCLBandwidthMultiNode(
         sizeBytes,
-        ngpus,
+        node.gpus.slice(0, ngpus),
         1,
         node.systemType,
       );
@@ -1233,7 +1234,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
 
   private calculateNCCLBandwidthMultiNode(
     sizeBytes: number,
-    _gpusPerNode: number,
+    gpusInvolved: GPU[],
     numNodes: number,
     systemType: string,
   ): number {
@@ -1256,16 +1257,22 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       efficiency = 0.85 + ((Math.min(sizeMB, 128) - 8) / 120) * 0.1;
     }
 
-    // For multi-node, bottleneck is inter-node bandwidth
+    // For multi-node, bottleneck is inter-node bandwidth -- already
+    // correctly ceiling-bound by real per-arch NIC specs (PHYS-6:
+    // multi-node NIC ceiling, verified and regression-locked, not
+    // changed here).
     if (numNodes > 1) {
       const effectiveBW = interNodeBW * efficiency * 0.85;
       return effectiveBW;
     }
 
-    // Single node: use system-type baseline NVLink bandwidth
+    // Single node: intra-node NVLink bandwidth, scaled down when any of
+    // the GPUs actually running this collective have a Down NVLink
+    // connection (PHYS-6).
     const intraNodeBW =
       ncclBaselineBandwidthGBs[sysType] ?? ncclBaselineBandwidthGBs["DGX-A100"];
-    return intraNodeBW * efficiency * 0.9;
+    const nvlinkHealth = getNvlinkHealthRatio(gpusInvolved);
+    return intraNodeBW * efficiency * 0.9 * nvlinkHealth;
   }
 
   private calculateNCCLLatencyMultiNode(
