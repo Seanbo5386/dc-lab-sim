@@ -124,6 +124,34 @@ describe("hardwareSpecs", () => {
     });
   });
 
+  describe("FP throughput fields use a consistent dense Tensor-Core basis (PHYS-13)", () => {
+    it("H100's fp64Tflops matches its published dense FP64 Tensor-Core rate (67), not its non-Tensor CUDA-core rate (34)", () => {
+      expect(HARDWARE_SPECS["DGX-H100"].gpu.fp64Tflops).toBe(67);
+    });
+
+    it("H100's fp16Tflops matches its published DENSE Tensor-Core rate (989.4 -> rounded 989), not the sparse rate (1979)", () => {
+      expect(HARDWARE_SPECS["DGX-H100"].gpu.fp16Tflops).toBe(989);
+    });
+
+    it("H100's tf32Tflops matches its published DENSE Tensor-Core rate (494.7 -> rounded 495), not the sparse rate (989)", () => {
+      expect(HARDWARE_SPECS["DGX-H100"].gpu.tf32Tflops).toBe(495);
+    });
+
+    it("H200 (same GH100 die as H100) mirrors H100's corrected compute rates exactly", () => {
+      expect(HARDWARE_SPECS["DGX-H200"].gpu.fp64Tflops).toBe(67);
+      expect(HARDWARE_SPECS["DGX-H200"].gpu.fp16Tflops).toBe(989);
+      expect(HARDWARE_SPECS["DGX-H200"].gpu.tf32Tflops).toBe(495);
+    });
+
+    it("every architecture's fp16:tf32 ratio is ~2:1 (the dense Tensor-Core ratio), guarding against a future sparse-value regression", () => {
+      for (const spec of Object.values(HARDWARE_SPECS)) {
+        const ratio = spec.gpu.fp16Tflops / spec.gpu.tf32Tflops;
+        expect(ratio).toBeGreaterThan(1.7);
+        expect(ratio).toBeLessThan(2.3);
+      }
+    });
+  });
+
   describe("power-limit bounds", () => {
     it("has a positive min below max, and max equal to the rated TDP, for every architecture", () => {
       for (const [systemType, spec] of Object.entries(HARDWARE_SPECS)) {
