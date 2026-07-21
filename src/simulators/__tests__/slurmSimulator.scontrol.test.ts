@@ -85,4 +85,47 @@ describe("SlurmSimulator scontrol show/update node state", () => {
     );
     expect(result.output).toContain("State=DOWN ");
   });
+
+  it("rejects State=drain without a Reason (SIM-18)", () => {
+    const result = simulator.executeScontrol(
+      parse("scontrol update nodename=dgx-00 state=drain"),
+      context,
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(result.output).toMatch(/reason/i);
+    expect(mockSetSlurmState).not.toHaveBeenCalled();
+  });
+
+  it("rejects State=down without a Reason (SIM-18)", () => {
+    const result = simulator.executeScontrol(
+      parse("scontrol update nodename=dgx-00 state=down"),
+      context,
+    );
+    expect(result.exitCode).not.toBe(0);
+    expect(mockSetSlurmState).not.toHaveBeenCalled();
+  });
+
+  it("accepts State=drain when a Reason is provided", () => {
+    const result = simulator.executeScontrol(
+      parse(
+        'scontrol update nodename=dgx-00 state=drain reason="Scheduled maintenance"',
+      ),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(mockSetSlurmState).toHaveBeenCalledWith(
+      "dgx-00",
+      "drain",
+      "Scheduled maintenance",
+    );
+  });
+
+  it("does not require a Reason to resume a node", () => {
+    const result = simulator.executeScontrol(
+      parse("scontrol update nodename=dgx-02 state=resume"),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(mockSetSlurmState).toHaveBeenCalledWith("dgx-02", "idle", undefined);
+  });
 });

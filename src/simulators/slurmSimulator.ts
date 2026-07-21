@@ -1005,6 +1005,12 @@ export class SlurmSimulator extends BaseSimulator {
         );
       }
 
+      if ((state === "drain" || state === "down") && !reason) {
+        return this.createError(
+          'Error: A Reason must be specified when setting State=DRAIN or State=DOWN (e.g. Reason="Scheduled maintenance")',
+        );
+      }
+
       const nodes = this.resolveAllNodes(context);
       const node = nodes.find((n) => n.id === nodeName);
 
