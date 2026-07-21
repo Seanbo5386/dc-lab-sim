@@ -561,4 +561,12 @@ describe("getNvlinkHealthRatio (PHYS-6)", () => {
     const gpu = createTestGPU({ nvlinks: [] });
     expect(getNvlinkHealthRatio([gpu])).toBe(1);
   });
+
+  it("returns 1 (not a crash) when the gpus array contains an undefined entry (bot review follow-up)", () => {
+    const gpu = createTestGPU({ nvlinks: [] });
+    expect(() =>
+      getNvlinkHealthRatio([gpu, undefined as unknown as GPU]),
+    ).not.toThrow();
+    expect(getNvlinkHealthRatio([gpu, undefined as unknown as GPU])).toBe(1);
+  });
 });

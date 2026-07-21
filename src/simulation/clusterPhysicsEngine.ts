@@ -209,7 +209,7 @@ export function getPowerCapRatio(gpu: GPU): number {
  * aren't spuriously zeroed out.
  */
 export function getNvlinkHealthRatio(gpus: GPU[]): number {
-  const allLinks = gpus.flatMap((g) => g.nvlinks);
+  const allLinks = gpus.flatMap((g) => g?.nvlinks ?? []);
   if (allLinks.length === 0) return 1;
   const upCount = allLinks.filter((l) => l.status !== "Down").length;
   return upCount / allLinks.length;

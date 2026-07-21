@@ -731,6 +731,40 @@ describe("BenchmarkSimulator", () => {
 
       expect(cappedFlops).toBeLessThan(healthyFlops * 0.6);
     });
+
+    it("gpu-burn: reported Gflop/s also scales down for a clock-throttled GPU at full power limit (bot review follow-up)", () => {
+      // A GPU can be thermally throttled (low clocksSM) while its power
+      // limit is still at the rated TDP -- gpu-burn's Gflop/s previously
+      // only read getPowerCapRatio, so a clock-throttled-but-not-capped
+      // GPU still reported healthy numbers.
+      const healthy = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        clocksSM: 1980,
+        powerLimit: 700,
+      });
+      const healthyResult = simulator.execute(
+        parse("gpu-burn 10"),
+        healthy.context,
+      );
+      const healthyFlops = parseFloat(
+        healthyResult.output.match(/([\d.]+) Gflop\/s/)![1],
+      );
+
+      const throttled = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        clocksSM: 500,
+        powerLimit: 700,
+      });
+      const throttledResult = simulator.execute(
+        parse("gpu-burn 10"),
+        throttled.context,
+      );
+      const throttledFlops = parseFloat(
+        throttledResult.output.match(/([\d.]+) Gflop\/s/)![1],
+      );
+
+      expect(throttledFlops).toBeLessThan(healthyFlops * 0.6);
+    });
   });
 
   describe("all_reduce_perf Tests", () => {
@@ -943,6 +977,59 @@ describe("BenchmarkSimulator", () => {
       );
 
       expect(degradedBusbw).toBeLessThan(healthyBusbw * 0.6);
+    });
+
+    it("single-node NCCL time column increases when a GPU's NVLink is Down, consistent with the lower printed bandwidth (bot review follow-up)", () => {
+      // calculateNCCLLatencyMultiNode previously derived its "time" column
+      // from the healthy baseline regardless of link health, so a sick-link
+      // run showed the same time as a healthy one even though busbw/algbw
+      // were correctly lower -- time = size / bandwidth should rise when
+      // bandwidth drops.
+      const healthy = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        nvlinks: [
+          {
+            linkId: 0,
+            status: "Active",
+            speed: 25,
+            txErrors: 0,
+            rxErrors: 0,
+            replayErrors: 0,
+          },
+        ],
+      });
+      const healthyResult = simulator.execute(
+        parse("all_reduce_perf -b 128M -e 128M -g 8"),
+        healthy.context,
+      );
+      const healthyRow = healthyResult.output
+        .split("\n")
+        .find((l) => /^\s*134217728\s/.test(l))!;
+      const healthyTime = parseFloat(healthyRow.trim().split(/\s+/)[5]);
+
+      const degraded = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        nvlinks: [
+          {
+            linkId: 0,
+            status: "Down",
+            speed: 25,
+            txErrors: 100,
+            rxErrors: 0,
+            replayErrors: 0,
+          },
+        ],
+      });
+      const degradedResult = simulator.execute(
+        parse("all_reduce_perf -b 128M -e 128M -g 8"),
+        degraded.context,
+      );
+      const degradedRow = degradedResult.output
+        .split("\n")
+        .find((l) => /^\s*134217728\s/.test(l))!;
+      const degradedTime = parseFloat(degradedRow.trim().split(/\s+/)[5]);
+
+      expect(degradedTime).toBeGreaterThan(healthyTime);
     });
 
     // NOTE: all_reduce_perf's handler (handleAllReducePerf) has no "nodes"

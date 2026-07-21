@@ -736,6 +736,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         sizeBytes,
         ngpus,
         numNodes,
+        node.gpus.slice(0, ngpus),
         node.systemType,
       );
 
@@ -947,10 +948,16 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       const processed = Math.round((pct / 100) * 8192);
       gpusToTest.forEach((gpu: GPU, idx: number) => {
         const temp = Math.min(85, gpu.temperature + 10 + sample * 2);
-        // A GPU already capped below its rated TDP can't sustain the
-        // static theoretical Gflop/s figure -- previously this number
-        // never reflected powerLimit at all (PHYS-15).
-        const gpuFlops = hplSpecs.gpu.fp64Tflops * 1000 * getPowerCapRatio(gpu);
+        // A GPU already capped below its rated TDP, or already
+        // clock-throttled (e.g. by a persistent thermal fault) before the
+        // burn starts, can't sustain the static theoretical Gflop/s figure
+        // -- previously this number only reflected powerLimit, never
+        // clocksSM, so a clock-throttled-but-not-power-capped GPU still
+        // reported healthy numbers (PHYS-15 follow-up, bot review).
+        const gpuFlops =
+          hplSpecs.gpu.fp64Tflops *
+          1000 *
+          Math.min(getClockRatio(gpu), getPowerCapRatio(gpu));
         const flops = gpuFlops * (0.97 + Math.random() * 0.02);
         output += `GPU ${idx}: ${pct}% proc'd: ${processed} (8192) - ${flops.toFixed(1)} Gflop/s - temp: ${temp.toFixed(0)}C [OK]\n`;
       });
@@ -1050,6 +1057,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         sizeBytes,
         ngpus,
         1,
+        node.gpus.slice(0, ngpus),
         node.systemType,
       );
       const ringFactor = (2 * (ngpus - 1)) / ngpus;
@@ -1338,6 +1346,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     sizeBytes: number,
     gpusPerNode: number,
     numNodes: number,
+    gpusInvolved: GPU[],
     systemType?: string,
   ): number {
     // Base latency
@@ -1345,8 +1354,16 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     const interNodeLatency = 5; // us (InfiniBand)
 
     const sysType = (systemType || "DGX-A100") as SystemType;
+    // Same NVLink-health scaling calculateNCCLBandwidthMultiNode applies to
+    // busbw -- otherwise a Down link lowers the printed bandwidth columns
+    // but leaves the printed time column at the healthy baseline, which is
+    // mathematically inconsistent (time = size / bandwidth) and would show
+    // a sick link's run finishing in the same time as a healthy one (bot
+    // review follow-up).
     const intraNodeBW =
-      ncclBaselineBandwidthGBs[sysType] ?? ncclBaselineBandwidthGBs["DGX-A100"];
+      (ncclBaselineBandwidthGBs[sysType] ??
+        ncclBaselineBandwidthGBs["DGX-A100"]) *
+      getNvlinkHealthRatio(gpusInvolved);
     const bwSpecs = getHardwareSpecs(sysType);
     const interNodeBW =
       bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
