@@ -594,6 +594,35 @@ describe("InfiniBandSimulator", () => {
       expect(result.output).toContain("ibswitches");
     });
 
+    it("ibswitches and ibnetdiscover report identical switch GUIDs (SIM-7/SIM-12)", () => {
+      const switchesResult = simulator.executeIbswitches(
+        parse("ibswitches"),
+        context,
+      );
+      const discoverResult = simulator.executeIbnetdiscover(
+        parse("ibnetdiscover -S"),
+        context,
+      );
+
+      expect(switchesResult.exitCode).toBe(0);
+      expect(discoverResult.exitCode).toBe(0);
+
+      const guidPattern = /0x[0-9a-f]{16}/g;
+      const switchesGuids = new Set(
+        switchesResult.output.match(guidPattern) ?? [],
+      );
+      const discoverGuids = new Set(
+        discoverResult.output.match(guidPattern) ?? [],
+      );
+
+      expect(switchesGuids.size).toBeGreaterThan(0);
+      expect(discoverGuids).toEqual(switchesGuids);
+      // Canonical scheme: Mellanox OUI prefix (e4:1d:2d), spine base
+      // 0x...030010 and leaf base 0x...030020
+      expect(switchesResult.output).toContain("0x0000e41d2d030010");
+      expect(discoverResult.output).toContain("0x0000e41d2d030020");
+    });
+
     it("ibcableerrors should report cable errors", () => {
       const parsed = parse("ibcableerrors");
       const result = simulator.executeIbcableerrors(parsed, context);
