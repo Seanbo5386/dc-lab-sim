@@ -15,11 +15,7 @@ function buildContextWithGpu(
   gpuOverrides: Partial<GPU> = {},
   systemType: SystemType = "DGX-H100",
   gpuCount = 1,
-): {
-  context: CommandContext;
-  node: DGXNode;
-  updateGPU: ReturnType<typeof vi.fn>;
-} {
+) {
   const baseGpu: GPU = {
     id: 0,
     uuid: "GPU-bench-0",
@@ -72,10 +68,25 @@ function buildContextWithGpu(
     nvidiaDriverVersion: "535.129.03",
     cudaVersion: "12.2",
     gpus,
+    dpus: [],
     hcas: [],
+    bmc: {
+      ipAddress: "10.0.0.1",
+      macAddress: "00:11:22:33:44:55",
+      firmwareVersion: "1.0",
+      manufacturer: "NVIDIA",
+      sensors: [],
+      powerState: "On",
+    },
+    cpuModel: "AMD EPYC 7742",
+    cpuCount: 2,
+    ramTotal: 1024,
+    ramUsed: 256,
+    osVersion: "Ubuntu 22.04",
+    kernelVersion: "5.15.0",
   };
   const updateGPU = vi.fn(
-    (nodeId: string, gpuId: number, updates: Partial<GPU>) => {
+    (_nodeId: string, gpuId: number, updates: Partial<GPU>) => {
       const g = node.gpus.find((x) => x.id === gpuId);
       if (g) Object.assign(g, updates);
     },
@@ -360,8 +371,13 @@ describe("BenchmarkSimulator", () => {
     // (which never scaled with GPU count). Shared here so the two
     // pre-existing band assertions below don't drift independently.
     const H100_BURN_IN_2GPU_BASELINE = 2 * 67;
-    const H100_BURN_IN_2GPU_MIN = H100_BURN_IN_2GPU_BASELINE * 0.9;
-    const H100_BURN_IN_2GPU_MAX = H100_BURN_IN_2GPU_BASELINE * 1.0;
+    // Small epsilon: the runtime value is computed as
+    // `baseline * (0.9 + Math.random() * 0.1)`, which can round to a
+    // hair below `baseline * 0.9` computed directly (IEEE-754 rounding
+    // differs between the two expressions at the ~1e-13 level) when
+    // Math.random() lands very close to 0 -- flaky without this margin.
+    const H100_BURN_IN_2GPU_MIN = H100_BURN_IN_2GPU_BASELINE * 0.9 - 0.01;
+    const H100_BURN_IN_2GPU_MAX = H100_BURN_IN_2GPU_BASELINE * 1.0 + 0.01;
 
     it("should run HPL benchmark", () => {
       const parsed = parse("hpl");
