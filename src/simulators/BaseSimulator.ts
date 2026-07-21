@@ -561,15 +561,22 @@ export abstract class BaseSimulator {
    * vs value-consuming. Falls back to heuristic parsing if registry
    * is unavailable.
    * @param cmdLine - Raw command line string
+   * @param commandName - Optional command name override for the schema
+   *   lookup (for multi-command simulators like Slurm whose metadata
+   *   name doesn't match a registry definition), mirroring
+   *   validateFlagsWithRegistry's commandName parameter
    * @returns Parsed command object
    */
-  protected parseWithSchema(cmdLine: string): ParsedCommand {
+  protected parseWithSchema(
+    cmdLine: string,
+    commandName?: string,
+  ): ParsedCommand {
     if (!this.definitionRegistry) {
       return parse(cmdLine);
     }
 
     const schema = this.definitionRegistry.getFlagSchema(
-      this.getMetadata().name,
+      commandName || this.getMetadata().name,
     );
     return parse(cmdLine, schema);
   }

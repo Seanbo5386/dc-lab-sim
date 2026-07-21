@@ -1327,7 +1327,11 @@ export class SlurmSimulator extends BaseSimulator {
     parsed: ParsedCommand,
     context: CommandContext,
   ): CommandResult {
-    parsed = this.parseWithSchema(parsed.raw);
+    // Pass "scancel" explicitly: this simulator's metadata name is
+    // "slurm", which has no registry definition, so without the override
+    // the heuristic parser would let boolean flags like -v swallow the
+    // job ID as their value ("scancel -v 2001" -> no job ID).
+    parsed = this.parseWithSchema(parsed.raw, "scancel");
     // Handle --help or bare "help" argument
     if (
       this.hasAnyFlag(parsed, ["help"]) ||
@@ -1372,7 +1376,12 @@ export class SlurmSimulator extends BaseSimulator {
 
     this.jobs.splice(jobIdx, 1);
 
-    return this.createSuccess(`scancel: Terminating job ${jobId}`);
+    // Real scancel is silent on success; the confirmation line only
+    // appears with -v/--verbose (SIM-28).
+    const verbose = this.hasAnyFlag(parsed, ["v", "verbose"]);
+    return verbose
+      ? this.createSuccess(`scancel: Terminating job ${jobId}`)
+      : { output: "", exitCode: 0 };
   }
 
   // sacctmgr - Accounting management
