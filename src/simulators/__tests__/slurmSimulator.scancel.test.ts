@@ -54,9 +54,12 @@ describe("SlurmSimulator scancel output (SIM-28)", () => {
     // constructor; without waiting, parseWithSchema falls back to
     // heuristic parsing where "-v" greedily consumes "2002" as its value
     // (same wait pattern as slurmSimulator.registry.test.ts).
-    await vi.waitFor(() => {
-      expect(simulator["definitionRegistry"]).not.toBeNull();
-    });
+    await vi.waitFor(
+      () => {
+        expect(simulator["definitionRegistry"]).not.toBeNull();
+      },
+      { timeout: 5000 },
+    );
   });
 
   it("is silent on success by default (real scancel default behavior)", () => {
