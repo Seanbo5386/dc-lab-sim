@@ -80,6 +80,7 @@ function makeNode(id: string, gpuCount: number): DGXNode {
       id: i,
       devicePath: `/dev/infiniband/uverbs${i}`,
       caType: "ConnectX-6",
+      model: "ConnectX-6",
       firmwareVersion: "20.35.1012",
       ports: [],
     })),

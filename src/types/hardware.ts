@@ -139,7 +139,8 @@ export interface InfiniBandHCA {
   id: number;
   devicePath: string;
   pciAddress?: string; // Optional for backward compatibility/simplicity
-  caType: string; // ConnectX-6, ConnectX-7, ConnectX-8
+  caType: string; // RDMA device name, e.g. "mlx5_0" -- unique per HCA on a node
+  model: string; // Vendor model, e.g. "ConnectX-7" -- was previously encoded (lossily, identically for every HCA) inside caType
   firmwareVersion: string;
   ports: InfiniBandPort[];
 }

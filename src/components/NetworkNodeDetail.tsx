@@ -521,9 +521,8 @@ export const NetworkNodeDetail: React.FC<NetworkNodeDetailProps> = ({
               <div className="text-xs text-gray-400 mb-2">InfiniBand HCAs</div>
               <div className="space-y-3 max-h-64 overflow-y-auto">
                 {node.data.hcas.map((hca, hcaIdx) => {
-                  const hcaDeviceId = hca.caType.includes("ConnectX-7")
-                    ? "MT4129"
-                    : "MT4123";
+                  const hcaDeviceId =
+                    hca.model === "ConnectX-7" ? "MT4129" : "MT4123";
                   const ibStandard = getIBStandardName(
                     hca.ports[0]?.rate || 400,
                   );

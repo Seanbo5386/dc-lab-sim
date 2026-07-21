@@ -247,6 +247,7 @@ describe("NvsmSimulator", () => {
             id: 0,
             devicePath: "/dev/infiniband/mlx5_0",
             caType: "ConnectX-7",
+            model: "ConnectX-7",
             firmwareVersion: "28.37.1010",
             ports: [
               {

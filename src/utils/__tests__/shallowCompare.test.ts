@@ -66,6 +66,7 @@ function createMockHCA(overrides: Partial<InfiniBandHCA> = {}): InfiniBandHCA {
     devicePath: "/dev/infiniband/mlx5_0",
     pciAddress: "0000:ca:00.0",
     caType: "ConnectX-7",
+    model: "ConnectX-7",
     firmwareVersion: "28.35.1000",
     ports: [
       {

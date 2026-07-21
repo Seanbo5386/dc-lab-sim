@@ -79,7 +79,7 @@ export class InfiniBandSimulator extends BaseSimulator {
     let output = "";
     node.hcas.forEach((hca, idx) => {
       if (idx > 0) output += "\n";
-      const deviceId = hca.caType.includes("ConnectX-7") ? "MT4129" : "MT4123";
+      const deviceId = hca.model === "ConnectX-7" ? "MT4129" : "MT4123";
       output += `CA '${hca.caType}'\n`;
       output += `\tCA type: ${deviceId}\n`;
       output += `\tNumber of ports: ${hca.ports.length}\n`;
@@ -1062,7 +1062,7 @@ Options:
     const lines: string[] = [];
     for (const [idx, hca] of node.hcas.entries()) {
       if (idx > 0) lines.push("");
-      const vendorPartId = hca.caType.includes("ConnectX-7") ? "4129" : "4123";
+      const vendorPartId = hca.model === "ConnectX-7" ? "4129" : "4123";
       lines.push(`hca_id:\t${hca.caType}`);
       lines.push(`\ttransport:\t\t\tInfiniBand (0)`);
       lines.push(`\tfw_ver:\t\t\t\t${hca.firmwareVersion}`);

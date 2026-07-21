@@ -135,6 +135,7 @@ describe("TopologyViewer", () => {
         id: 0,
         devicePath: "/dev/mst/mt4119_pciconf0",
         caType: "mlx5_0",
+        model: "ConnectX-6",
         firmwareVersion: "20.35.1012",
         ports: [
           {
@@ -511,6 +512,7 @@ describe("InfiniBandMap Integration", () => {
         id: 0,
         devicePath: "/dev/mst/mt4119_pciconf0",
         caType: "mlx5_0",
+        model: "ConnectX-6",
         firmwareVersion: "20.35.1012",
         ports: [
           {

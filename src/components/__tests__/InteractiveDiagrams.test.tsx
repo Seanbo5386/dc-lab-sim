@@ -201,6 +201,7 @@ describe("SlurmJobVisualizer", () => {
     devicePath: `/dev/infiniband/umad${id}`,
     pciAddress: `0000:${(0xc1 + id).toString(16)}:00.0`,
     caType: "ConnectX-7",
+    model: "ConnectX-7",
     firmwareVersion: "22.35.1012",
     ports: [createMockPort(1), createMockPort(2)],
   });
@@ -412,6 +413,7 @@ describe("ClusterBuilder", () => {
     devicePath: `/dev/infiniband/umad${id}`,
     pciAddress: `0000:${(0xc1 + id).toString(16)}:00.0`,
     caType: "ConnectX-7",
+    model: "ConnectX-7",
     firmwareVersion: "22.35.1012",
     ports: [createMockPort(1), createMockPort(2)],
   });
@@ -585,6 +587,7 @@ describe("IBCableTracer", () => {
     devicePath: `/dev/infiniband/umad${id}`,
     pciAddress: `0000:${(0xc1 + id).toString(16)}:00.0`,
     caType: "ConnectX-7",
+    model: "ConnectX-7",
     firmwareVersion: "22.35.1012",
     ports: [createMockPort(1), createMockPort(2)],
   });

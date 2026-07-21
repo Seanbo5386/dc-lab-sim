@@ -163,6 +163,7 @@ function createBlueFieldDPU(id: number, systemType: SystemType): BlueFieldDPU {
 
 function createInfiniBandPort(
   portNum: number,
+  lid: number,
   specs: HardwareSpec,
 ): InfiniBandPort {
   return {
@@ -170,10 +171,14 @@ function createInfiniBandPort(
     state: "Active",
     physicalState: "LinkUp",
     rate: specs.network.portRateGbs as 100 | 200 | 400 | 800,
-    lid: 100 + portNum,
-    guid: `0x${Math.floor(Math.random() * 0xffffffffffff)
+    lid,
+    // Real IB GUIDs are 64-bit (16 hex digits), not 48-bit (SIM-13). Not
+    // cryptographically unique across an astronomical number of clusters,
+    // but unique enough within a single simulated cluster's lifetime that
+    // Math.random()'s ~2^63 space of outcomes never collides in practice.
+    guid: `0x${Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
       .toString(16)
-      .padStart(12, "0")}`,
+      .padStart(16, "0")}`,
     linkLayer: "InfiniBand",
     errors: {
       symbolErrors: 0,
@@ -196,7 +201,11 @@ function createInfiniBandHCA(id: number, specs: HardwareSpec): InfiniBandHCA {
   return {
     id,
     devicePath: `/dev/mst/${deviceId}_pciconf${id}`,
-    caType: `${specs.network.hcaModel} HCA`,
+    // Real Linux/Mellanox RDMA device name -- unique per HCA on a node via
+    // its own id, not the single node-wide "ConnectX-N HCA" string every
+    // HCA previously shared (SIM-3).
+    caType: `mlx5_${id}`,
+    model: specs.network.hcaModel,
     firmwareVersion:
       specs.network.hcaModel === "ConnectX-9"
         ? "34.42.1000"
@@ -205,7 +214,11 @@ function createInfiniBandHCA(id: number, specs: HardwareSpec): InfiniBandHCA {
           : specs.network.hcaModel === "ConnectX-7"
             ? "28.39.1002"
             : "20.35.1012",
-    ports: [createInfiniBandPort(1, specs)],
+    // Unique LID per port across the node (100 + a running index), not the
+    // same 101 for every port (SIM-13). This function only ever builds one
+    // port per HCA (portNum always 1), so the HCA's own id doubles as the
+    // per-node port index.
+    ports: [createInfiniBandPort(1, 100 + id, specs)],
   };
 }
 

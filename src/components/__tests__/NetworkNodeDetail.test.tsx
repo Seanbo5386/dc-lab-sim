@@ -79,6 +79,7 @@ describe("NetworkNodeDetail", () => {
           id: 0,
           devicePath: "/dev/infiniband/mlx5_0",
           caType: "ConnectX-7",
+          model: "ConnectX-7",
           firmwareVersion: "22.39.1002",
           ports: [
             {
