@@ -810,11 +810,18 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     // Simulate burn-in test with progress
     output += `Running NCCL AllReduce burn-in...\n`;
 
-    // Calculate bandwidth statistics
+    // Real per-architecture busbw ceiling (same source Task 1/5's NCCL
+    // handlers use), scaled by NVLink health -- previously a flat
+    // 280-300 GB/s literal regardless of architecture (SIM-31).
+    const sysType = (node.systemType || "DGX-A100") as SystemType;
+    const baseline =
+      ncclBaselineBandwidthGBs[sysType] ?? ncclBaselineBandwidthGBs["DGX-A100"];
+    const nvlinkHealth = getNvlinkHealthRatio(node.gpus);
+
     const bandwidths: number[] = [];
 
     for (let i = 1; i <= Math.min(10, iterations); i++) {
-      const bandwidth = 280 + Math.random() * 20; // 280-300 GB/s
+      const bandwidth = baseline * (0.9 + Math.random() * 0.1) * nvlinkHealth;
       bandwidths.push(bandwidth);
       output += `Iteration ${i}/${iterations}: ${bandwidth.toFixed(2)} GB/s\n`;
     }
@@ -823,7 +830,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       output += `... (${iterations - 10} more iterations)\n`;
       // Generate additional bandwidth values for statistics
       for (let i = 11; i <= iterations; i++) {
-        bandwidths.push(280 + Math.random() * 20);
+        bandwidths.push(baseline * (0.9 + Math.random() * 0.1) * nvlinkHealth);
       }
     }
 

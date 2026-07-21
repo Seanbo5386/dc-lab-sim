@@ -255,7 +255,14 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).not.toContain("more iterations");
     });
 
-    it("should report bandwidth within expected range (280-300 GB/s)", () => {
+    // The shared `context` fixture models a DGX-H100 node, whose
+    // ncclBaselineBandwidthGBs baseline is 380 GB/s. Burn-in reports
+    // 90-100% of that baseline (SIM-31 -- was a flat 280-300 literal).
+    const H100_NCCL_BASELINE = 380;
+    const H100_NCCL_MIN = H100_NCCL_BASELINE * 0.9;
+    const H100_NCCL_MAX = H100_NCCL_BASELINE;
+
+    it("should report bandwidth within the H100 baseline range (342-380 GB/s)", () => {
       const parsed = parse("nccl-test --burn-in --iterations 10");
       const result = simulator.execute(parsed, context);
 
@@ -271,9 +278,44 @@ describe("BenchmarkSimulator", () => {
 
       // Verify all bandwidths are in range
       bandwidths.forEach((bw) => {
-        expect(bw).toBeGreaterThanOrEqual(280);
-        expect(bw).toBeLessThanOrEqual(300);
+        expect(bw).toBeGreaterThanOrEqual(H100_NCCL_MIN);
+        expect(bw).toBeLessThanOrEqual(H100_NCCL_MAX);
       });
+    });
+
+    it("NCCL burn-in bandwidth scales with the node's real architecture baseline, not a flat 280-300 GB/s literal (SIM-31)", () => {
+      const a100 = buildContextWithGpu(
+        { name: "NVIDIA A100-SXM4-80GB" },
+        "DGX-A100",
+      );
+      const a100Result = simulator.execute(
+        parse("nccl-test --burn-in --iterations 5"),
+        a100.context,
+      );
+      const a100Bws = [
+        ...a100Result.output.matchAll(/Iteration \d+\/\d+: ([\d.]+) GB\/s/g),
+      ].map((m) => parseFloat(m[1]));
+      expect(a100Bws.length).toBe(5);
+      for (const bw of a100Bws) {
+        expect(bw).toBeGreaterThanOrEqual(240 * 0.9);
+        expect(bw).toBeLessThanOrEqual(240 * 1.05);
+      }
+
+      const vr200 = buildContextWithGpu(
+        { name: "NVIDIA R200-SXM-288GB" },
+        "DGX-VR200",
+      );
+      const vr200Result = simulator.execute(
+        parse("nccl-test --burn-in --iterations 5"),
+        vr200.context,
+      );
+      const vr200Bws = [
+        ...vr200Result.output.matchAll(/Iteration \d+\/\d+: ([\d.]+) GB\/s/g),
+      ].map((m) => parseFloat(m[1]));
+      for (const bw of vr200Bws) {
+        expect(bw).toBeGreaterThanOrEqual(1520 * 0.9);
+        expect(bw).toBeLessThanOrEqual(1520 * 1.05);
+      }
     });
 
     it("should calculate correct statistics", () => {
@@ -303,8 +345,8 @@ describe("BenchmarkSimulator", () => {
         // Max should be greater than or equal to average
         expect(max).toBeGreaterThanOrEqual(avg);
         // All should be in expected range
-        expect(min).toBeGreaterThanOrEqual(280);
-        expect(max).toBeLessThanOrEqual(300);
+        expect(min).toBeGreaterThanOrEqual(H100_NCCL_MIN);
+        expect(max).toBeLessThanOrEqual(H100_NCCL_MAX);
       }
     });
   });
