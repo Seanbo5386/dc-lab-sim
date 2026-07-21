@@ -814,7 +814,21 @@ export class SlurmSimulator extends BaseSimulator {
           output += `   NodeAddr=${node.id} NodeHostName=${node.hostname} Version=23.02.6\n`;
           output += `   OS=Linux 5.15.0-91-generic #101-Ubuntu SMP x86_64\n`;
           output += `   RealMemory=${node.ramTotal * 1024} AllocMem=${allocMem} FreeMem=${(node.ramTotal - node.ramUsed) * 1024} Sockets=${sockets} Boards=1\n`;
-          output += `   State=${node.slurmState.toUpperCase()}${node.slurmState === "drain" ? "+DRAIN" : ""} ThreadsPerCore=1 TmpDisk=0 Weight=1 Owner=N/A MCS_label=N/A\n`;
+          // Real Slurm reports a base state (IDLE/ALLOCATED/DOWN) plus an
+          // orthogonal DRAIN flag (e.g. "IDLE+DRAIN"), never a bare state
+          // name doubled as its own flag. This sim's node model only
+          // tracks a single slurmState value where "drain" already means
+          // the node has no running jobs, so the base word for a draining
+          // node is always IDLE here (ALLOCATED+DRAIN cannot occur in
+          // this data model).
+          const scontrolStateWord: Record<DGXNode["slurmState"], string> = {
+            idle: "IDLE",
+            alloc: "ALLOCATED",
+            drain: "IDLE",
+            down: "DOWN",
+          };
+          const scontrolState = `${scontrolStateWord[node.slurmState]}${node.slurmState === "drain" ? "+DRAIN" : ""}`;
+          output += `   State=${scontrolState} ThreadsPerCore=1 TmpDisk=0 Weight=1 Owner=N/A MCS_label=N/A\n`;
           output += `   Partitions=gpu\n`;
           const now = new Date();
           // Boot time between 10 and 40 days ago
