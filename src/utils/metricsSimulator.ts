@@ -307,3 +307,38 @@ export class MetricsSimulator {
     }
   }
 }
+
+/**
+ * Inject an ib-port-error fault onto a specific port of the given HCA
+ * (K2). Sets a real (non-zero) symbol-error count and flips the port to
+ * the "Polling" physical state (no active peer -- the real IBTA state a
+ * degraded/flapping cable produces), unlocking the perfquery/ibporterrors/
+ * ibcableerrors/iblinkinfo diagnosis toolchain this phase made state-aware.
+ *
+ * A standalone sibling to MetricsSimulator.injectFault, not a new case
+ * inside it: injectFault operates on a GPU, this operates on an
+ * InfiniBandHCA (a different object shape living on DGXNode.hcas).
+ * Follows the same "return a new object, don't mutate in place" pattern.
+ */
+export function injectHCAFault(
+  hca: InfiniBandHCA,
+  portIndex: number,
+): InfiniBandHCA {
+  return {
+    ...hca,
+    ports: hca.ports.map((port, idx) =>
+      idx === portIndex
+        ? {
+            ...port,
+            physicalState: "Polling" as const,
+            state: "Down" as const,
+            errors: {
+              ...port.errors,
+              symbolErrors: port.errors.symbolErrors + 150,
+              linkDowned: port.errors.linkDowned + 1,
+            },
+          }
+        : port,
+    ),
+  };
+}

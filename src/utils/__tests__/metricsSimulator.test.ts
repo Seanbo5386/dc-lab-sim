@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { MetricsSimulator } from "../metricsSimulator";
+import { MetricsSimulator, injectHCAFault } from "../metricsSimulator";
 import { ClusterPhysicsEngine } from "@/simulation/clusterPhysicsEngine";
-import type { GPU } from "@/types/hardware";
+import type { GPU, InfiniBandHCA } from "@/types/hardware";
 
 function createMockGPU(overrides: Partial<GPU> = {}): GPU {
   return {
@@ -458,5 +458,96 @@ describe("MetricsSimulator", () => {
       expect(gpu.clocksSM).toBeGreaterThan(1600);
       expect(gpu.clocksSM).toBeLessThanOrEqual(1980);
     });
+  });
+});
+
+describe("ib-port-error fault injection (K2)", () => {
+  function createMockHCA(
+    overrides: Partial<InfiniBandHCA> = {},
+  ): InfiniBandHCA {
+    return {
+      id: 0,
+      devicePath: "/sys/class/infiniband/mlx5_0",
+      caType: "mlx5_0",
+      model: "ConnectX-7",
+      firmwareVersion: "28.39.1002",
+      ports: [
+        {
+          portNumber: 1,
+          state: "Active",
+          physicalState: "LinkUp",
+          rate: 400,
+          lid: 100,
+          guid: "0x00155dfffe334455",
+          linkLayer: "InfiniBand",
+          errors: {
+            symbolErrors: 0,
+            linkDowned: 0,
+            portRcvErrors: 0,
+            portXmitDiscards: 0,
+            portXmitWait: 0,
+          },
+        },
+        {
+          portNumber: 2,
+          state: "Active",
+          physicalState: "LinkUp",
+          rate: 400,
+          lid: 101,
+          guid: "0x00155dfffe334456",
+          linkLayer: "InfiniBand",
+          errors: {
+            symbolErrors: 0,
+            linkDowned: 0,
+            portRcvErrors: 0,
+            portXmitDiscards: 0,
+            portXmitWait: 0,
+          },
+        },
+      ],
+      ...overrides,
+    };
+  }
+
+  it("injectHCAFault sets nonzero error counters and Polling physical state on the target port", () => {
+    const hca = createMockHCA();
+    const result = injectHCAFault(hca, 0);
+    expect(result.ports[0].errors.symbolErrors).toBeGreaterThan(0);
+    expect(result.ports[0].errors.linkDowned).toBeGreaterThan(0);
+    expect(result.ports[0].physicalState).toBe("Polling");
+    expect(result.ports[0].state).toBe("Down");
+  });
+
+  it("injectHCAFault accumulates onto existing error counters", () => {
+    const hca = createMockHCA();
+    hca.ports[0].errors.symbolErrors = 10;
+    hca.ports[0].errors.linkDowned = 2;
+    const result = injectHCAFault(hca, 0);
+    expect(result.ports[0].errors.symbolErrors).toBe(160);
+    expect(result.ports[0].errors.linkDowned).toBe(3);
+  });
+
+  it("injectHCAFault leaves other ports untouched", () => {
+    const hca = createMockHCA();
+    const result = injectHCAFault(hca, 0);
+    expect(result.ports[1].physicalState).toBe("LinkUp");
+    expect(result.ports[1].state).toBe("Active");
+    expect(result.ports[1].errors.symbolErrors).toBe(0);
+  });
+
+  it("injectHCAFault returns a new object and does not mutate the input HCA", () => {
+    const hca = createMockHCA();
+    const result = injectHCAFault(hca, 0);
+    expect(result).not.toBe(hca);
+    expect(hca.ports[0].physicalState).toBe("LinkUp");
+    expect(hca.ports[0].state).toBe("Active");
+    expect(hca.ports[0].errors.symbolErrors).toBe(0);
+  });
+
+  it("injectHCAFault targets the port at the given index", () => {
+    const hca = createMockHCA();
+    const result = injectHCAFault(hca, 1);
+    expect(result.ports[1].physicalState).toBe("Polling");
+    expect(result.ports[0].physicalState).toBe("LinkUp");
   });
 });

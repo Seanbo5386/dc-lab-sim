@@ -144,6 +144,21 @@ export const BASIC_FAULT_DESCRIPTIONS: FaultDescription[] = [
     suggestedCommands: ["nvidia-smi", "dmesg | grep -i xid", "lspci -vv"],
     relatedXIDCodes: [62],
   },
+  {
+    type: "ib-port-error",
+    title: "IB Port Error",
+    whatHappens:
+      "Injects symbol errors and a link-down event on the node's first InfiniBand HCA port. The port drops to Down with physical state Polling — a degraded or flapping cable with no active peer.",
+    whyItMatters:
+      "InfiniBand fabric health is central to cluster test and verification. The exam tests whether you can trace a degraded link with perfquery, ibporterrors, and iblinkinfo, and distinguish cable faults from switch-side problems.",
+    dashboardIndicators: [
+      "InfiniBand port state shows Down / Polling",
+      "Symbol error counters increase on the affected port",
+      "Fabric bandwidth drops for jobs crossing the link",
+    ],
+    suggestedCommands: ["ibstat", "perfquery -x", "iblinkinfo"],
+    relatedXIDCodes: [],
+  },
 ];
 
 // ============================================================================

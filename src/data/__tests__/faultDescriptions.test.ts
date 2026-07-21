@@ -10,7 +10,15 @@ import {
 
 describe("faultDescriptions", () => {
   describe("BASIC_FAULT_DESCRIPTIONS", () => {
-    const expectedTypes = ["xid", "ecc", "thermal", "nvlink", "power", "pcie"];
+    const expectedTypes = [
+      "xid",
+      "ecc",
+      "thermal",
+      "nvlink",
+      "power",
+      "pcie",
+      "ib-port-error",
+    ];
 
     it("has an entry for every basic fault type", () => {
       const actualTypes = BASIC_FAULT_DESCRIPTIONS.map((d) => d.type);
@@ -19,8 +27,8 @@ describe("faultDescriptions", () => {
       }
     });
 
-    it("has exactly 6 entries", () => {
-      expect(BASIC_FAULT_DESCRIPTIONS).toHaveLength(6);
+    it("has exactly 7 entries", () => {
+      expect(BASIC_FAULT_DESCRIPTIONS).toHaveLength(7);
     });
 
     it.each(BASIC_FAULT_DESCRIPTIONS)(

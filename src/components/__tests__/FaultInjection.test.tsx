@@ -7,14 +7,17 @@ import { render, screen, fireEvent, within, act } from "@testing-library/react";
 
 const {
   mockUpdateGPU,
+  mockUpdateHCA,
   mockAddXIDError,
   mockUpdateNodeHealth,
   mockSetMIGMode,
   mockSetSlurmState,
   mockSetBugReportCollected,
   mockContextUpdateGPU,
+  mockContextUpdateHCA,
   mockContextAddXIDError,
   mockInjectFault,
+  mockInjectHCAFault,
   mockSimulateWorkload,
   mockActiveContext,
   mockMarkSandboxIntroSeen,
@@ -24,6 +27,7 @@ const {
 } = vi.hoisted(() => {
   // -- store mocks --
   const mockUpdateGPU = vi.fn();
+  const mockUpdateHCA = vi.fn();
   const mockAddXIDError = vi.fn();
   const mockUpdateNodeHealth = vi.fn();
   const mockSetMIGMode = vi.fn();
@@ -32,6 +36,7 @@ const {
 
   // -- scenario context mocks --
   const mockContextUpdateGPU = vi.fn();
+  const mockContextUpdateHCA = vi.fn();
   const mockContextAddXIDError = vi.fn();
   const mockContextUpdateNodeHealth = vi.fn();
   const mockContextSetMIGMode = vi.fn();
@@ -50,6 +55,16 @@ const {
         ...gpu,
         utilization: 95,
       })),
+  );
+  const mockInjectHCAFault = vi.fn(
+    (hca: { ports: Array<Record<string, unknown>> }, portIndex: number) => ({
+      ...hca,
+      ports: hca.ports.map((port, idx) =>
+        idx === portIndex
+          ? { ...port, physicalState: "Polling", state: "Down" }
+          : port,
+      ),
+    }),
   );
 
   // -- faultToastStore mock fn --
@@ -106,6 +121,7 @@ const {
   const mockActiveContext = {
     getCluster: vi.fn(() => shared.currentCluster),
     updateGPU: mockContextUpdateGPU,
+    updateHCA: mockContextUpdateHCA,
     addXIDError: mockContextAddXIDError,
     updateNodeHealth: mockContextUpdateNodeHealth,
     setMIGMode: mockContextSetMIGMode,
@@ -114,17 +130,20 @@ const {
 
   return {
     mockUpdateGPU,
+    mockUpdateHCA,
     mockAddXIDError,
     mockUpdateNodeHealth,
     mockSetMIGMode,
     mockSetSlurmState,
     mockSetBugReportCollected,
     mockContextUpdateGPU,
+    mockContextUpdateHCA,
     mockContextAddXIDError,
     mockContextUpdateNodeHealth,
     mockContextSetMIGMode,
     mockContextSetSlurmState,
     mockInjectFault,
+    mockInjectHCAFault,
     mockSimulateWorkload,
     mockActiveContext,
     mockMarkSandboxIntroSeen,
@@ -146,6 +165,7 @@ vi.mock("@/store/simulationStore", () => ({
         selectedNode: shared.selectedNode,
         activeScenario: shared.activeScenario,
         updateGPU: mockUpdateGPU,
+        updateHCA: mockUpdateHCA,
         addXIDError: mockAddXIDError,
         updateNodeHealth: mockUpdateNodeHealth,
         setMIGMode: mockSetMIGMode,
@@ -160,6 +180,7 @@ vi.mock("@/store/simulationStore", () => ({
         selectedNode: shared.selectedNode,
         activeScenario: shared.activeScenario,
         updateGPU: mockUpdateGPU,
+        updateHCA: mockUpdateHCA,
         addXIDError: mockAddXIDError,
         updateNodeHealth: mockUpdateNodeHealth,
         setMIGMode: mockSetMIGMode,
@@ -187,6 +208,7 @@ vi.mock("@/utils/metricsSimulator", () => ({
     injectFault: mockInjectFault,
     simulateWorkload: mockSimulateWorkload,
   })),
+  injectHCAFault: mockInjectHCAFault,
 }));
 
 vi.mock("lucide-react", () => {
@@ -217,6 +239,7 @@ vi.mock("lucide-react", () => {
     TerminalSquare: createIcon("TerminalSquare"),
     Sparkles: createIcon("Sparkles"),
     Send: createIcon("Send"),
+    Network: createIcon("Network"),
   };
 });
 
@@ -298,6 +321,34 @@ function createMockGPU(id: number, overrides: Record<string, unknown> = {}) {
   };
 }
 
+function createMockHCA(id: number) {
+  return {
+    id,
+    devicePath: `/sys/class/infiniband/mlx5_${id}`,
+    caType: `mlx5_${id}`,
+    model: "ConnectX-7",
+    firmwareVersion: "28.39.1002",
+    ports: [
+      {
+        portNumber: 1,
+        state: "Active",
+        physicalState: "LinkUp",
+        rate: 400,
+        lid: 100 + id,
+        guid: `0x00155dfffe33445${id}`,
+        linkLayer: "InfiniBand",
+        errors: {
+          symbolErrors: 0,
+          linkDowned: 0,
+          portRcvErrors: 0,
+          portXmitDiscards: 0,
+          portXmitWait: 0,
+        },
+      },
+    ],
+  };
+}
+
 function createMockNode(id: string, hostname: string, gpuCount: number = 2) {
   return {
     id,
@@ -305,7 +356,7 @@ function createMockNode(id: string, hostname: string, gpuCount: number = 2) {
     systemType: "DGX-A100",
     gpus: Array.from({ length: gpuCount }, (_, i) => createMockGPU(i)),
     dpus: [],
-    hcas: [],
+    hcas: [createMockHCA(0), createMockHCA(1)],
     bmc: {
       ipAddress: "10.0.0.1",
       macAddress: "00:00:00:00:00:01",
@@ -737,6 +788,114 @@ describe("FaultInjection", () => {
       expect(
         screen.getByRole("button", { name: "Submit selected faults" }),
       ).toBeDisabled();
+    });
+  });
+
+  // =========================================================================
+  // IB Port Error Fault Injection (K2 — HCA-scoped, not GPU-scoped)
+  // =========================================================================
+
+  describe("IB Port Error Fault Injection (K2)", () => {
+    it("renders the IB Port Error fault button", () => {
+      render(<FaultInjection />);
+      expect(screen.getByText("IB Port Error")).toBeInTheDocument();
+    });
+
+    it("ib-port-error fault type is selectable and calls updateHCA, not updateGPU", () => {
+      render(<FaultInjection />);
+
+      selectAndSubmit("IB Port Error");
+
+      // The HCA injection function receives the selected node's first HCA
+      // and targets its first port (index 0).
+      expect(mockInjectHCAFault).toHaveBeenCalledTimes(1);
+      expect(mockInjectHCAFault).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 0, caType: "mlx5_0" }),
+        0,
+      );
+
+      // The HCA mutator is called with (nodeId, hcaId, portNumber, updates)...
+      expect(mockUpdateHCA).toHaveBeenCalledTimes(1);
+      expect(mockUpdateHCA).toHaveBeenCalledWith(
+        "dgx-00",
+        0,
+        1,
+        expect.objectContaining({ physicalState: "Polling", state: "Down" }),
+      );
+
+      // ...and the GPU-scoped pipeline is NOT used.
+      expect(mockInjectFault).not.toHaveBeenCalled();
+      expect(mockUpdateGPU).not.toHaveBeenCalled();
+    });
+
+    it("fires a toast tagged with the affected node for ib-port-error", () => {
+      render(<FaultInjection />);
+
+      fireEvent.change(screen.getByLabelText("Sandbox target node"), {
+        target: { value: "dgx-01" },
+      });
+      selectAndSubmit("IB Port Error");
+
+      expect(mockUpdateHCA).toHaveBeenCalledWith(
+        "dgx-01",
+        0,
+        1,
+        expect.anything(),
+      );
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.objectContaining({ targetNode: "dgx-01" }),
+      );
+    });
+
+    it("routes ib-port-error to the ScenarioContext mutator when a context is active", () => {
+      shared.activeContextReturn = mockActiveContext;
+
+      render(<FaultInjection />);
+      selectAndSubmit("IB Port Error");
+
+      expect(mockContextUpdateHCA).toHaveBeenCalledWith(
+        "dgx-00",
+        0,
+        1,
+        expect.objectContaining({ physicalState: "Polling" }),
+      );
+      expect(mockUpdateHCA).not.toHaveBeenCalled();
+    });
+
+    it("applies ib-port-error alongside GPU faults in a combined Submit", () => {
+      render(<FaultInjection />);
+
+      fireEvent.click(screen.getByText("IB Port Error"));
+      fireEvent.click(screen.getByText("XID Error"));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Submit selected faults" }),
+      );
+
+      // The GPU fault goes through the GPU pipeline...
+      expect(mockInjectFault).toHaveBeenCalledWith(expect.anything(), "xid");
+      expect(mockUpdateGPU).toHaveBeenCalledTimes(1);
+      // ...and the IB fault goes through the HCA pipeline.
+      expect(mockInjectHCAFault).toHaveBeenCalledTimes(1);
+      expect(mockUpdateHCA).toHaveBeenCalledTimes(1);
+      expect(mockAddToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "2 Faults Injected" }),
+      );
+    });
+
+    it("does nothing (no crash) when the selected node has no HCAs", () => {
+      shared.currentCluster = {
+        ...mockCluster,
+        nodes: [
+          { ...createMockNode("dgx-00", "dgx-00.local", 2), hcas: [] },
+          mockNode1,
+        ],
+      };
+
+      render(<FaultInjection />);
+      selectAndSubmit("IB Port Error");
+
+      expect(mockInjectHCAFault).not.toHaveBeenCalled();
+      expect(mockUpdateHCA).not.toHaveBeenCalled();
     });
   });
 

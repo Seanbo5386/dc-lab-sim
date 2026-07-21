@@ -31,6 +31,8 @@ export function resolveEffectiveMutator(): StateMutator {
     return {
       updateGPU: (nodeId, gpuId, updates) =>
         activeContext.updateGPU(nodeId, gpuId, updates),
+      updateHCA: (nodeId, hcaId, portNumber, updates) =>
+        activeContext.updateHCA(nodeId, hcaId, portNumber, updates),
       addXIDError: (nodeId, gpuId, error) =>
         activeContext.addXIDError(nodeId, gpuId, error),
       updateNodeHealth: (nodeId, health) =>
@@ -54,6 +56,8 @@ export function resolveEffectiveMutator(): StateMutator {
   return {
     updateGPU: (nodeId, gpuId, updates) =>
       store.updateGPU(nodeId, gpuId, updates),
+    updateHCA: (nodeId, hcaId, portNumber, updates) =>
+      store.updateHCA(nodeId, hcaId, portNumber, updates),
     addXIDError: (nodeId, gpuId, error) =>
       store.addXIDError(nodeId, gpuId, error),
     updateNodeHealth: (nodeId, health) =>

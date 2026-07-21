@@ -341,3 +341,82 @@ describe("setSystemType scenario guard (F8)", () => {
     expect(after.cluster.nodes).toHaveLength(8);
   });
 });
+
+describe("updateHCA action (K2 fault-injection infrastructure)", () => {
+  beforeEach(() => {
+    useSimulationStore.getState().resetSimulation();
+  });
+
+  it("updates a specific port's error counters on a specific HCA", () => {
+    const state = useSimulationStore.getState();
+    const node = state.cluster.nodes[0];
+    const hca = node.hcas[0];
+    const port = hca.ports[0];
+
+    state.updateHCA(node.id, hca.id, port.portNumber, {
+      errors: { ...port.errors, symbolErrors: 42 },
+    });
+
+    const updated = useSimulationStore
+      .getState()
+      .cluster.nodes.find((n) => n.id === node.id)!
+      .hcas.find((h) => h.id === hca.id)!
+      .ports.find((p) => p.portNumber === port.portNumber)!;
+    expect(updated.errors.symbolErrors).toBe(42);
+  });
+
+  it("updates a port's state and physicalState", () => {
+    const state = useSimulationStore.getState();
+    const node = state.cluster.nodes[0];
+    const hca = node.hcas[0];
+    const port = hca.ports[0];
+
+    state.updateHCA(node.id, hca.id, port.portNumber, {
+      state: "Down",
+      physicalState: "Polling",
+    });
+
+    const updated = useSimulationStore
+      .getState()
+      .cluster.nodes.find((n) => n.id === node.id)!
+      .hcas.find((h) => h.id === hca.id)!
+      .ports.find((p) => p.portNumber === port.portNumber)!;
+    expect(updated.state).toBe("Down");
+    expect(updated.physicalState).toBe("Polling");
+  });
+
+  it("does not touch other HCAs or other nodes", () => {
+    const state = useSimulationStore.getState();
+    const node = state.cluster.nodes[0];
+    const hca = node.hcas[0];
+    const port = hca.ports[0];
+
+    state.updateHCA(node.id, hca.id, port.portNumber, {
+      errors: { ...port.errors, symbolErrors: 7 },
+    });
+
+    const after = useSimulationStore.getState().cluster;
+    const otherHCAs = after.nodes[0].hcas.filter((h) => h.id !== hca.id);
+    for (const other of otherHCAs) {
+      expect(other.ports[0].errors.symbolErrors).toBe(0);
+    }
+    expect(after.nodes[1].hcas[0].ports[0].errors.symbolErrors).toBe(0);
+  });
+
+  it("no-ops safely (does not throw) for an unknown nodeId/hcaId/portNumber", () => {
+    const state = useSimulationStore.getState();
+    const errors = {
+      symbolErrors: 1,
+      linkDowned: 0,
+      portRcvErrors: 0,
+      portXmitDiscards: 0,
+      portXmitWait: 0,
+    };
+    expect(() =>
+      state.updateHCA("nonexistent-node", 0, 1, { errors }),
+    ).not.toThrow();
+    const nodeId = state.cluster.nodes[0].id;
+    expect(() => state.updateHCA(nodeId, 999, 1, { errors })).not.toThrow();
+    expect(() => state.updateHCA(nodeId, 0, 999, { errors })).not.toThrow();
+  });
+});

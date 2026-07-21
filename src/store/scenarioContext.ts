@@ -10,6 +10,8 @@ import type {
   GPU,
   DGXNode as Node,
   HealthStatus,
+  InfiniBandHCA,
+  InfiniBandPort,
   XIDError,
 } from "@/types/hardware";
 import type { SeedJob } from "@/types/scenarios";
@@ -33,6 +35,12 @@ interface StateChangeBase {
  */
 export type StateChange =
   | (StateChangeBase & { type: "gpu-update"; data: Partial<GPU> })
+  | (StateChangeBase & {
+      type: "hca-update";
+      hcaId: number;
+      portNumber: number;
+      data: Partial<InfiniBandPort>;
+    })
   | (StateChangeBase & { type: "node-update"; data: Partial<Node> })
   | (StateChangeBase & { type: "node-health"; data: { health: HealthStatus } })
   | (StateChangeBase & { type: "xid-error"; data: XIDError })
@@ -176,6 +184,55 @@ export class ScenarioContext {
       data: updates,
       command,
       description: `Updated GPU ${gpuId} on ${nodeId}`,
+    });
+  }
+
+  /**
+   * Update an HCA port in the isolated state
+   */
+  updateHCA(
+    nodeId: string,
+    hcaId: number,
+    portNumber: number,
+    updates: Partial<InfiniBandPort>,
+    command?: string,
+  ): void {
+    if (this.readonly) {
+      logger.warn("Cannot update HCA in readonly context");
+      return;
+    }
+
+    const node = this.getNode(nodeId);
+    if (!node) {
+      logger.error(`Node ${nodeId} not found in scenario context`);
+      return;
+    }
+
+    const hca = node.hcas.find((h: InfiniBandHCA) => h.id === hcaId);
+    if (!hca) {
+      logger.error(`HCA ${hcaId} not found on node ${nodeId}`);
+      return;
+    }
+
+    const port = hca.ports.find((p) => p.portNumber === portNumber);
+    if (!port) {
+      logger.error(`Port ${portNumber} not found on HCA ${hcaId}`);
+      return;
+    }
+
+    // Apply updates
+    Object.assign(port, updates);
+
+    // Track mutation
+    this.recordMutation({
+      type: "hca-update",
+      timestamp: Date.now(),
+      nodeId,
+      hcaId,
+      portNumber,
+      data: updates,
+      command,
+      description: `Updated HCA ${hcaId} port ${portNumber} on ${nodeId}`,
     });
   }
 
@@ -441,6 +498,17 @@ export class ScenarioContext {
         case "gpu-update":
           if (mutation.nodeId !== undefined && mutation.gpuId !== undefined) {
             store.updateGPU(mutation.nodeId, mutation.gpuId, mutation.data);
+          }
+          break;
+
+        case "hca-update":
+          if (mutation.nodeId !== undefined) {
+            store.updateHCA(
+              mutation.nodeId,
+              mutation.hcaId,
+              mutation.portNumber,
+              mutation.data,
+            );
           }
           break;
 

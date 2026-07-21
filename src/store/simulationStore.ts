@@ -8,6 +8,7 @@ import type {
   HealthStatus,
   XIDError,
   InfiniBandHCA,
+  InfiniBandPort,
 } from "@/types/hardware";
 import type {
   Scenario,
@@ -107,6 +108,12 @@ interface SimulationState {
   setSystemType: (systemType: SystemType) => void;
   selectNode: (nodeId: string) => void;
   updateGPU: (nodeId: string, gpuId: number, updates: Partial<GPU>) => void;
+  updateHCA: (
+    nodeId: string,
+    hcaId: number,
+    portNumber: number,
+    updates: Partial<InfiniBandPort>,
+  ) => void;
   updateHCAs: (nodeId: string, hcas: InfiniBandHCA[]) => void;
   updateNodeHealth: (nodeId: string, health: HealthStatus) => void;
   setBugReportCollected: (nodeId: string, value: boolean) => void;
@@ -275,6 +282,17 @@ export const useSimulationStore = create<SimulationState>()(
           }
 
           Object.assign(gpu, updates);
+        }),
+
+      updateHCA: (nodeId, hcaId, portNumber, updates) =>
+        set((state) => {
+          const node = state.cluster.nodes.find((n) => n.id === nodeId);
+          if (!node) return;
+          const hca = node.hcas.find((h) => h.id === hcaId);
+          if (!hca) return;
+          const port = hca.ports.find((p) => p.portNumber === portNumber);
+          if (!port) return;
+          Object.assign(port, updates);
         }),
 
       updateHCAs: (nodeId, hcas) =>

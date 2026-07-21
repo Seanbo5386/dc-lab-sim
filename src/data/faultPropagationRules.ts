@@ -134,6 +134,26 @@ export const FAULT_PROPAGATION_RULES: PropagationRule[] = [
     ],
   },
   {
+    trigger: "ib-port-error",
+    consequences: [
+      {
+        delayMs: 5000,
+        action: "bandwidth-degrade",
+        target: "same-node",
+        params: {},
+        description:
+          "Node fabric bandwidth drops as the degraded link retrains",
+      },
+      {
+        delayMs: 15000,
+        action: "slurm-job-slow",
+        target: "slurm",
+        params: {},
+        description: "Multi-node training job stalls on the degraded IB link",
+      },
+    ],
+  },
+  {
     trigger: "power-anomaly",
     consequences: [
       {
