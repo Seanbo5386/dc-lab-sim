@@ -7,6 +7,7 @@ import {
 import type { DGXNode } from "@/types/hardware";
 import type { SeedJob } from "@/types/scenarios";
 import { getHardwareSpecs, type SystemType } from "@/data/hardwareSpecs";
+import { compressHostlist } from "@/simulation/compressHostlist";
 
 function getGresGpuType(systemType: SystemType): string {
   const gpuModelMap: Record<SystemType, string> = {
@@ -305,8 +306,7 @@ export class SlurmSimulator extends BaseSimulator {
       } else {
         // Default format if we don't recognize it
         output = "PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST\n";
-        output +=
-          "gpu       up     infinite   8      idle  dgx-00,dgx-01,dgx-02,dgx-03,dgx-04,dgx-05,dgx-06,dgx-07\n";
+        output += "gpu       up     infinite   8      idle  dgx-[00-07]\n";
       }
 
       return { output, exitCode: 0 };
@@ -384,45 +384,26 @@ export class SlurmSimulator extends BaseSimulator {
       "STATE".padEnd(COL_STATE) +
       "NODELIST\n";
 
-    const idleNodes = nodes.filter((n) => n.slurmState === "idle");
-    const allocNodes = nodes.filter((n) => n.slurmState === "alloc");
-    const drainNodes = nodes.filter((n) => n.slurmState === "drain");
+    const stateRows: Array<{ state: "idle" | "alloc" | "drain" | "down" }> = [
+      { state: "idle" },
+      { state: "alloc" },
+      { state: "drain" },
+      { state: "down" },
+    ];
 
-    if (idleNodes.length > 0) {
-      const nodelist = idleNodes.map((n) => n.id).join(",");
+    stateRows.forEach(({ state }) => {
+      const stateNodes = nodes.filter((n) => n.slurmState === state);
+      if (stateNodes.length === 0) return;
+      const nodelist = compressHostlist(stateNodes.map((n) => n.id));
       output +=
         "gpu".padEnd(COL_PARTITION) +
         "up".padEnd(COL_AVAIL) +
         "infinite".padEnd(COL_TIMELIMIT) +
-        idleNodes.length.toString().padEnd(COL_NODES) +
-        "idle".padEnd(COL_STATE) +
+        stateNodes.length.toString().padEnd(COL_NODES) +
+        state.padEnd(COL_STATE) +
         nodelist +
         "\n";
-    }
-
-    if (allocNodes.length > 0) {
-      const nodelist = allocNodes.map((n) => n.id).join(",");
-      output +=
-        "gpu".padEnd(COL_PARTITION) +
-        "up".padEnd(COL_AVAIL) +
-        "infinite".padEnd(COL_TIMELIMIT) +
-        allocNodes.length.toString().padEnd(COL_NODES) +
-        "alloc".padEnd(COL_STATE) +
-        nodelist +
-        "\n";
-    }
-
-    if (drainNodes.length > 0) {
-      const nodelist = drainNodes.map((n) => n.id).join(",");
-      output +=
-        "gpu".padEnd(COL_PARTITION) +
-        "up".padEnd(COL_AVAIL) +
-        "infinite".padEnd(COL_TIMELIMIT) +
-        drainNodes.length.toString().padEnd(COL_NODES) +
-        "drain".padEnd(COL_STATE) +
-        nodelist +
-        "\n";
-    }
+    });
 
     return { output, exitCode: 0 };
   }
@@ -940,7 +921,7 @@ export class SlurmSimulator extends BaseSimulator {
           "   DefaultTime=NONE DisableRootJobs=NO ExclusiveUser=NO GraceTime=0 Hidden=NO\n";
         output +=
           "   MaxNodes=UNLIMITED MaxTime=UNLIMITED MinNodes=0 LLN=NO MaxCPUsPerNode=UNLIMITED MaxCPUsPerSocket=UNLIMITED\n";
-        output += `   Nodes=dgx-[00-${(nodes.length - 1).toString().padStart(2, "0")}]\n`;
+        output += `   Nodes=${compressHostlist(nodes.map((n) => n.id))}\n`;
         output +=
           "   PriorityJobFactor=1 PriorityTier=1 RootOnly=NO ReqResv=NO OverSubscribe=NO\n";
         output += "   OverTimeLimit=NONE PreemptMode=OFF\n";
