@@ -242,13 +242,25 @@ Options:
 
     const verbose = this.hasAnyFlag(parsed, ["v", "verbose"]);
 
+    const nodes = this.resolveAllNodes(context);
+    const { leafSwitches } = deriveFabricTopology(nodes);
+
     let output = `InfiniBand Link Information:\n\n`;
 
     node.hcas.forEach((hca) => {
       hca.ports.forEach((port) => {
+        // Rail-optimized topology: HCA i on this node connects to leaf
+        // switch i (the same mapping ibnetdiscover's Rail-${hcaIdx}
+        // labeling already implies), falling back to leaf 0 if the
+        // cluster has more HCAs than leaf switches modeled.
+        const peer = leafSwitches[hca.id] ?? leafSwitches[0];
         output += `CA: ${hca.caType}\n`;
         output += `      ${port.guid}\n`;
-        output += `         port ${port.portNumber} lid ${port.lid} lmc 0 ${port.state} ${port.rate} Gb/s ${getIBStandardName(port.rate)} (${port.linkLayer})\n`;
+        output += `         port ${port.portNumber} lid ${port.lid} lmc 0 ${port.state} ${port.rate} Gb/s ${getIBStandardName(port.rate)} (${port.linkLayer})`;
+        if (peer) {
+          output += ` ==> ${peer.model} "${peer.id}" lid ${peer.lid} port 1`;
+        }
+        output += `\n`;
 
         if (verbose) {
           output += `         Link errors:\n`;

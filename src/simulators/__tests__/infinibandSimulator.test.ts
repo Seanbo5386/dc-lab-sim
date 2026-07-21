@@ -1402,6 +1402,16 @@ describe("InfiniBandSimulator", () => {
     });
   });
 
+  describe("iblinkinfo shows real peer/switch info, not just local ports (SIM-7)", () => {
+    it("each HCA port's line includes the leaf switch it connects to", () => {
+      const result = simulator.executeIblinkinfo(parse("iblinkinfo"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/leaf-\d+|Rail-\d+/);
+      // Distinct from a bare local-port dump: a switch/peer identifier appears.
+      expect(result.output).toMatch(/QM97\d\d|QM87\d\d/);
+    });
+  });
+
   describe("ibping resolves a real fabric peer (SIM-13)", () => {
     // Uses the default single-HCA fixture from the outer beforeEach:
     // HCA port LID 123; deriveFabricTopology gives spine LIDs 10-13 and
