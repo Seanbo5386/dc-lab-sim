@@ -663,4 +663,34 @@ describe("updateHcaMetrics advances traffic counters under load (PHYS-7)", () =>
       portXmitWait: 4,
     });
   });
+
+  it("a Down (fault-injected) port does not accumulate traffic even while the node has an active job (final review finding)", () => {
+    // A learner injecting ib-port-error then applying perfquery's own
+    // taught delta-sampling technique should see the downed port's
+    // counters frozen, not still passing ~100 Mb/s of "traffic" that
+    // would contradict the very fault being diagnosed.
+    const downHCA = createTrafficHCA();
+    downHCA.ports[0].state = "Down";
+    downHCA.ports[0].physicalState = "Polling";
+
+    const updated = tickHcas([downHCA], "alloc");
+    expect(updated[0].ports[0].xmitDataBytes).toBe(1000);
+    expect(updated[0].ports[0].rcvDataBytes).toBe(900);
+    expect(updated[0].ports[0].xmitPkts).toBe(10);
+    expect(updated[0].ports[0].rcvPkts).toBe(9);
+  });
+
+  it("only the Down port is frozen; a sibling Active port on the same HCA still advances", () => {
+    const hca = createTrafficHCA();
+    hca.ports.push({
+      ...hca.ports[0],
+      portNumber: 2,
+      state: "Down",
+      physicalState: "Polling",
+    });
+
+    const updated = tickHcas([hca], "alloc");
+    expect(updated[0].ports[0].xmitDataBytes).toBeGreaterThan(1000);
+    expect(updated[0].ports[1].xmitDataBytes).toBe(1000);
+  });
 });

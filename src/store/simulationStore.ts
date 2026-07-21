@@ -753,20 +753,30 @@ export const useSimulationStore = create<SimulationState>()(
     })),
     {
       name: "nvidia-simulator-storage",
-      version: 1,
+      version: 2,
       migrate: (persistedState: unknown, version: number) => {
         // v0 → v1: cpuCount was persisted as socket count (2) instead of total
-        // cores (sockets × coresPerSocket). Drop ONLY the stale cluster so the
-        // factory rebuilds it with correct values; preserve the user's
-        // scenarioProgress, completedScenarios, and settings rather than wiping
-        // everything.
+        // cores (sockets × coresPerSocket).
+        // v1 → v2 (Phase 6): InfiniBandHCA/InfiniBandPort's shape changed --
+        // caType was redefined from a display string to the real per-HCA
+        // RDMA device name, a new required `model` field was added, and 4
+        // new required traffic-counter fields (xmitDataBytes/rcvDataBytes/
+        // xmitPkts/rcvPkts) were added. isValidCluster's shape check never
+        // inspects `hcas` at all, so an old v1 blob would otherwise survive
+        // merge() verbatim with these fields undefined -- the tick loop's
+        // `port.xmitDataBytes + 12500000` would compute NaN on the very
+        // first tick under load and never recover (NaN + anything is NaN).
         //
-        // Any non-v1 version (older OR a future build's newer schema) is treated
-        // the same way: drop the cluster and let merge()/the factory rebuild it,
-        // rather than trusting a cluster shaped by an unknown schema version.
+        // Both migrations drop ONLY the stale cluster so the factory
+        // rebuilds it with the current shape; preserve the user's
+        // scenarioProgress, completedScenarios, and settings rather than
+        // wiping everything. Any version below the current one (older OR
+        // an unrecognized future build) is treated the same way: drop the
+        // cluster and let merge()/the factory rebuild it, rather than
+        // trusting a cluster shaped by an unknown schema version.
         if (persistedState && typeof persistedState === "object") {
           const next = { ...(persistedState as Record<string, unknown>) };
-          if (version !== 1) {
+          if (version !== 2) {
             delete next.cluster;
           }
           return next;

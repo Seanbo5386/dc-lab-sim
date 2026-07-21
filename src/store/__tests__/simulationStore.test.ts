@@ -174,7 +174,12 @@ describe("persistence migration (migrate)", () => {
     expect(migrated.completedScenarios).toEqual(["domain1-x"]);
   });
 
-  it("preserves the cluster for the current version (v1)", () => {
+  it("drops the cluster on v1→v2 (Phase 6 InfiniBandHCA/Port schema change), preserving progress", () => {
+    // v1 predates InfiniBandHCA.model and InfiniBandPort's traffic-counter
+    // fields (xmitDataBytes/rcvDataBytes/xmitPkts/rcvPkts) -- isValidCluster
+    // never inspects `hcas` at all, so without this migration a v1 blob's
+    // stale HCAs would survive merge() verbatim and NaN-poison perfquery's
+    // counters on the first tick under load.
     const migrate = useSimulationStore.persist.getOptions().migrate;
     const v1State = {
       cluster: { nodes: [{ id: "node-1", gpus: [] }] },
@@ -183,7 +188,20 @@ describe("persistence migration (migrate)", () => {
 
     const migrated = migrate!(v1State, 1) as Record<string, unknown>;
 
-    // v1 is current: the cluster is kept (merge re-validates afterward).
+    expect(migrated.cluster).toBeUndefined();
+    expect(migrated.completedScenarios).toEqual(["a"]);
+  });
+
+  it("preserves the cluster for the current version (v2)", () => {
+    const migrate = useSimulationStore.persist.getOptions().migrate;
+    const v2State = {
+      cluster: { nodes: [{ id: "node-1", gpus: [] }] },
+      completedScenarios: ["a"],
+    };
+
+    const migrated = migrate!(v2State, 2) as Record<string, unknown>;
+
+    // v2 is current: the cluster is kept (merge re-validates afterward).
     expect(migrated.cluster).toEqual({ nodes: [{ id: "node-1", gpus: [] }] });
     expect(migrated.completedScenarios).toEqual(["a"]);
   });
@@ -210,7 +228,7 @@ describe("persistence merge (rehydrate sanitizes corrupted cluster, F5)", () => 
     window.localStorage.clear();
   });
 
-  function seed(stateOverrides: Record<string, unknown>, version = 1) {
+  function seed(stateOverrides: Record<string, unknown>, version = 2) {
     window.localStorage.setItem(
       "nvidia-simulator-storage",
       JSON.stringify({
@@ -308,6 +326,57 @@ describe("persistence merge (rehydrate sanitizes corrupted cluster, F5)", () => 
         n.gpus.every((g) => g.computeMode === "Default"),
       ),
     ).toBe(true);
+  });
+
+  it("rebuilds the cluster (via the v1->v2 migration), not passing through stale pre-Phase-6 HCAs, when rehydrating a v1 blob", async () => {
+    // A v1 blob's InfiniBandHCA/Port predate caType's redefinition (was a
+    // display string, e.g. "ConnectX-7 HCA"), the new required `model`
+    // field, and the 4 new required traffic-counter fields. isValidCluster
+    // never inspects `hcas` at all, so without the v1->v2 migration this
+    // stale shape would survive merge() verbatim -- and the tick loop's
+    // `port.xmitDataBytes + 12500000` would compute NaN on the very first
+    // tick under load and never recover.
+    const staleCluster = corruptCluster((c) => {
+      for (const node of c.nodes as {
+        hcas: Record<string, unknown>[];
+      }[]) {
+        for (const hca of node.hcas) {
+          hca.caType = "ConnectX-7 HCA";
+          delete hca.model;
+          for (const port of hca.ports as Record<string, unknown>[]) {
+            port.lid = 101;
+            delete port.xmitDataBytes;
+            delete port.rcvDataBytes;
+            delete port.xmitPkts;
+            delete port.rcvPkts;
+          }
+        }
+      }
+    });
+    // Seeded at version 1 (the pre-Phase-6 schema) -- the actual scenario a
+    // returning user's browser would have in localStorage.
+    seed({ cluster: staleCluster, systemType: "DGX-H100" }, 1);
+
+    await useSimulationStore.persist.rehydrate();
+
+    const state = useSimulationStore.getState();
+    // The stale cluster was dropped and rebuilt fresh with the current
+    // schema -- every HCA has a real model field and every port has real
+    // (non-undefined, non-NaN-prone) counter fields.
+    for (const node of state.cluster.nodes) {
+      for (const hca of node.hcas) {
+        expect(hca.model).toBeTruthy();
+        expect(hca.caType).not.toBe("ConnectX-7 HCA");
+        for (const port of hca.ports) {
+          expect(Number.isFinite(port.xmitDataBytes)).toBe(true);
+          expect(Number.isFinite(port.rcvDataBytes)).toBe(true);
+          expect(Number.isFinite(port.xmitPkts)).toBe(true);
+          expect(Number.isFinite(port.rcvPkts)).toBe(true);
+        }
+      }
+    }
+    // Progress the user earned is still preserved across the schema bump.
+    expect(state.completedScenarios).toEqual(["kept-scenario"]);
   });
 });
 

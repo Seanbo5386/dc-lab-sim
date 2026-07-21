@@ -172,7 +172,7 @@ export class PciToolsSimulator extends BaseSimulator {
     if (!nvidiaFilter) {
       node.hcas.forEach((hca, idx) => {
         const pciAddr = `0000:a${idx}:00.0`;
-        output += `${pciAddr} InfiniBand: Mellanox Technologies ${hca.caType}\n`;
+        output += `${pciAddr} InfiniBand: Mellanox Technologies ${hca.model}\n`;
       });
     }
 

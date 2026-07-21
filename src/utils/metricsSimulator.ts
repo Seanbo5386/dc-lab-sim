@@ -97,13 +97,21 @@ export class MetricsSimulator {
 
     return hcas.map((hca) => ({
       ...hca,
-      ports: hca.ports.map((port) => ({
-        ...port,
-        xmitDataBytes: port.xmitDataBytes + 12500000, // ~100 Mb/s sustained, per tick
-        rcvDataBytes: port.rcvDataBytes + 11000000,
-        xmitPkts: port.xmitPkts + 8500,
-        rcvPkts: port.rcvPkts + 7800,
-      })),
+      ports: hca.ports.map((port) => {
+        // A Down/Polling port (e.g. the ib-port-error fault) carries no
+        // traffic -- accumulating counters on it would contradict the very
+        // fault a learner is meant to diagnose via perfquery/ibporterrors.
+        // Leave it as the SAME reference so the tick's shallow-compare
+        // write-back gate correctly treats it as unchanged.
+        if (port.state !== "Active") return port;
+        return {
+          ...port,
+          xmitDataBytes: port.xmitDataBytes + 12500000, // ~100 Mb/s sustained, per tick
+          rcvDataBytes: port.rcvDataBytes + 11000000,
+          xmitPkts: port.xmitPkts + 8500,
+          rcvPkts: port.rcvPkts + 7800,
+        };
+      }),
     }));
   }
 
