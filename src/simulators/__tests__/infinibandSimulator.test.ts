@@ -1656,4 +1656,28 @@ describe("InfiniBandSimulator", () => {
       expect(result.output).not.toContain("Pong");
     });
   });
+
+  describe("ibstat/ibstatus real output formats (SIM-14)", () => {
+    it("ibstat's Rate field is a bare number, no Gb/s suffix or standard-name parenthetical", () => {
+      const result = simulator.executeIbstat(parse("ibstat"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/Rate: \d+\n/);
+      expect(result.output).not.toMatch(/Rate: \d+ Gb\/s/);
+    });
+
+    it("ibstatus's default gid is a colon-grouped fe80:: link-local GID, not the bare hex GUID", () => {
+      const result = simulator.executeIbstatus(parse("ibstatus"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(
+        /default gid:\t fe80:0000:0000:0000:[0-9a-f]{4}:[0-9a-f]{4}:[0-9a-f]{4}:[0-9a-f]{4}/,
+      );
+    });
+
+    it("ibstatus's base lid and sm lid are printed in hex (0x-prefixed), not decimal", () => {
+      const result = simulator.executeIbstatus(parse("ibstatus"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/base lid:\t 0x[0-9a-f]+/);
+      expect(result.output).toMatch(/sm lid:\t\t 0x1/);
+    });
+  });
 });

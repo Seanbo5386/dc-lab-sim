@@ -26,6 +26,24 @@ export function getIBStandardName(rateGbps: number): string {
 }
 
 /**
+ * Convert a 64-bit port GUID (e.g. "0x506b4b0300ab1234") into the
+ * colon-grouped IPv6 link-local-style GID real `ibstatus` prints (e.g.
+ * "fe80:0000:0000:0000:506b:4b03:00ab:1234") -- SIM-14. Real IB GIDs are
+ * 128-bit (subnet prefix + 64-bit GUID); the fe80:: prefix is the fixed
+ * link-local subnet prefix every port uses by default.
+ */
+function guidToGid(guid: string): string {
+  const hex = guid.replace(/^0x/, "").padStart(16, "0");
+  const groups = [
+    hex.slice(0, 4),
+    hex.slice(4, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+  ];
+  return `fe80:0000:0000:0000:${groups.join(":")}`;
+}
+
+/**
  * InfiniBand Simulator
  *
  * Handles multiple InfiniBand diagnostic commands: ibstat, ibportstate, ibporterrors,
@@ -121,7 +139,7 @@ export class InfiniBandSimulator extends BaseSimulator {
         output += `\tPort ${port.portNumber}:\n`;
         output += `\t\tState: ${port.state}\n`;
         output += `\t\tPhysical state: ${port.physicalState}\n`;
-        output += `\t\tRate: ${port.rate} Gb/s (${getIBStandardName(port.rate)})\n`;
+        output += `\t\tRate: ${port.rate}\n`;
         output += `\t\tBase lid: ${port.lid}\n`;
         output += `\t\tLMC: 0\n`;
         output += `\t\tSM lid: 1\n`;
@@ -1085,9 +1103,9 @@ Options:
         lines.push(
           `Infiniband device '${hca.caType}' port ${port.portNumber} status:`,
         );
-        lines.push(`\tdefault gid:\t ${port.guid}`);
-        lines.push(`\tbase lid:\t ${port.lid}`);
-        lines.push(`\tsm lid:\t\t 1`);
+        lines.push(`\tdefault gid:\t ${guidToGid(port.guid)}`);
+        lines.push(`\tbase lid:\t 0x${port.lid.toString(16)}`);
+        lines.push(`\tsm lid:\t\t 0x1`);
         const stateLabel = port.state === "Active" ? "4: ACTIVE" : "1: DOWN";
         // IBTA physical port states: 1=Sleep, 2=Polling, 3=Disabled,
         // 4=PortConfigurationTraining, 5=LinkUp, 6=LinkErrorRecovery.
