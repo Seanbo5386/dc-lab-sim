@@ -104,7 +104,11 @@ export function useMetricsSimulation(isRunning: boolean): void {
         const gpuToNode = new Map<string, string>();
 
         targetCluster.nodes.forEach((node) => {
-          const updated = updater({ gpus: node.gpus, hcas: node.hcas });
+          const updated = updater({
+            gpus: node.gpus,
+            hcas: node.hcas,
+            slurmState: node.slurmState,
+          });
 
           // Track GPU-to-node mapping for threshold events
           for (const gpu of node.gpus) {
@@ -118,19 +122,33 @@ export function useMetricsSimulation(isRunning: boolean): void {
             }
           });
 
-          // Update HCAs (InfiniBand port errors) - use shallow comparison.
-          // HCA metrics are a pure pass-through in updateHcaMetrics (errors
-          // come from explicit fault injection, never from ticking) and
-          // ScenarioContext has no HCA-mutation method, so there's nothing
-          // to write back when ticking a sandbox — this call only ever
-          // fires for the global cluster, matching what it already did in
-          // practice (updateHcaMetrics returning the same reference meant
-          // shallowCompareHCAs always skipped it anyway).
-          if (
-            !isTickingScenario &&
-            !shallowCompareHCAs(updated.hcas, node.hcas)
-          ) {
-            store.updateHCAs(node.id, updated.hcas);
+          // Update HCAs - use shallow comparison. Error counters still only
+          // change via explicit fault injection, never from ticking, but
+          // traffic counters now advance while the node has an allocated
+          // Slurm job (PHYS-7), so ticks genuinely produce HCA changes to
+          // write back. The global cluster takes the bulk updateHCAs path;
+          // a ticking sandbox writes just the changed ports' traffic
+          // counters through the mutator (ScenarioContext.updateHCA, added
+          // for K2 fault injection) so perfquery delta-sampling works
+          // inside missions too — srun routes setSlurmState("alloc") into
+          // the sandbox, so sandbox nodes are exactly where load shows up.
+          if (!shallowCompareHCAs(updated.hcas, node.hcas)) {
+            if (isTickingScenario) {
+              updated.hcas.forEach((hca, hcaIdx) => {
+                hca.ports.forEach((port, portIdx) => {
+                  if (port !== node.hcas[hcaIdx]?.ports[portIdx]) {
+                    mutator.updateHCA(node.id, hca.id, port.portNumber, {
+                      xmitDataBytes: port.xmitDataBytes,
+                      rcvDataBytes: port.rcvDataBytes,
+                      xmitPkts: port.xmitPkts,
+                      rcvPkts: port.rcvPkts,
+                    });
+                  }
+                });
+              });
+            } else {
+              store.updateHCAs(node.id, updated.hcas);
+            }
           }
         });
 

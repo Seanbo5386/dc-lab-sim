@@ -45,6 +45,10 @@ describe("InfiniBandSimulator", () => {
                     lid: 123,
                     guid: "0x506b4b0300ab1234",
                     linkLayer: "InfiniBand",
+                    xmitDataBytes: 500000000,
+                    rcvDataBytes: 450000000,
+                    xmitPkts: 5000000,
+                    rcvPkts: 4800000,
                     errors: {
                       symbolErrors: 0,
                       linkDowned: 0,
@@ -594,6 +598,35 @@ describe("InfiniBandSimulator", () => {
       expect(result.output).toContain("ibswitches");
     });
 
+    it("ibswitches and ibnetdiscover report identical switch GUIDs (SIM-7/SIM-12)", () => {
+      const switchesResult = simulator.executeIbswitches(
+        parse("ibswitches"),
+        context,
+      );
+      const discoverResult = simulator.executeIbnetdiscover(
+        parse("ibnetdiscover -S"),
+        context,
+      );
+
+      expect(switchesResult.exitCode).toBe(0);
+      expect(discoverResult.exitCode).toBe(0);
+
+      const guidPattern = /0x[0-9a-f]{16}/g;
+      const switchesGuids = new Set(
+        switchesResult.output.match(guidPattern) ?? [],
+      );
+      const discoverGuids = new Set(
+        discoverResult.output.match(guidPattern) ?? [],
+      );
+
+      expect(switchesGuids.size).toBeGreaterThan(0);
+      expect(discoverGuids).toEqual(switchesGuids);
+      // Canonical scheme: Mellanox OUI prefix (e4:1d:2d), spine base
+      // 0x...030010 and leaf base 0x...030020
+      expect(switchesResult.output).toContain("0x0000e41d2d030010");
+      expect(discoverResult.output).toContain("0x0000e41d2d030020");
+    });
+
     it("ibcableerrors should report cable errors", () => {
       const parsed = parse("ibcableerrors");
       const result = simulator.executeIbcableerrors(parsed, context);
@@ -612,7 +645,11 @@ describe("InfiniBandSimulator", () => {
     });
 
     it("ibping should show ping results with latency", () => {
-      const parsed = parse("ibping");
+      // LID 20 is the first leaf switch in the derived fabric topology --
+      // ibping now validates its target against real fabric LIDs, and the
+      // old bare-`ibping` default target (LID 1) no longer exists anywhere,
+      // so it reports unreachable (covered by its own SIM-13 test below).
+      const parsed = parse("ibping 20");
       const result = simulator.executeIbping(parsed, context);
 
       expect(result.exitCode).toBe(0);
@@ -996,7 +1033,10 @@ describe("InfiniBandSimulator", () => {
     });
 
     describe("dynamic state resolution (review fixes)", () => {
-      beforeEach(() => {
+      const mockNodeWithPortState = (
+        state: string,
+        physicalState: string,
+      ): void => {
         vi.mocked(useSimulationStore.getState).mockReturnValue({
           cluster: {
             nodes: [
@@ -1015,8 +1055,8 @@ describe("InfiniBandSimulator", () => {
                     ports: [
                       {
                         portNumber: 1,
-                        state: "Down",
-                        physicalState: "LinkDown",
+                        state,
+                        physicalState,
                         rate: 400,
                         lid: 123,
                         guid: "0x506b4b0300ab1234",
@@ -1059,14 +1099,51 @@ describe("InfiniBandSimulator", () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
         });
+      };
+
+      beforeEach(() => {
+        mockNodeWithPortState("Down", "LinkDown");
       });
 
-      it("ibstatus should report DOWN/Disabled for a non-active port", () => {
+      it("ibstatus reports Disabled for an administratively-down link (LinkDown), distinct from Polling", () => {
         const result = simulator.executeIbstatus(parse("ibstatus"), context);
 
         expect(result.exitCode).toBe(0);
         expect(result.output).toContain("state:\t\t 1: DOWN");
         expect(result.output).toContain("phys state:\t 3: Disabled");
+      });
+
+      it("ibstatus reports Polling (not Disabled) for a port with no active peer/cable", () => {
+        // Fixture: physicalState "Polling" -- a cabled port waiting to link up,
+        // NOT the same as a link that's down or a port an admin disabled.
+        mockNodeWithPortState("Down", "Polling");
+
+        const result = simulator.executeIbstatus(parse("ibstatus"), context);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("state:\t\t 1: DOWN");
+        expect(result.output).toContain("phys state:\t 2: Polling");
+      });
+
+      it("ibstatus reports Sleep for a port in power-save state", () => {
+        mockNodeWithPortState("Down", "Sleep");
+
+        const result = simulator.executeIbstatus(parse("ibstatus"), context);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("phys state:\t 1: Sleep");
+      });
+
+      it("ibv_devinfo reports PORT_POLLING for a port in Polling logical state", () => {
+        mockNodeWithPortState("Polling", "Polling");
+
+        const result = simulator.executeIbvDevinfo(
+          parse("ibv_devinfo"),
+          context,
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("state:\t\t\tPORT_POLLING (2)");
       });
 
       it("ibv_devinfo should report PORT_DOWN for a non-active port", () => {
@@ -1094,6 +1171,591 @@ describe("InfiniBandSimulator", () => {
         expect(result.output).toContain("mlx5_1");
         expect(result.output).not.toContain("mlx5_0");
       });
+    });
+  });
+
+  describe("Device-argument resolution (SIM-13/LIVE-9)", () => {
+    const makeHca = (
+      id: number,
+      caType: string,
+      guid: string,
+      lid: number,
+    ) => ({
+      id,
+      devicePath: `/dev/mst/mt4129_pciconf${id}`,
+      caType,
+      model: "ConnectX-7",
+      firmwareVersion: "28.39.1002",
+      ports: [
+        {
+          portNumber: 1,
+          state: "Active",
+          physicalState: "LinkUp",
+          rate: 400,
+          lid,
+          guid,
+          linkLayer: "InfiniBand",
+          errors: {
+            symbolErrors: 0,
+            linkDowned: 0,
+            portRcvErrors: 0,
+            portXmitDiscards: 0,
+            portXmitWait: 0,
+          },
+        },
+      ],
+    });
+
+    beforeEach(() => {
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: "OK",
+              gpus: [],
+              hcas: [
+                makeHca(0, "mlx5_0", "0x506b4b0300aa0001", 101),
+                makeHca(1, "mlx5_1", "0x506b4b0300aa0002", 102),
+              ],
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    });
+
+    it("ibstat <device> shows only the named HCA, not every HCA on the node", () => {
+      const result = simulator.executeIbstat(parse("ibstat mlx5_1"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("CA 'mlx5_1'");
+      expect(result.output).not.toContain("CA 'mlx5_0'");
+    });
+
+    it("ibstat with no device argument still shows every HCA (unchanged default behavior)", () => {
+      const result = simulator.executeIbstat(parse("ibstat"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("CA 'mlx5_0'");
+      expect(result.output).toContain("CA 'mlx5_1'");
+    });
+
+    it("ibstat <unknown-device> falls back to showing every HCA rather than silently printing nothing", () => {
+      const result = simulator.executeIbstat(parse("ibstat mlx5_99"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("CA 'mlx5_0'");
+      expect(result.output).toContain("CA 'mlx5_1'");
+    });
+
+    it("ibv_devinfo -d <device> shows only the named HCA", () => {
+      const result = simulator.executeIbvDevinfo(
+        parse("ibv_devinfo -d mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("hca_id:\tmlx5_1");
+      expect(result.output).not.toContain("hca_id:\tmlx5_0");
+    });
+
+    it("ibv_devinfo with no -d still shows every HCA", () => {
+      const result = simulator.executeIbvDevinfo(parse("ibv_devinfo"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("hca_id:\tmlx5_0");
+      expect(result.output).toContain("hca_id:\tmlx5_1");
+    });
+
+    it("ibv_devinfo -l always lists every device, even alongside -d", () => {
+      const result = simulator.executeIbvDevinfo(
+        parse("ibv_devinfo -l -d mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_0");
+      expect(result.output).toContain("mlx5_1");
+    });
+
+    it("ibdev2netdev <device> shows only the named HCA with its stable netdev index", () => {
+      const result = simulator.executeIbdev2netdev(
+        parse("ibdev2netdev mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_1 port 1 ==> ib1 (Up)");
+      expect(result.output).not.toContain("mlx5_0");
+    });
+
+    it("ibdev2netdev with no argument still maps every HCA", () => {
+      const result = simulator.executeIbdev2netdev(
+        parse("ibdev2netdev"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_0 port 1 ==> ib0 (Up)");
+      expect(result.output).toContain("mlx5_1 port 1 ==> ib1 (Up)");
+    });
+
+    it("show_gids <device> shows only the named HCA's GIDs", () => {
+      const result = simulator.executeShowGids(
+        parse("show_gids mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_1");
+      expect(result.output).not.toContain("mlx5_0");
+    });
+
+    it("show_gids with no argument still shows every HCA's GIDs", () => {
+      const result = simulator.executeShowGids(parse("show_gids"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_0");
+      expect(result.output).toContain("mlx5_1");
+    });
+
+    it("rdma dev show <device> shows only the named device, keeping its real index", () => {
+      const result = simulator.executeRdma(
+        parse("rdma dev show mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("2: mlx5_1:");
+      expect(result.output).not.toContain("mlx5_0");
+    });
+
+    it("rdma link show <device>/<port> shows only the named device's links", () => {
+      const result = simulator.executeRdma(
+        parse("rdma link show mlx5_1/1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("link mlx5_1/1");
+      expect(result.output).not.toContain("mlx5_0");
+    });
+
+    it("rdma dev with no device still lists every device", () => {
+      const result = simulator.executeRdma(parse("rdma dev"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("1: mlx5_0:");
+      expect(result.output).toContain("2: mlx5_1:");
+    });
+  });
+
+  describe("perfquery targeting flags (SIM-13)", () => {
+    const makePort = (portNumber: number, lid: number, guid: string) => ({
+      portNumber,
+      state: "Active",
+      physicalState: "LinkUp",
+      rate: 400,
+      lid,
+      guid,
+      linkLayer: "InfiniBand",
+      xmitDataBytes: 500000000 + ((lid * 7919) % 500000000),
+      rcvDataBytes: 450000000 + ((lid * 7919 * 3) % 500000000),
+      xmitPkts: 5000000 + ((lid * 7919) % 5000000),
+      rcvPkts: 4800000 + ((lid * 7919 * 3) % 5000000),
+      errors: {
+        symbolErrors: 0,
+        linkDowned: 0,
+        portRcvErrors: 0,
+        portXmitDiscards: 0,
+        portXmitWait: 0,
+      },
+    });
+
+    beforeEach(() => {
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: "OK",
+              gpus: [],
+              hcas: [
+                {
+                  id: 0,
+                  caType: "mlx5_0",
+                  model: "ConnectX-7",
+                  firmwareVersion: "28.39.1002",
+                  ports: [makePort(1, 101, "0x506b4b0300aa0001")],
+                },
+                {
+                  id: 1,
+                  caType: "mlx5_1",
+                  model: "ConnectX-7",
+                  firmwareVersion: "28.39.1002",
+                  ports: [
+                    makePort(1, 102, "0x506b4b0300aa0002"),
+                    makePort(2, 103, "0x506b4b0300aa0003"),
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    });
+
+    it("perfquery -C <ca> queries the named HCA's port, not always hcas[0]", () => {
+      const result = simulator.executePerfquery(
+        parse("perfquery -C mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("# Port counters: Lid 102 port 1");
+      expect(result.output).not.toContain("Lid 101");
+    });
+
+    it("perfquery -C <ca> -P <port> selects the named port on that HCA", () => {
+      const result = simulator.executePerfquery(
+        parse("perfquery -C mlx5_1 -P 2"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("# Port counters: Lid 103 port 2");
+    });
+
+    it("perfquery with no targeting flags still queries the first HCA's first port", () => {
+      const result = simulator.executePerfquery(parse("perfquery"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("# Port counters: Lid 101 port 1");
+    });
+
+    it("perfquery -C <unknown-ca> falls back to the first HCA", () => {
+      const result = simulator.executePerfquery(
+        parse("perfquery -C mlx5_99"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("# Port counters: Lid 101 port 1");
+    });
+  });
+
+  describe("perfquery counters reflect stored port state, not a frozen LID-derived formula (PHYS-7)", () => {
+    const makeTrafficPort = () => ({
+      portNumber: 1,
+      state: "Active",
+      physicalState: "LinkUp",
+      rate: 400,
+      lid: 150,
+      guid: "0x506b4b0300bb0001",
+      linkLayer: "InfiniBand",
+      xmitDataBytes: 750000000,
+      rcvDataBytes: 700000000,
+      xmitPkts: 6000000,
+      rcvPkts: 5500000,
+      errors: {
+        symbolErrors: 0,
+        linkDowned: 0,
+        portRcvErrors: 0,
+        portXmitDiscards: 0,
+        portXmitWait: 0,
+      },
+    });
+
+    let port: ReturnType<typeof makeTrafficPort>;
+
+    beforeEach(() => {
+      port = makeTrafficPort();
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: "OK",
+              gpus: [],
+              hcas: [
+                {
+                  id: 0,
+                  caType: "mlx5_0",
+                  model: "ConnectX-7",
+                  firmwareVersion: "28.39.1002",
+                  ports: [port],
+                },
+              ],
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    });
+
+    it("prints the stored traffic counters, not values recomputed from the LID", () => {
+      const result = simulator.executePerfquery(parse("perfquery"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/PortXmitData:\.+750000000\n/);
+      expect(result.output).toMatch(/PortRcvData:\.+700000000\n/);
+      expect(result.output).toMatch(/PortXmitPkts:\.+6000000\n/);
+      expect(result.output).toMatch(/PortRcvPkts:\.+5500000\n/);
+    });
+
+    it("two perfquery calls on the same port show a nonzero delta after simulated traffic advances the counters", () => {
+      const first = simulator.executePerfquery(parse("perfquery"), context);
+      expect(first.output).toMatch(/PortXmitData:\.+750000000\n/);
+
+      // Simulate what one metrics tick under load does: advance the stored
+      // counters in place (same mutate-the-fixture-then-reinvoke pattern the
+      // GPU-fault tests use).
+      port.xmitDataBytes += 12500000;
+      port.rcvDataBytes += 11000000;
+      port.xmitPkts += 8500;
+      port.rcvPkts += 7800;
+
+      const second = simulator.executePerfquery(parse("perfquery"), context);
+      expect(second.output).toMatch(/PortXmitData:\.+762500000\n/);
+      expect(second.output).toMatch(/PortRcvData:\.+711000000\n/);
+      expect(second.output).toMatch(/PortXmitPkts:\.+6008500\n/);
+      expect(second.output).toMatch(/PortRcvPkts:\.+5507800\n/);
+      expect(second.output).not.toBe(first.output);
+    });
+  });
+
+  describe("iblinkinfo shows real peer/switch info, not just local ports (SIM-7)", () => {
+    it("each HCA port's line includes the leaf switch it connects to", () => {
+      const result = simulator.executeIblinkinfo(parse("iblinkinfo"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/leaf-\d+|Rail-\d+/);
+      // Distinct from a bare local-port dump: a switch/peer identifier appears.
+      expect(result.output).toMatch(/QM97\d\d|QM87\d\d/);
+    });
+  });
+
+  describe("ibdiagnet reads real fabric state (SIM-12)", () => {
+    const mockNodeWithErrors = (overrides: {
+      symbolErrors?: number;
+      linkDowned?: number;
+      portRcvErrors?: number;
+      healthStatus?: string;
+    }) => {
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: overrides.healthStatus ?? "OK",
+              gpus: [],
+              hcas: [
+                {
+                  caType: "mlx5_0",
+                  firmwareVersion: "28.39.1002",
+                  ports: [
+                    {
+                      portNumber: 1,
+                      state: "Active",
+                      physicalState: "LinkUp",
+                      rate: 400,
+                      lid: 123,
+                      guid: "0x506b4b0300ab1234",
+                      linkLayer: "InfiniBand",
+                      errors: {
+                        symbolErrors: overrides.symbolErrors ?? 0,
+                        linkDowned: overrides.linkDowned ?? 0,
+                        portRcvErrors: overrides.portRcvErrors ?? 0,
+                        portXmitDiscards: 0,
+                        portXmitWait: 0,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    };
+
+    it("reports the real switch count from the shared fabric topology, not a hardcoded 0", () => {
+      const result = simulator.executeIbdiagnet(parse("ibdiagnet"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("# of switches: 0");
+      expect(result.output).toMatch(/# of switches: \d+/);
+      // Default fixture: 1 HCA -> 4 spine + 1 leaf from deriveFabricTopology.
+      expect(result.output).toContain("# of switches: 5");
+    });
+
+    it("reports errors found when a port has a nonzero error counter, not an unconditional 'No errors found'", () => {
+      mockNodeWithErrors({ symbolErrors: 100, portRcvErrors: 5 });
+
+      const result = simulator.executeIbdiagnet(parse("ibdiagnet"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("No errors found");
+      expect(result.output.toLowerCase()).toMatch(/error|degraded|warning/);
+    });
+
+    it("reports errors found when the node's health status is not OK, even with zero port error counters", () => {
+      mockNodeWithErrors({ healthStatus: "Critical" });
+
+      const result = simulator.executeIbdiagnet(parse("ibdiagnet"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("No errors found");
+      expect(result.output.toLowerCase()).toMatch(/error|degraded|warning/);
+    });
+
+    it("reports a clean summary for a genuinely healthy fabric (no regression for the common case)", () => {
+      const result = simulator.executeIbdiagnet(parse("ibdiagnet"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("No errors found");
+    });
+
+    it("catches a port error on a DIFFERENT node than the terminal's current one, since the summary claims fabric-wide scope (bot review follow-up)", () => {
+      const remoteHCA = {
+        caType: "mlx5_0",
+        firmwareVersion: "28.39.1002",
+        ports: [
+          {
+            portNumber: 1,
+            state: "Down",
+            physicalState: "Polling",
+            rate: 400,
+            lid: 200,
+            guid: "0x506b4b0300ab9999",
+            linkLayer: "InfiniBand",
+            errors: {
+              symbolErrors: 150,
+              linkDowned: 1,
+              portRcvErrors: 0,
+              portXmitDiscards: 0,
+              portXmitWait: 0,
+            },
+          },
+        ],
+      };
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: "OK",
+              gpus: [],
+              hcas: [
+                {
+                  caType: "mlx5_0",
+                  firmwareVersion: "28.39.1002",
+                  ports: [
+                    {
+                      portNumber: 1,
+                      state: "Active",
+                      physicalState: "LinkUp",
+                      rate: 400,
+                      lid: 123,
+                      guid: "0x506b4b0300ab1234",
+                      linkLayer: "InfiniBand",
+                      errors: {
+                        symbolErrors: 0,
+                        linkDowned: 0,
+                        portRcvErrors: 0,
+                        portXmitDiscards: 0,
+                        portXmitWait: 0,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: "dgx-01",
+              hostname: "dgx-node02",
+              systemType: "DGX-H100",
+              healthStatus: "OK",
+              gpus: [],
+              hcas: [remoteHCA],
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      // Terminal is connected to dgx-00 (healthy); the fault is on dgx-01.
+      const result = simulator.executeIbdiagnet(parse("ibdiagnet"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("No errors found");
+      expect(result.output).toContain("errors found across the fabric");
+    });
+  });
+
+  describe("ibping resolves a real fabric peer (SIM-13)", () => {
+    // Uses the default single-HCA fixture from the outer beforeEach:
+    // HCA port LID 123; deriveFabricTopology gives spine LIDs 10-13 and
+    // one leaf switch at LID 20 (leaf count = HCA count = 1).
+    it("ibping <lid> reports success against a switch LID that actually exists in the fabric topology", () => {
+      const result = simulator.executeIbping(parse("ibping 20"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Pong from lid 20");
+      expect(result.output).toContain("0% packet loss");
+    });
+
+    it("ibping <lid> reports success against a real HCA port LID", () => {
+      const result = simulator.executeIbping(parse("ibping 123"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Pong from lid 123");
+    });
+
+    it("ibping <lid> reports the target as unreachable for a LID with no matching switch/port anywhere in the fabric", () => {
+      const result = simulator.executeIbping(parse("ibping 9999"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output.toLowerCase()).toMatch(
+        /unreachable|no route|not found/,
+      );
+      expect(result.output).not.toContain("Pong");
+    });
+  });
+
+  describe("ibstat/ibstatus real output formats (SIM-14)", () => {
+    it("ibstat's Rate field is a bare number, no Gb/s suffix or standard-name parenthetical", () => {
+      const result = simulator.executeIbstat(parse("ibstat"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/Rate: \d+\n/);
+      expect(result.output).not.toMatch(/Rate: \d+ Gb\/s/);
+    });
+
+    it("ibstatus's default gid is a colon-grouped fe80:: link-local GID, not the bare hex GUID", () => {
+      const result = simulator.executeIbstatus(parse("ibstatus"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(
+        /default gid:\t fe80:0000:0000:0000:[0-9a-f]{4}:[0-9a-f]{4}:[0-9a-f]{4}:[0-9a-f]{4}/,
+      );
+    });
+
+    it("ibstatus's base lid and sm lid are printed in hex (0x-prefixed), not decimal", () => {
+      const result = simulator.executeIbstatus(parse("ibstatus"), context);
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/base lid:\t 0x[0-9a-f]+/);
+      expect(result.output).toMatch(/sm lid:\t\t 0x1/);
     });
   });
 });

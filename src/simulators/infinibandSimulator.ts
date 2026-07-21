@@ -1,9 +1,11 @@
 import type { CommandResult, CommandContext } from "@/types/commands";
+import type { DGXNode, InfiniBandHCA } from "@/types/hardware";
 import type { ParsedCommand } from "@/utils/commandParser";
 import {
   BaseSimulator,
   type SimulatorMetadata,
 } from "@/simulators/BaseSimulator";
+import { deriveFabricTopology } from "@/simulation/ibFabricTopology";
 
 /**
  * Maps InfiniBand link rate (Gb/s) to the correct standard name.
@@ -21,6 +23,24 @@ export function getIBStandardName(rateGbps: number): string {
   if (rateGbps >= 100) return "EDR";
   if (rateGbps >= 56) return "FDR";
   return "QDR";
+}
+
+/**
+ * Convert a 64-bit port GUID (e.g. "0x506b4b0300ab1234") into the
+ * colon-grouped IPv6 link-local-style GID real `ibstatus` prints (e.g.
+ * "fe80:0000:0000:0000:506b:4b03:00ab:1234") -- SIM-14. Real IB GIDs are
+ * 128-bit (subnet prefix + 64-bit GUID); the fe80:: prefix is the fixed
+ * link-local subnet prefix every port uses by default.
+ */
+function guidToGid(guid: string): string {
+  const hex = guid.replace(/^0x/, "").padStart(16, "0");
+  const groups = [
+    hex.slice(0, 4),
+    hex.slice(4, 8),
+    hex.slice(8, 12),
+    hex.slice(12, 16),
+  ];
+  return `fe80:0000:0000:0000:${groups.join(":")}`;
 }
 
 /**
@@ -55,6 +75,32 @@ export class InfiniBandSimulator extends BaseSimulator {
   }
 
   /**
+   * Resolve which of a node's HCAs a command should operate on, based on a
+   * device-name argument (the RDMA device name, e.g. "mlx5_0" -- hca.caType
+   * after the Task 1 identity fix). Falls back to every HCA on the node
+   * (today's unconditional behavior) if no argument was given or it doesn't
+   * match any HCA -- never silently prints nothing (SIM-13/LIVE-9).
+   */
+  private resolveHCA(
+    node: DGXNode,
+    deviceArg: string | undefined,
+  ): InfiniBandHCA[] {
+    if (!deviceArg) return node.hcas;
+    const match = node.hcas.find((h) => h.caType === deviceArg);
+    return match ? [match] : node.hcas;
+  }
+
+  /**
+   * Read a bare device-name argument (e.g. "mlx5_0") for commands that take
+   * it positionally (ibstat, ibdev2netdev, show_gids). The parser places
+   * bare non-numeric tokens into `subcommands`, so check both locations
+   * (same pattern as executeRdma's subcommand detection).
+   */
+  private getPositionalDeviceArg(parsed: ParsedCommand): string | undefined {
+    return parsed.subcommands[0] ?? parsed.positionalArgs[0];
+  }
+
+  /**
    * ibstat - Display HCA status
    */
   executeIbstat(parsed: ParsedCommand, context: CommandContext): CommandResult {
@@ -76,10 +122,11 @@ export class InfiniBandSimulator extends BaseSimulator {
       return this.createError("No InfiniBand HCAs found");
     }
 
+    const hcas = this.resolveHCA(node, this.getPositionalDeviceArg(parsed));
     let output = "";
-    node.hcas.forEach((hca, idx) => {
+    hcas.forEach((hca, idx) => {
       if (idx > 0) output += "\n";
-      const deviceId = hca.caType.includes("ConnectX-7") ? "MT4129" : "MT4123";
+      const deviceId = hca.model === "ConnectX-7" ? "MT4129" : "MT4123";
       output += `CA '${hca.caType}'\n`;
       output += `\tCA type: ${deviceId}\n`;
       output += `\tNumber of ports: ${hca.ports.length}\n`;
@@ -92,7 +139,7 @@ export class InfiniBandSimulator extends BaseSimulator {
         output += `\tPort ${port.portNumber}:\n`;
         output += `\t\tState: ${port.state}\n`;
         output += `\t\tPhysical state: ${port.physicalState}\n`;
-        output += `\t\tRate: ${port.rate} Gb/s (${getIBStandardName(port.rate)})\n`;
+        output += `\t\tRate: ${port.rate}\n`;
         output += `\t\tBase lid: ${port.lid}\n`;
         output += `\t\tLMC: 0\n`;
         output += `\t\tSM lid: 1\n`;
@@ -213,13 +260,25 @@ Options:
 
     const verbose = this.hasAnyFlag(parsed, ["v", "verbose"]);
 
+    const nodes = this.resolveAllNodes(context);
+    const { leafSwitches } = deriveFabricTopology(nodes);
+
     let output = `InfiniBand Link Information:\n\n`;
 
     node.hcas.forEach((hca) => {
       hca.ports.forEach((port) => {
+        // Rail-optimized topology: HCA i on this node connects to leaf
+        // switch i (the same mapping ibnetdiscover's Rail-${hcaIdx}
+        // labeling already implies), falling back to leaf 0 if the
+        // cluster has more HCAs than leaf switches modeled.
+        const peer = leafSwitches[hca.id] ?? leafSwitches[0];
         output += `CA: ${hca.caType}\n`;
         output += `      ${port.guid}\n`;
-        output += `         port ${port.portNumber} lid ${port.lid} lmc 0 ${port.state} ${port.rate} Gb/s ${getIBStandardName(port.rate)} (${port.linkLayer})\n`;
+        output += `         port ${port.portNumber} lid ${port.lid} lmc 0 ${port.state} ${port.rate} Gb/s ${getIBStandardName(port.rate)} (${port.linkLayer})`;
+        if (peer) {
+          output += ` ==> ${peer.model} "${peer.id}" lid ${peer.lid} port 1`;
+        }
+        output += `\n`;
 
         if (verbose) {
           output += `         Link errors:\n`;
@@ -254,14 +313,25 @@ Options:
       return this.createError("Error: No HCA found");
     }
 
-    const port = node.hcas[0].ports[0];
+    // -C/--Ca selects the local HCA, -P/--Port the port on it (SIM-13);
+    // both fall back to the first HCA/port, matching real perfquery defaults.
+    const caArg = this.getFlagString(parsed, ["C", "Ca"]);
+    const hca = this.resolveHCA(node, caArg || undefined)[0] ?? node.hcas[0];
+    const portArg = this.getFlagNumber(
+      parsed,
+      ["P", "Port"],
+      hca.ports[0]?.portNumber ?? 1,
+    );
+    const port =
+      hca.ports.find((p) => p.portNumber === portArg) ?? hca.ports[0];
 
-    // Deterministic counters based on port LID (consistent across invocations)
-    const seed = port.lid * 7919; // prime multiplier for spread
-    const xmitData = 500000000 + (seed % 500000000);
-    const rcvData = 450000000 + ((seed * 3) % 500000000);
-    const xmitPkts = 5000000 + (seed % 5000000);
-    const rcvPkts = 4800000 + ((seed * 3) % 5000000);
+    // Real, persistent counters (PHYS-7) -- advance under load via
+    // MetricsSimulator.updateHcaMetrics, so running perfquery twice on a
+    // busy port now shows a genuine nonzero delta.
+    const xmitData = port.xmitDataBytes;
+    const rcvData = port.rcvDataBytes;
+    const xmitPkts = port.xmitPkts;
+    const rcvPkts = port.rcvPkts;
 
     const output =
       `# Port counters: Lid ${port.lid} port ${port.portNumber}\n` +
@@ -318,6 +388,10 @@ Options:
       "signal-quality",
     ]);
 
+    const allNodes = this.resolveAllNodes(context);
+    const { spineSwitches, leafSwitches } = deriveFabricTopology(allNodes);
+    const switchCount = spineSwitches.length + leafSwitches.length;
+
     let output =
       `\n-I- Using port 1 as the local port\n` +
       `-I- Discovering ... \n` +
@@ -325,7 +399,7 @@ Options:
       `-I- # of nodes: ${node.hcas.length}\n` +
       `-I- # of links: ${node.hcas.length}\n` +
       `-I- # of CAs: ${node.hcas.length}\n` +
-      `-I- # of switches: 0\n` +
+      `-I- # of switches: ${switchCount}\n` +
       `-I- Checking fabric health...\n`;
 
     if (detailed) {
@@ -358,8 +432,44 @@ Options:
       });
     }
 
+    // Sum across every discovered node, not just the current one -- the
+    // header above already claims fabric-wide scope (it reports the real
+    // switch count from `allNodes`), so a fault on a different host than
+    // the terminal's current node must not be silently invisible to this
+    // verdict (bot review follow-up).
+    const totalPortErrors = allNodes.reduce(
+      (nodeSum, n) =>
+        nodeSum +
+        n.hcas.reduce(
+          (sum, hca) =>
+            sum +
+            hca.ports.reduce(
+              (portSum, port) =>
+                portSum +
+                port.errors.symbolErrors +
+                port.errors.linkDowned +
+                port.errors.portRcvErrors,
+              0,
+            ),
+          0,
+        ),
+      0,
+    );
+    const degradedNode = allNodes.find((n) => n.healthStatus !== "OK");
+
     output += `-I- Fabric health check completed\n`;
-    output += `-I- No errors found\n`;
+    if (totalPortErrors > 0) {
+      output += `-I- \x1b[33m${totalPortErrors} errors found across the fabric\x1b[0m\n`;
+    } else if (degradedNode) {
+      // Node health can be degraded by a non-IB fault (thermal/ECC/power/
+      // XID/etc, set via the generic updateNodeHealth mutator any fault
+      // type calls) with zero IB port errors -- "0 errors found" would
+      // read as clean despite the flagged problem, so use distinct
+      // wording rather than reporting a numeric error count of zero.
+      output += `-I- \x1b[33mFabric health degraded (${degradedNode.hostname} health: ${degradedNode.healthStatus})\x1b[0m\n`;
+    } else {
+      output += `-I- No errors found\n`;
+    }
     output += `-I- See report in /tmp/ibdiagnet2\n`;
 
     return this.createSuccess(output);
@@ -389,16 +499,8 @@ Options:
     const switchOnly = this.hasAnyFlag(parsed, ["S", "Switch_list"]);
     const showPorts = this.hasAnyFlag(parsed, ["p", "ports"]);
 
-    // Derive switch model from cluster's actual HCA port rate
-    const portRate = nodes[0]?.hcas?.[0]?.ports?.[0]?.rate || 400;
-    const switchModel =
-      portRate >= 800
-        ? "QM9790"
-        : portRate >= 400
-          ? "QM9700"
-          : portRate >= 200
-            ? "QM8790"
-            : "QM8700";
+    // Single source of switch identity shared with ibswitches/ibtracert
+    const { spineSwitches, leafSwitches } = deriveFabricTopology(nodes);
 
     let output = `#\n`;
     output += `# Topology file: generated by ibnetdiscover\n`;
@@ -408,43 +510,36 @@ Options:
 
     // Generate switch entries (rail-optimized spine/leaf architecture)
     if (!hcaOnly) {
-      const numSpineSwitches = 4;
-      const numLeafSwitches = nodes[0]?.hcas?.length || 8;
-
       output += `# Spine Switches\n`;
-      for (let i = 0; i < numSpineSwitches; i++) {
-        const switchGuid = `0x${(0x1000 + i).toString(16).padStart(16, "0")}`;
-        output += `Switch\t64 "${switchGuid}"\t# "${switchModel}/Spine-${i}" enhanced port 0 lid ${10 + i}\n`;
+      spineSwitches.forEach((spine, i) => {
+        output += `Switch\t64 "${spine.guid}"\t# "${spine.model}/Spine-${i}" enhanced port 0 lid ${spine.lid}\n`;
 
         if (showPorts) {
-          for (let j = 0; j < numLeafSwitches; j++) {
-            const leafGuid = `0x${(0x2000 + j).toString(16).padStart(16, "0")}`;
-            output += `[${j + 1}]\t"${leafGuid}"[${(i % 18) + 1}]\t\t# "${switchModel}/Rail-${j}" lid ${20 + j}\n`;
-          }
+          leafSwitches.forEach((leaf, j) => {
+            output += `[${j + 1}]\t"${leaf.guid}"[${(i % 18) + 1}]\t\t# "${leaf.model}/Rail-${j}" lid ${leaf.lid}\n`;
+          });
         }
         output += "\n";
-      }
+      });
 
       output += `# Leaf (Rail) Switches\n`;
-      for (let i = 0; i < numLeafSwitches; i++) {
-        const switchGuid = `0x${(0x2000 + i).toString(16).padStart(16, "0")}`;
-        output += `Switch\t64 "${switchGuid}"\t# "${switchModel}/Rail-${i}" enhanced port 0 lid ${20 + i}\n`;
+      leafSwitches.forEach((leaf, i) => {
+        output += `Switch\t64 "${leaf.guid}"\t# "${leaf.model}/Rail-${i}" enhanced port 0 lid ${leaf.lid}\n`;
 
         if (showPorts) {
-          for (let j = 0; j < numSpineSwitches; j++) {
-            const spineGuid = `0x${(0x1000 + j).toString(16).padStart(16, "0")}`;
-            output += `[${j + 1}]\t"${spineGuid}"[${i + 1}]\t\t# "${switchModel}/Spine-${j}" lid ${10 + j}\n`;
-          }
+          spineSwitches.forEach((spine, j) => {
+            output += `[${j + 1}]\t"${spine.guid}"[${i + 1}]\t\t# "${spine.model}/Spine-${j}" lid ${spine.lid}\n`;
+          });
 
           nodes.forEach((node, nodeIdx) => {
             const hca = node.hcas[i];
             if (hca) {
-              output += `[${numSpineSwitches + nodeIdx + 1}]\t"${hca.ports[0]?.guid}"[1]\t\t# "${node.hostname}" HCA-${i}\n`;
+              output += `[${spineSwitches.length + nodeIdx + 1}]\t"${hca.ports[0]?.guid}"[1]\t\t# "${node.hostname}" HCA-${i}\n`;
             }
           });
         }
         output += "\n";
-      }
+      });
     }
 
     // Generate HCA entries
@@ -456,7 +551,8 @@ Options:
 
           if (showPorts) {
             hca.ports.forEach((port) => {
-              const switchGuid = `0x${(0x2000 + hcaIdx).toString(16).padStart(16, "0")}`;
+              const switchGuid =
+                leafSwitches[hcaIdx]?.guid ?? "0x0000000000000000";
               output += `[${port.portNumber}](${hca.ports[0]?.guid})\t"${switchGuid}"[${nodeIdx + 5}]\t\t# lid ${port.lid} lmc 0 "${node.hostname}" ${port.state}\n`;
             });
           }
@@ -469,7 +565,7 @@ Options:
     output += `#\n`;
     output += `# Summary:\n`;
     output += `#   ${nodes.reduce((sum, n) => sum + n.hcas.length, 0)} HCAs\n`;
-    output += `#   ${4 + (nodes[0]?.hcas?.length || 8)} Switches (4 spine + ${nodes[0]?.hcas?.length || 8} rail)\n`;
+    output += `#   ${spineSwitches.length + leafSwitches.length} Switches (${spineSwitches.length} spine + ${leafSwitches.length} rail)\n`;
     output += `#   ${nodes.reduce((sum, n) => sum + n.hcas.reduce((s, h) => s + h.ports.length, 0), 0)} Ports\n`;
     output += `#\n`;
 
@@ -501,9 +597,13 @@ Options:
     }
 
     const verbose = this.hasAnyFlag(parsed, ["v", "verbose"]);
+    const hcas = this.resolveHCA(node, this.getPositionalDeviceArg(parsed));
     let output = "";
 
-    node.hcas.forEach((hca, idx) => {
+    hcas.forEach((hca) => {
+      // Index into the node's full HCA list so netdev/PCI names stay stable
+      // when the output is filtered to a single device.
+      const idx = node.hcas.indexOf(hca);
       hca.ports.forEach((port) => {
         const netdev = `ib${idx}`;
         const pciAddr = `0000:a${idx}:00.0`; // Simulated PCI address
@@ -571,31 +671,16 @@ Options:
     }
 
     const nodes = this.resolveAllNodes(context);
-    const portRate = nodes[0]?.hcas?.[0]?.ports?.[0]?.rate || 400;
-    const switchModel =
-      portRate >= 800
-        ? "QM9790"
-        : portRate >= 400
-          ? "QM9700"
-          : portRate >= 200
-            ? "QM8790"
-            : "QM8700";
-
-    const numSpineSwitches = 4;
-    const numLeafSwitches = nodes[0]?.hcas?.length || 8;
+    const { spineSwitches, leafSwitches } = deriveFabricTopology(nodes);
 
     let output = "";
 
-    // Spine switches
-    for (let i = 0; i < numSpineSwitches; i++) {
-      const switchGuid = `0x${(0xe41d2d030010 + i).toString(16).padStart(16, "0")}`;
-      output += `Switch\t: ${switchGuid} ports 64 "${switchModel} Mellanox Technologies" enhanced port 0 lid ${10 + i}\n`;
+    for (const sw of spineSwitches) {
+      output += `Switch\t: ${sw.guid} ports 64 "${sw.model} Mellanox Technologies" enhanced port 0 lid ${sw.lid}\n`;
     }
 
-    // Leaf/rail switches
-    for (let i = 0; i < numLeafSwitches; i++) {
-      const switchGuid = `0x${(0xe41d2d030020 + i).toString(16).padStart(16, "0")}`;
-      output += `Switch\t: ${switchGuid} ports 64 "${switchModel} Mellanox Technologies" enhanced port 0 lid ${20 + i}\n`;
+    for (const sw of leafSwitches) {
+      output += `Switch\t: ${sw.guid} ports 64 "${sw.model} Mellanox Technologies" enhanced port 0 lid ${sw.lid}\n`;
     }
 
     return this.createSuccess(output);
@@ -682,8 +767,27 @@ Options:
       return this.createError("Error: No HCA found");
     }
 
-    // Determine target LID from args or default to neighbor
+    // Determine target LID from args, then verify it actually exists
+    // somewhere in the fabric (spine/leaf switch LIDs plus every HCA
+    // port LID across the cluster) instead of echoing it back
+    // unconditionally (SIM-13).
     const targetLid = parsed.positionalArgs[0] || "1";
+    const targetLidNum = parseInt(targetLid, 10);
+
+    const nodes = this.resolveAllNodes(context);
+    const { spineSwitches, leafSwitches } = deriveFabricTopology(nodes);
+    const allKnownLids = new Set<number>([
+      ...spineSwitches.map((s) => s.lid),
+      ...leafSwitches.map((s) => s.lid),
+      ...nodes.flatMap((n) => n.hcas.flatMap((h) => h.ports.map((p) => p.lid))),
+    ]);
+
+    if (!allKnownLids.has(targetLidNum)) {
+      return this.createSuccess(
+        `Pinging lid ${targetLid}...\n\nFAILED: unreachable/no route to lid ${targetLid}\n`,
+      );
+    }
+
     const count = 5;
 
     let output = `Pinging lid ${targetLid}... \n\n`;
@@ -724,15 +828,8 @@ Options:
     }
 
     const nodes = this.resolveAllNodes(context);
-    const portRate = nodes[0]?.hcas?.[0]?.ports?.[0]?.rate || 400;
-    const switchModel =
-      portRate >= 800
-        ? "QM9790"
-        : portRate >= 400
-          ? "QM9700"
-          : portRate >= 200
-            ? "QM8790"
-            : "QM8700";
+    const { spineSwitches, leafSwitches } = deriveFabricTopology(nodes);
+    const switchModel = spineSwitches[0]?.model ?? "QM9700";
 
     const srcLid =
       parsed.positionalArgs[0] || String(node.hcas[0].ports[0].lid);
@@ -741,9 +838,9 @@ Options:
 
     let output = `From ${srcGuid} lid ${srcLid} to lid ${destLid}:\n`;
     output += `\n`;
-    output += `[1] -> ${switchModel}/Rail-0 port 5 lid 20 (hop 1)\n`;
-    output += `[2] -> ${switchModel}/Spine-0 port 1 lid 10 (hop 2)\n`;
-    output += `[3] -> ${switchModel}/Rail-1 port 2 lid 21 (hop 3)\n`;
+    output += `[1] -> ${switchModel}/Rail-0 port 5 lid ${leafSwitches[0]?.lid ?? 20} (hop 1)\n`;
+    output += `[2] -> ${switchModel}/Spine-0 port 1 lid ${spineSwitches[0]?.lid ?? 10} (hop 2)\n`;
+    output += `[3] -> ${switchModel}/Rail-1 port 2 lid ${leafSwitches[1]?.lid ?? 21} (hop 3)\n`;
     output += `[4] -> destination lid ${destLid} (hop 4)\n`;
     output += `\n`;
     output += `Route complete: 4 hops\n`;
@@ -1017,12 +1114,21 @@ Options:
         lines.push(
           `Infiniband device '${hca.caType}' port ${port.portNumber} status:`,
         );
-        lines.push(`\tdefault gid:\t ${port.guid}`);
-        lines.push(`\tbase lid:\t ${port.lid}`);
-        lines.push(`\tsm lid:\t\t 1`);
+        lines.push(`\tdefault gid:\t ${guidToGid(port.guid)}`);
+        lines.push(`\tbase lid:\t 0x${port.lid.toString(16)}`);
+        lines.push(`\tsm lid:\t\t 0x1`);
         const stateLabel = port.state === "Active" ? "4: ACTIVE" : "1: DOWN";
+        // IBTA physical port states: 1=Sleep, 2=Polling, 3=Disabled,
+        // 4=PortConfigurationTraining, 5=LinkUp, 6=LinkErrorRecovery.
+        // "LinkDown" has no IBTA number of its own; it maps to Disabled.
         const physStateLabel =
-          port.physicalState === "LinkUp" ? "5: LinkUp" : "3: Disabled";
+          port.physicalState === "LinkUp"
+            ? "5: LinkUp"
+            : port.physicalState === "Polling"
+              ? "2: Polling"
+              : port.physicalState === "Sleep"
+                ? "1: Sleep"
+                : "3: Disabled";
         lines.push(`\tstate:\t\t ${stateLabel}`);
         lines.push(`\tphys state:\t ${physStateLabel}`);
         lines.push(
@@ -1059,10 +1165,15 @@ Options:
       return this.createSuccess(lines.join("\n"));
     }
 
+    // Real ibv_devinfo selects a device via -d/--ib-dev; -l (handled above)
+    // always lists every device regardless.
+    const deviceArg = this.getFlagString(parsed, ["d", "ib-dev"]);
+    const hcas = this.resolveHCA(node, deviceArg || undefined);
+
     const lines: string[] = [];
-    for (const [idx, hca] of node.hcas.entries()) {
+    for (const [idx, hca] of hcas.entries()) {
       if (idx > 0) lines.push("");
-      const vendorPartId = hca.caType.includes("ConnectX-7") ? "4129" : "4123";
+      const vendorPartId = hca.model === "ConnectX-7" ? "4129" : "4123";
       lines.push(`hca_id:\t${hca.caType}`);
       lines.push(`\ttransport:\t\t\tInfiniBand (0)`);
       lines.push(`\tfw_ver:\t\t\t\t${hca.firmwareVersion}`);
@@ -1076,7 +1187,11 @@ Options:
       for (const port of hca.ports) {
         lines.push(`\t\tport:\t${port.portNumber}`);
         const portStateLabel =
-          port.state === "Active" ? "PORT_ACTIVE (4)" : "PORT_DOWN (1)";
+          port.state === "Active"
+            ? "PORT_ACTIVE (4)"
+            : port.state === "Polling"
+              ? "PORT_POLLING (2)"
+              : "PORT_DOWN (1)";
         lines.push(`\t\t\tstate:\t\t\t${portStateLabel}`);
         lines.push(`\t\t\tmax_mtu:\t\t4096 (5)`);
         lines.push(`\t\t\tactive_mtu:\t\t4096 (5)`);
@@ -1104,16 +1219,22 @@ Options:
       return this.createError("No RDMA devices found");
     }
 
+    const hcas = this.resolveHCA(node, this.getPositionalDeviceArg(parsed));
+
     const lines: string[] = [
       "DEV     PORT  INDEX  GID                                      IPv4            VER   DEV",
       "---     ----  -----  ---                                      ------------    ---   ---",
     ];
 
-    for (const hca of node.hcas) {
+    for (const hca of hcas) {
       for (const port of hca.ports) {
-        const guidCompact = (port.guid || "").replace(/:/g, "");
+        // Same colon-grouped link-local GID format ibstatus uses (SIM-14) --
+        // this line previously stripped colons from the 0x-prefixed hex
+        // GUID (a no-op, since it has none) and concatenated it after a
+        // literal "fe80:..." prefix, leaking the "0x" into the middle of
+        // the GID.
         lines.push(
-          `${hca.caType}  ${port.portNumber}     0      fe80:0000:0000:0000:${guidCompact}                 v2    ndev`,
+          `${hca.caType}  ${port.portNumber}     0      ${guidToGid(port.guid)}                 v2    ndev`,
         );
         lines.push(
           `${hca.caType}  ${port.portNumber}     1      0000:0000:0000:0000:0000:ffff:c0a8:0${port.portNumber}01  192.168.${port.portNumber}.1   v1    ndev`,
@@ -1135,13 +1256,22 @@ Options:
       return this.createError("Error: No RDMA devices found");
     }
 
-    const subcommand = parsed.subcommands[0] || parsed.positionalArgs[0];
+    // Parser may place bare tokens in subcommands or positionalArgs.
+    const args = [...parsed.subcommands, ...parsed.positionalArgs];
+    const subcommand = args[0];
+    // Real rdma selects a device positionally after the object/`show` verb
+    // (e.g. `rdma dev show mlx5_0`, `rdma link show mlx5_0/1`). The link
+    // form may carry a `/PORT` suffix -- match on the device part.
+    const deviceArg = args
+      .slice(1)
+      .filter((token) => token !== "show")[0]
+      ?.split("/")[0];
 
     if (subcommand === "dev" || subcommand === "device") {
       const lines: string[] = [];
-      for (const [idx, hca] of node.hcas.entries()) {
+      for (const hca of this.resolveHCA(node, deviceArg)) {
         lines.push(
-          `${idx + 1}: ${hca.caType}: node_type ca fw ${hca.firmwareVersion} node_guid ${hca.ports[0]?.guid} sys_image_guid ${hca.ports[0]?.guid}`,
+          `${node.hcas.indexOf(hca) + 1}: ${hca.caType}: node_type ca fw ${hca.firmwareVersion} node_guid ${hca.ports[0]?.guid} sys_image_guid ${hca.ports[0]?.guid}`,
         );
       }
       return this.createSuccess(lines.join("\n"));
@@ -1149,7 +1279,7 @@ Options:
 
     if (subcommand === "link") {
       const lines: string[] = [];
-      for (const hca of node.hcas) {
+      for (const hca of this.resolveHCA(node, deviceArg)) {
         for (const port of hca.ports) {
           const stateLabel = port.state === "Active" ? "ACTIVE" : "DOWN";
           const physStateLabel =
@@ -1164,7 +1294,7 @@ Options:
 
     if (subcommand === "res" || subcommand === "resource") {
       const lines: string[] = [];
-      for (const hca of node.hcas) {
+      for (const hca of this.resolveHCA(node, deviceArg)) {
         lines.push(`${hca.caType}: qp 4 cq 8 mr 16 pd 4`);
       }
       return this.createSuccess(lines.join("\n"));

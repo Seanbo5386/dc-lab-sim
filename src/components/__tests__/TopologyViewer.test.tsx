@@ -135,6 +135,7 @@ describe("TopologyViewer", () => {
         id: 0,
         devicePath: "/dev/mst/mt4119_pciconf0",
         caType: "mlx5_0",
+        model: "ConnectX-6",
         firmwareVersion: "20.35.1012",
         ports: [
           {
@@ -145,6 +146,10 @@ describe("TopologyViewer", () => {
             lid: 1,
             guid: "0x0000000000000001",
             linkLayer: "InfiniBand",
+            xmitDataBytes: 500000000,
+            rcvDataBytes: 450000000,
+            xmitPkts: 5000000,
+            rcvPkts: 4800000,
             errors: {
               symbolErrors: 0,
               linkDowned: 0,
@@ -511,6 +516,7 @@ describe("InfiniBandMap Integration", () => {
         id: 0,
         devicePath: "/dev/mst/mt4119_pciconf0",
         caType: "mlx5_0",
+        model: "ConnectX-6",
         firmwareVersion: "20.35.1012",
         ports: [
           {
@@ -521,6 +527,10 @@ describe("InfiniBandMap Integration", () => {
             lid: i + 1,
             guid: `0x000000000000000${i}`,
             linkLayer: "InfiniBand" as const,
+            xmitDataBytes: 500000000,
+            rcvDataBytes: 450000000,
+            xmitPkts: 5000000,
+            rcvPkts: 4800000,
             errors: {
               symbolErrors: 0,
               linkDowned: 0,

@@ -15,6 +15,7 @@ import type {
   DGXNode,
   GPU,
   HealthStatus,
+  InfiniBandPort,
   XIDError,
 } from "@/types/hardware";
 import {
@@ -38,6 +39,12 @@ import { useSimulationStore } from "@/store/simulationStore";
  */
 export interface StateMutator {
   updateGPU(nodeId: string, gpuId: number, updates: Partial<GPU>): void;
+  updateHCA(
+    nodeId: string,
+    hcaId: number,
+    portNumber: number,
+    updates: Partial<InfiniBandPort>,
+  ): void;
   addXIDError(nodeId: string, gpuId: number, error: XIDError): void;
   updateNodeHealth(nodeId: string, health: HealthStatus): void;
   setMIGMode(nodeId: string, gpuId: number, enabled: boolean): void;
@@ -561,7 +568,9 @@ export abstract class BaseSimulator {
       return parse(cmdLine);
     }
 
-    const schema = this.definitionRegistry.getFlagSchema(this.getMetadata().name);
+    const schema = this.definitionRegistry.getFlagSchema(
+      this.getMetadata().name,
+    );
     return parse(cmdLine, schema);
   }
 
@@ -986,6 +995,8 @@ export abstract class BaseSimulator {
       return {
         updateGPU: (nodeId, gpuId, updates) =>
           sc.updateGPU(nodeId, gpuId, updates),
+        updateHCA: (nodeId, hcaId, portNumber, updates) =>
+          sc.updateHCA(nodeId, hcaId, portNumber, updates),
         addXIDError: (nodeId, gpuId, error) =>
           sc.addXIDError(nodeId, gpuId, error),
         updateNodeHealth: (nodeId, health) =>
@@ -1003,6 +1014,8 @@ export abstract class BaseSimulator {
     return {
       updateGPU: (nodeId, gpuId, updates) =>
         store.updateGPU(nodeId, gpuId, updates),
+      updateHCA: (nodeId, hcaId, portNumber, updates) =>
+        store.updateHCA(nodeId, hcaId, portNumber, updates),
       addXIDError: (nodeId, gpuId, error) =>
         store.addXIDError(nodeId, gpuId, error),
       updateNodeHealth: (nodeId, health) =>

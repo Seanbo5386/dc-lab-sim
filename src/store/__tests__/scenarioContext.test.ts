@@ -1187,3 +1187,140 @@ describe("ScenarioContextManager", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// updateHCA (K2 fault-injection infrastructure)
+// ---------------------------------------------------------------------------
+
+describe("ScenarioContext.updateHCA (K2 fault-injection infrastructure)", () => {
+  function createTestHCA(id: number): import("@/types/hardware").InfiniBandHCA {
+    return {
+      id,
+      devicePath: `/sys/class/infiniband/mlx5_${id}`,
+      caType: `mlx5_${id}`,
+      model: "ConnectX-7",
+      firmwareVersion: "28.39.1002",
+      ports: [
+        {
+          portNumber: 1,
+          state: "Active",
+          physicalState: "LinkUp",
+          rate: 400,
+          lid: 100 + id,
+          guid: `0x00155dfffe33445${id}`,
+          linkLayer: "InfiniBand",
+          xmitDataBytes: 500000000,
+          rcvDataBytes: 450000000,
+          xmitPkts: 5000000,
+          rcvPkts: 4800000,
+          errors: {
+            symbolErrors: 0,
+            linkDowned: 0,
+            portRcvErrors: 0,
+            portXmitDiscards: 0,
+            portXmitWait: 0,
+          },
+        },
+      ],
+    };
+  }
+
+  function createClusterWithHCAs(): ClusterConfig {
+    const cluster = createTestCluster();
+    cluster.nodes[0].hcas = [createTestHCA(0), createTestHCA(1)];
+    return cluster;
+  }
+
+  it("updates a specific port's error counters on a specific HCA in the isolated cluster", () => {
+    const cluster = createClusterWithHCAs();
+    const ctx = new ScenarioContext("test-scenario", cluster);
+
+    ctx.updateHCA("node-01", 0, 1, {
+      errors: {
+        symbolErrors: 42,
+        linkDowned: 1,
+        portRcvErrors: 0,
+        portXmitDiscards: 0,
+        portXmitWait: 0,
+      },
+      physicalState: "Polling",
+      state: "Down",
+    });
+
+    const port = ctx.getNode("node-01")!.hcas[0].ports[0];
+    expect(port.errors.symbolErrors).toBe(42);
+    expect(port.errors.linkDowned).toBe(1);
+    expect(port.physicalState).toBe("Polling");
+    expect(port.state).toBe("Down");
+  });
+
+  it("does not modify the original cluster when updating the context", () => {
+    const cluster = createClusterWithHCAs();
+    const ctx = new ScenarioContext("test-scenario", cluster);
+
+    ctx.updateHCA("node-01", 0, 1, { physicalState: "Polling" });
+
+    expect(cluster.nodes[0].hcas[0].ports[0].physicalState).toBe("LinkUp");
+    expect(ctx.getNode("node-01")!.hcas[0].ports[0].physicalState).toBe(
+      "Polling",
+    );
+  });
+
+  it("does not touch the other HCA on the same node", () => {
+    const cluster = createClusterWithHCAs();
+    const ctx = new ScenarioContext("test-scenario", cluster);
+
+    ctx.updateHCA("node-01", 0, 1, { physicalState: "Polling" });
+
+    expect(ctx.getNode("node-01")!.hcas[1].ports[0].physicalState).toBe(
+      "LinkUp",
+    );
+  });
+
+  it("records an hca-update mutation with hcaId and portNumber", () => {
+    const cluster = createClusterWithHCAs();
+    const ctx = new ScenarioContext("test-scenario", cluster);
+
+    ctx.updateHCA("node-01", 1, 1, { physicalState: "Polling" }, "perfquery");
+
+    const mutations = ctx.getMutations();
+    expect(mutations).toHaveLength(1);
+    expect(mutations[0].type).toBe("hca-update");
+    expect(mutations[0].nodeId).toBe("node-01");
+    expect(mutations[0].command).toBe("perfquery");
+    const mutation = mutations[0] as Extract<
+      (typeof mutations)[number],
+      { type: "hca-update" }
+    >;
+    expect(mutation.hcaId).toBe(1);
+    expect(mutation.portNumber).toBe(1);
+    expect(mutation.data).toEqual({ physicalState: "Polling" });
+  });
+
+  it("silently ignores update for a non-existent node, HCA, or port", () => {
+    const cluster = createClusterWithHCAs();
+    const ctx = new ScenarioContext("test-scenario", cluster);
+
+    ctx.updateHCA("bad-node", 0, 1, { physicalState: "Polling" });
+    ctx.updateHCA("node-01", 99, 1, { physicalState: "Polling" });
+    ctx.updateHCA("node-01", 0, 99, { physicalState: "Polling" });
+
+    expect(ctx.getMutationCount()).toBe(0);
+    expect(ctx.getNode("node-01")!.hcas[0].ports[0].physicalState).toBe(
+      "LinkUp",
+    );
+  });
+
+  it("does not update HCA in a readonly context", () => {
+    const cluster = createClusterWithHCAs();
+    const ctx = new ScenarioContext("test-scenario", cluster);
+    ctx.setReadonly(true);
+
+    ctx.updateHCA("node-01", 0, 1, { physicalState: "Polling" });
+
+    expect(ctx.getNode("node-01")!.hcas[0].ports[0].physicalState).toBe(
+      "LinkUp",
+    );
+    expect(ctx.getMutationCount()).toBe(0);
+  });
+});

@@ -163,6 +163,7 @@ function createBlueFieldDPU(id: number, systemType: SystemType): BlueFieldDPU {
 
 function createInfiniBandPort(
   portNum: number,
+  lid: number,
   specs: HardwareSpec,
 ): InfiniBandPort {
   return {
@@ -170,11 +171,25 @@ function createInfiniBandPort(
     state: "Active",
     physicalState: "LinkUp",
     rate: specs.network.portRateGbs as 100 | 200 | 400 | 800,
-    lid: 100 + portNum,
-    guid: `0x${Math.floor(Math.random() * 0xffffffffffff)
+    lid,
+    // Real IB GUIDs are 64-bit (16 hex digits), not 48-bit (SIM-13). The
+    // string is padded to 16 digits; Number.MAX_SAFE_INTEGER only gives
+    // Math.random() ~2^53 of usable range (the top two hex digits are
+    // always "00"), but that's still ample entropy to avoid a collision
+    // within one simulated cluster's small port count.
+    guid: `0x${Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
       .toString(16)
-      .padStart(12, "0")}`,
+      .padStart(16, "0")}`,
     linkLayer: "InfiniBand",
+    // Seeded from the same LID-derived baseline perfquery previously
+    // computed fresh on every call -- kept here as the STARTING value so a
+    // freshly-built cluster's first perfquery still looks like a
+    // long-running port, not a suspiciously-zeroed one. Ticks/load advance
+    // these further (PHYS-7); perfquery no longer recomputes them.
+    xmitDataBytes: 500000000 + ((lid * 7919) % 500000000),
+    rcvDataBytes: 450000000 + ((lid * 7919 * 3) % 500000000),
+    xmitPkts: 5000000 + ((lid * 7919) % 5000000),
+    rcvPkts: 4800000 + ((lid * 7919 * 3) % 5000000),
     errors: {
       symbolErrors: 0,
       linkDowned: 0,
@@ -196,7 +211,11 @@ function createInfiniBandHCA(id: number, specs: HardwareSpec): InfiniBandHCA {
   return {
     id,
     devicePath: `/dev/mst/${deviceId}_pciconf${id}`,
-    caType: `${specs.network.hcaModel} HCA`,
+    // Real Linux/Mellanox RDMA device name -- unique per HCA on a node via
+    // its own id, not the single node-wide "ConnectX-N HCA" string every
+    // HCA previously shared (SIM-3).
+    caType: `mlx5_${id}`,
+    model: specs.network.hcaModel,
     firmwareVersion:
       specs.network.hcaModel === "ConnectX-9"
         ? "34.42.1000"
@@ -205,7 +224,11 @@ function createInfiniBandHCA(id: number, specs: HardwareSpec): InfiniBandHCA {
           : specs.network.hcaModel === "ConnectX-7"
             ? "28.39.1002"
             : "20.35.1012",
-    ports: [createInfiniBandPort(1, specs)],
+    // Unique LID per port across the node (100 + a running index), not the
+    // same 101 for every port (SIM-13). This function only ever builds one
+    // port per HCA (portNum always 1), so the HCA's own id doubles as the
+    // per-node port index.
+    ports: [createInfiniBandPort(1, 100 + id, specs)],
   };
 }
 

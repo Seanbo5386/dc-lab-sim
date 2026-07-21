@@ -187,6 +187,10 @@ describe("SlurmJobVisualizer", () => {
     lid: portNumber,
     guid: `0x${portNumber.toString(16).padStart(16, "0")}`,
     linkLayer: "InfiniBand",
+    xmitDataBytes: 500000000,
+    rcvDataBytes: 450000000,
+    xmitPkts: 5000000,
+    rcvPkts: 4800000,
     errors: {
       symbolErrors: 0,
       linkDowned: 0,
@@ -201,6 +205,7 @@ describe("SlurmJobVisualizer", () => {
     devicePath: `/dev/infiniband/umad${id}`,
     pciAddress: `0000:${(0xc1 + id).toString(16)}:00.0`,
     caType: "ConnectX-7",
+    model: "ConnectX-7",
     firmwareVersion: "22.35.1012",
     ports: [createMockPort(1), createMockPort(2)],
   });
@@ -398,6 +403,10 @@ describe("ClusterBuilder", () => {
     lid: portNumber,
     guid: `0x${portNumber.toString(16).padStart(16, "0")}`,
     linkLayer: "InfiniBand",
+    xmitDataBytes: 500000000,
+    rcvDataBytes: 450000000,
+    xmitPkts: 5000000,
+    rcvPkts: 4800000,
     errors: {
       symbolErrors: 0,
       linkDowned: 0,
@@ -412,6 +421,7 @@ describe("ClusterBuilder", () => {
     devicePath: `/dev/infiniband/umad${id}`,
     pciAddress: `0000:${(0xc1 + id).toString(16)}:00.0`,
     caType: "ConnectX-7",
+    model: "ConnectX-7",
     firmwareVersion: "22.35.1012",
     ports: [createMockPort(1), createMockPort(2)],
   });
@@ -571,6 +581,10 @@ describe("IBCableTracer", () => {
     lid: portNumber,
     guid: `0x${portNumber.toString(16).padStart(16, "0")}`,
     linkLayer: "InfiniBand",
+    xmitDataBytes: 500000000,
+    rcvDataBytes: 450000000,
+    xmitPkts: 5000000,
+    rcvPkts: 4800000,
     errors: {
       symbolErrors: 0,
       linkDowned: 0,
@@ -585,6 +599,7 @@ describe("IBCableTracer", () => {
     devicePath: `/dev/infiniband/umad${id}`,
     pciAddress: `0000:${(0xc1 + id).toString(16)}:00.0`,
     caType: "ConnectX-7",
+    model: "ConnectX-7",
     firmwareVersion: "22.35.1012",
     ports: [createMockPort(1), createMockPort(2)],
   });

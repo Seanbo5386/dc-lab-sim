@@ -13,6 +13,13 @@ export interface MetricsUpdate {
   hcas: InfiniBandHCA[];
 }
 
+/** Per-node input for one metrics tick (PHYS-7: slurmState drives HCA traffic). */
+export interface MetricsTickInput {
+  gpus: GPU[];
+  hcas: InfiniBandHCA[];
+  slurmState: "idle" | "alloc" | "drain" | "down";
+}
+
 /**
  * Utilization (%) above which a GPU is treated as "under load" even without a
  * Slurm-allocated job. Chosen to separate real workloads (inference ~60,
@@ -36,7 +43,7 @@ export class MetricsSimulator {
 
   start(
     updateCallback: (
-      updater: (data: { gpus: GPU[]; hcas: InfiniBandHCA[] }) => MetricsUpdate,
+      updater: (data: MetricsTickInput) => MetricsUpdate,
     ) => void,
     interval: number = 1000,
   ) {
@@ -69,21 +76,43 @@ export class MetricsSimulator {
     this.isRunning = false;
   }
 
-  private updateMetrics(data: {
-    gpus: GPU[];
-    hcas: InfiniBandHCA[];
-  }): MetricsUpdate {
+  private updateMetrics(data: MetricsTickInput): MetricsUpdate {
     return {
       gpus: this.updateGpuMetrics(data.gpus),
-      hcas: this.updateHcaMetrics(data.hcas),
+      hcas: this.updateHcaMetrics(data.hcas, data.slurmState),
     };
   }
 
-  private updateHcaMetrics(hcas: InfiniBandHCA[]): InfiniBandHCA[] {
-    // HCA metrics remain stable during normal operation.
-    // Errors should only be injected through explicit fault scenarios,
-    // not accumulated randomly during regular simulation ticks.
-    return hcas;
+  private updateHcaMetrics(
+    hcas: InfiniBandHCA[],
+    slurmState: "idle" | "alloc" | "drain" | "down",
+  ): InfiniBandHCA[] {
+    // Error counters remain stable during normal operation -- errors
+    // should only be injected through explicit fault scenarios (unchanged
+    // from before). Traffic counters, however, advance under genuine load
+    // (an allocated Slurm job actually using the node), not tick-count-
+    // driven randomness -- this is what makes perfquery's delta-sampling
+    // methodology actually work (PHYS-7).
+    if (slurmState !== "alloc") return hcas;
+
+    return hcas.map((hca) => ({
+      ...hca,
+      ports: hca.ports.map((port) => {
+        // A Down/Polling port (e.g. the ib-port-error fault) carries no
+        // traffic -- accumulating counters on it would contradict the very
+        // fault a learner is meant to diagnose via perfquery/ibporterrors.
+        // Leave it as the SAME reference so the tick's shallow-compare
+        // write-back gate correctly treats it as unchanged.
+        if (port.state !== "Active") return port;
+        return {
+          ...port,
+          xmitDataBytes: port.xmitDataBytes + 12500000, // ~100 Mb/s sustained, per tick
+          rcvDataBytes: port.rcvDataBytes + 11000000,
+          xmitPkts: port.xmitPkts + 8500,
+          rcvPkts: port.rcvPkts + 7800,
+        };
+      }),
+    }));
   }
 
   private updateGpuMetrics(gpus: GPU[]): GPU[] {
@@ -306,4 +335,39 @@ export class MetricsSimulator {
         return gpu;
     }
   }
+}
+
+/**
+ * Inject an ib-port-error fault onto a specific port of the given HCA
+ * (K2). Sets a real (non-zero) symbol-error count and flips the port to
+ * the "Polling" physical state (no active peer -- the real IBTA state a
+ * degraded/flapping cable produces), unlocking the perfquery/ibporterrors/
+ * ibcableerrors/iblinkinfo diagnosis toolchain this phase made state-aware.
+ *
+ * A standalone sibling to MetricsSimulator.injectFault, not a new case
+ * inside it: injectFault operates on a GPU, this operates on an
+ * InfiniBandHCA (a different object shape living on DGXNode.hcas).
+ * Follows the same "return a new object, don't mutate in place" pattern.
+ */
+export function injectHCAFault(
+  hca: InfiniBandHCA,
+  portIndex: number,
+): InfiniBandHCA {
+  return {
+    ...hca,
+    ports: hca.ports.map((port, idx) =>
+      idx === portIndex
+        ? {
+            ...port,
+            physicalState: "Polling" as const,
+            state: "Down" as const,
+            errors: {
+              ...port.errors,
+              symbolErrors: port.errors.symbolErrors + 150,
+              linkDowned: port.errors.linkDowned + 1,
+            },
+          }
+        : port,
+    ),
+  };
 }

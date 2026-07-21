@@ -66,6 +66,7 @@ function createMockHCA(overrides: Partial<InfiniBandHCA> = {}): InfiniBandHCA {
     devicePath: "/dev/infiniband/mlx5_0",
     pciAddress: "0000:ca:00.0",
     caType: "ConnectX-7",
+    model: "ConnectX-7",
     firmwareVersion: "28.35.1000",
     ports: [
       {
@@ -76,6 +77,10 @@ function createMockHCA(overrides: Partial<InfiniBandHCA> = {}): InfiniBandHCA {
         lid: 1,
         guid: "0x98039b03009a1234",
         linkLayer: "InfiniBand",
+        xmitDataBytes: 500000000,
+        rcvDataBytes: 450000000,
+        xmitPkts: 5000000,
+        rcvPkts: 4800000,
         errors: {
           symbolErrors: 0,
           linkDowned: 0,
@@ -398,6 +403,10 @@ describe("shallowCompareHCA", () => {
             lid: 2,
             guid: "0x98039b03009a5678",
             linkLayer: "InfiniBand",
+            xmitDataBytes: 500000000,
+            rcvDataBytes: 450000000,
+            xmitPkts: 5000000,
+            rcvPkts: 4800000,
             errors: {
               symbolErrors: 0,
               linkDowned: 0,
@@ -499,6 +508,22 @@ describe("shallowCompareHCA", () => {
       });
       expect(shallowCompareHCA(hca1, hca2)).toBe(false);
     });
+
+    it.each([
+      ["xmitDataBytes", 512500000],
+      ["rcvDataBytes", 461000000],
+      ["xmitPkts", 5008500],
+      ["rcvPkts", 4807800],
+    ] as const)(
+      "should return false when port traffic counter %s differs (PHYS-7 — the metrics tick relies on this to write advanced counters back)",
+      (field, value) => {
+        const hca1 = createMockHCA();
+        const hca2 = createMockHCA({
+          ports: [{ ...hca1.ports[0], [field]: value }],
+        });
+        expect(shallowCompareHCA(hca1, hca2)).toBe(false);
+      },
+    );
   });
 });
 

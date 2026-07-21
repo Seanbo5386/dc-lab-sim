@@ -5,7 +5,8 @@ import {
   resolveEffectiveMutator,
 } from "@/utils/effectiveState";
 import { getRatedTDP } from "@/simulation/clusterPhysicsEngine";
-import { MetricsSimulator } from "@/utils/metricsSimulator";
+import { MetricsSimulator, injectHCAFault } from "@/utils/metricsSimulator";
+import type { DGXNode } from "@/types/hardware";
 import { useFaultToastStore } from "@/store/faultToastStore";
 import {
   applyRemediation,
@@ -34,12 +35,20 @@ import {
   TerminalSquare,
   Sparkles,
   Send,
+  Network,
 } from "lucide-react";
 import { useLearningProgressStore } from "@/store/learningProgressStore";
 
 const metricsSimulator = new MetricsSimulator();
 
-type BasicFaultType = "xid" | "ecc" | "thermal" | "nvlink" | "power" | "pcie";
+type BasicFaultType =
+  | "xid"
+  | "ecc"
+  | "thermal"
+  | "nvlink"
+  | "power"
+  | "pcie"
+  | "ib-port-error";
 
 const SURPRISE_TYPES = [
   "xid",
@@ -172,6 +181,22 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
   >(null);
   const [surpriseRevealed, setSurpriseRevealed] = useState(false);
 
+  // ib-port-error targets the selected node's first HCA (not a GPU), so it
+  // routes through the HCA-scoped mutator instead of the GPU pipeline.
+  // Returns false when the node has no HCA/port to fault.
+  const injectIBPortFault = (node: DGXNode): boolean => {
+    const hca = node.hcas[0];
+    if (!hca || hca.ports.length === 0) return false;
+    const faultedHCA = injectHCAFault(hca, 0);
+    resolveEffectiveMutator().updateHCA(
+      selectedNode,
+      hca.id,
+      hca.ports[0].portNumber,
+      faultedHCA.ports[0],
+    );
+    return true;
+  };
+
   const handleInjectFault = (
     faultType: BasicFaultType,
     options?: { surprise?: boolean },
@@ -179,11 +204,19 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
     if (!node) return;
 
-    const gpu = node.gpus[selectedGPU];
-    if (!gpu) return;
+    if (faultType === "ib-port-error") {
+      if (!injectIBPortFault(node)) return;
+    } else {
+      const gpu = node.gpus[selectedGPU];
+      if (!gpu) return;
 
-    const faultedGPU = metricsSimulator.injectFault(gpu, faultType);
-    resolveEffectiveMutator().updateGPU(selectedNode, selectedGPU, faultedGPU);
+      const faultedGPU = metricsSimulator.injectFault(gpu, faultType);
+      resolveEffectiveMutator().updateGPU(
+        selectedNode,
+        selectedGPU,
+        faultedGPU,
+      );
+    }
 
     // Fire toast notification
     const desc = BASIC_FAULT_DESCRIPTIONS.find((d) => d.type === faultType);
@@ -203,7 +236,8 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
         severity:
           faultType === "thermal" ||
           faultType === "nvlink" ||
-          faultType === "power"
+          faultType === "power" ||
+          faultType === "ib-port-error"
             ? "warning"
             : "critical",
         xidCode: desc.relatedXIDCodes?.[0] || undefined,
@@ -235,15 +269,28 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
 
     const node = effectiveCluster.nodes.find((n) => n.id === selectedNode);
     if (!node) return;
-    const gpu = node.gpus[selectedGPU];
-    if (!gpu) return;
 
-    // Chain each selected fault so they accumulate on the same GPU.
-    let faulted = gpu;
-    for (const type of types) {
-      faulted = metricsSimulator.injectFault(faulted, type);
+    // ib-port-error targets the node's HCA, not a GPU — route it through the
+    // HCA pipeline and chain only the GPU-scoped faults onto the GPU.
+    const gpuTypes = types.filter(
+      (t): t is Exclude<BasicFaultType, "ib-port-error"> =>
+        t !== "ib-port-error",
+    );
+    if (types.includes("ib-port-error")) {
+      injectIBPortFault(node);
     }
-    resolveEffectiveMutator().updateGPU(selectedNode, selectedGPU, faulted);
+
+    if (gpuTypes.length > 0) {
+      const gpu = node.gpus[selectedGPU];
+      if (!gpu) return;
+
+      // Chain each selected fault so they accumulate on the same GPU.
+      let faulted = gpu;
+      for (const type of gpuTypes) {
+        faulted = metricsSimulator.injectFault(faulted, type);
+      }
+      resolveEffectiveMutator().updateGPU(selectedNode, selectedGPU, faulted);
+    }
 
     const labels = types.map(
       (t) => BASIC_FAULT_DESCRIPTIONS.find((d) => d.type === t)?.title ?? t,
@@ -414,6 +461,27 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
         powerDraw: gpu.powerLimit * 0.3,
         utilization: 5,
         rmaStatus: "none",
+      });
+    });
+
+    // Also clear any ib-port-error fault -- it sets a port Down/Polling
+    // with nonzero error counters via the HCA mutator, not the GPU one, so
+    // it's invisible to the loop above (bot review follow-up: "Clear All"
+    // previously left ibstat/ibporterrors still showing the IB fault even
+    // though the toast claimed everything was reset).
+    node.hcas.forEach((hca) => {
+      hca.ports.forEach((port) => {
+        mutator.updateHCA(selectedNode, hca.id, port.portNumber, {
+          state: "Active",
+          physicalState: "LinkUp",
+          errors: {
+            symbolErrors: 0,
+            linkDowned: 0,
+            portRcvErrors: 0,
+            portXmitDiscards: 0,
+            portXmitWait: 0,
+          },
+        });
       });
     });
 
@@ -743,6 +811,25 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
                 <div className="font-medium text-cyan-400">PCIe Error</div>
                 <div className="text-xs text-gray-400">
                   Bus communication fault
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              aria-pressed={selectedFaults.has("ib-port-error")}
+              onClick={() => toggleFault("ib-port-error")}
+              className={`flex items-center gap-3 bg-teal-500/10 hover:bg-teal-500/20 border rounded-lg px-4 py-3 text-left transition-colors ${
+                selectedFaults.has("ib-port-error")
+                  ? "border-teal-400 ring-2 ring-teal-400/50"
+                  : "border-teal-500/30"
+              }`}
+            >
+              <Network className="w-5 h-5 text-teal-400" />
+              <div>
+                <div className="font-medium text-teal-400">IB Port Error</div>
+                <div className="text-xs text-gray-400">
+                  Degraded fabric link
                 </div>
               </div>
             </button>

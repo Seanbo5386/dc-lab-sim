@@ -176,14 +176,14 @@ export class MellanoxSimulator extends BaseSimulator {
       // List HCAs per spec Section 5.1
       node.hcas.forEach((hca, idx) => {
         const pciAddr = `0000:${(0xa0 + idx).toString(16)}:00.0`;
-        output += `${hca.devicePath}                      - MT4129 [${hca.caType}]\n`;
+        output += `${hca.devicePath}                      - MT4129 [${hca.model}]\n`;
 
         if (verbose) {
           output += `         PCI Address:        ${pciAddr}\n`;
           output += `         Board ID:           NVIDIA_MCX755106AS-HEAT\n`;
           output += `         PSID:               MT_0000000889\n`;
           output += `         Firmware Version:   ${hca.firmwareVersion}\n`;
-          output += `         Device Type:        ${hca.caType}\n`;
+          output += `         Device Type:        ${hca.model}\n`;
           output += `         Link Speed:         ${hca.ports[0]?.rate || 400} Gb/s\n\n`;
         }
       });
@@ -558,7 +558,7 @@ export class MellanoxSimulator extends BaseSimulator {
         return this.createError(`Error: Device ${devicePath} not found`);
       }
 
-      const deviceType = hca ? hca.caType : "BlueField DPU";
+      const deviceType = hca ? hca.model : "BlueField DPU";
       const pciAddr = dpu ? dpu.pciAddress : devicePath;
 
       let output = "\nQuerying Firmware on device:\n";
@@ -667,9 +667,9 @@ export class MellanoxSimulator extends BaseSimulator {
         "-------------------------------------------------------------\n";
 
       devices.forEach((device, idx) => {
-        // Type guard: HCAs have caType, DPUs don't
-        const isHCA = device.type === "HCA" && "caType" in device;
-        const deviceType = isHCA ? (device as HCA).caType : "BlueField-2";
+        // Type guard: HCAs have model, DPUs don't
+        const isHCA = device.type === "HCA" && "model" in device;
+        const deviceType = isHCA ? (device as HCA).model : "BlueField-2";
         const partNum = isHCA ? "MCX755106AS-HEAT" : "MBF2M516A-CENAT";
         const psid = isHCA ? "MT_0000000889" : "MT_0000000664";
         output += `  ${idx + 1}            ${deviceType.padEnd(15)} ${partNum.padEnd(16)} ${psid.padEnd(17)} ${device.firmwareVersion}\n`;
