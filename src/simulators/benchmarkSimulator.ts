@@ -1186,6 +1186,19 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
 
     const gpuCount = Math.min(node.gpus.length, 8);
     const gpuName = node.gpus[0]?.name || "NVIDIA A100-SXM4-80GB";
+    const bwSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
+
+    // Calibrated against DGX-A100's real p2pBandwidthLatencyTest figures
+    // (diagonal 1555.2 GB/s self-bandwidth, off-diagonal 252.3 GB/s P2P)
+    // so A100's output is unchanged; generalized to other architectures
+    // via their own HBM/NVLink specs (PHYS-12 -- previously these two
+    // constants were printed identically for every architecture).
+    const P2P_SELF_BW_EFFICIENCY = 1555.2 / (2.039 * 1000); // vs A100's 2039 GB/s HBM peak
+    const P2P_PEER_BW_EFFICIENCY = 252.3 / (600 / 2); // vs A100's 300 GB/s per-direction NVLink aggregate
+    const selfBW =
+      bwSpecs.gpu.memoryBandwidthTBs * 1000 * P2P_SELF_BW_EFFICIENCY;
+    const peerBWBase =
+      (bwSpecs.nvlink.totalBandwidthGBs / 2) * P2P_PEER_BW_EFFICIENCY;
 
     const lines = [
       `[P2P (Peer-to-Peer) GPU Bandwidth Latency Test]`,
@@ -1209,7 +1222,13 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     for (let i = 0; i < gpuCount; i++) {
       let row = `     ${i}`;
       for (let j = 0; j < gpuCount; j++) {
-        const bw = i === j ? 1555.2 : 252.3 + (i + j) * 0.5;
+        let bw: number;
+        if (i === j) {
+          bw = selfBW;
+        } else {
+          const pairHealth = getNvlinkHealthRatio([node.gpus[i], node.gpus[j]]);
+          bw = (peerBWBase + (i + j) * 0.5) * pairHealth;
+        }
         row += `  ${bw.toFixed(1).padStart(5)}`;
       }
       lines.push(row);

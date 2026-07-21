@@ -985,4 +985,80 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).toContain("No GPUs found on this node");
     });
   });
+
+  describe("p2pBandwidthLatencyTest per-architecture bandwidth (PHYS-12)", () => {
+    it("DGX-A100 output is unchanged (the existing literals were correct for A100)", () => {
+      const a100 = buildContextWithGpu(
+        { name: "NVIDIA A100-SXM4-80GB" },
+        "DGX-A100",
+        2,
+      );
+      const result = simulator.execute(
+        parse("p2pBandwidthLatencyTest"),
+        a100.context,
+      );
+      expect(result.exitCode).toBe(0);
+      // Byte-exact matrix rows from the pre-fix handler (diagonal 1555.2,
+      // off-diagonal 252.3 + (i+j)*0.5 = 252.8 for the 0<->1 pair). The
+      // calibration constants must reproduce these exactly for A100.
+      expect(result.output).toContain("     0  1555.2  252.8");
+      expect(result.output).toContain("     1  252.8  1555.2");
+    });
+
+    it("H100 reports its own (higher) HBM3/NVLink4 bandwidth, not A100's numbers", () => {
+      const h100 = buildContextWithGpu(
+        { name: "NVIDIA H100-SXM5-80GB" },
+        "DGX-H100",
+      );
+      const result = simulator.execute(
+        parse("p2pBandwidthLatencyTest"),
+        h100.context,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("1555.2");
+      expect(result.output).not.toContain("  252.3");
+    });
+
+    it("a Down NVLink on GPU 0 degrades only cells touching GPU 0, not GPU 1's healthy cells", () => {
+      const healthy = buildContextWithGpu(
+        { name: "NVIDIA H100-SXM5-80GB" },
+        "DGX-H100",
+        2,
+      );
+      const healthyResult = simulator.execute(
+        parse("p2pBandwidthLatencyTest"),
+        healthy.context,
+      );
+      const healthyRow0 = healthyResult.output
+        .split("\n")
+        .find((l) => /^\s*0\s+[\d.]/.test(l))!;
+      const healthyCell01 = parseFloat(healthyRow0.trim().split(/\s+/)[2]);
+
+      const degraded = buildContextWithGpu(
+        { name: "NVIDIA H100-SXM5-80GB" },
+        "DGX-H100",
+        2,
+      );
+      degraded.node.gpus[0].nvlinks = [
+        {
+          linkId: 0,
+          status: "Down",
+          speed: 25,
+          txErrors: 100,
+          rxErrors: 0,
+          replayErrors: 0,
+        },
+      ];
+      const degradedResult = simulator.execute(
+        parse("p2pBandwidthLatencyTest"),
+        degraded.context,
+      );
+      const degradedRow0 = degradedResult.output
+        .split("\n")
+        .find((l) => /^\s*0\s+[\d.]/.test(l))!;
+      const degradedCell01 = parseFloat(degradedRow0.trim().split(/\s+/)[2]);
+
+      expect(degradedCell01).toBeLessThan(healthyCell01);
+    });
+  });
 });
