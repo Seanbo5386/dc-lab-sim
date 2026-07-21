@@ -594,6 +594,61 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).toContain("WARNING - Low efficiency");
       expect(result.output).toContain("Efficiency below 80%");
     });
+
+    it("HPL: degradation is read from the CURRENT node, not node index 0 (final-review F2)", () => {
+      // Node index 0 is healthy; the node the user is actually on (dgx-03)
+      // is heavily degraded. Before the fix, gpusInvolved was a positional
+      // slice starting at node index 0, so a single-node run on dgx-03
+      // silently reported node 0's healthy numbers.
+      const { node: healthyNode } = buildContextWithGpu({
+        clocksSM: 1980,
+        powerLimit: 700,
+      });
+      const degradedNode: DGXNode = {
+        ...healthyNode,
+        id: "dgx-03",
+        hostname: "dgx-node04",
+        gpus: [
+          {
+            ...healthyNode.gpus[0],
+            uuid: "GPU-bench-remote-0",
+            clocksSM: 500,
+            powerLimit: 200,
+          },
+        ],
+      };
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: { nodes: [healthyNode, degradedNode] },
+        updateGPU: vi.fn(),
+      } as never);
+
+      const onDegraded: CommandContext = {
+        currentNode: "dgx-03",
+        currentPath: "/root",
+        environment: {},
+        history: [],
+      };
+      const degradedResult = simulator.execute(
+        parse("hpl --gpus-per-node 1 --nodes 1"),
+        onDegraded,
+      );
+      expect(degradedResult.output).toContain("WARNING - Low efficiency");
+
+      // Sanity: the same command run while actually on healthy node 0
+      // still passes -- the fix only changes which node is read.
+      const onHealthy: CommandContext = {
+        currentNode: "dgx-00",
+        currentPath: "/root",
+        environment: {},
+        history: [],
+      };
+      const healthyResult = simulator.execute(
+        parse("hpl --gpus-per-node 1 --nodes 1"),
+        onHealthy,
+      );
+      expect(healthyResult.output).toContain("PASSED");
+      expect(healthyResult.output).not.toContain("WARNING - Low efficiency");
+    });
   });
 
   describe("GPU Burn Tests", () => {
@@ -772,6 +827,58 @@ describe("BenchmarkSimulator", () => {
       const busbw = parseFloat(nums[7]);
       expect(busbw).toBeCloseTo(algbw * 1.75, 1);
       expect(busbw).toBeLessThanOrEqual(240 * 1.05);
+    });
+  });
+
+  describe("Single-rank NCCL runs stay finite (final-review F1)", () => {
+    it("nccl-test with 1 GPU prints 0.00 algbw/busbw per row, not Infinity/NaN", () => {
+      // A 1-rank all_reduce has ring factor 2*(1-1)/1 = 0; before the fix
+      // the handler divided busBW by it and printed literal "Infinity".
+      const { context: ctx } = buildContextWithGpu({}, "DGX-H100", 1);
+      const result = simulator.execute(
+        parse("nccl-test --ngpus 1 --nodes 1 -b 128M -e 128M"),
+        ctx,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("Infinity");
+      expect(result.output).not.toContain("NaN");
+      // Row structure is preserved (real nccl-tests still prints a row per
+      // size for a degenerate 1-rank run), just with 0.00 bandwidths.
+      const row = result.output.split("\n").find((l) => /^\s*128M\s/.test(l));
+      expect(row).toBeDefined();
+      const nums = row!.trim().split(/\s+/);
+      // columns: size count type redop time algbw busbw error ...
+      expect(nums[5]).toBe("0.00"); // algbw
+      expect(nums[6]).toBe("0.00"); // busbw
+      expect(result.output).toContain("Avg bus bandwidth    : 0.00");
+    });
+
+    it("shipped scenario command 'mpirun -np 64 all_reduce_perf -b 8 -e 1G -f 2 -g 1' produces finite 0.00 rows", () => {
+      // Exact expectedCommand from narrativeScenarios.json -- -g 1 hits
+      // handleAllReducePerf's ngpus=1 ring-factor divide-by-zero path.
+      const { context: ctx } = buildContextWithGpu({}, "DGX-H100", 8);
+      const result = simulator.execute(
+        parse("mpirun -np 64 all_reduce_perf -b 8 -e 1G -f 2 -g 1"),
+        ctx,
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("Infinity");
+      expect(result.output).not.toContain("NaN");
+      // Every data row reports 0.00 algbw and 0.00 busbw
+      const rows = result.output
+        .split("\n")
+        .filter((l) => /^\s*\d+\s+\d+\s+float\s+sum/.test(l));
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) {
+        const nums = row.trim().split(/\s+/);
+        // columns: size count type redop root time algbw busbw #wrong ...
+        expect(nums[6]).toBe("0.00"); // algbw
+        expect(nums[7]).toBe("0.00"); // busbw
+      }
+      expect(result.output).toContain("Avg bus bandwidth    : 0.0000");
+      expect(result.output).toContain(
+        "mpirun: all 64 process(es) completed successfully",
+      );
     });
   });
 

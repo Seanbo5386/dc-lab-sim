@@ -407,9 +407,18 @@ export class BenchmarkSimulator extends BaseSimulator {
     // (the pedagogically important "detect the sick node" behavior --
     // PHYS-6): take the minimum degradation ratio across every GPU
     // actually involved in the run, not an average.
-    const gpusInvolved = this.resolveAllNodes(context)
-      .slice(0, nodes)
-      .flatMap((n) => n.gpus.slice(0, gpusPerNode));
+    //
+    // For a single-node run (the default), the involved node is the node
+    // the user is actually ON (`node`, resolved from context.currentNode)
+    // -- a positional slice of the cluster array always started at node
+    // index 0 regardless of where the user was, so running hpl on a sick
+    // dgx-03 reported dgx-00's healthy numbers. Multi-node runs keep the
+    // documented first-N-nodes simplification.
+    const involvedNodes =
+      nodes === 1 ? [node] : this.resolveAllNodes(context).slice(0, nodes);
+    const gpusInvolved = involvedNodes.flatMap((n) =>
+      n.gpus.slice(0, gpusPerNode),
+    );
     const computeRatio =
       gpusInvolved.length === 0
         ? 1
@@ -642,6 +651,12 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     const allNodes = this.resolveAllNodes(context);
     const totalGPUs = ngpus * numNodes;
     const isMultiNode = numNodes > 1;
+    // A single-rank "collective" has nothing to communicate: the ring
+    // factor for all_reduce/all_gather/reduce_scatter is 0 when
+    // totalGPUs === 1, and dividing by it printed literal "Infinity".
+    // Real nccl-tests still prints a row per message size for a
+    // degenerate 1-rank run -- just with 0.00 bandwidths.
+    const singleRank = totalGPUs <= 1;
 
     // Generate test results for different message sizes
     const sizes: number[] = [];
@@ -709,12 +724,14 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       // relationship). The old code multiplied the busbw-scale baseline
       // by the ring factor a SECOND time, inflating results ~1.75x for
       // all_reduce (PHYS-5).
-      const busBW = this.calculateNCCLBandwidthMultiNode(
-        sizeBytes,
-        node.gpus.slice(0, ngpus),
-        numNodes,
-        node.systemType,
-      );
+      const busBW = singleRank
+        ? 0
+        : this.calculateNCCLBandwidthMultiNode(
+            sizeBytes,
+            node.gpus.slice(0, ngpus),
+            numNodes,
+            node.systemType,
+          );
       const latency = this.calculateNCCLLatencyMultiNode(
         sizeBytes,
         ngpus,
@@ -737,7 +754,9 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         default:
           ringFactor = 2;
       }
-      const algBW = busBW / ringFactor;
+      // Guard the singleRank case explicitly: busBW is already 0 there,
+      // but ringFactor is also 0 for all_reduce, and 0/0 is NaN.
+      const algBW = singleRank ? 0 : busBW / ringFactor;
 
       totalBusBW += busBW;
 
@@ -1009,17 +1028,24 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       size *= 2;
     }
 
+    // Same degenerate-run guard as handleRegularTest: a 1-rank all_reduce
+    // has ring factor 2*(1-1)/1 = 0, and dividing by it printed literal
+    // "Infinity". Rows are still printed, just with 0.00 bandwidths.
+    const singleRank = ngpus <= 1;
+
     let totalBusBW = 0;
     sizes.forEach((sizeBytes) => {
       // Same fix as handleRegularTest above: the baseline is already
       // busbw-scale, so busBW is the direct value and algbw is derived by
       // dividing out the ring factor (this handler is always all_reduce).
-      const busBW = this.calculateNCCLBandwidthMultiNode(
-        sizeBytes,
-        node.gpus.slice(0, ngpus),
-        1,
-        node.systemType,
-      );
+      const busBW = singleRank
+        ? 0
+        : this.calculateNCCLBandwidthMultiNode(
+            sizeBytes,
+            node.gpus.slice(0, ngpus),
+            1,
+            node.systemType,
+          );
       const latency = this.calculateNCCLLatencyMultiNode(
         sizeBytes,
         ngpus,
@@ -1027,7 +1053,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         node.systemType,
       );
       const ringFactor = (2 * (ngpus - 1)) / ngpus;
-      const algBW = busBW / ringFactor;
+      const algBW = singleRank ? 0 : busBW / ringFactor;
       totalBusBW += busBW;
 
       const sizeStr = sizeBytes.toString().padStart(12);
