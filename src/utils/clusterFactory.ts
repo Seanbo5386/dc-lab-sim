@@ -172,10 +172,11 @@ function createInfiniBandPort(
     physicalState: "LinkUp",
     rate: specs.network.portRateGbs as 100 | 200 | 400 | 800,
     lid,
-    // Real IB GUIDs are 64-bit (16 hex digits), not 48-bit (SIM-13). Not
-    // cryptographically unique across an astronomical number of clusters,
-    // but unique enough within a single simulated cluster's lifetime that
-    // Math.random()'s ~2^63 space of outcomes never collides in practice.
+    // Real IB GUIDs are 64-bit (16 hex digits), not 48-bit (SIM-13). The
+    // string is padded to 16 digits; Number.MAX_SAFE_INTEGER only gives
+    // Math.random() ~2^53 of usable range (the top two hex digits are
+    // always "00"), but that's still ample entropy to avoid a collision
+    // within one simulated cluster's small port count.
     guid: `0x${Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
       .toString(16)
       .padStart(16, "0")}`,
