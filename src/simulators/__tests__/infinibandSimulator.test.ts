@@ -641,7 +641,11 @@ describe("InfiniBandSimulator", () => {
     });
 
     it("ibping should show ping results with latency", () => {
-      const parsed = parse("ibping");
+      // LID 20 is the first leaf switch in the derived fabric topology --
+      // ibping now validates its target against real fabric LIDs, and the
+      // old bare-`ibping` default target (LID 1) no longer exists anywhere,
+      // so it reports unreachable (covered by its own SIM-13 test below).
+      const parsed = parse("ibping 20");
       const result = simulator.executeIbping(parsed, context);
 
       expect(result.exitCode).toBe(0);
@@ -1302,6 +1306,129 @@ describe("InfiniBandSimulator", () => {
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain("1: mlx5_0:");
       expect(result.output).toContain("2: mlx5_1:");
+    });
+  });
+
+  describe("perfquery targeting flags (SIM-13)", () => {
+    const makePort = (portNumber: number, lid: number, guid: string) => ({
+      portNumber,
+      state: "Active",
+      physicalState: "LinkUp",
+      rate: 400,
+      lid,
+      guid,
+      linkLayer: "InfiniBand",
+      errors: {
+        symbolErrors: 0,
+        linkDowned: 0,
+        portRcvErrors: 0,
+        portXmitDiscards: 0,
+        portXmitWait: 0,
+      },
+    });
+
+    beforeEach(() => {
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: "OK",
+              gpus: [],
+              hcas: [
+                {
+                  id: 0,
+                  caType: "mlx5_0",
+                  model: "ConnectX-7",
+                  firmwareVersion: "28.39.1002",
+                  ports: [makePort(1, 101, "0x506b4b0300aa0001")],
+                },
+                {
+                  id: 1,
+                  caType: "mlx5_1",
+                  model: "ConnectX-7",
+                  firmwareVersion: "28.39.1002",
+                  ports: [
+                    makePort(1, 102, "0x506b4b0300aa0002"),
+                    makePort(2, 103, "0x506b4b0300aa0003"),
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    });
+
+    it("perfquery -C <ca> queries the named HCA's port, not always hcas[0]", () => {
+      const result = simulator.executePerfquery(
+        parse("perfquery -C mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("# Port counters: Lid 102 port 1");
+      expect(result.output).not.toContain("Lid 101");
+    });
+
+    it("perfquery -C <ca> -P <port> selects the named port on that HCA", () => {
+      const result = simulator.executePerfquery(
+        parse("perfquery -C mlx5_1 -P 2"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("# Port counters: Lid 103 port 2");
+    });
+
+    it("perfquery with no targeting flags still queries the first HCA's first port", () => {
+      const result = simulator.executePerfquery(parse("perfquery"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("# Port counters: Lid 101 port 1");
+    });
+
+    it("perfquery -C <unknown-ca> falls back to the first HCA", () => {
+      const result = simulator.executePerfquery(
+        parse("perfquery -C mlx5_99"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("# Port counters: Lid 101 port 1");
+    });
+  });
+
+  describe("ibping resolves a real fabric peer (SIM-13)", () => {
+    // Uses the default single-HCA fixture from the outer beforeEach:
+    // HCA port LID 123; deriveFabricTopology gives spine LIDs 10-13 and
+    // one leaf switch at LID 20 (leaf count = HCA count = 1).
+    it("ibping <lid> reports success against a switch LID that actually exists in the fabric topology", () => {
+      const result = simulator.executeIbping(parse("ibping 20"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Pong from lid 20");
+      expect(result.output).toContain("0% packet loss");
+    });
+
+    it("ibping <lid> reports success against a real HCA port LID", () => {
+      const result = simulator.executeIbping(parse("ibping 123"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("Pong from lid 123");
+    });
+
+    it("ibping <lid> reports the target as unreachable for a LID with no matching switch/port anywhere in the fabric", () => {
+      const result = simulator.executeIbping(parse("ibping 9999"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output.toLowerCase()).toMatch(
+        /unreachable|no route|not found/,
+      );
+      expect(result.output).not.toContain("Pong");
     });
   });
 });

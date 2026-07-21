@@ -283,7 +283,17 @@ Options:
       return this.createError("Error: No HCA found");
     }
 
-    const port = node.hcas[0].ports[0];
+    // -C/--Ca selects the local HCA, -P/--Port the port on it (SIM-13);
+    // both fall back to the first HCA/port, matching real perfquery defaults.
+    const caArg = this.getFlagString(parsed, ["C", "Ca"]);
+    const hca = this.resolveHCA(node, caArg || undefined)[0] ?? node.hcas[0];
+    const portArg = this.getFlagNumber(
+      parsed,
+      ["P", "Port"],
+      hca.ports[0]?.portNumber ?? 1,
+    );
+    const port =
+      hca.ports.find((p) => p.portNumber === portArg) ?? hca.ports[0];
 
     // Deterministic counters based on port LID (consistent across invocations)
     const seed = port.lid * 7919; // prime multiplier for spread
@@ -686,8 +696,27 @@ Options:
       return this.createError("Error: No HCA found");
     }
 
-    // Determine target LID from args or default to neighbor
+    // Determine target LID from args, then verify it actually exists
+    // somewhere in the fabric (spine/leaf switch LIDs plus every HCA
+    // port LID across the cluster) instead of echoing it back
+    // unconditionally (SIM-13).
     const targetLid = parsed.positionalArgs[0] || "1";
+    const targetLidNum = parseInt(targetLid, 10);
+
+    const nodes = this.resolveAllNodes(context);
+    const { spineSwitches, leafSwitches } = deriveFabricTopology(nodes);
+    const allKnownLids = new Set<number>([
+      ...spineSwitches.map((s) => s.lid),
+      ...leafSwitches.map((s) => s.lid),
+      ...nodes.flatMap((n) => n.hcas.flatMap((h) => h.ports.map((p) => p.lid))),
+    ]);
+
+    if (!allKnownLids.has(targetLidNum)) {
+      return this.createSuccess(
+        `Pinging lid ${targetLid}...\n\nFAILED: unreachable/no route to lid ${targetLid}\n`,
+      );
+    }
+
     const count = 5;
 
     let output = `Pinging lid ${targetLid}... \n\n`;
