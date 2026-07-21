@@ -1,4 +1,5 @@
 import type { CommandResult, CommandContext } from "@/types/commands";
+import type { DGXNode, InfiniBandHCA } from "@/types/hardware";
 import type { ParsedCommand } from "@/utils/commandParser";
 import {
   BaseSimulator,
@@ -56,6 +57,32 @@ export class InfiniBandSimulator extends BaseSimulator {
   }
 
   /**
+   * Resolve which of a node's HCAs a command should operate on, based on a
+   * device-name argument (the RDMA device name, e.g. "mlx5_0" -- hca.caType
+   * after the Task 1 identity fix). Falls back to every HCA on the node
+   * (today's unconditional behavior) if no argument was given or it doesn't
+   * match any HCA -- never silently prints nothing (SIM-13/LIVE-9).
+   */
+  private resolveHCA(
+    node: DGXNode,
+    deviceArg: string | undefined,
+  ): InfiniBandHCA[] {
+    if (!deviceArg) return node.hcas;
+    const match = node.hcas.find((h) => h.caType === deviceArg);
+    return match ? [match] : node.hcas;
+  }
+
+  /**
+   * Read a bare device-name argument (e.g. "mlx5_0") for commands that take
+   * it positionally (ibstat, ibdev2netdev, show_gids). The parser places
+   * bare non-numeric tokens into `subcommands`, so check both locations
+   * (same pattern as executeRdma's subcommand detection).
+   */
+  private getPositionalDeviceArg(parsed: ParsedCommand): string | undefined {
+    return parsed.subcommands[0] ?? parsed.positionalArgs[0];
+  }
+
+  /**
    * ibstat - Display HCA status
    */
   executeIbstat(parsed: ParsedCommand, context: CommandContext): CommandResult {
@@ -77,8 +104,9 @@ export class InfiniBandSimulator extends BaseSimulator {
       return this.createError("No InfiniBand HCAs found");
     }
 
+    const hcas = this.resolveHCA(node, this.getPositionalDeviceArg(parsed));
     let output = "";
-    node.hcas.forEach((hca, idx) => {
+    hcas.forEach((hca, idx) => {
       if (idx > 0) output += "\n";
       const deviceId = hca.model === "ConnectX-7" ? "MT4129" : "MT4123";
       output += `CA '${hca.caType}'\n`;
@@ -488,9 +516,13 @@ Options:
     }
 
     const verbose = this.hasAnyFlag(parsed, ["v", "verbose"]);
+    const hcas = this.resolveHCA(node, this.getPositionalDeviceArg(parsed));
     let output = "";
 
-    node.hcas.forEach((hca, idx) => {
+    hcas.forEach((hca) => {
+      // Index into the node's full HCA list so netdev/PCI names stay stable
+      // when the output is filtered to a single device.
+      const idx = node.hcas.indexOf(hca);
       hca.ports.forEach((port) => {
         const netdev = `ib${idx}`;
         const pciAddr = `0000:a${idx}:00.0`; // Simulated PCI address
@@ -1024,8 +1056,13 @@ Options:
       return this.createSuccess(lines.join("\n"));
     }
 
+    // Real ibv_devinfo selects a device via -d/--ib-dev; -l (handled above)
+    // always lists every device regardless.
+    const deviceArg = this.getFlagString(parsed, ["d", "ib-dev"]);
+    const hcas = this.resolveHCA(node, deviceArg || undefined);
+
     const lines: string[] = [];
-    for (const [idx, hca] of node.hcas.entries()) {
+    for (const [idx, hca] of hcas.entries()) {
       if (idx > 0) lines.push("");
       const vendorPartId = hca.model === "ConnectX-7" ? "4129" : "4123";
       lines.push(`hca_id:\t${hca.caType}`);
@@ -1069,12 +1106,14 @@ Options:
       return this.createError("No RDMA devices found");
     }
 
+    const hcas = this.resolveHCA(node, this.getPositionalDeviceArg(parsed));
+
     const lines: string[] = [
       "DEV     PORT  INDEX  GID                                      IPv4            VER   DEV",
       "---     ----  -----  ---                                      ------------    ---   ---",
     ];
 
-    for (const hca of node.hcas) {
+    for (const hca of hcas) {
       for (const port of hca.ports) {
         const guidCompact = (port.guid || "").replace(/:/g, "");
         lines.push(
@@ -1100,13 +1139,22 @@ Options:
       return this.createError("Error: No RDMA devices found");
     }
 
-    const subcommand = parsed.subcommands[0] || parsed.positionalArgs[0];
+    // Parser may place bare tokens in subcommands or positionalArgs.
+    const args = [...parsed.subcommands, ...parsed.positionalArgs];
+    const subcommand = args[0];
+    // Real rdma selects a device positionally after the object/`show` verb
+    // (e.g. `rdma dev show mlx5_0`, `rdma link show mlx5_0/1`). The link
+    // form may carry a `/PORT` suffix -- match on the device part.
+    const deviceArg = args
+      .slice(1)
+      .filter((token) => token !== "show")[0]
+      ?.split("/")[0];
 
     if (subcommand === "dev" || subcommand === "device") {
       const lines: string[] = [];
-      for (const [idx, hca] of node.hcas.entries()) {
+      for (const hca of this.resolveHCA(node, deviceArg)) {
         lines.push(
-          `${idx + 1}: ${hca.caType}: node_type ca fw ${hca.firmwareVersion} node_guid ${hca.ports[0]?.guid} sys_image_guid ${hca.ports[0]?.guid}`,
+          `${node.hcas.indexOf(hca) + 1}: ${hca.caType}: node_type ca fw ${hca.firmwareVersion} node_guid ${hca.ports[0]?.guid} sys_image_guid ${hca.ports[0]?.guid}`,
         );
       }
       return this.createSuccess(lines.join("\n"));
@@ -1114,7 +1162,7 @@ Options:
 
     if (subcommand === "link") {
       const lines: string[] = [];
-      for (const hca of node.hcas) {
+      for (const hca of this.resolveHCA(node, deviceArg)) {
         for (const port of hca.ports) {
           const stateLabel = port.state === "Active" ? "ACTIVE" : "DOWN";
           const physStateLabel =
@@ -1129,7 +1177,7 @@ Options:
 
     if (subcommand === "res" || subcommand === "resource") {
       const lines: string[] = [];
-      for (const hca of node.hcas) {
+      for (const hca of this.resolveHCA(node, deviceArg)) {
         lines.push(`${hca.caType}: qp 4 cq 8 mr 16 pd 4`);
       }
       return this.createSuccess(lines.join("\n"));

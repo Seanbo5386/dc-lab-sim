@@ -1125,4 +1125,183 @@ describe("InfiniBandSimulator", () => {
       });
     });
   });
+
+  describe("Device-argument resolution (SIM-13/LIVE-9)", () => {
+    const makeHca = (
+      id: number,
+      caType: string,
+      guid: string,
+      lid: number,
+    ) => ({
+      id,
+      devicePath: `/dev/mst/mt4129_pciconf${id}`,
+      caType,
+      model: "ConnectX-7",
+      firmwareVersion: "28.39.1002",
+      ports: [
+        {
+          portNumber: 1,
+          state: "Active",
+          physicalState: "LinkUp",
+          rate: 400,
+          lid,
+          guid,
+          linkLayer: "InfiniBand",
+          errors: {
+            symbolErrors: 0,
+            linkDowned: 0,
+            portRcvErrors: 0,
+            portXmitDiscards: 0,
+            portXmitWait: 0,
+          },
+        },
+      ],
+    });
+
+    beforeEach(() => {
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: "OK",
+              gpus: [],
+              hcas: [
+                makeHca(0, "mlx5_0", "0x506b4b0300aa0001", 101),
+                makeHca(1, "mlx5_1", "0x506b4b0300aa0002", 102),
+              ],
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    });
+
+    it("ibstat <device> shows only the named HCA, not every HCA on the node", () => {
+      const result = simulator.executeIbstat(parse("ibstat mlx5_1"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("CA 'mlx5_1'");
+      expect(result.output).not.toContain("CA 'mlx5_0'");
+    });
+
+    it("ibstat with no device argument still shows every HCA (unchanged default behavior)", () => {
+      const result = simulator.executeIbstat(parse("ibstat"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("CA 'mlx5_0'");
+      expect(result.output).toContain("CA 'mlx5_1'");
+    });
+
+    it("ibstat <unknown-device> falls back to showing every HCA rather than silently printing nothing", () => {
+      const result = simulator.executeIbstat(parse("ibstat mlx5_99"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("CA 'mlx5_0'");
+      expect(result.output).toContain("CA 'mlx5_1'");
+    });
+
+    it("ibv_devinfo -d <device> shows only the named HCA", () => {
+      const result = simulator.executeIbvDevinfo(
+        parse("ibv_devinfo -d mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("hca_id:\tmlx5_1");
+      expect(result.output).not.toContain("hca_id:\tmlx5_0");
+    });
+
+    it("ibv_devinfo with no -d still shows every HCA", () => {
+      const result = simulator.executeIbvDevinfo(parse("ibv_devinfo"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("hca_id:\tmlx5_0");
+      expect(result.output).toContain("hca_id:\tmlx5_1");
+    });
+
+    it("ibv_devinfo -l always lists every device, even alongside -d", () => {
+      const result = simulator.executeIbvDevinfo(
+        parse("ibv_devinfo -l -d mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_0");
+      expect(result.output).toContain("mlx5_1");
+    });
+
+    it("ibdev2netdev <device> shows only the named HCA with its stable netdev index", () => {
+      const result = simulator.executeIbdev2netdev(
+        parse("ibdev2netdev mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_1 port 1 ==> ib1 (Up)");
+      expect(result.output).not.toContain("mlx5_0");
+    });
+
+    it("ibdev2netdev with no argument still maps every HCA", () => {
+      const result = simulator.executeIbdev2netdev(
+        parse("ibdev2netdev"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_0 port 1 ==> ib0 (Up)");
+      expect(result.output).toContain("mlx5_1 port 1 ==> ib1 (Up)");
+    });
+
+    it("show_gids <device> shows only the named HCA's GIDs", () => {
+      const result = simulator.executeShowGids(
+        parse("show_gids mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_1");
+      expect(result.output).not.toContain("mlx5_0");
+    });
+
+    it("show_gids with no argument still shows every HCA's GIDs", () => {
+      const result = simulator.executeShowGids(parse("show_gids"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("mlx5_0");
+      expect(result.output).toContain("mlx5_1");
+    });
+
+    it("rdma dev show <device> shows only the named device, keeping its real index", () => {
+      const result = simulator.executeRdma(
+        parse("rdma dev show mlx5_1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("2: mlx5_1:");
+      expect(result.output).not.toContain("mlx5_0");
+    });
+
+    it("rdma link show <device>/<port> shows only the named device's links", () => {
+      const result = simulator.executeRdma(
+        parse("rdma link show mlx5_1/1"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("link mlx5_1/1");
+      expect(result.output).not.toContain("mlx5_0");
+    });
+
+    it("rdma dev with no device still lists every device", () => {
+      const result = simulator.executeRdma(parse("rdma dev"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("1: mlx5_0:");
+      expect(result.output).toContain("2: mlx5_1:");
+    });
+  });
 });
