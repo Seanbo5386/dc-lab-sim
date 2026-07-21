@@ -369,6 +369,10 @@ Options:
       "signal-quality",
     ]);
 
+    const allNodes = this.resolveAllNodes(context);
+    const { spineSwitches, leafSwitches } = deriveFabricTopology(allNodes);
+    const switchCount = spineSwitches.length + leafSwitches.length;
+
     let output =
       `\n-I- Using port 1 as the local port\n` +
       `-I- Discovering ... \n` +
@@ -376,7 +380,7 @@ Options:
       `-I- # of nodes: ${node.hcas.length}\n` +
       `-I- # of links: ${node.hcas.length}\n` +
       `-I- # of CAs: ${node.hcas.length}\n` +
-      `-I- # of switches: 0\n` +
+      `-I- # of switches: ${switchCount}\n` +
       `-I- Checking fabric health...\n`;
 
     if (detailed) {
@@ -409,8 +413,26 @@ Options:
       });
     }
 
+    const totalPortErrors = node.hcas.reduce(
+      (sum, hca) =>
+        sum +
+        hca.ports.reduce(
+          (portSum, port) =>
+            portSum +
+            port.errors.symbolErrors +
+            port.errors.linkDowned +
+            port.errors.portRcvErrors,
+          0,
+        ),
+      0,
+    );
+
     output += `-I- Fabric health check completed\n`;
-    output += `-I- No errors found\n`;
+    if (totalPortErrors > 0 || node.healthStatus !== "OK") {
+      output += `-I- \x1b[33m${totalPortErrors} errors found across the fabric\x1b[0m\n`;
+    } else {
+      output += `-I- No errors found\n`;
+    }
     output += `-I- See report in /tmp/ibdiagnet2\n`;
 
     return this.createSuccess(output);

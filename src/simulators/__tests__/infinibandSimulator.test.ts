@@ -1412,6 +1412,91 @@ describe("InfiniBandSimulator", () => {
     });
   });
 
+  describe("ibdiagnet reads real fabric state (SIM-12)", () => {
+    const mockNodeWithErrors = (overrides: {
+      symbolErrors?: number;
+      linkDowned?: number;
+      portRcvErrors?: number;
+      healthStatus?: string;
+    }) => {
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: overrides.healthStatus ?? "OK",
+              gpus: [],
+              hcas: [
+                {
+                  caType: "mlx5_0",
+                  firmwareVersion: "28.39.1002",
+                  ports: [
+                    {
+                      portNumber: 1,
+                      state: "Active",
+                      physicalState: "LinkUp",
+                      rate: 400,
+                      lid: 123,
+                      guid: "0x506b4b0300ab1234",
+                      linkLayer: "InfiniBand",
+                      errors: {
+                        symbolErrors: overrides.symbolErrors ?? 0,
+                        linkDowned: overrides.linkDowned ?? 0,
+                        portRcvErrors: overrides.portRcvErrors ?? 0,
+                        portXmitDiscards: 0,
+                        portXmitWait: 0,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    };
+
+    it("reports the real switch count from the shared fabric topology, not a hardcoded 0", () => {
+      const result = simulator.executeIbdiagnet(parse("ibdiagnet"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("# of switches: 0");
+      expect(result.output).toMatch(/# of switches: \d+/);
+      // Default fixture: 1 HCA -> 4 spine + 1 leaf from deriveFabricTopology.
+      expect(result.output).toContain("# of switches: 5");
+    });
+
+    it("reports errors found when a port has a nonzero error counter, not an unconditional 'No errors found'", () => {
+      mockNodeWithErrors({ symbolErrors: 100, portRcvErrors: 5 });
+
+      const result = simulator.executeIbdiagnet(parse("ibdiagnet"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("No errors found");
+      expect(result.output.toLowerCase()).toMatch(/error|degraded|warning/);
+    });
+
+    it("reports errors found when the node's health status is not OK, even with zero port error counters", () => {
+      mockNodeWithErrors({ healthStatus: "Critical" });
+
+      const result = simulator.executeIbdiagnet(parse("ibdiagnet"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("No errors found");
+      expect(result.output.toLowerCase()).toMatch(/error|degraded|warning/);
+    });
+
+    it("reports a clean summary for a genuinely healthy fabric (no regression for the common case)", () => {
+      const result = simulator.executeIbdiagnet(parse("ibdiagnet"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain("No errors found");
+    });
+  });
+
   describe("ibping resolves a real fabric peer (SIM-13)", () => {
     // Uses the default single-HCA fixture from the outer beforeEach:
     // HCA port LID 123; deriveFabricTopology gives spine LIDs 10-13 and
