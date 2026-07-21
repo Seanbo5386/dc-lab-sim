@@ -464,6 +464,27 @@ export const FaultInjection: React.FC<FaultInjectionProps> = ({
       });
     });
 
+    // Also clear any ib-port-error fault -- it sets a port Down/Polling
+    // with nonzero error counters via the HCA mutator, not the GPU one, so
+    // it's invisible to the loop above (bot review follow-up: "Clear All"
+    // previously left ibstat/ibporterrors still showing the IB fault even
+    // though the toast claimed everything was reset).
+    node.hcas.forEach((hca) => {
+      hca.ports.forEach((port) => {
+        mutator.updateHCA(selectedNode, hca.id, port.portNumber, {
+          state: "Active",
+          physicalState: "LinkUp",
+          errors: {
+            symbolErrors: 0,
+            linkDowned: 0,
+            portRcvErrors: 0,
+            portXmitDiscards: 0,
+            portXmitWait: 0,
+          },
+        });
+      });
+    });
+
     // setBugReportCollected is a global-store action (not on StateMutator). The
     // sandbox always operates on the global cluster — the Sandbox tab is disabled
     // while a scenario is active — so this direct global write is correct here.

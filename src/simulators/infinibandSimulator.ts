@@ -432,30 +432,41 @@ Options:
       });
     }
 
-    const totalPortErrors = node.hcas.reduce(
-      (sum, hca) =>
-        sum +
-        hca.ports.reduce(
-          (portSum, port) =>
-            portSum +
-            port.errors.symbolErrors +
-            port.errors.linkDowned +
-            port.errors.portRcvErrors,
+    // Sum across every discovered node, not just the current one -- the
+    // header above already claims fabric-wide scope (it reports the real
+    // switch count from `allNodes`), so a fault on a different host than
+    // the terminal's current node must not be silently invisible to this
+    // verdict (bot review follow-up).
+    const totalPortErrors = allNodes.reduce(
+      (nodeSum, n) =>
+        nodeSum +
+        n.hcas.reduce(
+          (sum, hca) =>
+            sum +
+            hca.ports.reduce(
+              (portSum, port) =>
+                portSum +
+                port.errors.symbolErrors +
+                port.errors.linkDowned +
+                port.errors.portRcvErrors,
+              0,
+            ),
           0,
         ),
       0,
     );
+    const degradedNode = allNodes.find((n) => n.healthStatus !== "OK");
 
     output += `-I- Fabric health check completed\n`;
     if (totalPortErrors > 0) {
       output += `-I- \x1b[33m${totalPortErrors} errors found across the fabric\x1b[0m\n`;
-    } else if (node.healthStatus !== "OK") {
+    } else if (degradedNode) {
       // Node health can be degraded by a non-IB fault (thermal/ECC/power/
       // XID/etc, set via the generic updateNodeHealth mutator any fault
       // type calls) with zero IB port errors -- "0 errors found" would
       // read as clean despite the flagged problem, so use distinct
       // wording rather than reporting a numeric error count of zero.
-      output += `-I- \x1b[33mFabric health degraded (node health: ${node.healthStatus})\x1b[0m\n`;
+      output += `-I- \x1b[33mFabric health degraded (${degradedNode.hostname} health: ${degradedNode.healthStatus})\x1b[0m\n`;
     } else {
       output += `-I- No errors found\n`;
     }

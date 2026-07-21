@@ -933,6 +933,43 @@ describe("FaultInjection", () => {
       );
     });
 
+    it("should also reset HCA port fault state (state/physicalState/errors) when Clear All clicked (bot review follow-up)", () => {
+      // Clear All previously only reset GPUs -- an ib-port-error fault
+      // (which sets an HCA port Down/Polling with nonzero error counters
+      // via updateHCA, not updateGPU) survived Clear All, so ibstat/
+      // ibporterrors kept showing the fault even though the toast claimed
+      // everything was reset.
+      render(<FaultInjection />);
+
+      fireEvent.click(screen.getByText("Clear All"));
+
+      // dgx-00 has 2 HCAs, each with 1 port, so updateHCA should be called
+      // once per port.
+      expect(mockUpdateHCA).toHaveBeenCalledTimes(2);
+      expect(mockUpdateHCA).toHaveBeenCalledWith(
+        "dgx-00",
+        0,
+        1,
+        expect.objectContaining({
+          state: "Active",
+          physicalState: "LinkUp",
+          errors: {
+            symbolErrors: 0,
+            linkDowned: 0,
+            portRcvErrors: 0,
+            portXmitDiscards: 0,
+            portXmitWait: 0,
+          },
+        }),
+      );
+      expect(mockUpdateHCA).toHaveBeenCalledWith(
+        "dgx-00",
+        1,
+        1,
+        expect.objectContaining({ state: "Active", physicalState: "LinkUp" }),
+      );
+    });
+
     it("should reset ECC errors when Clear All is clicked", () => {
       render(<FaultInjection />);
 

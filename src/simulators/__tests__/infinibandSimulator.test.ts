@@ -1625,6 +1625,84 @@ describe("InfiniBandSimulator", () => {
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain("No errors found");
     });
+
+    it("catches a port error on a DIFFERENT node than the terminal's current one, since the summary claims fabric-wide scope (bot review follow-up)", () => {
+      const remoteHCA = {
+        caType: "mlx5_0",
+        firmwareVersion: "28.39.1002",
+        ports: [
+          {
+            portNumber: 1,
+            state: "Down",
+            physicalState: "Polling",
+            rate: 400,
+            lid: 200,
+            guid: "0x506b4b0300ab9999",
+            linkLayer: "InfiniBand",
+            errors: {
+              symbolErrors: 150,
+              linkDowned: 1,
+              portRcvErrors: 0,
+              portXmitDiscards: 0,
+              portXmitWait: 0,
+            },
+          },
+        ],
+      };
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: "OK",
+              gpus: [],
+              hcas: [
+                {
+                  caType: "mlx5_0",
+                  firmwareVersion: "28.39.1002",
+                  ports: [
+                    {
+                      portNumber: 1,
+                      state: "Active",
+                      physicalState: "LinkUp",
+                      rate: 400,
+                      lid: 123,
+                      guid: "0x506b4b0300ab1234",
+                      linkLayer: "InfiniBand",
+                      errors: {
+                        symbolErrors: 0,
+                        linkDowned: 0,
+                        portRcvErrors: 0,
+                        portXmitDiscards: 0,
+                        portXmitWait: 0,
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+            {
+              id: "dgx-01",
+              hostname: "dgx-node02",
+              systemType: "DGX-H100",
+              healthStatus: "OK",
+              gpus: [],
+              hcas: [remoteHCA],
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+
+      // Terminal is connected to dgx-00 (healthy); the fault is on dgx-01.
+      const result = simulator.executeIbdiagnet(parse("ibdiagnet"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).not.toContain("No errors found");
+      expect(result.output).toContain("errors found across the fabric");
+    });
   });
 
   describe("ibping resolves a real fabric peer (SIM-13)", () => {
