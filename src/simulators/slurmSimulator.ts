@@ -146,9 +146,9 @@ export class SlurmSimulator extends BaseSimulator {
     );
   }
 
-  private getNode(context: CommandContext) {
-    return this.resolveNode(context);
-  }
+  // Note: a private getNode() wrapper used to live here; its only caller was
+  // the old always-succeeds executeSrun (removed in SIM-21), so it was deleted
+  // to keep the noUnusedLocals typecheck clean.
 
   private getAllNodes(context: CommandContext) {
     return this.resolveAllNodes(context);
@@ -1255,6 +1255,20 @@ export class SlurmSimulator extends BaseSimulator {
     const gpuCount = this.getFlagNumber(parsed, ["gpus"], 1);
     const containerImage = this.getFlagString(parsed, ["container-image"]);
 
+    const nodes = this.resolveAllNodes(context);
+    const availableNode = nodes.find(
+      (n) => n.slurmState === "idle" && n.gpus.length >= gpuCount,
+    );
+
+    if (!availableNode) {
+      return {
+        output:
+          "srun: error: Unable to allocate resources: Requested node configuration is not available\n",
+        exitCode: 1,
+      };
+    }
+
+    const jobId = this.nextJobId++;
     let output = "";
 
     if (containerImage) {
@@ -1262,27 +1276,48 @@ export class SlurmSimulator extends BaseSimulator {
       output += `srun: Container ready\n`;
     }
 
-    output += `srun: job ${this.nextJobId} queued and waiting for resources\n`;
-    output += `srun: job ${this.nextJobId} has been allocated resources\n`;
+    output += `srun: job ${jobId} queued and waiting for resources\n`;
+    output += `srun: job ${jobId} has been allocated resources\n`;
 
-    // Find command to run in positional args
-    if (parsed.positionalArgs.length > 0) {
-      const command = parsed.positionalArgs.join(" ");
+    const command = parsed.positionalArgs.join(" ");
 
-      if (command === "nvidia-smi" || command.includes("nvidia-smi")) {
-        const node = this.getNode(context);
-        if (node) {
-          output += "\n";
-          output += `Allocated ${gpuCount} GPU(s) from ${node.id}\n`;
-          output += `GPU 0: ${node.gpus[0].name}\n`;
-        }
-      } else {
-        output += `\nExecuting: ${command}\n`;
-        output += `Job completed successfully\n`;
-      }
+    if (command.includes("nvidia-smi")) {
+      output += "\n";
+      output += `Allocated ${gpuCount} GPU(s) from ${availableNode.id}\n`;
+      output += `GPU 0: ${availableNode.gpus[0].name}\n`;
+    } else if (command) {
+      output += `\nExecuting: ${command}\n`;
+      output += `Job completed successfully\n`;
     }
 
-    this.nextJobId++;
+    // srun blocks in the foreground and releases its node the moment the
+    // command finishes -- there's no later point at which anything else
+    // in this sim would observe it as still running. It's recorded here
+    // so a subsequent squeue in the same session shows real job history
+    // instead of nothing at all (SIM-21).
+    const job: SlurmJob = {
+      jobId,
+      partition: this.getFlagString(parsed, ["p", "partition"]) || "gpu",
+      name: command.split(" ")[0] || "interactive",
+      user: "root",
+      state: "COMPLETED",
+      time: "0:00",
+      timeLimit: "infinite",
+      nodes: 1,
+      nodelist: availableNode.id,
+      cpus: this.getFlagNumber(parsed, ["c", "cpus-per-task"], 1),
+      gpus: gpuCount,
+      memory: this.getFlagString(parsed, ["mem"]) || "16G",
+      submitTime: new Date(),
+      startTime: new Date(),
+      endTime: new Date(),
+      priority: 1000 + Math.floor(Math.random() * 100),
+      account: "default",
+      qos: "normal",
+      workDir: "/home/root",
+      command: command || "(interactive)",
+    };
+    this.jobs.push(job);
 
     return { output, exitCode: 0 };
   }
