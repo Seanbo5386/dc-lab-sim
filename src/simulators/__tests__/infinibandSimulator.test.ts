@@ -1029,7 +1029,10 @@ describe("InfiniBandSimulator", () => {
     });
 
     describe("dynamic state resolution (review fixes)", () => {
-      beforeEach(() => {
+      const mockNodeWithPortState = (
+        state: string,
+        physicalState: string,
+      ): void => {
         vi.mocked(useSimulationStore.getState).mockReturnValue({
           cluster: {
             nodes: [
@@ -1048,8 +1051,8 @@ describe("InfiniBandSimulator", () => {
                     ports: [
                       {
                         portNumber: 1,
-                        state: "Down",
-                        physicalState: "LinkDown",
+                        state,
+                        physicalState,
                         rate: 400,
                         lid: 123,
                         guid: "0x506b4b0300ab1234",
@@ -1092,14 +1095,51 @@ describe("InfiniBandSimulator", () => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } as any,
         });
+      };
+
+      beforeEach(() => {
+        mockNodeWithPortState("Down", "LinkDown");
       });
 
-      it("ibstatus should report DOWN/Disabled for a non-active port", () => {
+      it("ibstatus reports Disabled for an administratively-down link (LinkDown), distinct from Polling", () => {
         const result = simulator.executeIbstatus(parse("ibstatus"), context);
 
         expect(result.exitCode).toBe(0);
         expect(result.output).toContain("state:\t\t 1: DOWN");
         expect(result.output).toContain("phys state:\t 3: Disabled");
+      });
+
+      it("ibstatus reports Polling (not Disabled) for a port with no active peer/cable", () => {
+        // Fixture: physicalState "Polling" -- a cabled port waiting to link up,
+        // NOT the same as a link that's down or a port an admin disabled.
+        mockNodeWithPortState("Down", "Polling");
+
+        const result = simulator.executeIbstatus(parse("ibstatus"), context);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("state:\t\t 1: DOWN");
+        expect(result.output).toContain("phys state:\t 2: Polling");
+      });
+
+      it("ibstatus reports Sleep for a port in power-save state", () => {
+        mockNodeWithPortState("Down", "Sleep");
+
+        const result = simulator.executeIbstatus(parse("ibstatus"), context);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("phys state:\t 1: Sleep");
+      });
+
+      it("ibv_devinfo reports PORT_POLLING for a port in Polling logical state", () => {
+        mockNodeWithPortState("Polling", "Polling");
+
+        const result = simulator.executeIbvDevinfo(
+          parse("ibv_devinfo"),
+          context,
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(result.output).toContain("state:\t\t\tPORT_POLLING (2)");
       });
 
       it("ibv_devinfo should report PORT_DOWN for a non-active port", () => {

@@ -1088,8 +1088,17 @@ Options:
         lines.push(`\tbase lid:\t ${port.lid}`);
         lines.push(`\tsm lid:\t\t 1`);
         const stateLabel = port.state === "Active" ? "4: ACTIVE" : "1: DOWN";
+        // IBTA physical port states: 1=Sleep, 2=Polling, 3=Disabled,
+        // 4=PortConfigurationTraining, 5=LinkUp, 6=LinkErrorRecovery.
+        // "LinkDown" has no IBTA number of its own; it maps to Disabled.
         const physStateLabel =
-          port.physicalState === "LinkUp" ? "5: LinkUp" : "3: Disabled";
+          port.physicalState === "LinkUp"
+            ? "5: LinkUp"
+            : port.physicalState === "Polling"
+              ? "2: Polling"
+              : port.physicalState === "Sleep"
+                ? "1: Sleep"
+                : "3: Disabled";
         lines.push(`\tstate:\t\t ${stateLabel}`);
         lines.push(`\tphys state:\t ${physStateLabel}`);
         lines.push(
@@ -1148,7 +1157,11 @@ Options:
       for (const port of hca.ports) {
         lines.push(`\t\tport:\t${port.portNumber}`);
         const portStateLabel =
-          port.state === "Active" ? "PORT_ACTIVE (4)" : "PORT_DOWN (1)";
+          port.state === "Active"
+            ? "PORT_ACTIVE (4)"
+            : port.state === "Polling"
+              ? "PORT_POLLING (2)"
+              : "PORT_DOWN (1)";
         lines.push(`\t\t\tstate:\t\t\t${portStateLabel}`);
         lines.push(`\t\t\tmax_mtu:\t\t4096 (5)`);
         lines.push(`\t\t\tactive_mtu:\t\t4096 (5)`);
