@@ -175,6 +175,46 @@ export function getPowerLimitBounds(gpuName: string): {
   return { min: 100, max: 400 };
 }
 
+/**
+ * Fraction (0-1) of a GPU's rated boost clock it's currently running at.
+ * Used to scale compute-bound benchmark results (HPL FLOPS, gpu-burn) so a
+ * thermally-throttled or otherwise clock-reduced GPU measurably
+ * underperforms instead of a benchmark always reporting its static
+ * theoretical peak regardless of live state (PHYS-6).
+ */
+export function getClockRatio(gpu: GPU): number {
+  const boostClock = getBoostClock(gpu.name);
+  if (boostClock <= 0) return 1;
+  return Math.max(0, Math.min(1, gpu.clocksSM / boostClock));
+}
+
+/**
+ * Fraction (0-1) of a GPU's rated TDP its current -pl power limit allows.
+ * A capped power limit constrains sustained clocks even before thermal
+ * throttling kicks in, so compute-bound benchmarks should scale down too
+ * (PHYS-6).
+ */
+export function getPowerCapRatio(gpu: GPU): number {
+  const ratedTDP = getRatedTDP(gpu.name);
+  if (ratedTDP <= 0) return 1;
+  return Math.max(0, Math.min(1, gpu.powerLimit / ratedTDP));
+}
+
+/**
+ * Fraction (0-1) of NVLink connections across the given GPUs that are NOT
+ * Down. Used to scale bandwidth-bound benchmark results (NCCL, p2p tests)
+ * so a down link measurably reduces achieved bandwidth (PHYS-6). Returns 1
+ * (fully healthy) if none of the given GPUs model any NVLink connections
+ * at all, so fixtures/architectures without a populated `nvlinks` array
+ * aren't spuriously zeroed out.
+ */
+export function getNvlinkHealthRatio(gpus: GPU[]): number {
+  const allLinks = gpus.flatMap((g) => g?.nvlinks ?? []);
+  if (allLinks.length === 0) return 1;
+  const upCount = allLinks.filter((l) => l.status !== "Down").length;
+  return upCount / allLinks.length;
+}
+
 export interface ThresholdEvent {
   type:
     | "thermal-warning"

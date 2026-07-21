@@ -6,6 +6,9 @@ import {
   deriveThermalSeverity,
   deriveThrottleReasons,
   heatWattsFraction,
+  getClockRatio,
+  getPowerCapRatio,
+  getNvlinkHealthRatio,
 } from "../clusterPhysicsEngine";
 import type { GPU } from "@/types/hardware";
 
@@ -458,5 +461,112 @@ describe("sustained throttle steady state", () => {
     // target here; the load-bearing assertion is "did not keep decaying,"
     // proven above, with a generous floor here as a second signal.
     expect(gpu.powerDraw).toBeGreaterThan(300);
+  });
+});
+
+describe("getClockRatio (PHYS-6)", () => {
+  it("returns 1 for a GPU running at its full boost clock", () => {
+    const gpu = createTestGPU({
+      name: "NVIDIA H100-SXM5-80GB",
+      clocksSM: 1980, // H100's real boostClockMHz
+    });
+    expect(getClockRatio(gpu)).toBeCloseTo(1, 2);
+  });
+
+  it("returns 0.5 for a GPU throttled to half its boost clock", () => {
+    const gpu = createTestGPU({
+      name: "NVIDIA H100-SXM5-80GB",
+      clocksSM: 990,
+    });
+    expect(getClockRatio(gpu)).toBeCloseTo(0.5, 2);
+  });
+
+  it("clamps above 1 (a GPU can transiently report above its rated boost clock)", () => {
+    const gpu = createTestGPU({
+      name: "NVIDIA H100-SXM5-80GB",
+      clocksSM: 2500,
+    });
+    expect(getClockRatio(gpu)).toBe(1);
+  });
+});
+
+describe("getPowerCapRatio (PHYS-6)", () => {
+  it("returns 1 for a GPU at its full rated TDP", () => {
+    const gpu = createTestGPU({
+      name: "NVIDIA H100-SXM5-80GB",
+      powerLimit: 700,
+    });
+    expect(getPowerCapRatio(gpu)).toBeCloseTo(1, 2);
+  });
+
+  it("returns 0.5 for a GPU capped to half its rated TDP", () => {
+    const gpu = createTestGPU({
+      name: "NVIDIA H100-SXM5-80GB",
+      powerLimit: 350,
+    });
+    expect(getPowerCapRatio(gpu)).toBeCloseTo(0.5, 2);
+  });
+});
+
+describe("getNvlinkHealthRatio (PHYS-6)", () => {
+  it("returns 1 when every modeled link is Active", () => {
+    const gpu = createTestGPU({
+      nvlinks: [
+        {
+          linkId: 0,
+          status: "Active",
+          speed: 25,
+          txErrors: 0,
+          rxErrors: 0,
+          replayErrors: 0,
+        },
+        {
+          linkId: 1,
+          status: "Active",
+          speed: 25,
+          txErrors: 0,
+          rxErrors: 0,
+          replayErrors: 0,
+        },
+      ],
+    });
+    expect(getNvlinkHealthRatio([gpu])).toBe(1);
+  });
+
+  it("returns 0.5 when half the modeled links across the given GPUs are Down", () => {
+    const gpu = createTestGPU({
+      nvlinks: [
+        {
+          linkId: 0,
+          status: "Down",
+          speed: 25,
+          txErrors: 100,
+          rxErrors: 0,
+          replayErrors: 0,
+        },
+        {
+          linkId: 1,
+          status: "Active",
+          speed: 25,
+          txErrors: 0,
+          rxErrors: 0,
+          replayErrors: 0,
+        },
+      ],
+    });
+    expect(getNvlinkHealthRatio([gpu])).toBe(0.5);
+  });
+
+  it("returns 1 (not 0 or NaN) when no GPU models any NVLink connections", () => {
+    const gpu = createTestGPU({ nvlinks: [] });
+    expect(getNvlinkHealthRatio([gpu])).toBe(1);
+  });
+
+  it("returns 1 (not a crash) when the gpus array contains an undefined entry (bot review follow-up)", () => {
+    const gpu = createTestGPU({ nvlinks: [] });
+    expect(() =>
+      getNvlinkHealthRatio([gpu, undefined as unknown as GPU]),
+    ).not.toThrow();
+    expect(getNvlinkHealthRatio([gpu, undefined as unknown as GPU])).toBe(1);
   });
 });

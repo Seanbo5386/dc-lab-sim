@@ -13,6 +13,11 @@ import type { ParsedCommand } from "@/utils/commandParser";
 import type { GPU, DGXNode } from "@/types/hardware";
 import { getHardwareSpecs } from "@/data/hardwareSpecs";
 import type { SystemType } from "@/data/hardwareSpecs";
+import {
+  getClockRatio,
+  getPowerCapRatio,
+  getNvlinkHealthRatio,
+} from "@/simulation/clusterPhysicsEngine";
 
 const ncclBaselineBandwidthGBs: Record<SystemType, number> = {
   "DGX-A100": 240,
@@ -21,15 +26,6 @@ const ncclBaselineBandwidthGBs: Record<SystemType, number> = {
   "DGX-B200": 760,
   "DGX-GB200": 760,
   "DGX-VR200": 1520,
-};
-
-const hplBaselineTflops: Record<SystemType, number> = {
-  "DGX-A100": 135,
-  "DGX-H100": 240,
-  "DGX-H200": 240,
-  "DGX-B200": 312,
-  "DGX-GB200": 312,
-  "DGX-VR200": 500,
 };
 
 export class BenchmarkSimulator extends BaseSimulator {
@@ -407,8 +403,36 @@ export class BenchmarkSimulator extends BaseSimulator {
 
     const theoreticalPeak = tflopsPerGPU * totalGPUs;
 
-    // Efficiency: 85-92% is realistic for well-tuned HPL
-    const efficiency = 0.85 + Math.random() * 0.07;
+    // A cluster-wide job runs at the pace of its worst-performing GPU
+    // (the pedagogically important "detect the sick node" behavior --
+    // PHYS-6): take the minimum degradation ratio across every GPU
+    // actually involved in the run, not an average.
+    //
+    // For a single-node run (the default), the involved node is the node
+    // the user is actually ON (`node`, resolved from context.currentNode)
+    // -- a positional slice of the cluster array always started at node
+    // index 0 regardless of where the user was, so running hpl on a sick
+    // dgx-03 reported dgx-00's healthy numbers. Multi-node runs keep the
+    // documented first-N-nodes simplification.
+    const involvedNodes =
+      nodes === 1 ? [node] : this.resolveAllNodes(context).slice(0, nodes);
+    const gpusInvolved = involvedNodes.flatMap((n) =>
+      n.gpus.slice(0, gpusPerNode),
+    );
+    const computeRatio =
+      gpusInvolved.length === 0
+        ? 1
+        : Math.min(
+            ...gpusInvolved.map((gpu) =>
+              Math.min(getClockRatio(gpu), getPowerCapRatio(gpu)),
+            ),
+          );
+
+    // Efficiency: 85-92% is realistic for a well-tuned, healthy HPL run;
+    // degraded hardware (throttled clocks, a capped power limit) scales
+    // this down further, making the low-efficiency warning branch below
+    // genuinely reachable instead of dead code.
+    const efficiency = (0.85 + Math.random() * 0.07) * computeRatio;
     const achievedTFLOPS = theoreticalPeak * efficiency;
 
     // Execution time estimate (scales with problem size^3 and inversely with FLOPS)
@@ -491,12 +515,24 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     output += `Each iteration takes approximately 2-3 minutes\n\n`;
 
     // Simulate burn-in iterations
-    const baseline =
-      hplBaselineTflops[node.systemType as SystemType] ??
-      hplBaselineTflops["DGX-A100"];
+    // Same source of truth as the non-burn-in HPL path (handleHPL) and
+    // the same degradation ratios -- previously this read a second,
+    // independent, hand-maintained table that disagreed with
+    // hardwareSpecs.gpu.fp64Tflops and never reflected live GPU state
+    // (PHYS-13).
+    const burnInSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
+    const computeRatio =
+      node.gpus.length === 0
+        ? 1
+        : Math.min(
+            ...node.gpus.map((gpu) =>
+              Math.min(getClockRatio(gpu), getPowerCapRatio(gpu)),
+            ),
+          );
+    const baseline = burnInSpecs.gpu.fp64Tflops * node.gpus.length;
     const tflopsValues: number[] = [];
     for (let i = 1; i <= Math.min(5, iterations); i++) {
-      const gflops = baseline * (0.9 + Math.random() * 0.1);
+      const gflops = baseline * (0.9 + Math.random() * 0.1) * computeRatio;
       tflopsValues.push(gflops);
       output += `Iteration ${i}/${iterations}: ${gflops.toFixed(2)} TFLOPS\n`;
     }
@@ -505,7 +541,9 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       output += `... (${iterations - 5} more iterations)\n`;
       // Generate additional TFLOPS values for statistics
       for (let i = 6; i <= iterations; i++) {
-        tflopsValues.push(baseline * (0.9 + Math.random() * 0.1));
+        tflopsValues.push(
+          baseline * (0.9 + Math.random() * 0.1) * computeRatio,
+        );
       }
     }
 
@@ -613,6 +651,12 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     const allNodes = this.resolveAllNodes(context);
     const totalGPUs = ngpus * numNodes;
     const isMultiNode = numNodes > 1;
+    // A single-rank "collective" has nothing to communicate: the ring
+    // factor for all_reduce/all_gather/reduce_scatter is 0 when
+    // totalGPUs === 1, and dividing by it printed literal "Infinity".
+    // Real nccl-tests still prints a row per message size for a
+    // degenerate 1-rank run -- just with 0.00 bandwidths.
+    const singleRank = totalGPUs <= 1;
 
     // Generate test results for different message sizes
     const sizes: number[] = [];
@@ -672,37 +716,48 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
 
     let totalBusBW = 0;
     sizes.forEach((sizeBytes) => {
-      const bandwidth = this.calculateNCCLBandwidthMultiNode(
-        sizeBytes,
-        ngpus,
-        numNodes,
-        node.systemType,
-      );
+      // calculateNCCLBandwidthMultiNode already returns a real-world
+      // ACHIEVED BUS-BANDWIDTH ceiling (ncclBaselineBandwidthGBs is a
+      // documented busbw figure, not algbw) -- so busBW is that value
+      // directly, and algbw is DERIVED by dividing out the collective's
+      // ring factor (busbw = algbw * ringFactor is the real NCCL-tests
+      // relationship). The old code multiplied the busbw-scale baseline
+      // by the ring factor a SECOND time, inflating results ~1.75x for
+      // all_reduce (PHYS-5).
+      const busBW = singleRank
+        ? 0
+        : this.calculateNCCLBandwidthMultiNode(
+            sizeBytes,
+            node.gpus.slice(0, ngpus),
+            numNodes,
+            node.systemType,
+          );
       const latency = this.calculateNCCLLatencyMultiNode(
         sizeBytes,
         ngpus,
         numNodes,
+        node.gpus.slice(0, ngpus),
         node.systemType,
       );
 
-      // Bus bandwidth depends on collective type
-      let busBW: number;
+      let ringFactor: number;
       switch (operation) {
         case "all_reduce":
-          busBW = (bandwidth * 2 * (totalGPUs - 1)) / totalGPUs; // Ring all-reduce
+          ringFactor = (2 * (totalGPUs - 1)) / totalGPUs;
           break;
         case "all_gather":
-          busBW = (bandwidth * (totalGPUs - 1)) / totalGPUs;
-          break;
         case "reduce_scatter":
-          busBW = (bandwidth * (totalGPUs - 1)) / totalGPUs;
+          ringFactor = (totalGPUs - 1) / totalGPUs;
           break;
         case "broadcast":
-          busBW = bandwidth;
+          ringFactor = 1;
           break;
         default:
-          busBW = bandwidth * 2;
+          ringFactor = 2;
       }
+      // Guard the singleRank case explicitly: busBW is already 0 there,
+      // but ringFactor is also 0 for all_reduce, and 0/0 is NaN.
+      const algBW = singleRank ? 0 : busBW / ringFactor;
 
       totalBusBW += busBW;
 
@@ -711,7 +766,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         .toString()
         .padStart(12); // Assuming float32
       const timeStr = latency.toFixed(1).padStart(8);
-      const algbwStr = bandwidth.toFixed(2).padStart(7);
+      const algbwStr = algBW.toFixed(2).padStart(7);
       const busbwStr = busBW.toFixed(2).padStart(7);
 
       output += `${sizeStr} ${countStr}   float     sum   ${timeStr} ${algbwStr} ${busbwStr}  0e+00   ${timeStr} ${algbwStr} ${busbwStr}  0e+00\n`;
@@ -775,11 +830,18 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     // Simulate burn-in test with progress
     output += `Running NCCL AllReduce burn-in...\n`;
 
-    // Calculate bandwidth statistics
+    // Real per-architecture busbw ceiling (same source Task 1/5's NCCL
+    // handlers use), scaled by NVLink health -- previously a flat
+    // 280-300 GB/s literal regardless of architecture (SIM-31).
+    const sysType = (node.systemType || "DGX-A100") as SystemType;
+    const baseline =
+      ncclBaselineBandwidthGBs[sysType] ?? ncclBaselineBandwidthGBs["DGX-A100"];
+    const nvlinkHealth = getNvlinkHealthRatio(node.gpus);
+
     const bandwidths: number[] = [];
 
     for (let i = 1; i <= Math.min(10, iterations); i++) {
-      const bandwidth = 280 + Math.random() * 20; // 280-300 GB/s
+      const bandwidth = baseline * (0.9 + Math.random() * 0.1) * nvlinkHealth;
       bandwidths.push(bandwidth);
       output += `Iteration ${i}/${iterations}: ${bandwidth.toFixed(2)} GB/s\n`;
     }
@@ -788,7 +850,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       output += `... (${iterations - 10} more iterations)\n`;
       // Generate additional bandwidth values for statistics
       for (let i = 11; i <= iterations; i++) {
-        bandwidths.push(280 + Math.random() * 20);
+        bandwidths.push(baseline * (0.9 + Math.random() * 0.1) * nvlinkHealth);
       }
     }
 
@@ -873,7 +935,6 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     });
 
     const hplSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
-    const gpuFlops = hplSpecs.gpu.fp64Tflops * 1000; // Gflop/s per GPU
 
     let output = `gpu-burn ${duration}\n`;
     output += `GPU 0: ${gpusToTest[0]?.name || "Unknown GPU"}\n`;
@@ -887,6 +948,16 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       const processed = Math.round((pct / 100) * 8192);
       gpusToTest.forEach((gpu: GPU, idx: number) => {
         const temp = Math.min(85, gpu.temperature + 10 + sample * 2);
+        // A GPU already capped below its rated TDP, or already
+        // clock-throttled (e.g. by a persistent thermal fault) before the
+        // burn starts, can't sustain the static theoretical Gflop/s figure
+        // -- previously this number only reflected powerLimit, never
+        // clocksSM, so a clock-throttled-but-not-power-capped GPU still
+        // reported healthy numbers (PHYS-15 follow-up, bot review).
+        const gpuFlops =
+          hplSpecs.gpu.fp64Tflops *
+          1000 *
+          Math.min(getClockRatio(gpu), getPowerCapRatio(gpu));
         const flops = gpuFlops * (0.97 + Math.random() * 0.02);
         output += `GPU ${idx}: ${pct}% proc'd: ${processed} (8192) - ${flops.toFixed(1)} Gflop/s - temp: ${temp.toFixed(0)}C [OK]\n`;
       });
@@ -899,7 +970,11 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         ? `\x1b[32mOK\x1b[0m\n`
         : `\x1b[33mNote: ${thermalIssues.length} GPU(s) near thermal limit\x1b[0m\n`;
 
-    // Reset GPUs to original state after test via StateMutator
+    // Reset GPUs to original state after test via StateMutator. Delay
+    // matches the user-requested duration (converted to ms), not a fixed
+    // 2 seconds -- previously a 300-second burn's simulated "GPU is under
+    // load" state reverted after 2 real seconds regardless of what
+    // duration was requested (PHYS-15).
     setTimeout(() => {
       const restoreMutator = this.resolveMutator(context);
       originalState.forEach((saved) => {
@@ -909,7 +984,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
           powerDraw: saved.powerDraw,
         });
       });
-    }, 2000);
+    }, duration * 1000);
 
     return this.createSuccess(output);
   }
@@ -960,21 +1035,33 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       size *= 2;
     }
 
+    // Same degenerate-run guard as handleRegularTest: a 1-rank all_reduce
+    // has ring factor 2*(1-1)/1 = 0, and dividing by it printed literal
+    // "Infinity". Rows are still printed, just with 0.00 bandwidths.
+    const singleRank = ngpus <= 1;
+
     let totalBusBW = 0;
     sizes.forEach((sizeBytes) => {
-      const bandwidth = this.calculateNCCLBandwidthMultiNode(
-        sizeBytes,
-        ngpus,
-        1,
-        node.systemType,
-      );
+      // Same fix as handleRegularTest above: the baseline is already
+      // busbw-scale, so busBW is the direct value and algbw is derived by
+      // dividing out the ring factor (this handler is always all_reduce).
+      const busBW = singleRank
+        ? 0
+        : this.calculateNCCLBandwidthMultiNode(
+            sizeBytes,
+            node.gpus.slice(0, ngpus),
+            1,
+            node.systemType,
+          );
       const latency = this.calculateNCCLLatencyMultiNode(
         sizeBytes,
         ngpus,
         1,
+        node.gpus.slice(0, ngpus),
         node.systemType,
       );
-      const busBW = (bandwidth * 2 * (ngpus - 1)) / ngpus;
+      const ringFactor = (2 * (ngpus - 1)) / ngpus;
+      const algBW = singleRank ? 0 : busBW / ringFactor;
       totalBusBW += busBW;
 
       const sizeStr = sizeBytes.toString().padStart(12);
@@ -982,7 +1069,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         .toString()
         .padStart(12);
       const timeStr = latency.toFixed(2).padStart(9);
-      const algbwStr = bandwidth.toFixed(2).padStart(7);
+      const algbwStr = algBW.toFixed(2).padStart(7);
       const busbwStr = busBW.toFixed(2).padStart(7);
 
       output += `${sizeStr} ${countStr}     float     sum      -1  ${timeStr} ${algbwStr} ${busbwStr}      0  ${timeStr} ${algbwStr} ${busbwStr}      0\n`;
@@ -1140,6 +1227,19 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
 
     const gpuCount = Math.min(node.gpus.length, 8);
     const gpuName = node.gpus[0]?.name || "NVIDIA A100-SXM4-80GB";
+    const bwSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
+
+    // Calibrated against DGX-A100's real p2pBandwidthLatencyTest figures
+    // (diagonal 1555.2 GB/s self-bandwidth, off-diagonal 252.3 GB/s P2P)
+    // so A100's output is unchanged; generalized to other architectures
+    // via their own HBM/NVLink specs (PHYS-12 -- previously these two
+    // constants were printed identically for every architecture).
+    const P2P_SELF_BW_EFFICIENCY = 1555.2 / (2.039 * 1000); // vs A100's 2039 GB/s HBM peak
+    const P2P_PEER_BW_EFFICIENCY = 252.3 / (600 / 2); // vs A100's 300 GB/s per-direction NVLink aggregate
+    const selfBW =
+      bwSpecs.gpu.memoryBandwidthTBs * 1000 * P2P_SELF_BW_EFFICIENCY;
+    const peerBWBase =
+      (bwSpecs.nvlink.totalBandwidthGBs / 2) * P2P_PEER_BW_EFFICIENCY;
 
     const lines = [
       `[P2P (Peer-to-Peer) GPU Bandwidth Latency Test]`,
@@ -1163,7 +1263,13 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     for (let i = 0; i < gpuCount; i++) {
       let row = `     ${i}`;
       for (let j = 0; j < gpuCount; j++) {
-        const bw = i === j ? 1555.2 : 252.3 + (i + j) * 0.5;
+        let bw: number;
+        if (i === j) {
+          bw = selfBW;
+        } else {
+          const pairHealth = getNvlinkHealthRatio([node.gpus[i], node.gpus[j]]);
+          bw = (peerBWBase + (i + j) * 0.5) * pairHealth;
+        }
         row += `  ${bw.toFixed(1).padStart(5)}`;
       }
       lines.push(row);
@@ -1195,7 +1301,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
 
   private calculateNCCLBandwidthMultiNode(
     sizeBytes: number,
-    _gpusPerNode: number,
+    gpusInvolved: GPU[],
     numNodes: number,
     systemType: string,
   ): number {
@@ -1218,22 +1324,29 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       efficiency = 0.85 + ((Math.min(sizeMB, 128) - 8) / 120) * 0.1;
     }
 
-    // For multi-node, bottleneck is inter-node bandwidth
+    // For multi-node, bottleneck is inter-node bandwidth -- already
+    // correctly ceiling-bound by real per-arch NIC specs (PHYS-6:
+    // multi-node NIC ceiling, verified and regression-locked, not
+    // changed here).
     if (numNodes > 1) {
       const effectiveBW = interNodeBW * efficiency * 0.85;
       return effectiveBW;
     }
 
-    // Single node: use system-type baseline NVLink bandwidth
+    // Single node: intra-node NVLink bandwidth, scaled down when any of
+    // the GPUs actually running this collective have a Down NVLink
+    // connection (PHYS-6).
     const intraNodeBW =
       ncclBaselineBandwidthGBs[sysType] ?? ncclBaselineBandwidthGBs["DGX-A100"];
-    return intraNodeBW * efficiency * 0.9;
+    const nvlinkHealth = getNvlinkHealthRatio(gpusInvolved);
+    return intraNodeBW * efficiency * 0.9 * nvlinkHealth;
   }
 
   private calculateNCCLLatencyMultiNode(
     sizeBytes: number,
     gpusPerNode: number,
     numNodes: number,
+    gpusInvolved: GPU[],
     systemType?: string,
   ): number {
     // Base latency
@@ -1241,8 +1354,16 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     const interNodeLatency = 5; // us (InfiniBand)
 
     const sysType = (systemType || "DGX-A100") as SystemType;
+    // Same NVLink-health scaling calculateNCCLBandwidthMultiNode applies to
+    // busbw -- otherwise a Down link lowers the printed bandwidth columns
+    // but leaves the printed time column at the healthy baseline, which is
+    // mathematically inconsistent (time = size / bandwidth) and would show
+    // a sick link's run finishing in the same time as a healthy one (bot
+    // review follow-up).
     const intraNodeBW =
-      ncclBaselineBandwidthGBs[sysType] ?? ncclBaselineBandwidthGBs["DGX-A100"];
+      (ncclBaselineBandwidthGBs[sysType] ??
+        ncclBaselineBandwidthGBs["DGX-A100"]) *
+      getNvlinkHealthRatio(gpusInvolved);
     const bwSpecs = getHardwareSpecs(sysType);
     const interNodeBW =
       bwSpecs.network.interNodeBandwidthGBs * bwSpecs.network.hcaCount;
