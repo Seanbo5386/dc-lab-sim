@@ -97,4 +97,61 @@ describe("useMetricsSimulation", () => {
     expect(thermalEvents.length).toBeGreaterThan(0);
     expect(thermalEvents[0].nodeId).toBe(nodeId);
   });
+
+  it("writes advanced HCA traffic counters back to the global store while a node's Slurm state is alloc (PHYS-7)", () => {
+    const nodeId = useSimulationStore.getState().cluster.nodes[0].id;
+    useSimulationStore.getState().setSlurmState(nodeId, "alloc");
+    const before =
+      useSimulationStore.getState().cluster.nodes[0].hcas[0].ports[0];
+
+    renderHook(() => useMetricsSimulation(true));
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    const after =
+      useSimulationStore.getState().cluster.nodes[0].hcas[0].ports[0];
+    expect(after.xmitDataBytes).toBeGreaterThan(before.xmitDataBytes);
+    expect(after.rcvDataBytes).toBeGreaterThan(before.rcvDataBytes);
+    expect(after.xmitPkts).toBeGreaterThan(before.xmitPkts);
+    expect(after.rcvPkts).toBeGreaterThan(before.rcvPkts);
+    // Error counters stay fault-injection-only
+    expect(after.errors).toEqual(before.errors);
+
+    // Idle nodes' counters stay frozen
+    const idleAfter =
+      useSimulationStore.getState().cluster.nodes[1].hcas[0].ports[0];
+    const idleBefore = useSimulationStore.getState().cluster.nodes[1];
+    expect(idleBefore.slurmState).toBe("idle");
+    expect(idleAfter.xmitDataBytes).toBe(
+      500000000 + ((idleAfter.lid * 7919) % 500000000),
+    );
+  });
+
+  it("writes advanced HCA traffic counters into the active ScenarioContext's sandbox, leaving the global cluster untouched (PHYS-7)", () => {
+    const nodeId = useSimulationStore.getState().cluster.nodes[0].id;
+    const globalBefore =
+      useSimulationStore.getState().cluster.nodes[0].hcas[0].ports[0]
+        .xmitDataBytes;
+
+    const ctx = scenarioContextManager.createContext("phys7-hca-tick-test");
+    scenarioContextManager.setActiveContext("phys7-hca-tick-test");
+    ctx.setSlurmState(nodeId, "alloc");
+    const sandboxBefore =
+      ctx.getCluster().nodes[0].hcas[0].ports[0].xmitDataBytes;
+
+    renderHook(() => useMetricsSimulation(true));
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    const sandboxAfter =
+      ctx.getCluster().nodes[0].hcas[0].ports[0].xmitDataBytes;
+    const globalAfter =
+      useSimulationStore.getState().cluster.nodes[0].hcas[0].ports[0]
+        .xmitDataBytes;
+
+    expect(sandboxAfter).toBeGreaterThan(sandboxBefore);
+    expect(globalAfter).toBe(globalBefore);
+  });
 });

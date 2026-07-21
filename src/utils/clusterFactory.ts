@@ -181,6 +181,15 @@ function createInfiniBandPort(
       .toString(16)
       .padStart(16, "0")}`,
     linkLayer: "InfiniBand",
+    // Seeded from the same LID-derived baseline perfquery previously
+    // computed fresh on every call -- kept here as the STARTING value so a
+    // freshly-built cluster's first perfquery still looks like a
+    // long-running port, not a suspiciously-zeroed one. Ticks/load advance
+    // these further (PHYS-7); perfquery no longer recomputes them.
+    xmitDataBytes: 500000000 + ((lid * 7919) % 500000000),
+    rcvDataBytes: 450000000 + ((lid * 7919 * 3) % 500000000),
+    xmitPkts: 5000000 + ((lid * 7919) % 5000000),
+    rcvPkts: 4800000 + ((lid * 7919 * 3) % 5000000),
     errors: {
       symbolErrors: 0,
       linkDowned: 0,

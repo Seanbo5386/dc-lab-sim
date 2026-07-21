@@ -258,6 +258,10 @@ describe("NvsmSimulator", () => {
                 lid: 1,
                 guid: "0x0000000000000001",
                 linkLayer: "InfiniBand",
+                xmitDataBytes: 500000000,
+                rcvDataBytes: 450000000,
+                xmitPkts: 5000000,
+                rcvPkts: 4800000,
                 errors: {
                   symbolErrors: 0,
                   linkDowned: 0,

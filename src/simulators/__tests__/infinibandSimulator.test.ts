@@ -45,6 +45,10 @@ describe("InfiniBandSimulator", () => {
                     lid: 123,
                     guid: "0x506b4b0300ab1234",
                     linkLayer: "InfiniBand",
+                    xmitDataBytes: 500000000,
+                    rcvDataBytes: 450000000,
+                    xmitPkts: 5000000,
+                    rcvPkts: 4800000,
                     errors: {
                       symbolErrors: 0,
                       linkDowned: 0,
@@ -1358,6 +1362,10 @@ describe("InfiniBandSimulator", () => {
       lid,
       guid,
       linkLayer: "InfiniBand",
+      xmitDataBytes: 500000000 + ((lid * 7919) % 500000000),
+      rcvDataBytes: 450000000 + ((lid * 7919 * 3) % 500000000),
+      xmitPkts: 5000000 + ((lid * 7919) % 5000000),
+      rcvPkts: 4800000 + ((lid * 7919 * 3) % 5000000),
       errors: {
         symbolErrors: 0,
         linkDowned: 0,
@@ -1439,6 +1447,88 @@ describe("InfiniBandSimulator", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain("# Port counters: Lid 101 port 1");
+    });
+  });
+
+  describe("perfquery counters reflect stored port state, not a frozen LID-derived formula (PHYS-7)", () => {
+    const makeTrafficPort = () => ({
+      portNumber: 1,
+      state: "Active",
+      physicalState: "LinkUp",
+      rate: 400,
+      lid: 150,
+      guid: "0x506b4b0300bb0001",
+      linkLayer: "InfiniBand",
+      xmitDataBytes: 750000000,
+      rcvDataBytes: 700000000,
+      xmitPkts: 6000000,
+      rcvPkts: 5500000,
+      errors: {
+        symbolErrors: 0,
+        linkDowned: 0,
+        portRcvErrors: 0,
+        portXmitDiscards: 0,
+        portXmitWait: 0,
+      },
+    });
+
+    let port: ReturnType<typeof makeTrafficPort>;
+
+    beforeEach(() => {
+      port = makeTrafficPort();
+      vi.mocked(useSimulationStore.getState).mockReturnValue({
+        cluster: {
+          nodes: [
+            {
+              id: "dgx-00",
+              hostname: "dgx-node01",
+              systemType: "DGX-H100",
+              healthStatus: "OK",
+              gpus: [],
+              hcas: [
+                {
+                  id: 0,
+                  caType: "mlx5_0",
+                  model: "ConnectX-7",
+                  firmwareVersion: "28.39.1002",
+                  ports: [port],
+                },
+              ],
+            },
+          ],
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    });
+
+    it("prints the stored traffic counters, not values recomputed from the LID", () => {
+      const result = simulator.executePerfquery(parse("perfquery"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toMatch(/PortXmitData:\.+750000000\n/);
+      expect(result.output).toMatch(/PortRcvData:\.+700000000\n/);
+      expect(result.output).toMatch(/PortXmitPkts:\.+6000000\n/);
+      expect(result.output).toMatch(/PortRcvPkts:\.+5500000\n/);
+    });
+
+    it("two perfquery calls on the same port show a nonzero delta after simulated traffic advances the counters", () => {
+      const first = simulator.executePerfquery(parse("perfquery"), context);
+      expect(first.output).toMatch(/PortXmitData:\.+750000000\n/);
+
+      // Simulate what one metrics tick under load does: advance the stored
+      // counters in place (same mutate-the-fixture-then-reinvoke pattern the
+      // GPU-fault tests use).
+      port.xmitDataBytes += 12500000;
+      port.rcvDataBytes += 11000000;
+      port.xmitPkts += 8500;
+      port.rcvPkts += 7800;
+
+      const second = simulator.executePerfquery(parse("perfquery"), context);
+      expect(second.output).toMatch(/PortXmitData:\.+762500000\n/);
+      expect(second.output).toMatch(/PortRcvData:\.+711000000\n/);
+      expect(second.output).toMatch(/PortXmitPkts:\.+6008500\n/);
+      expect(second.output).toMatch(/PortRcvPkts:\.+5507800\n/);
+      expect(second.output).not.toBe(first.output);
     });
   });
 

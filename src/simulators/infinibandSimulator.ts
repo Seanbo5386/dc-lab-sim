@@ -307,12 +307,13 @@ Options:
     const port =
       hca.ports.find((p) => p.portNumber === portArg) ?? hca.ports[0];
 
-    // Deterministic counters based on port LID (consistent across invocations)
-    const seed = port.lid * 7919; // prime multiplier for spread
-    const xmitData = 500000000 + (seed % 500000000);
-    const rcvData = 450000000 + ((seed * 3) % 500000000);
-    const xmitPkts = 5000000 + (seed % 5000000);
-    const rcvPkts = 4800000 + ((seed * 3) % 5000000);
+    // Real, persistent counters (PHYS-7) -- advance under load via
+    // MetricsSimulator.updateHcaMetrics, so running perfquery twice on a
+    // busy port now shows a genuine nonzero delta.
+    const xmitData = port.xmitDataBytes;
+    const rcvData = port.rcvDataBytes;
+    const xmitPkts = port.xmitPkts;
+    const rcvPkts = port.rcvPkts;
 
     const output =
       `# Port counters: Lid ${port.lid} port ${port.portNumber}\n` +

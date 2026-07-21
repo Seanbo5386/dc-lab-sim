@@ -197,4 +197,23 @@ describe("InfiniBand HCA/port identity (SIM-3/SIM-13)", () => {
     const guids = node.hcas.flatMap((h) => h.ports.map((p) => p.guid));
     expect(new Set(guids).size).toBe(guids.length);
   });
+
+  it("ports start with nonzero LID-seeded traffic counters so a fresh cluster's first perfquery is not suspiciously zeroed (PHYS-7)", () => {
+    const cluster = createCustomCluster(1, "DGX-H100");
+    const node = cluster.nodes[0];
+    for (const hca of node.hcas) {
+      for (const port of hca.ports) {
+        // Same LID-derived baseline perfquery previously computed on the fly
+        expect(port.xmitDataBytes).toBe(
+          500000000 + ((port.lid * 7919) % 500000000),
+        );
+        expect(port.rcvDataBytes).toBe(
+          450000000 + ((port.lid * 7919 * 3) % 500000000),
+        );
+        expect(port.xmitPkts).toBe(5000000 + ((port.lid * 7919) % 5000000));
+        expect(port.rcvPkts).toBe(4800000 + ((port.lid * 7919 * 3) % 5000000));
+        expect(port.xmitDataBytes).toBeGreaterThan(0);
+      }
+    }
+  });
 });

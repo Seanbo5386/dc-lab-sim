@@ -1209,6 +1209,10 @@ describe("ScenarioContext.updateHCA (K2 fault-injection infrastructure)", () => 
           lid: 100 + id,
           guid: `0x00155dfffe33445${id}`,
           linkLayer: "InfiniBand",
+          xmitDataBytes: 500000000,
+          rcvDataBytes: 450000000,
+          xmitPkts: 5000000,
+          rcvPkts: 4800000,
           errors: {
             symbolErrors: 0,
             linkDowned: 0,

@@ -297,7 +297,7 @@ describe("MetricsSimulator", () => {
       let result: GPU[] = gpus;
       const sim = new MetricsSimulator();
       sim.start((updater) => {
-        result = updater({ gpus, hcas: [] }).gpus;
+        result = updater({ gpus, hcas: [], slurmState: "idle" }).gpus;
       }, 1000);
       vi.advanceTimersByTime(1000);
       sim.stop();
@@ -480,6 +480,10 @@ describe("ib-port-error fault injection (K2)", () => {
           lid: 100,
           guid: "0x00155dfffe334455",
           linkLayer: "InfiniBand",
+          xmitDataBytes: 500000000,
+          rcvDataBytes: 450000000,
+          xmitPkts: 5000000,
+          rcvPkts: 4800000,
           errors: {
             symbolErrors: 0,
             linkDowned: 0,
@@ -496,6 +500,10 @@ describe("ib-port-error fault injection (K2)", () => {
           lid: 101,
           guid: "0x00155dfffe334456",
           linkLayer: "InfiniBand",
+          xmitDataBytes: 500000000,
+          rcvDataBytes: 450000000,
+          xmitPkts: 5000000,
+          rcvPkts: 4800000,
           errors: {
             symbolErrors: 0,
             linkDowned: 0,
@@ -549,5 +557,110 @@ describe("ib-port-error fault injection (K2)", () => {
     const result = injectHCAFault(hca, 1);
     expect(result.ports[1].physicalState).toBe("Polling");
     expect(result.ports[0].physicalState).toBe("LinkUp");
+  });
+});
+
+describe("updateHcaMetrics advances traffic counters under load (PHYS-7)", () => {
+  function createTrafficHCA(): InfiniBandHCA {
+    return {
+      id: 0,
+      devicePath: "/sys/class/infiniband/mlx5_0",
+      caType: "mlx5_0",
+      model: "ConnectX-7",
+      firmwareVersion: "28.39.1002",
+      ports: [
+        {
+          portNumber: 1,
+          state: "Active",
+          physicalState: "LinkUp",
+          rate: 400,
+          lid: 100,
+          guid: "0x00155dfffe334455",
+          linkLayer: "InfiniBand",
+          xmitDataBytes: 1000,
+          rcvDataBytes: 900,
+          xmitPkts: 10,
+          rcvPkts: 9,
+          errors: {
+            symbolErrors: 5,
+            linkDowned: 1,
+            portRcvErrors: 2,
+            portXmitDiscards: 3,
+            portXmitWait: 4,
+          },
+        },
+      ],
+    };
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * Run one metrics update tick via start() + fake timer — the production
+   * path (mirrors the job-aware GPU metrics helper above).
+   */
+  function tickHcas(
+    hcas: InfiniBandHCA[],
+    slurmState: "idle" | "alloc" | "drain" | "down",
+  ): InfiniBandHCA[] {
+    let result: InfiniBandHCA[] = hcas;
+    const sim = new MetricsSimulator();
+    sim.start((updater) => {
+      result = updater({ gpus: [], hcas, slurmState }).hcas;
+    }, 1000);
+    vi.advanceTimersByTime(1000);
+    sim.stop();
+    return result;
+  }
+
+  it("counters increase when the node has an active (allocated) Slurm job", () => {
+    const updated = tickHcas([createTrafficHCA()], "alloc");
+    expect(updated[0].ports[0].xmitDataBytes).toBeGreaterThan(1000);
+    expect(updated[0].ports[0].rcvDataBytes).toBeGreaterThan(900);
+    expect(updated[0].ports[0].xmitPkts).toBeGreaterThan(10);
+    expect(updated[0].ports[0].rcvPkts).toBeGreaterThan(9);
+  });
+
+  it("counters keep growing tick after tick under sustained load", () => {
+    let hcas = [createTrafficHCA()];
+    hcas = tickHcas(hcas, "alloc");
+    const afterOneTick = hcas[0].ports[0].xmitDataBytes;
+    hcas = tickHcas(hcas, "alloc");
+    expect(hcas[0].ports[0].xmitDataBytes).toBeGreaterThan(afterOneTick);
+  });
+
+  it("counters stay unchanged when the node is idle (no job running)", () => {
+    const hcas = [createTrafficHCA()];
+    const updated = tickHcas(hcas, "idle");
+    expect(updated[0].ports[0].xmitDataBytes).toBe(1000);
+    expect(updated[0].ports[0].rcvDataBytes).toBe(900);
+    expect(updated[0].ports[0].xmitPkts).toBe(10);
+    expect(updated[0].ports[0].rcvPkts).toBe(9);
+    // Same reference back: an idle tick has nothing to write back
+    expect(updated).toBe(hcas);
+  });
+
+  it("drained and down nodes do not accumulate traffic either", () => {
+    const drained = tickHcas([createTrafficHCA()], "drain");
+    expect(drained[0].ports[0].xmitDataBytes).toBe(1000);
+    const down = tickHcas([createTrafficHCA()], "down");
+    expect(down[0].ports[0].xmitDataBytes).toBe(1000);
+  });
+
+  it("error counters remain completely untouched under load (errors are fault-injection-only)", () => {
+    const updated = tickHcas([createTrafficHCA()], "alloc");
+    expect(updated[0].ports[0].errors).toEqual({
+      symbolErrors: 5,
+      linkDowned: 1,
+      portRcvErrors: 2,
+      portXmitDiscards: 3,
+      portXmitWait: 4,
+    });
   });
 });

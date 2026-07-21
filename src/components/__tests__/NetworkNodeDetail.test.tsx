@@ -90,6 +90,10 @@ describe("NetworkNodeDetail", () => {
               lid: 1,
               guid: "abc123",
               linkLayer: "InfiniBand",
+              xmitDataBytes: 500000000,
+              rcvDataBytes: 450000000,
+              xmitPkts: 5000000,
+              rcvPkts: 4800000,
               errors: {
                 symbolErrors: 0,
                 linkDowned: 0,

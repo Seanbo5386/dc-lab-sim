@@ -126,6 +126,13 @@ export interface InfiniBandPort {
   lid: number;
   guid: string;
   linkLayer: "InfiniBand" | "Ethernet";
+  // Persistent traffic counters (PHYS-7) -- advance under active load via
+  // MetricsSimulator.updateHcaMetrics, read directly by perfquery so two
+  // calls in a row on a busy port show a real, nonzero delta.
+  xmitDataBytes: number;
+  rcvDataBytes: number;
+  xmitPkts: number;
+  rcvPkts: number;
   errors: {
     symbolErrors: number;
     linkDowned: number;

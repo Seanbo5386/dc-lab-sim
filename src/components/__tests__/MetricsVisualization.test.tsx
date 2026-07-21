@@ -179,6 +179,10 @@ describe("ClusterHeatmap", () => {
     lid: portNumber,
     guid: `0x${portNumber.toString(16).padStart(16, "0")}`,
     linkLayer: "InfiniBand",
+    xmitDataBytes: 500000000,
+    rcvDataBytes: 450000000,
+    xmitPkts: 5000000,
+    rcvPkts: 4800000,
     errors: {
       symbolErrors: 0,
       linkDowned: 0,
@@ -446,6 +450,10 @@ describe("PerformanceComparison", () => {
     lid: portNumber,
     guid: `0x${portNumber.toString(16).padStart(16, "0")}`,
     linkLayer: "InfiniBand",
+    xmitDataBytes: 500000000,
+    rcvDataBytes: 450000000,
+    xmitPkts: 5000000,
+    rcvPkts: 4800000,
     errors: {
       symbolErrors: 0,
       linkDowned: 0,

@@ -4,7 +4,7 @@
  * to avoid the overhead of full object serialization.
  */
 
-import type { GPU, InfiniBandHCA, InfiniBandPort } from '@/types/hardware';
+import type { GPU, InfiniBandHCA, InfiniBandPort } from "@/types/hardware";
 
 /**
  * Shallow compare two GPU objects for equality on key metrics fields.
@@ -28,8 +28,10 @@ export function shallowCompareGPU(a: GPU, b: GPU): boolean {
   // Compare ECC errors (nested but shallow)
   if (a.eccErrors.singleBit !== b.eccErrors.singleBit) return false;
   if (a.eccErrors.doubleBit !== b.eccErrors.doubleBit) return false;
-  if (a.eccErrors.aggregated.singleBit !== b.eccErrors.aggregated.singleBit) return false;
-  if (a.eccErrors.aggregated.doubleBit !== b.eccErrors.aggregated.doubleBit) return false;
+  if (a.eccErrors.aggregated.singleBit !== b.eccErrors.aggregated.singleBit)
+    return false;
+  if (a.eccErrors.aggregated.doubleBit !== b.eccErrors.aggregated.doubleBit)
+    return false;
 
   // Compare XID errors array length (quick check for changes)
   if (a.xidErrors.length !== b.xidErrors.length) return false;
@@ -60,6 +62,14 @@ function shallowComparePort(a: InfiniBandPort, b: InfiniBandPort): boolean {
   if (a.state !== b.state) return false;
   if (a.physicalState !== b.physicalState) return false;
   if (a.rate !== b.rate) return false;
+
+  // Compare traffic counters (PHYS-7) — these advance under load, and the
+  // metrics tick uses this comparison to decide whether to write HCAs back
+  // to the store, so skipping them would freeze perfquery's counters.
+  if (a.xmitDataBytes !== b.xmitDataBytes) return false;
+  if (a.rcvDataBytes !== b.rcvDataBytes) return false;
+  if (a.xmitPkts !== b.xmitPkts) return false;
+  if (a.rcvPkts !== b.rcvPkts) return false;
 
   // Compare error counters
   if (a.errors.symbolErrors !== b.errors.symbolErrors) return false;
@@ -102,7 +112,10 @@ export function shallowCompareHCA(a: InfiniBandHCA, b: InfiniBandHCA): boolean {
  * @param b - Second array of HCAs
  * @returns true if the arrays are considered equal
  */
-export function shallowCompareHCAs(a: InfiniBandHCA[], b: InfiniBandHCA[]): boolean {
+export function shallowCompareHCAs(
+  a: InfiniBandHCA[],
+  b: InfiniBandHCA[],
+): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (!shallowCompareHCA(a[i], b[i])) {
