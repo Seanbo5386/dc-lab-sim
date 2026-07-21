@@ -1217,9 +1217,13 @@ Options:
 
     for (const hca of hcas) {
       for (const port of hca.ports) {
-        const guidCompact = (port.guid || "").replace(/:/g, "");
+        // Same colon-grouped link-local GID format ibstatus uses (SIM-14) --
+        // this line previously stripped colons from the 0x-prefixed hex
+        // GUID (a no-op, since it has none) and concatenated it after a
+        // literal "fe80:..." prefix, leaking the "0x" into the middle of
+        // the GID.
         lines.push(
-          `${hca.caType}  ${port.portNumber}     0      fe80:0000:0000:0000:${guidCompact}                 v2    ndev`,
+          `${hca.caType}  ${port.portNumber}     0      ${guidToGid(port.guid)}                 v2    ndev`,
         );
         lines.push(
           `${hca.caType}  ${port.portNumber}     1      0000:0000:0000:0000:0000:ffff:c0a8:0${port.portNumber}01  192.168.${port.portNumber}.1   v1    ndev`,
