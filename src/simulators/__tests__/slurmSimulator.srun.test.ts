@@ -103,3 +103,111 @@ describe("SlurmSimulator srun scheduling (SIM-21)", () => {
     expect(result.output).not.toContain("from dgx-00");
   });
 });
+
+describe("SlurmSimulator srun multi-node allocation (bot review P2)", () => {
+  let simulator: SlurmSimulator;
+  const context = {
+    currentNode: "dgx-00",
+    currentPath: "/root",
+    environment: {},
+    history: [],
+  };
+
+  interface RecordedJob {
+    jobId: number;
+    nodes: number;
+    nodelist: string;
+    gpus: number;
+  }
+
+  function recordedJobs(sim: SlurmSimulator): RecordedJob[] {
+    return (sim as unknown as { jobs: RecordedJob[] }).jobs;
+  }
+
+  function mockCluster(nodes: ReturnType<typeof makeNode>[]) {
+    vi.mocked(useSimulationStore.getState).mockReturnValue({
+      cluster: { nodes },
+      setSlurmState: vi.fn(),
+      allocateGPUsForJob: vi.fn(),
+      deallocateGPUsForJob: vi.fn(),
+    } as unknown as ReturnType<typeof useSimulationStore.getState>);
+  }
+
+  beforeEach(() => {
+    simulator = new SlurmSimulator();
+  });
+
+  it("honors -N and --gpus-per-node: records a 2-node, 16-GPU job", () => {
+    mockCluster([makeNode("dgx-00", "idle", 8), makeNode("dgx-01", "idle", 8)]);
+    const result = simulator.executeSrun(
+      parse("srun -N 2 --gpus-per-node=8 nvidia-smi"),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("16 GPU(s)");
+    expect(result.output).toContain("2 nodes");
+    expect(result.output).toContain("dgx-[00-01]");
+
+    const jobs = recordedJobs(simulator);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].nodes).toBe(2);
+    expect(jobs[0].gpus).toBe(16);
+    expect(jobs[0].nodelist).toBe("dgx-[00-01]");
+  });
+
+  it("satisfies -N 2 --gpus=16 across two 8-GPU idle nodes instead of rejecting it", () => {
+    mockCluster([makeNode("dgx-00", "idle", 8), makeNode("dgx-01", "idle", 8)]);
+    const result = simulator.executeSrun(
+      parse("srun -N 2 --gpus=16 nvidia-smi"),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+    const jobs = recordedJobs(simulator);
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].nodes).toBe(2);
+    expect(jobs[0].gpus).toBe(16);
+  });
+
+  it("still fails when aggregate GPU capacity is genuinely insufficient", () => {
+    mockCluster([makeNode("dgx-00", "idle", 8), makeNode("dgx-01", "idle", 8)]);
+    const result = simulator.executeSrun(
+      parse("srun -N 2 --gpus=32 nvidia-smi"),
+      context,
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toMatch(/Unable to allocate resources/);
+    expect(recordedJobs(simulator)).toHaveLength(0);
+
+    // nextJobId must not have been consumed by the failed attempt
+    const followUp = simulator.executeSrun(parse("srun nvidia-smi"), context);
+    expect(followUp.exitCode).toBe(0);
+    expect(followUp.output).toContain("job 1000");
+  });
+
+  it("fails when fewer idle nodes exist than -N requests", () => {
+    mockCluster([
+      makeNode("dgx-00", "idle", 8),
+      makeNode("dgx-01", "alloc", 8),
+    ]);
+    const result = simulator.executeSrun(
+      parse("srun -N 2 --gpus=8 nvidia-smi"),
+      context,
+    );
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toMatch(/Unable to allocate resources/);
+    expect(recordedJobs(simulator)).toHaveLength(0);
+  });
+
+  it("honors --gpus-per-task with -n like sbatch does", () => {
+    mockCluster([makeNode("dgx-00", "idle", 8)]);
+    const result = simulator.executeSrun(
+      parse("srun -n 4 --gpus-per-task=2 nvidia-smi"),
+      context,
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain("Allocated 8 GPU(s) from dgx-00");
+    const jobs = recordedJobs(simulator);
+    expect(jobs[0].gpus).toBe(8);
+    expect(jobs[0].nodes).toBe(1);
+  });
+});

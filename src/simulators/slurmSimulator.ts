@@ -1252,21 +1252,45 @@ export class SlurmSimulator extends BaseSimulator {
     const flagError = this.validateFlagsWithRegistry(parsed, "srun");
     if (flagError) return flagError;
 
-    const gpuCount = this.getFlagNumber(parsed, ["gpus"], 1);
+    // Mirror sbatch's GPU-count precedence: --gpus, then --gpus-per-node
+    // (scaled by -N/--nodes), then --gpus-per-task (scaled by -n/--ntasks).
+    const nodesRequested = this.getFlagNumber(parsed, ["N", "nodes"], 1);
+    const ntasks = this.getFlagNumber(parsed, ["n", "ntasks"], 1);
+    const gpusFlagValue = this.getFlagNumber(parsed, ["gpus"], 0);
+    const gpusPerNode = this.getFlagNumber(parsed, ["gpus-per-node"], 0);
+    const gpusPerTask = this.getFlagNumber(parsed, ["gpus-per-task"], 0);
+    let gpuCount = 1;
+    if (gpusFlagValue > 0) gpuCount = gpusFlagValue;
+    if (gpusPerNode > 0) gpuCount = gpusPerNode * nodesRequested;
+    if (gpusPerTask > 0) gpuCount = gpusPerTask * ntasks;
     const containerImage = this.getFlagString(parsed, ["container-image"]);
 
     const nodes = this.resolveAllNodes(context);
-    const availableNode = nodes.find(
-      (n) => n.slurmState === "idle" && n.gpus.length >= gpuCount,
-    );
+    let chosenNodes: DGXNode[];
+    if (nodesRequested <= 1) {
+      const availableNode = nodes.find(
+        (n) => n.slurmState === "idle" && n.gpus.length >= gpuCount,
+      );
+      chosenNodes = availableNode ? [availableNode] : [];
+    } else {
+      const idleNodes = nodes
+        .filter((n) => n.slurmState === "idle")
+        .slice(0, nodesRequested);
+      const combinedGpus = idleNodes.reduce((sum, n) => sum + n.gpus.length, 0);
+      chosenNodes =
+        idleNodes.length >= nodesRequested && combinedGpus >= gpuCount
+          ? idleNodes
+          : [];
+    }
 
-    if (!availableNode) {
+    if (chosenNodes.length === 0) {
       return {
         output:
           "srun: error: Unable to allocate resources: Requested node configuration is not available\n",
         exitCode: 1,
       };
     }
+    const firstNode = chosenNodes[0];
 
     const jobId = this.nextJobId++;
     let output = "";
@@ -1283,8 +1307,12 @@ export class SlurmSimulator extends BaseSimulator {
 
     if (command.includes("nvidia-smi")) {
       output += "\n";
-      output += `Allocated ${gpuCount} GPU(s) from ${availableNode.id}\n`;
-      output += `GPU 0: ${availableNode.gpus[0].name}\n`;
+      if (chosenNodes.length > 1) {
+        output += `Allocated ${gpuCount} GPU(s) across ${chosenNodes.length} nodes: ${compressHostlist(chosenNodes.map((n) => n.id))}\n`;
+      } else {
+        output += `Allocated ${gpuCount} GPU(s) from ${firstNode.id}\n`;
+      }
+      output += `GPU 0: ${firstNode.gpus[0].name}\n`;
     } else if (command) {
       output += `\nExecuting: ${command}\n`;
       output += `Job completed successfully\n`;
@@ -1303,8 +1331,8 @@ export class SlurmSimulator extends BaseSimulator {
       state: "COMPLETED",
       time: "0:00",
       timeLimit: "infinite",
-      nodes: 1,
-      nodelist: availableNode.id,
+      nodes: chosenNodes.length,
+      nodelist: compressHostlist(chosenNodes.map((n) => n.id)),
       cpus: this.getFlagNumber(parsed, ["c", "cpus-per-task"], 1),
       gpus: gpuCount,
       memory: this.getFlagString(parsed, ["mem"]) || "16G",
