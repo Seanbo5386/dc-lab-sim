@@ -915,7 +915,6 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
     });
 
     const hplSpecs = getHardwareSpecs(node.systemType || "DGX-A100");
-    const gpuFlops = hplSpecs.gpu.fp64Tflops * 1000; // Gflop/s per GPU
 
     let output = `gpu-burn ${duration}\n`;
     output += `GPU 0: ${gpusToTest[0]?.name || "Unknown GPU"}\n`;
@@ -929,6 +928,10 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
       const processed = Math.round((pct / 100) * 8192);
       gpusToTest.forEach((gpu: GPU, idx: number) => {
         const temp = Math.min(85, gpu.temperature + 10 + sample * 2);
+        // A GPU already capped below its rated TDP can't sustain the
+        // static theoretical Gflop/s figure -- previously this number
+        // never reflected powerLimit at all (PHYS-15).
+        const gpuFlops = hplSpecs.gpu.fp64Tflops * 1000 * getPowerCapRatio(gpu);
         const flops = gpuFlops * (0.97 + Math.random() * 0.02);
         output += `GPU ${idx}: ${pct}% proc'd: ${processed} (8192) - ${flops.toFixed(1)} Gflop/s - temp: ${temp.toFixed(0)}C [OK]\n`;
       });
@@ -941,7 +944,11 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
         ? `\x1b[32mOK\x1b[0m\n`
         : `\x1b[33mNote: ${thermalIssues.length} GPU(s) near thermal limit\x1b[0m\n`;
 
-    // Reset GPUs to original state after test via StateMutator
+    // Reset GPUs to original state after test via StateMutator. Delay
+    // matches the user-requested duration (converted to ms), not a fixed
+    // 2 seconds -- previously a 300-second burn's simulated "GPU is under
+    // load" state reverted after 2 real seconds regardless of what
+    // duration was requested (PHYS-15).
     setTimeout(() => {
       const restoreMutator = this.resolveMutator(context);
       originalState.forEach((saved) => {
@@ -951,7 +958,7 @@ ${efficiency < 0.8 ? "\n\x1b[33mNote: Efficiency below 80% may indicate:\n  - Su
           powerDraw: saved.powerDraw,
         });
       });
-    }, 2000);
+    }, duration * 1000);
 
     return this.createSuccess(output);
   }

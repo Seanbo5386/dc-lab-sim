@@ -605,6 +605,61 @@ describe("BenchmarkSimulator", () => {
       expect(result.output).toContain("gpu-burn 60");
       expect(result.output).toMatch(/Gflop\/s/);
     });
+
+    it("gpu-burn: stressed GPU state persists for the requested duration, not a fixed 2 seconds (PHYS-15)", () => {
+      vi.useFakeTimers();
+      try {
+        const { context: burnContext, updateGPU } = buildContextWithGpu({
+          name: "NVIDIA H100-SXM5-80GB",
+          utilization: 0,
+          temperature: 45,
+          powerLimit: 700,
+        });
+        simulator.execute(parse("gpu-burn 300"), burnContext);
+
+        // Still within the requested 300s window: state must not have reverted.
+        vi.advanceTimersByTime(250_000);
+        const callsBefore = updateGPU.mock.calls.length;
+        const lastCallBefore = updateGPU.mock.calls[callsBefore - 1];
+        expect(lastCallBefore[2]).toMatchObject({ utilization: 100 });
+
+        // Past the requested duration: state should now revert.
+        vi.advanceTimersByTime(60_000);
+        const lastCallAfter =
+          updateGPU.mock.calls[updateGPU.mock.calls.length - 1];
+        expect(lastCallAfter[2]).toMatchObject({ utilization: 0 });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("gpu-burn: reported Gflop/s scales down for a GPU already capped below its rated TDP (PHYS-15)", () => {
+      const healthy = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        powerLimit: 700,
+      });
+      const healthyResult = simulator.execute(
+        parse("gpu-burn 10"),
+        healthy.context,
+      );
+      const healthyFlops = parseFloat(
+        healthyResult.output.match(/([\d.]+) Gflop\/s/)![1],
+      );
+
+      const capped = buildContextWithGpu({
+        name: "NVIDIA H100-SXM5-80GB",
+        powerLimit: 350,
+      });
+      const cappedResult = simulator.execute(
+        parse("gpu-burn 10"),
+        capped.context,
+      );
+      const cappedFlops = parseFloat(
+        cappedResult.output.match(/([\d.]+) Gflop\/s/)![1],
+      );
+
+      expect(cappedFlops).toBeLessThan(healthyFlops * 0.6);
+    });
   });
 
   describe("all_reduce_perf Tests", () => {
