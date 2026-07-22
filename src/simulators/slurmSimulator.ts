@@ -7,6 +7,7 @@ import {
 import type { DGXNode } from "@/types/hardware";
 import type { SeedJob } from "@/types/scenarios";
 import { getHardwareSpecs, type SystemType } from "@/data/hardwareSpecs";
+import { compressHostlist } from "@/simulation/compressHostlist";
 
 function getGresGpuType(systemType: SystemType): string {
   const gpuModelMap: Record<SystemType, string> = {
@@ -145,9 +146,9 @@ export class SlurmSimulator extends BaseSimulator {
     );
   }
 
-  private getNode(context: CommandContext) {
-    return this.resolveNode(context);
-  }
+  // Note: a private getNode() wrapper used to live here; its only caller was
+  // the old always-succeeds executeSrun (removed in SIM-21), so it was deleted
+  // to keep the noUnusedLocals typecheck clean.
 
   private getAllNodes(context: CommandContext) {
     return this.resolveAllNodes(context);
@@ -305,8 +306,7 @@ export class SlurmSimulator extends BaseSimulator {
       } else {
         // Default format if we don't recognize it
         output = "PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST\n";
-        output +=
-          "gpu       up     infinite   8      idle  dgx-00,dgx-01,dgx-02,dgx-03,dgx-04,dgx-05,dgx-06,dgx-07\n";
+        output += "gpu       up     infinite   8      idle  dgx-[00-07]\n";
       }
 
       return { output, exitCode: 0 };
@@ -384,45 +384,26 @@ export class SlurmSimulator extends BaseSimulator {
       "STATE".padEnd(COL_STATE) +
       "NODELIST\n";
 
-    const idleNodes = nodes.filter((n) => n.slurmState === "idle");
-    const allocNodes = nodes.filter((n) => n.slurmState === "alloc");
-    const drainNodes = nodes.filter((n) => n.slurmState === "drain");
+    const stateRows: Array<{ state: "idle" | "alloc" | "drain" | "down" }> = [
+      { state: "idle" },
+      { state: "alloc" },
+      { state: "drain" },
+      { state: "down" },
+    ];
 
-    if (idleNodes.length > 0) {
-      const nodelist = idleNodes.map((n) => n.id).join(",");
+    stateRows.forEach(({ state }) => {
+      const stateNodes = nodes.filter((n) => n.slurmState === state);
+      if (stateNodes.length === 0) return;
+      const nodelist = compressHostlist(stateNodes.map((n) => n.id));
       output +=
         "gpu".padEnd(COL_PARTITION) +
         "up".padEnd(COL_AVAIL) +
         "infinite".padEnd(COL_TIMELIMIT) +
-        idleNodes.length.toString().padEnd(COL_NODES) +
-        "idle".padEnd(COL_STATE) +
+        stateNodes.length.toString().padEnd(COL_NODES) +
+        state.padEnd(COL_STATE) +
         nodelist +
         "\n";
-    }
-
-    if (allocNodes.length > 0) {
-      const nodelist = allocNodes.map((n) => n.id).join(",");
-      output +=
-        "gpu".padEnd(COL_PARTITION) +
-        "up".padEnd(COL_AVAIL) +
-        "infinite".padEnd(COL_TIMELIMIT) +
-        allocNodes.length.toString().padEnd(COL_NODES) +
-        "alloc".padEnd(COL_STATE) +
-        nodelist +
-        "\n";
-    }
-
-    if (drainNodes.length > 0) {
-      const nodelist = drainNodes.map((n) => n.id).join(",");
-      output +=
-        "gpu".padEnd(COL_PARTITION) +
-        "up".padEnd(COL_AVAIL) +
-        "infinite".padEnd(COL_TIMELIMIT) +
-        drainNodes.length.toString().padEnd(COL_NODES) +
-        "drain".padEnd(COL_STATE) +
-        nodelist +
-        "\n";
-    }
+    });
 
     return { output, exitCode: 0 };
   }
@@ -833,7 +814,21 @@ export class SlurmSimulator extends BaseSimulator {
           output += `   NodeAddr=${node.id} NodeHostName=${node.hostname} Version=23.02.6\n`;
           output += `   OS=Linux 5.15.0-91-generic #101-Ubuntu SMP x86_64\n`;
           output += `   RealMemory=${node.ramTotal * 1024} AllocMem=${allocMem} FreeMem=${(node.ramTotal - node.ramUsed) * 1024} Sockets=${sockets} Boards=1\n`;
-          output += `   State=${node.slurmState.toUpperCase()}${node.slurmState === "drain" ? "+DRAIN" : ""} ThreadsPerCore=1 TmpDisk=0 Weight=1 Owner=N/A MCS_label=N/A\n`;
+          // Real Slurm reports a base state (IDLE/ALLOCATED/DOWN) plus an
+          // orthogonal DRAIN flag (e.g. "IDLE+DRAIN"), never a bare state
+          // name doubled as its own flag. This sim's node model only
+          // tracks a single slurmState value where "drain" already means
+          // the node has no running jobs, so the base word for a draining
+          // node is always IDLE here (ALLOCATED+DRAIN cannot occur in
+          // this data model).
+          const scontrolStateWord: Record<DGXNode["slurmState"], string> = {
+            idle: "IDLE",
+            alloc: "ALLOCATED",
+            drain: "IDLE",
+            down: "DOWN",
+          };
+          const scontrolState = `${scontrolStateWord[node.slurmState]}${node.slurmState === "drain" ? "+DRAIN" : ""}`;
+          output += `   State=${scontrolState} ThreadsPerCore=1 TmpDisk=0 Weight=1 Owner=N/A MCS_label=N/A\n`;
           output += `   Partitions=gpu\n`;
           const now = new Date();
           // Boot time between 10 and 40 days ago
@@ -940,7 +935,7 @@ export class SlurmSimulator extends BaseSimulator {
           "   DefaultTime=NONE DisableRootJobs=NO ExclusiveUser=NO GraceTime=0 Hidden=NO\n";
         output +=
           "   MaxNodes=UNLIMITED MaxTime=UNLIMITED MinNodes=0 LLN=NO MaxCPUsPerNode=UNLIMITED MaxCPUsPerSocket=UNLIMITED\n";
-        output += `   Nodes=dgx-[00-${(nodes.length - 1).toString().padStart(2, "0")}]\n`;
+        output += `   Nodes=${compressHostlist(nodes.map((n) => n.id))}\n`;
         output +=
           "   PriorityJobFactor=1 PriorityTier=1 RootOnly=NO ReqResv=NO OverSubscribe=NO\n";
         output += "   OverTimeLimit=NONE PreemptMode=OFF\n";
@@ -1007,6 +1002,12 @@ export class SlurmSimulator extends BaseSimulator {
       if (state && !validStates.includes(state)) {
         return this.createError(
           `Error: Invalid state "${state}". Valid: ${validStates.join(", ")}`,
+        );
+      }
+
+      if ((state === "drain" || state === "down") && !reason) {
+        return this.createError(
+          'Error: A Reason must be specified when setting State=DRAIN or State=DOWN (e.g. Reason="Scheduled maintenance")',
         );
       }
 
@@ -1251,9 +1252,47 @@ export class SlurmSimulator extends BaseSimulator {
     const flagError = this.validateFlagsWithRegistry(parsed, "srun");
     if (flagError) return flagError;
 
-    const gpuCount = this.getFlagNumber(parsed, ["gpus"], 1);
+    // Mirror sbatch's GPU-count precedence: --gpus, then --gpus-per-node
+    // (scaled by -N/--nodes), then --gpus-per-task (scaled by -n/--ntasks).
+    const nodesRequested = this.getFlagNumber(parsed, ["N", "nodes"], 1);
+    const ntasks = this.getFlagNumber(parsed, ["n", "ntasks"], 1);
+    const gpusFlagValue = this.getFlagNumber(parsed, ["gpus"], 0);
+    const gpusPerNode = this.getFlagNumber(parsed, ["gpus-per-node"], 0);
+    const gpusPerTask = this.getFlagNumber(parsed, ["gpus-per-task"], 0);
+    let gpuCount = 1;
+    if (gpusFlagValue > 0) gpuCount = gpusFlagValue;
+    if (gpusPerNode > 0) gpuCount = gpusPerNode * nodesRequested;
+    if (gpusPerTask > 0) gpuCount = gpusPerTask * ntasks;
     const containerImage = this.getFlagString(parsed, ["container-image"]);
 
+    const nodes = this.resolveAllNodes(context);
+    let chosenNodes: DGXNode[];
+    if (nodesRequested <= 1) {
+      const availableNode = nodes.find(
+        (n) => n.slurmState === "idle" && n.gpus.length >= gpuCount,
+      );
+      chosenNodes = availableNode ? [availableNode] : [];
+    } else {
+      const idleNodes = nodes
+        .filter((n) => n.slurmState === "idle")
+        .slice(0, nodesRequested);
+      const combinedGpus = idleNodes.reduce((sum, n) => sum + n.gpus.length, 0);
+      chosenNodes =
+        idleNodes.length >= nodesRequested && combinedGpus >= gpuCount
+          ? idleNodes
+          : [];
+    }
+
+    if (chosenNodes.length === 0) {
+      return {
+        output:
+          "srun: error: Unable to allocate resources: Requested node configuration is not available\n",
+        exitCode: 1,
+      };
+    }
+    const firstNode = chosenNodes[0];
+
+    const jobId = this.nextJobId++;
     let output = "";
 
     if (containerImage) {
@@ -1261,27 +1300,52 @@ export class SlurmSimulator extends BaseSimulator {
       output += `srun: Container ready\n`;
     }
 
-    output += `srun: job ${this.nextJobId} queued and waiting for resources\n`;
-    output += `srun: job ${this.nextJobId} has been allocated resources\n`;
+    output += `srun: job ${jobId} queued and waiting for resources\n`;
+    output += `srun: job ${jobId} has been allocated resources\n`;
 
-    // Find command to run in positional args
-    if (parsed.positionalArgs.length > 0) {
-      const command = parsed.positionalArgs.join(" ");
+    const command = parsed.positionalArgs.join(" ");
 
-      if (command === "nvidia-smi" || command.includes("nvidia-smi")) {
-        const node = this.getNode(context);
-        if (node) {
-          output += "\n";
-          output += `Allocated ${gpuCount} GPU(s) from ${node.id}\n`;
-          output += `GPU 0: ${node.gpus[0].name}\n`;
-        }
+    if (command.includes("nvidia-smi")) {
+      output += "\n";
+      if (chosenNodes.length > 1) {
+        output += `Allocated ${gpuCount} GPU(s) across ${chosenNodes.length} nodes: ${compressHostlist(chosenNodes.map((n) => n.id))}\n`;
       } else {
-        output += `\nExecuting: ${command}\n`;
-        output += `Job completed successfully\n`;
+        output += `Allocated ${gpuCount} GPU(s) from ${firstNode.id}\n`;
       }
+      output += `GPU 0: ${firstNode.gpus[0].name}\n`;
+    } else if (command) {
+      output += `\nExecuting: ${command}\n`;
+      output += `Job completed successfully\n`;
     }
 
-    this.nextJobId++;
+    // srun blocks in the foreground and releases its node the moment the
+    // command finishes -- there's no later point at which anything else
+    // in this sim would observe it as still running. It's recorded here
+    // so a subsequent squeue in the same session shows real job history
+    // instead of nothing at all (SIM-21).
+    const job: SlurmJob = {
+      jobId,
+      partition: this.getFlagString(parsed, ["p", "partition"]) || "gpu",
+      name: command.split(" ")[0] || "interactive",
+      user: "root",
+      state: "COMPLETED",
+      time: "0:00",
+      timeLimit: "infinite",
+      nodes: chosenNodes.length,
+      nodelist: compressHostlist(chosenNodes.map((n) => n.id)),
+      cpus: this.getFlagNumber(parsed, ["c", "cpus-per-task"], 1),
+      gpus: gpuCount,
+      memory: this.getFlagString(parsed, ["mem"]) || "16G",
+      submitTime: new Date(),
+      startTime: new Date(),
+      endTime: new Date(),
+      priority: 1000 + Math.floor(Math.random() * 100),
+      account: "default",
+      qos: "normal",
+      workDir: "/home/root",
+      command: command || "(interactive)",
+    };
+    this.jobs.push(job);
 
     return { output, exitCode: 0 };
   }
@@ -1291,7 +1355,11 @@ export class SlurmSimulator extends BaseSimulator {
     parsed: ParsedCommand,
     context: CommandContext,
   ): CommandResult {
-    parsed = this.parseWithSchema(parsed.raw);
+    // Pass "scancel" explicitly: this simulator's metadata name is
+    // "slurm", which has no registry definition, so without the override
+    // the heuristic parser would let boolean flags like -v swallow the
+    // job ID as their value ("scancel -v 2001" -> no job ID).
+    parsed = this.parseWithSchema(parsed.raw, "scancel");
     // Handle --help or bare "help" argument
     if (
       this.hasAnyFlag(parsed, ["help"]) ||
@@ -1336,7 +1404,12 @@ export class SlurmSimulator extends BaseSimulator {
 
     this.jobs.splice(jobIdx, 1);
 
-    return this.createSuccess(`scancel: Terminating job ${jobId}`);
+    // Real scancel is silent on success; the confirmation line only
+    // appears with -v/--verbose (SIM-28).
+    const verbose = this.hasAnyFlag(parsed, ["v", "verbose"]);
+    return verbose
+      ? this.createSuccess(`scancel: Terminating job ${jobId}`)
+      : { output: "", exitCode: 0 };
   }
 
   // sacctmgr - Accounting management
