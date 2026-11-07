@@ -146,12 +146,93 @@ describe("DcgmiSimulator", () => {
       expect(result.exitCode).toBe(0);
     });
 
-    it("should require check flag", () => {
+    it("should require an operation flag", () => {
       const parsed = parse("dcgmi health -g 0");
       const result = simulator.execute(parsed, context);
 
       // Check for error message about missing flag
       expect(result.output).toContain("Missing required flag");
+      expect(result.output).toContain("-s/--set");
+    });
+
+    it("should accept 'dcgmi health -s a' (set all watches)", () => {
+      const result = simulator.execute(parse("dcgmi health -s a"), context);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.output).toContain(
+        "Health monitor systems set successfully.",
+      );
+    });
+
+    it("should accept long form with group and sampling options", () => {
+      const result = simulator.execute(
+        parse("dcgmi health --set pmi --group 1 -u 10 -m 300"),
+        context,
+      );
+
+      expect(result.exitCode).toBe(0);
+    });
+
+    it("should reflect --set in --fetch output", () => {
+      // Nothing watched yet
+      let fetch = simulator.execute(parse("dcgmi health -f"), context);
+      expect(fetch.exitCode).toBe(0);
+      expect(fetch.output).toContain("Health Monitor Systems Report");
+      expect(fetch.output).toMatch(/\| PCIe\s+\| Off/);
+
+      simulator.execute(parse("dcgmi health -s a"), context);
+      fetch = simulator.execute(parse("dcgmi health -f"), context);
+      expect(fetch.output).toMatch(/\| PCIe\s+\| On/);
+      expect(fetch.output).toMatch(/\| Thermal\s+\| On/);
+      // 'a' covers everything except SM
+      expect(fetch.output).toMatch(/\| SM\s+\| Off/);
+
+      simulator.execute(parse("dcgmi health -s pm"), context);
+      fetch = simulator.execute(parse("dcgmi health -f -j"), context);
+      const json = JSON.parse(fetch.output.slice(fetch.output.indexOf("{")));
+      expect(json.PCIe).toBe("On");
+      expect(json.Memory).toBe("On");
+      expect(json.NVLink).toBe("Off");
+    });
+
+    it("should render --fetch table with aligned borders", () => {
+      const fetch = simulator.execute(parse("dcgmi health -f"), context);
+      const lines = fetch.output.split("\n").filter((l) => l.length > 0);
+      const widths = new Set(lines.map((l) => l.length));
+      expect(widths.size).toBe(1);
+    });
+
+    it("should track watches per group", () => {
+      simulator.execute(parse("dcgmi health -s n -g 1"), context);
+      const g1 = simulator.execute(parse("dcgmi health -f -g 1"), context);
+      const def = simulator.execute(parse("dcgmi health -f"), context);
+      expect(g1.output).toMatch(/\| NVLink\s+\| On/);
+      expect(def.output).toMatch(/\| NVLink\s+\| Off/);
+    });
+
+    it("should clear watches with --clear", () => {
+      simulator.execute(parse("dcgmi health -s a"), context);
+      const clear = simulator.execute(parse("dcgmi health --clear"), context);
+      expect(clear.exitCode).toBe(0);
+      const fetch = simulator.execute(parse("dcgmi health -f"), context);
+      expect(fetch.output).not.toMatch(/\| On/);
+    });
+
+    it("should reject invalid system letters", () => {
+      const result = simulator.execute(parse("dcgmi health -s z"), context);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain("Invalid health system 'z'");
+    });
+
+    it("should reject 'a' combined with other systems", () => {
+      const result = simulator.execute(parse("dcgmi health -s ap"), context);
+      expect(result.exitCode).not.toBe(0);
+      expect(result.output).toContain("must be used alone");
+    });
+
+    it("should reject multiple operations at once", () => {
+      const result = simulator.execute(parse("dcgmi health -s a -c"), context);
+      expect(result.exitCode).not.toBe(0);
     });
   });
 
@@ -412,6 +493,49 @@ describe("DcgmiSimulator", () => {
 
       expect(result.exitCode).not.toBe(0);
       expect(result.output).toContain("unrecognized option");
+    });
+  });
+
+  describe("Health watches with registry loaded (browser path)", () => {
+    // In the browser the definition registry is loaded, so parsing goes
+    // through the flag schema instead of the heuristic fallback. Other
+    // subcommands define a boolean -s (nvlink --status, stats --show),
+    // which must not stop `health -s` from taking a value.
+    beforeEach(async () => {
+      await vi.waitFor(
+        () => {
+          expect(simulator["definitionRegistry"]).not.toBeNull();
+        },
+        { timeout: 5000 },
+      );
+    });
+
+    it("dcgmi health -s a should succeed", () => {
+      const result = simulator.execute(parse("dcgmi health -s a"), context);
+      expect(result.output).toContain(
+        "Health monitor systems set successfully.",
+      );
+      expect(result.exitCode).toBe(0);
+    });
+
+    it("dcgmi health --set pmi -g 1 should succeed", () => {
+      const result = simulator.execute(
+        parse("dcgmi health --set pmi -g 1"),
+        context,
+      );
+      expect(result.exitCode).toBe(0);
+      const fetch = simulator.execute(parse("dcgmi health -f -g 1"), context);
+      expect(fetch.output).toMatch(/\| PCIe\s+\| On/);
+      expect(fetch.output).toMatch(/\| NVLink\s+\| Off/);
+    });
+
+    it("parses -s per subcommand (value for health, boolean for nvlink)", () => {
+      const health = simulator["parseWithSchema"]("dcgmi health -s a");
+      expect(health.flags.get("s")).toBe("a");
+      expect(health.subcommands).toEqual(["health"]);
+
+      const nvlink = simulator["parseWithSchema"]("dcgmi nvlink -s 0");
+      expect(nvlink.flags.get("s")).toBe(true);
     });
   });
 

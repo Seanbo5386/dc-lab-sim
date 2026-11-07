@@ -561,8 +561,17 @@ export abstract class BaseSimulator {
       return parse(cmdLine);
     }
 
-    const schema = this.definitionRegistry.getFlagSchema(this.getMetadata().name);
-    return parse(cmdLine, schema);
+    const name = this.getMetadata().name;
+    const schema = this.definitionRegistry.getFlagSchema(name);
+    const parsed = parse(cmdLine, schema);
+
+    // Re-parse with the active subcommand's options taking priority, so a
+    // flag that is boolean in one subcommand but takes a value in another
+    // is parsed correctly (e.g. `dcgmi health -s a` vs `dcgmi nvlink -s`).
+    const subcommand = parsed.subcommands[0];
+    if (!subcommand) return parsed;
+    const subSchema = this.definitionRegistry.getFlagSchema(name, subcommand);
+    return parse(cmdLine, subSchema);
   }
 
   /**

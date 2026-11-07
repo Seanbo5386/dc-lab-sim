@@ -15,7 +15,38 @@ import {
 } from "@/simulators/BaseSimulator";
 import { getThermalThresholds } from "@/simulators/nvidiaSmiFormatters";
 
+/** Rows shown by `dcgmi health --fetch`, in display order. */
+const HEALTH_WATCH_SYSTEMS = [
+  "PCIe",
+  "NVLink",
+  "Memory",
+  "SM",
+  "InfoROM",
+  "Thermal",
+  "Power",
+  "Driver",
+  "IMEX",
+  "ConnectX",
+] as const;
+type HealthWatchSystem = (typeof HEALTH_WATCH_SYSTEMS)[number];
+
+/** `--set` letters -> systems. `a` covers everything except SM. */
+const HEALTH_SYSTEM_LETTERS: Record<string, readonly HealthWatchSystem[]> = {
+  a: HEALTH_WATCH_SYSTEMS.filter((s) => s !== "SM"),
+  d: ["Driver"],
+  e: ["IMEX"],
+  i: ["InfoROM"],
+  m: ["Memory"],
+  n: ["NVLink"],
+  p: ["PCIe"],
+  t: ["Thermal", "Power"],
+  x: ["ConnectX"],
+};
+
 export class DcgmiSimulator extends BaseSimulator {
+  /** Health watches per `${nodeId}:${group}` (persists for the terminal session). */
+  private healthWatches = new Map<string, Set<HealthWatchSystem>>();
+
   constructor() {
     super();
     this.registerCommands();
@@ -69,16 +100,62 @@ export class DcgmiSimulator extends BaseSimulator {
 
     this.registerCommand("health", this.handleHealth.bind(this), {
       name: "health",
-      description: "Check GPU health status",
-      usage: "dcgmi health [OPTIONS]",
+      description: "Manage and check GPU health watches",
+      usage:
+        "dcgmi health [-f | -s <systems> | --clear | -c] [-g <group>] [-j]",
       flags: [
+        {
+          short: "f",
+          long: "fetch",
+          description: "Show the systems currently watched for the group",
+        },
+        {
+          short: "s",
+          long: "set",
+          description:
+            "Set health watches: a=All (alone), d=Driver, e=IMEX, i=InfoROM, m=Memory, n=NVLink, p=PCIe, t=Thermal+Power, x=ConnectX",
+          takesValue: true,
+        },
+        {
+          long: "clear",
+          description: "Disable every health watch for the group",
+        },
         {
           short: "c",
           long: "check",
-          description: "Check health status of all GPUs",
+          description: "Evaluate watched systems and report incidents",
+        },
+        {
+          short: "g",
+          long: "group",
+          description: "Group ID or alias (g, s, i, c, a). Default: g",
+          takesValue: true,
+        },
+        {
+          short: "u",
+          long: "update-interval",
+          description: "Sampling interval in seconds (with --set). Default: 30",
+          takesValue: true,
+        },
+        {
+          short: "m",
+          long: "max-keep-age",
+          description: "Sample retention in seconds (with --set). Default: 600",
+          takesValue: true,
+        },
+        {
+          short: "j",
+          long: "json",
+          description: "JSON output (with --fetch)",
         },
       ],
-      examples: ["dcgmi health -c", "dcgmi health --check"],
+      examples: [
+        "dcgmi health -s a",
+        "dcgmi health --set pmi --group 1",
+        "dcgmi health -f",
+        "dcgmi health -c",
+        "dcgmi health --clear",
+      ],
     });
 
     this.registerCommand("group", this.handleGroup.bind(this), {
@@ -521,9 +598,34 @@ export class DcgmiSimulator extends BaseSimulator {
       return this.createError("Unable to determine current node");
     }
 
-    // Check for -c or --check flag
-    if (!this.hasAnyFlag(parsed, ["c", "check"])) {
-      return this.createError("Missing required flag: -c/--check");
+    // dcgmi health has four mutually exclusive operations:
+    // --fetch, --set <systems>, --clear, --check
+    const ops = [
+      this.hasAnyFlag(parsed, ["f", "fetch"]),
+      this.hasAnyFlag(parsed, ["s", "set"]),
+      this.hasAnyFlag(parsed, ["clear"]),
+      this.hasAnyFlag(parsed, ["c", "check"]),
+    ];
+    const opCount = ops.filter(Boolean).length;
+    if (opCount === 0) {
+      return this.createError(
+        'Missing required flag: one of -f/--fetch, -s/--set, --clear, or -c/--check\nRun "dcgmi health --help" for usage.',
+      );
+    }
+    if (opCount > 1) {
+      return this.createError(
+        "Error: Only one of -f/--fetch, -s/--set, --clear, or -c/--check may be specified.",
+      );
+    }
+
+    const group = this.getFlagString(parsed, ["g", "group"], "g") || "g";
+    const watchKey = `${node.id}:${group}`;
+
+    if (ops[0]) return this.handleHealthFetch(parsed, watchKey);
+    if (ops[1]) return this.handleHealthSet(parsed, watchKey);
+    if (ops[2]) {
+      this.healthWatches.set(watchKey, new Set());
+      return this.createSuccess("Health monitor systems cleared successfully.");
     }
 
     // Build health check results for each subsystem
@@ -616,6 +718,92 @@ export class DcgmiSimulator extends BaseSimulator {
         }
       });
     }
+    return this.createSuccess(output);
+  }
+
+  /**
+   * dcgmi health -s/--set <systems>: replace the watched systems for a group.
+   */
+  private handleHealthSet(
+    parsed: ParsedCommand,
+    watchKey: string,
+  ): CommandResult {
+    const raw = parsed.flags.get("s") ?? parsed.flags.get("set");
+    const systems =
+      typeof raw === "string" ? raw : (parsed.positionalArgs[0] ?? "");
+    if (!systems) {
+      return this.createError(
+        "Error: -s/--set requires a list of systems (e.g. 'a' or 'pmi').",
+      );
+    }
+
+    const letters = systems.split("");
+    const invalid = letters.filter((l) => !(l in HEALTH_SYSTEM_LETTERS));
+    if (invalid.length > 0) {
+      return this.createError(
+        `Error: Invalid health system '${invalid[0]}'. Valid systems: a (all, use alone), d, e, i, m, n, p, t, x.`,
+      );
+    }
+    if (letters.includes("a") && letters.length > 1) {
+      return this.createError(
+        "Error: System 'a' (all) must be used alone, not combined with other systems.",
+      );
+    }
+
+    for (const [short, long] of [
+      ["u", "update-interval"],
+      ["m", "max-keep-age"],
+    ]) {
+      if (this.hasAnyFlag(parsed, [short, long])) {
+        const value = this.getFlagString(parsed, [short, long]);
+        if (!/^\d+(\.\d+)?$/.test(value) || Number(value) <= 0) {
+          return this.createError(
+            `Error: -${short}/--${long} requires a positive number of seconds.`,
+          );
+        }
+      }
+    }
+
+    const watched = new Set<HealthWatchSystem>();
+    for (const l of letters) {
+      HEALTH_SYSTEM_LETTERS[l].forEach((s) => watched.add(s));
+    }
+    this.healthWatches.set(watchKey, watched);
+    return this.createSuccess("Health monitor systems set successfully.");
+  }
+
+  /**
+   * dcgmi health -f/--fetch: show which systems are watched for a group.
+   */
+  private handleHealthFetch(
+    parsed: ParsedCommand,
+    watchKey: string,
+  ): CommandResult {
+    const watched = this.healthWatches.get(watchKey) ?? new Set();
+
+    if (this.hasAnyFlag(parsed, ["j", "json"])) {
+      const body = Object.fromEntries(
+        HEALTH_WATCH_SYSTEMS.map((s) => [s, watched.has(s) ? "On" : "Off"]),
+      );
+      return this.createSuccess(
+        `Health monitor systems report\n${JSON.stringify(body, null, 2)}`,
+      );
+    }
+
+    const title = "Health Monitor Systems Report";
+    const nameWidth = Math.max(...HEALTH_WATCH_SYSTEMS.map((s) => s.length));
+    // Widen the value column so the title row fits inside the border.
+    const valueWidth = Math.max(10, title.length - nameWidth - 3);
+    const inner = nameWidth + valueWidth + 5;
+    const border = `+${"-".repeat(inner)}+`;
+    let output = `${border}\n`;
+    output += `| ${title.padEnd(inner - 2)} |\n`;
+    output += `+${"=".repeat(nameWidth + 2)}+${"=".repeat(valueWidth + 2)}+\n`;
+    for (const s of HEALTH_WATCH_SYSTEMS) {
+      const state = watched.has(s) ? "On" : "Off";
+      output += `| ${s.padEnd(nameWidth)} | ${state.padEnd(valueWidth)} |\n`;
+    }
+    output += `+${"-".repeat(nameWidth + 2)}+${"-".repeat(valueWidth + 2)}+\n`;
     return this.createSuccess(output);
   }
 

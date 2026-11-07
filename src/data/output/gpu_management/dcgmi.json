@@ -176,37 +176,58 @@
     {
       "name": "health",
       "description": "Monitor GPU health status and set up health watches for continuous monitoring. Checks PCIe, memory, inforom, thermal, power, and NVLink health.",
-      "synopsis": "dcgmi health [options]",
+      "synopsis": "dcgmi health [-f | -s <systems> | --clear | -c] [-g <group>] [-j]",
       "options": [
         {
-          "short": "-c",
-          "long": "--check",
-          "description": "Perform a health check on the target group or all GPUs",
-          "example": "dcgmi health -c -g 0"
+          "short": "-f",
+          "long": "--fetch",
+          "description": "Show the systems currently watched for the selected group",
+          "example": "dcgmi health -f -g 1"
         },
         {
           "short": "-s",
           "long": "--set",
-          "description": "Set health watches with specified systems. Systems: a=All, p=PCIe, m=Memory, i=Inforom, t=Thermal, w=Power, n=NVLink",
+          "description": "Replace the watched systems. Letters can be combined, but 'a' must be used alone. Systems: a=All (except SM), d=Driver, e=IMEX, i=InfoROM, m=Memory, n=NVLink, p=PCIe, t=Thermal and power, x=ConnectX",
           "arguments": "SYSTEMS",
           "argument_type": "string",
-          "example": "dcgmi health -s pmtin -g 0"
+          "example": "dcgmi health -s a"
+        },
+        {
+          "long": "--clear",
+          "description": "Disable every health watch for the selected group",
+          "example": "dcgmi health --clear -g 1"
+        },
+        {
+          "short": "-c",
+          "long": "--check",
+          "description": "Evaluate the watched systems and report incidents",
+          "example": "dcgmi health -c -g 0"
         },
         {
           "short": "-g",
           "long": "--group",
-          "description": "Target group ID for health operations",
-          "arguments": "GROUP_ID",
+          "description": "Numeric group ID or alias: g (all GPUs), s (all NVSwitches), i (GPU instances), c (compute instances), a (all entities). Default: g",
+          "arguments": "GROUP",
+          "argument_type": "string"
+        },
+        {
+          "short": "-u",
+          "long": "--update-interval",
+          "description": "Driver sampling interval in seconds (used with --set). Default: 30",
+          "arguments": "SECONDS",
+          "argument_type": "integer"
+        },
+        {
+          "short": "-m",
+          "long": "--max-keep-age",
+          "description": "How long samples are retained in seconds (used with --set). Default: 600",
+          "arguments": "SECONDS",
           "argument_type": "integer"
         },
         {
           "short": "-j",
           "long": "--json",
-          "description": "Output health check results in JSON format"
-        },
-        {
-          "long": "--clear",
-          "description": "Clear all health watches for the target group"
+          "description": "Format --fetch or --check output as JSON"
         }
       ]
     },
