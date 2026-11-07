@@ -1,4 +1,9 @@
-import type { CommandDefinition, CommandCategory, CommandOption, UsagePattern } from "./types";
+import type {
+  CommandDefinition,
+  CommandCategory,
+  CommandOption,
+  UsagePattern,
+} from "./types";
 import {
   CommandDefinitionLoader,
   getCommandDefinitionLoader,
@@ -275,8 +280,15 @@ export class CommandDefinitionRegistry {
    * Maps flag names (without dashes) to whether they take a value.
    * true = takes a value, false = boolean flag.
    * Returns undefined if command not found.
+   *
+   * Options from all subcommands are merged, so the same short flag can mean
+   * different things (e.g. dcgmi `health -s <systems>` vs `nvlink -s`).
+   * When `subcommand` is given, its options are applied last and win.
    */
-  getFlagSchema(command: string): Map<string, boolean> | undefined {
+  getFlagSchema(
+    command: string,
+    subcommand?: string,
+  ): Map<string, boolean> | undefined {
     const def = this.getDefinitionSync(command);
     if (!def) return undefined;
 
@@ -287,13 +299,13 @@ export class CommandDefinitionRegistry {
         const takesValue = !!opt.arguments;
 
         if (opt.short) {
-          schema.set(opt.short.replace(/^-+/, ''), takesValue);
+          schema.set(opt.short.replace(/^-+/, ""), takesValue);
         }
         if (opt.long) {
-          schema.set(opt.long.replace(/^-+/, '').replace(/=$/, ''), takesValue);
+          schema.set(opt.long.replace(/^-+/, "").replace(/=$/, ""), takesValue);
         }
         if (opt.flag) {
-          schema.set(opt.flag.replace(/^-+/, '').replace(/=$/, ''), takesValue);
+          schema.set(opt.flag.replace(/^-+/, "").replace(/=$/, ""), takesValue);
         }
       }
     };
@@ -307,6 +319,13 @@ export class CommandDefinitionRegistry {
         if (sub.options) {
           processOptions(sub.options);
         }
+      }
+
+      const active = subcommand
+        ? def.subcommands.find((sub) => sub.name === subcommand)
+        : undefined;
+      if (active?.options) {
+        processOptions(active.options);
       }
     }
 
