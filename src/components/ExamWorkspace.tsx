@@ -92,12 +92,16 @@ export function ExamWorkspace({
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
   const examConfig = createExamConfig(mode as ExamMode);
   const timeLimitSeconds = examConfig.timeLimitMinutes * 60;
+  const isUntimed = timeLimitSeconds === 0;
   const [timeRemaining, setTimeRemaining] = useState(
     timeLimitSeconds || 90 * 60,
   );
   const [showResults, setShowResults] = useState(false);
   const [showReview, setShowReview] = useState(false);
-  const [examTimer, setExamTimer] = useState<ExamTimer | null>(null);
+  const [timeExpired, setTimeExpired] = useState(false);
+  // A ref, not state: the mount effect's cleanup and the handlers below need
+  // the live timer, and nothing renders from it.
+  const timerRef = useRef<ExamTimer | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Reset scroll position when moving between questions. On mobile the question
@@ -128,25 +132,29 @@ export function ExamWorkspace({
       // Start timer (0 = no limit, use a large value)
       const duration = timeLimitSeconds || 999 * 60;
       const timer = new ExamTimer(duration);
+      timerRef.current = timer;
       timer.start(
         (remaining) => setTimeRemaining(remaining),
-        () => handleTimeExpired(),
+        // This callback is created once, at mount, when activeExam and
+        // questions are still empty, so it cannot submit the exam itself. It
+        // only flags expiry; the effect below submits from a current render.
+        // Untimed modes get no expiry callback at all.
+        isUntimed
+          ? undefined
+          : () => {
+              setTimeRemaining(0);
+              setTimeExpired(true);
+            },
       );
-      setExamTimer(timer);
     };
 
     init();
 
     return () => {
-      examTimer?.stop();
+      timerRef.current?.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Intentionally run once on mount
-
-  const handleTimeExpired = () => {
-    // Auto-submit exam when time expires
-    handleSubmitExam();
-  };
 
   const handleAnswerChange = (answer: number | number[]) => {
     if (!activeExam) return;
@@ -164,13 +172,13 @@ export function ExamWorkspace({
   const handleSubmitExam = () => {
     if (!activeExam) return;
 
-    examTimer?.stop();
+    timerRef.current?.stop();
 
     // Calculate score
     const breakdown = calculateExamScore(questions, activeExam.answers);
 
     // Update breakdown with actual time spent
-    breakdown.timeSpent = examTimer?.getTimeElapsed() || 0;
+    breakdown.timeSpent = timerRef.current?.getTimeElapsed() || 0;
 
     // End exam in store and record attempt
     endExam(breakdown);
@@ -179,8 +187,16 @@ export function ExamWorkspace({
     setShowResults(true);
   };
 
+  // Auto-submit when the timer expires. Running this as an effect means
+  // handleSubmitExam belongs to a render that sees the current activeExam and
+  // questions, unlike the timer callback captured at mount.
+  useEffect(() => {
+    if (timeExpired && !showResults) handleSubmitExam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeExpired]);
+
   const handleExit = () => {
-    examTimer?.stop();
+    timerRef.current?.stop();
     exitExam();
     onClose();
   };
@@ -675,11 +691,11 @@ export function ExamWorkspace({
           </div>
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <div
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded ${timeRemaining < 300 ? "bg-red-900 text-red-300" : "bg-gray-700 text-gray-300"}`}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded ${!isUntimed && timeRemaining < 300 ? "bg-red-900 text-red-300" : "bg-gray-700 text-gray-300"}`}
             >
               <Clock className="w-5 h-5" />
               <span className="font-mono font-bold">
-                {formatTime(timeRemaining)}
+                {isUntimed ? "No time limit" : formatTime(timeRemaining)}
               </span>
             </div>
             <button

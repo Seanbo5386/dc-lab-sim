@@ -1,6 +1,14 @@
+import type { ComponentProps } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import type { ExamQuestion, ExamState } from "@/types/scenarios";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
+import type { ExamBreakdown, ExamQuestion, ExamState } from "@/types/scenarios";
+import type { ExamModeConfig } from "@/utils/examEngine";
 
 // ============================================================================
 // Mock data
@@ -42,6 +50,29 @@ const mockQuestions: ExamQuestion[] = [
   },
 ];
 
+// The exam state the store holds right after startExam()
+const baseExamState: ExamState = {
+  examId: "ncp-aii-practice",
+  startTime: Date.now(),
+  timeRemaining: 90 * 60,
+  answers: {},
+  currentQuestionIndex: 0,
+  flaggedQuestions: [],
+  answeredQuestions: [],
+  submitted: false,
+};
+
+// The config createExamConfig returns unless a test overrides it
+const baseConfig: ExamModeConfig = {
+  mode: "full-practice",
+  name: "Full Practice Exam",
+  description: "Complete 60-question exam",
+  questionCount: 60,
+  timeLimitMinutes: 90,
+  shuffleQuestions: true,
+  showExplanations: "after-exam",
+};
+
 // ============================================================================
 // Store mock
 // ============================================================================
@@ -49,10 +80,17 @@ const mockQuestions: ExamQuestion[] = [
 const mockStartExam = vi.fn();
 const mockSubmitExamAnswer = vi.fn();
 const mockToggleQuestionFlag = vi.fn();
-const mockEndExam = vi.fn();
 const mockExitExam = vi.fn();
 
 let mockActiveExam: ExamState | null = null;
+
+// Like the real store, endExam records the breakdown on the active exam. The
+// results screen only renders once it is there.
+const mockEndExam = vi.fn((breakdown: ExamBreakdown) => {
+  if (mockActiveExam) {
+    mockActiveExam = { ...mockActiveExam, submitted: true, breakdown };
+  }
+});
 
 vi.mock("@/store/simulationStore", () => ({
   useSimulationStore: vi.fn(() => ({
@@ -86,15 +124,7 @@ vi.mock("@/utils/examEngine", () => ({
   loadExamQuestions: vi.fn(),
   selectExamQuestions: vi.fn(),
   selectQuestionsForMode: vi.fn(),
-  createExamConfig: vi.fn().mockReturnValue({
-    mode: "full-practice",
-    name: "Full Practice Exam",
-    description: "Complete 60-question exam",
-    questionCount: 60,
-    timeLimitMinutes: 90,
-    shuffleQuestions: true,
-    showExplanations: "after-exam",
-  }),
+  createExamConfig: vi.fn(), // returns baseConfig by default, set in beforeEach
   calculateExamScore: vi.fn().mockReturnValue({
     totalPoints: 4,
     earnedPoints: 2,
@@ -151,6 +181,8 @@ import {
   loadExamQuestions,
   selectExamQuestions,
   selectQuestionsForMode,
+  createExamConfig,
+  calculateExamScore,
   ExamTimer,
 } from "@/utils/examEngine";
 
@@ -186,36 +218,31 @@ vi.mock("lucide-react", () => ({
 import { ExamWorkspace } from "../ExamWorkspace";
 
 // ============================================================================
-// Helper: render with questions loaded
+// Helpers: render with questions loaded
 // ============================================================================
 
-async function renderWithQuestions(onCloseFn: () => void) {
+type ExamWorkspaceProps = ComponentProps<typeof ExamWorkspace>;
+
+// Renders the workspace and waits for the first question. It leaves
+// mockActiveExam alone, so a test can start from null (what the first render
+// sees in production) or from whatever exam state it set beforehand.
+async function renderLoaded(props: Partial<ExamWorkspaceProps> = {}) {
   vi.mocked(loadExamQuestions).mockResolvedValue(mockQuestions);
   vi.mocked(selectExamQuestions).mockReturnValue(mockQuestions);
   vi.mocked(selectQuestionsForMode).mockReturnValue(mockQuestions);
 
-  // Pre-populate mockActiveExam so the component sees exam state
-  mockActiveExam = {
-    examId: "ncp-aii-practice",
-    startTime: Date.now(),
-    timeRemaining: 90 * 60,
-    answers: {},
-    currentQuestionIndex: 0,
-    flaggedQuestions: [],
-    answeredQuestions: [],
-    submitted: false,
-  };
+  const result = render(<ExamWorkspace onClose={vi.fn()} {...props} />);
 
-  const result = render(<ExamWorkspace onClose={onCloseFn} />);
-
-  // Wait for the loading screen to disappear
-  await waitFor(() => {
-    expect(
-      screen.queryByText("Loading exam questions..."),
-    ).not.toBeInTheDocument();
-  });
+  await screen.findByText(mockQuestions[0].questionText);
 
   return result;
+}
+
+async function renderWithQuestions(onCloseFn: () => void) {
+  // Pre-populate mockActiveExam so the component sees exam state
+  mockActiveExam = { ...baseExamState };
+
+  return renderLoaded({ onClose: onCloseFn });
 }
 
 // ============================================================================
@@ -228,6 +255,10 @@ describe("ExamWorkspace", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockActiveExam = null;
+
+    // Default: a timed config. Reset here because clearAllMocks keeps
+    // implementations, so a test's override would otherwise leak into the next.
+    vi.mocked(createExamConfig).mockReturnValue(baseConfig);
 
     // Default: loadExamQuestions returns empty so loading state stays
     vi.mocked(loadExamQuestions).mockResolvedValue([]);
@@ -460,5 +491,86 @@ describe("ExamWorkspace", () => {
     await renderWithQuestions(onClose);
     fireEvent.click(screen.getByTitle("Exit Exam"));
     expect(mockTimerStop).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops the timer on unmount", async () => {
+    const { unmount } = await renderLoaded();
+    unmount();
+    expect(mockTimerStop).toHaveBeenCalled();
+  });
+
+  // --------------------------------------------------------------------------
+  // Timer expiry (auto-submit)
+  // --------------------------------------------------------------------------
+
+  it("auto-submits with the loaded questions when the timer expires", async () => {
+    mockActiveExam = null; // first render, as in production
+    const { rerender } = await renderLoaded({ mode: "quick-quiz" });
+    mockActiveExam = {
+      ...baseExamState,
+      answers: { q1: 0 },
+      answeredQuestions: ["q1"],
+    };
+    rerender(<ExamWorkspace onClose={vi.fn()} mode="quick-quiz" />);
+
+    const onExpire = mockTimerStart.mock.calls[0][1] as () => void;
+    act(() => onExpire());
+
+    await waitFor(() => expect(mockAddExamAttempt).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(calculateExamScore).mock.calls[0][0]).toHaveLength(
+      mockQuestions.length,
+    );
+    expect(screen.getByText("Exam Results")).toBeInTheDocument();
+  });
+
+  it("auto-submits an untouched exam", async () => {
+    mockActiveExam = null;
+    const { rerender } = await renderLoaded({ mode: "quick-quiz" });
+    mockActiveExam = { ...baseExamState, answers: {}, answeredQuestions: [] };
+    rerender(<ExamWorkspace onClose={vi.fn()} mode="quick-quiz" />);
+
+    act(() => (mockTimerStart.mock.calls[0][1] as () => void)());
+
+    await waitFor(() =>
+      expect(screen.getByText("Exam Results")).toBeInTheDocument(),
+    );
+  });
+
+  // --------------------------------------------------------------------------
+  // Untimed modes
+  // --------------------------------------------------------------------------
+
+  it("shows 'No time limit' instead of a countdown for untimed modes", async () => {
+    // Held for the whole test rather than Once, so every render sees the
+    // untimed config. beforeEach puts the timed default back afterwards.
+    vi.mocked(createExamConfig).mockReturnValue({
+      ...baseConfig,
+      mode: "review-mode",
+      timeLimitMinutes: 0,
+    });
+    await renderLoaded({ mode: "review-mode" });
+    expect(await screen.findByText("No time limit")).toBeInTheDocument();
+    expect(screen.queryByText("999:00")).toBeNull();
+  });
+
+  it("never arms expiry or the low-time warning for untimed modes", async () => {
+    vi.mocked(createExamConfig).mockReturnValue({
+      ...baseConfig,
+      mode: "review-mode",
+      timeLimitMinutes: 0,
+    });
+    await renderLoaded({ mode: "review-mode" });
+
+    const [onTick, onExpire] = mockTimerStart.mock.calls[0] as [
+      ((remaining: number) => void) | undefined,
+      (() => void) | undefined,
+    ];
+    expect(onExpire).toBeUndefined();
+
+    // One minute left would put a timed exam's clock in its red state
+    act(() => onTick?.(60));
+    const clock = screen.getByText("No time limit").parentElement;
+    expect(clock).toHaveClass("bg-gray-700");
+    expect(clock).not.toHaveClass("bg-red-900");
   });
 });
