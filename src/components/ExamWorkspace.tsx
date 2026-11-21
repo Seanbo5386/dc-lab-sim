@@ -10,6 +10,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import type { ExamQuestion } from "@/types/scenarios";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import {
   loadExamQuestions,
   selectQuestionsForMode,
@@ -114,6 +115,7 @@ export function ExamWorkspace({
   const [showResults, setShowResults] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [timeExpired, setTimeExpired] = useState(false);
+  const [confirmingExit, setConfirmingExit] = useState(false);
   // A ref, not state: the mount effect's cleanup and the handlers below need
   // the live timer, and nothing renders from it.
   const timerRef = useRef<ExamTimer | null>(null);
@@ -230,6 +232,16 @@ export function ExamWorkspace({
     timerRef.current?.stop();
     exitExam();
     onClose();
+  };
+
+  // The header X discards the attempt unscored, so ask first once there is an
+  // answer to lose. An untouched exam has nothing to lose and exits directly.
+  const requestExit = () => {
+    if (!showResults && (activeExam?.answeredQuestions.length ?? 0) > 0) {
+      setConfirmingExit(true);
+    } else {
+      handleExit();
+    }
   };
 
   if (loadState === "loading") {
@@ -761,7 +773,7 @@ export function ExamWorkspace({
               </span>
             </div>
             <button
-              onClick={handleExit}
+              onClick={requestExit}
               className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
               title="Exit Exam"
             >
@@ -968,6 +980,18 @@ export function ExamWorkspace({
           )}
         </div>
       </div>
+
+      {/* Last child of this overlay, so the modal's own z-50 layer stacks
+          inside the overlay, above the exam card. */}
+      <ConfirmModal
+        isOpen={confirmingExit}
+        title="Leave exam?"
+        message="Your answers so far will be discarded and this attempt will not be scored."
+        confirmLabel="Leave exam"
+        cancelLabel="Keep going"
+        onConfirm={handleExit}
+        onCancel={() => setConfirmingExit(false)}
+      />
     </div>
   );
 }

@@ -233,6 +233,10 @@ vi.mock("lucide-react", () => ({
   CheckCircle: (props: Record<string, unknown>) => (
     <svg data-testid="icon-CheckCircle" {...props} />
   ),
+  // Used by ConfirmModal, which the workspace renders for the exit prompt
+  AlertTriangle: (props: Record<string, unknown>) => (
+    <svg data-testid="icon-AlertTriangle" {...props} />
+  ),
 }));
 
 // ============================================================================
@@ -346,6 +350,64 @@ describe("ExamWorkspace", () => {
     fireEvent.click(screen.getByTitle("Exit Exam"));
     expect(mockExitExam).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  // --------------------------------------------------------------------------
+  // Exit confirmation (an exam with answers is not discarded without asking)
+  // --------------------------------------------------------------------------
+
+  it("asks before discarding an exam with answers", async () => {
+    mockActiveExam = {
+      ...baseExamState,
+      answers: { q1: 0 },
+      answeredQuestions: ["q1"],
+    };
+    await renderLoaded({ onClose });
+
+    fireEvent.click(screen.getByTitle("Exit Exam"));
+
+    expect(screen.getByText("Leave exam?")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Your answers so far will be discarded and this attempt will not be scored.",
+      ),
+    ).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep going" }));
+    expect(screen.queryByText("Leave exam?")).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTitle("Exit Exam"));
+    fireEvent.click(screen.getByRole("button", { name: "Leave exam" }));
+    expect(mockExitExam).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("exits immediately when nothing has been answered", async () => {
+    mockActiveExam = { ...baseExamState, answers: {}, answeredQuestions: [] };
+    await renderLoaded({ onClose });
+    fireEvent.click(screen.getByTitle("Exit Exam"));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the confirmation last inside the exam overlay", async () => {
+    mockActiveExam = {
+      ...baseExamState,
+      answers: { q1: 0 },
+      answeredQuestions: ["q1"],
+    };
+    const { container } = await renderLoaded({ onClose });
+
+    fireEvent.click(screen.getByTitle("Exit Exam"));
+
+    // jsdom cannot check paint order, so pin the placement it depends on: the
+    // modal shares the overlay's z-50, and sits above the exam by being inside
+    // the overlay and after its content.
+    const overlay = container.firstChild as HTMLElement;
+    expect(overlay.lastElementChild).toBe(
+      screen.getByTestId("confirm-modal-backdrop"),
+    );
   });
 
   // --------------------------------------------------------------------------
