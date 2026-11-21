@@ -499,6 +499,28 @@ describe("ExamWorkspace", () => {
     expect(mockTimerStop).toHaveBeenCalled();
   });
 
+  it("does not start the exam or a timer when unmounted before questions load", async () => {
+    let resolveQuestions: (questions: ExamQuestion[]) => void = () => undefined;
+    const pendingQuestions = new Promise<ExamQuestion[]>((resolve) => {
+      resolveQuestions = resolve;
+    });
+    vi.mocked(loadExamQuestions).mockReturnValue(pendingQuestions);
+    vi.mocked(selectQuestionsForMode).mockReturnValue(mockQuestions);
+
+    const { unmount } = render(<ExamWorkspace onClose={onClose} />);
+    unmount();
+
+    // The component awaited this promise first, so by the time the await below
+    // returns, everything it does after the questions arrive has already run.
+    await act(async () => {
+      resolveQuestions(mockQuestions);
+      await pendingQuestions;
+    });
+
+    expect(mockStartExam).not.toHaveBeenCalled();
+    expect(mockTimerStart).not.toHaveBeenCalled();
+  });
+
   // --------------------------------------------------------------------------
   // Timer expiry (auto-submit)
   // --------------------------------------------------------------------------

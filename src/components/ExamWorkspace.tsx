@@ -118,8 +118,14 @@ export function ExamWorkspace({
 
   // Load questions on mount
   useEffect(() => {
+    let cancelled = false;
+
     const init = async () => {
       const allQuestions = await loadExamQuestions();
+      // Unmounted while the questions were loading: start nothing, because no
+      // cleanup will run again to stop it.
+      if (cancelled) return;
+
       const selectedQuestions = selectQuestionsForMode(
         allQuestions,
         examConfig,
@@ -151,6 +157,7 @@ export function ExamWorkspace({
     init();
 
     return () => {
+      cancelled = true;
       timerRef.current?.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
