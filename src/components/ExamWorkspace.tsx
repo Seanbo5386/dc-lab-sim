@@ -14,6 +14,8 @@ import {
   loadExamQuestions,
   selectQuestionsForMode,
   createExamConfig,
+  getOutstandingIncorrectQuestionIds,
+  getWeakDomainsFromHistory,
   calculateExamScore,
   ExamTimer,
   isExamPassed,
@@ -88,9 +90,22 @@ export function ExamWorkspace({
     toggleQuestionFlag,
   } = useSimulationStore();
   const addExamAttempt = useLearningStore((state) => state.addExamAttempt);
+  const examAttempts = useLearningStore((state) => state.examAttempts);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "empty">(
+    "loading",
+  );
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const examConfig = createExamConfig(mode as ExamMode);
+  // Built once, from the history as it stood when the exam opened. Submitting
+  // adds an attempt to that history, which must not change the exam in hand.
+  const [examConfig] = useState(() => {
+    const weak = getWeakDomainsFromHistory(examAttempts);
+    return createExamConfig(mode as ExamMode, {
+      reviewQuestionIds: getOutstandingIncorrectQuestionIds(examAttempts),
+      // Left out when there are none, so the engine's default domains apply
+      weakDomains: weak.length > 0 ? weak : undefined,
+    });
+  });
   const timeLimitSeconds = examConfig.timeLimitMinutes * 60;
   const isUntimed = timeLimitSeconds === 0;
   const [timeRemaining, setTimeRemaining] = useState(
@@ -130,7 +145,16 @@ export function ExamWorkspace({
         allQuestions,
         examConfig,
       );
+
+      // Nothing to show, such as Review Mistakes before any question has been
+      // missed. Say so rather than start an exam and a timer with no questions.
+      if (selectedQuestions.length === 0) {
+        setLoadState("empty");
+        return;
+      }
+
       setQuestions(selectedQuestions);
+      setLoadState("ready");
 
       // Start exam in store
       startExam("ncp-aii-practice");
@@ -208,11 +232,42 @@ export function ExamWorkspace({
     onClose();
   };
 
-  if (questions.length === 0) {
+  if (loadState === "loading") {
     return (
       <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
         <div className="bg-gray-900 rounded-lg p-8 text-white">
           <p>Loading exam questions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadState === "empty") {
+    const isReviewMode = mode === "review-mode";
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exam-empty-state-title"
+          className="bg-gray-900 rounded-lg p-8 text-white max-w-md text-center"
+        >
+          <h2 id="exam-empty-state-title" className="text-xl font-bold mb-2">
+            {isReviewMode ? "Nothing to review yet" : "No questions available"}
+          </h2>
+          <p className="text-gray-300 mb-6">
+            {isReviewMode
+              ? "Review Mistakes fills in after you miss a question in an exam or quiz."
+              : "This mode has no questions to show right now."}
+          </p>
+          <button
+            autoFocus
+            onClick={handleExit}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded font-semibold transition-colors"
+          >
+            Back to Exams
+          </button>
         </div>
       </div>
     );

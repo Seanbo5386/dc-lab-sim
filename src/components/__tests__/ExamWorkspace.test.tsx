@@ -105,9 +105,29 @@ vi.mock("@/store/simulationStore", () => ({
 
 const mockAddExamAttempt = vi.fn();
 
+// The learner's stored attempts, oldest first. Empty unless a test sets it.
+let mockExamAttempts: ExamBreakdown[] = [];
+
+// A stored attempt. The engine is mocked, so only its identity matters: the
+// tests check that the store's history is what the engine is asked about.
+const pastAttempt = {
+  questionResults: [
+    {
+      questionId: "q2",
+      correct: false,
+      userAnswer: 1,
+      correctAnswer: 0,
+      points: 1,
+    },
+  ],
+} as unknown as ExamBreakdown;
+
 vi.mock("@/store/learningStore", () => ({
   useLearningStore: vi.fn((selector?: unknown) => {
-    const state = { addExamAttempt: mockAddExamAttempt };
+    const state = {
+      addExamAttempt: mockAddExamAttempt,
+      examAttempts: mockExamAttempts,
+    };
     return typeof selector === "function" ? selector(state) : state;
   }),
 }));
@@ -125,6 +145,8 @@ vi.mock("@/utils/examEngine", () => ({
   selectExamQuestions: vi.fn(),
   selectQuestionsForMode: vi.fn(),
   createExamConfig: vi.fn(), // returns baseConfig by default, set in beforeEach
+  getOutstandingIncorrectQuestionIds: vi.fn().mockReturnValue([]),
+  getWeakDomainsFromHistory: vi.fn().mockReturnValue([]),
   calculateExamScore: vi.fn().mockReturnValue({
     totalPoints: 4,
     earnedPoints: 2,
@@ -182,6 +204,8 @@ import {
   selectExamQuestions,
   selectQuestionsForMode,
   createExamConfig,
+  getOutstandingIncorrectQuestionIds,
+  getWeakDomainsFromHistory,
   calculateExamScore,
   ExamTimer,
 } from "@/utils/examEngine";
@@ -260,7 +284,13 @@ describe("ExamWorkspace", () => {
     // implementations, so a test's override would otherwise leak into the next.
     vi.mocked(createExamConfig).mockReturnValue(baseConfig);
 
-    // Default: loadExamQuestions returns empty so loading state stays
+    // Default: no exam history. Reset here for the same reason.
+    mockExamAttempts = [];
+    vi.mocked(getOutstandingIncorrectQuestionIds).mockReturnValue([]);
+    vi.mocked(getWeakDomainsFromHistory).mockReturnValue([]);
+
+    // Default: no questions, so the workspace shows the loading state and then
+    // settles on the empty state
     vi.mocked(loadExamQuestions).mockResolvedValue([]);
     vi.mocked(selectExamQuestions).mockReturnValue([]);
     vi.mocked(selectQuestionsForMode).mockReturnValue([]);
@@ -594,5 +624,91 @@ describe("ExamWorkspace", () => {
     const clock = screen.getByText("No time limit").parentElement;
     expect(clock).toHaveClass("bg-gray-700");
     expect(clock).not.toHaveClass("bg-red-900");
+  });
+
+  // --------------------------------------------------------------------------
+  // Review Mistakes / Weak Area Focus: config built from exam history
+  // --------------------------------------------------------------------------
+
+  it("builds the review config from exam history", async () => {
+    mockExamAttempts = [pastAttempt];
+    vi.mocked(getOutstandingIncorrectQuestionIds).mockReturnValue(["q2"]);
+    vi.mocked(getWeakDomainsFromHistory).mockReturnValue(["domain2"]);
+
+    await renderLoaded({ mode: "review-mode" });
+
+    expect(getOutstandingIncorrectQuestionIds).toHaveBeenCalledWith([
+      pastAttempt,
+    ]);
+    expect(getWeakDomainsFromHistory).toHaveBeenCalledWith([pastAttempt]);
+    expect(createExamConfig).toHaveBeenCalledWith("review-mode", {
+      reviewQuestionIds: ["q2"],
+      weakDomains: ["domain2"],
+    });
+  });
+
+  it("omits weakDomains when history has none so the engine default applies", async () => {
+    await renderLoaded({ mode: "weak-area-focus" });
+
+    expect(createExamConfig).toHaveBeenCalledWith("weak-area-focus", {
+      reviewQuestionIds: [],
+      weakDomains: undefined,
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // Empty state (a mode with no questions to show)
+  // --------------------------------------------------------------------------
+
+  it("shows the empty state when selection returns no questions", async () => {
+    vi.mocked(selectQuestionsForMode).mockReturnValue([]);
+    render(<ExamWorkspace onClose={onClose} mode="review-mode" />);
+
+    expect(
+      await screen.findByText("Nothing to review yet"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Review Mistakes fills in after you miss a question in an exam or quiz.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Loading exam questions...")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to Exams" }));
+    expect(mockExitExam).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not start the exam or the timer when there are no questions", async () => {
+    vi.mocked(selectQuestionsForMode).mockReturnValue([]);
+    render(<ExamWorkspace onClose={vi.fn()} mode="review-mode" />);
+    await screen.findByText("Nothing to review yet");
+    expect(mockStartExam).not.toHaveBeenCalled();
+    expect(ExamTimer).not.toHaveBeenCalled();
+    expect(mockTimerStart).not.toHaveBeenCalled();
+  });
+
+  it("presents the empty state as a labelled dialog with its button focused", async () => {
+    vi.mocked(selectQuestionsForMode).mockReturnValue([]);
+    render(<ExamWorkspace onClose={onClose} mode="review-mode" />);
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Nothing to review yet",
+    });
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(screen.getByRole("button", { name: "Back to Exams" })).toHaveFocus();
+  });
+
+  it("shows a generic empty state for modes other than Review Mistakes", async () => {
+    vi.mocked(selectQuestionsForMode).mockReturnValue([]);
+    render(<ExamWorkspace onClose={onClose} mode="weak-area-focus" />);
+
+    expect(
+      await screen.findByRole("dialog", { name: "No questions available" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("This mode has no questions to show right now."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Nothing to review yet")).toBeNull();
   });
 });

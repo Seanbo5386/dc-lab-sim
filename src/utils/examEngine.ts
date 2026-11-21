@@ -226,6 +226,29 @@ export function getIncorrectQuestionIds(breakdown: ExamBreakdown): string[] {
 }
 
 /**
+ * Get questions whose most recent result across a history of attempts (oldest
+ * first) was incorrect. A question answered correctly in a later attempt drops
+ * out; one missed again later comes back. Ids are in first-seen order.
+ */
+export function getOutstandingIncorrectQuestionIds(
+  breakdowns: ExamBreakdown[],
+): string[] {
+  // A Map keeps each id where it was first inserted, so a later result
+  // overwrites the outcome without moving the question.
+  const latestResults = new Map<string, boolean>();
+
+  breakdowns.forEach((breakdown) => {
+    breakdown.questionResults.forEach((result) => {
+      latestResults.set(result.questionId, result.correct);
+    });
+  });
+
+  return [...latestResults]
+    .filter(([, correct]) => !correct)
+    .map(([questionId]) => questionId);
+}
+
+/**
  * Get domains below a threshold score
  */
 export function getWeakDomainsFromHistory(

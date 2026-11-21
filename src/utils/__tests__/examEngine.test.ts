@@ -11,6 +11,7 @@ import {
   selectQuestionsForMode,
   createExamConfig,
   getIncorrectQuestionIds,
+  getOutstandingIncorrectQuestionIds,
   getWeakDomainsFromHistory,
   formatTime,
   getEstimatedTimePerQuestion,
@@ -563,6 +564,67 @@ describe("Exam Engine - Exam Modes", () => {
       const incorrect = getIncorrectQuestionIds(breakdown);
 
       expect(incorrect).toEqual([]);
+    });
+  });
+
+  describe("getOutstandingIncorrectQuestionIds", () => {
+    const attempt = (results: Array<[string, boolean]>) =>
+      ({
+        questionResults: results.map(([questionId, correct]) => ({
+          questionId,
+          correct,
+          userAnswer: 0,
+          correctAnswer: 0,
+          points: 1,
+        })),
+      }) as unknown as ExamBreakdown;
+
+    it("returns nothing for no history", () => {
+      expect(getOutstandingIncorrectQuestionIds([])).toEqual([]);
+    });
+
+    it("returns questions missed in the latest attempt that saw them", () => {
+      expect(
+        getOutstandingIncorrectQuestionIds([
+          attempt([
+            ["q1", false],
+            ["q2", true],
+          ]),
+        ]),
+      ).toEqual(["q1"]);
+    });
+
+    it("drops a question once it is later answered correctly", () => {
+      expect(
+        getOutstandingIncorrectQuestionIds([
+          attempt([["q1", false]]),
+          attempt([["q1", true]]),
+        ]),
+      ).toEqual([]);
+    });
+
+    it("re-adds a question missed again later", () => {
+      expect(
+        getOutstandingIncorrectQuestionIds([
+          attempt([["q1", true]]),
+          attempt([["q1", false]]),
+        ]),
+      ).toEqual(["q1"]);
+    });
+
+    it("lists questions in the order they were first seen", () => {
+      expect(
+        getOutstandingIncorrectQuestionIds([
+          attempt([
+            ["q3", false],
+            ["q1", true],
+          ]),
+          attempt([
+            ["q2", false],
+            ["q1", false],
+          ]),
+        ]),
+      ).toEqual(["q3", "q1", "q2"]);
     });
   });
 
