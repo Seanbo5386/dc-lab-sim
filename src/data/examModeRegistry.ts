@@ -1,7 +1,6 @@
 import {
   BookOpen,
   Zap,
-  Trophy,
   Target,
   RotateCcw,
   type LucideIcon,
@@ -46,18 +45,6 @@ export const EXAM_MODE_REGISTRY: ExamModeEntry[] = [
     questionCount: "15 questions",
     launchKey: "exam",
     examMode: "quick-quiz",
-  },
-  {
-    id: "exam-gauntlet",
-    title: "Exam Gauntlet",
-    subtitle: "Timed Challenge",
-    description:
-      "Tackle 10 weighted scenarios in a timed exam format. Simulates the real DCA certification experience with domain-based scoring.",
-    icon: Trophy,
-
-    duration: "30-90 min",
-    questionCount: "10 scenarios",
-    launchKey: "gauntlet",
   },
   {
     id: "weak-area-focus",
