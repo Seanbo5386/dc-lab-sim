@@ -736,7 +736,7 @@ describe("ExamWorkspace", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("Loading exam questions...")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Back to Exams" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(mockExitExam).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -758,7 +758,7 @@ describe("ExamWorkspace", () => {
       name: "Nothing to review yet",
     });
     expect(dialog).toHaveAttribute("aria-modal", "true");
-    expect(screen.getByRole("button", { name: "Back to Exams" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Close" })).toHaveFocus();
   });
 
   it("shows a generic empty state for modes other than Review Mistakes", async () => {

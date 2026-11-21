@@ -278,7 +278,7 @@ export function ExamWorkspace({
             onClick={handleExit}
             className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded font-semibold transition-colors"
           >
-            Back to Exams
+            Close
           </button>
         </div>
       </div>
