@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![Version](https://img.shields.io/badge/version-1.6.1-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.6.2-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![Tests](https://img.shields.io/badge/tests-3906_unit_|_459_E2E-brightgreen?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-3934_unit_|_459_E2E-brightgreen?style=for-the-badge)
 ![NVIDIA](https://img.shields.io/badge/NVIDIA-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
 ![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
@@ -44,7 +44,7 @@ The NCP-AII certification exam tests hands-on datacenter skills — but most peo
 | **Architectures** | DGX A100, H100, H200, B200, GB200, VR200 (switchable from dashboard)         |
 | **Learning**      | 3-tier progression (Guided > Choice > Realistic) with SM-2 spaced repetition |
 | **Cloud Sync**    | Optional sign-in to save progress across devices (AWS Cognito)               |
-| **Tests**         | 3,906 unit + 459 E2E tests, 0 TypeScript errors, 0 lint warnings             |
+| **Tests**         | 3,934 unit + 459 E2E tests, 0 TypeScript errors, 0 lint warnings             |
 
 ---
 
@@ -351,7 +351,7 @@ aws dynamodb scan --table-name Feedback-<your-stack-id> --region us-east-1
 
 ```bash
 npm run test           # Watch mode
-npm run test:run       # Single run (3,906 unit tests)
+npm run test:run       # Single run (3,934 unit tests)
 npm run test:coverage  # With coverage report
 npm run lint           # ESLint (0 errors, 0 warnings)
 npx playwright test    # 459 E2E tests (commands, scenarios, visual regression)

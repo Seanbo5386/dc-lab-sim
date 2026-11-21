@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.6.2] - 2026-11-21
+
+### Fixed
+
+- Review Mistakes no longer freezes on a loading screen: it now shows the questions you most recently got wrong, or tells you there is nothing to review yet
+- Timed exams submit themselves when the clock reaches zero, and leaving an exam with answers asks first
+- Weak Area Focus now uses your own exam history to pick the domains where you score below 70%
+- Dialogs no longer pull keyboard focus back to their first button while the simulation is running
+- The step-complete message in missions no longer claims to move to the next step by itself
+
+### Removed
+
+- The Exam Gauntlet has been removed for now: it could not be completed and recorded failed attempts
+
+Releases 1.1.0 through 1.6.1 are documented in the in-app changelog (About tab).
+
 ## [1.0.0] - 2026-02-17
 
 ### Official Release
