@@ -719,6 +719,8 @@ describe("ExamWorkspace", () => {
     await waitFor(() =>
       expect(screen.getByText("Exam Results")).toBeInTheDocument(),
     );
+    // Scored from the exam's own, empty, answers
+    expect(vi.mocked(calculateExamScore).mock.calls[0][1]).toEqual({});
   });
 
   // --------------------------------------------------------------------------
@@ -778,6 +780,10 @@ describe("ExamWorkspace", () => {
       reviewQuestionIds: ["q2"],
       weakDomains: ["domain2"],
     });
+    // Questions are selected with that very config, not one built separately
+    expect(vi.mocked(selectQuestionsForMode).mock.calls[0][1]).toBe(
+      vi.mocked(createExamConfig).mock.results[0].value,
+    );
   });
 
   it("omits weakDomains when history has none so the engine default applies", async () => {
