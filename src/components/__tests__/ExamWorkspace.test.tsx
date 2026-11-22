@@ -150,8 +150,9 @@ const mockAddExamAttempt = vi.fn();
 // The learner's stored attempts, oldest first. Empty unless a test sets it.
 let mockExamAttempts: ExamBreakdown[] = [];
 
-// A stored attempt. The engine is mocked, so only its identity matters: the
-// tests check that the store's history is what the engine is asked about.
+// A stored attempt. The history functions are mocked, so beyond the two fields
+// the workspace checks before trusting an attempt, only its identity matters:
+// the tests check that the store's history is what the engine is asked about.
 const pastAttempt = {
   questionResults: [
     {
@@ -162,6 +163,7 @@ const pastAttempt = {
       points: 1,
     },
   ],
+  byDomain: unaskedDomains,
 } as unknown as ExamBreakdown;
 
 vi.mock("@/store/learningStore", () => ({
@@ -182,11 +184,18 @@ const mockTimerStart = vi.fn();
 const mockTimerStop = vi.fn();
 const mockTimerGetTimeElapsed = vi.fn().mockReturnValue(120);
 
-vi.mock("@/utils/examEngine", () => ({
+vi.mock("@/utils/examEngine", async () => ({
   loadExamQuestions: vi.fn(),
   selectExamQuestions: vi.fn(),
   selectQuestionsForMode: vi.fn(),
   createExamConfig: vi.fn(), // returns baseConfig by default, set in beforeEach
+  // The real guard, not a stub, so the tests exercise the actual shape check
+  // the workspace applies to stored history
+  isWellFormedExamAttempt: (
+    await vi.importActual<typeof import("@/utils/examEngine")>(
+      "@/utils/examEngine",
+    )
+  ).isWellFormedExamAttempt,
   getOutstandingIncorrectQuestionIds: vi.fn().mockReturnValue([]),
   getWeakDomainsFromHistory: vi.fn().mockReturnValue([]),
   calculateExamScore: vi.fn().mockReturnValue({
@@ -778,6 +787,29 @@ describe("ExamWorkspace", () => {
       reviewQuestionIds: [],
       weakDomains: undefined,
     });
+  });
+
+  it("ignores malformed history entries when building the config", async () => {
+    // Attempts merged in from cloud sync are not shape-checked on the way in
+    mockExamAttempts = [pastAttempt, {}, null] as unknown as ExamBreakdown[];
+
+    await renderLoaded({ mode: "review-mode" });
+
+    expect(screen.getByText(mockQuestions[0].questionText)).toBeInTheDocument();
+    expect(getOutstandingIncorrectQuestionIds).toHaveBeenCalledWith([
+      pastAttempt,
+    ]);
+    expect(getWeakDomainsFromHistory).toHaveBeenCalledWith([pastAttempt]);
+  });
+
+  it("treats a missing history as no history", async () => {
+    mockExamAttempts = undefined as unknown as ExamBreakdown[];
+
+    await renderLoaded();
+
+    expect(screen.getByText(mockQuestions[0].questionText)).toBeInTheDocument();
+    expect(getOutstandingIncorrectQuestionIds).toHaveBeenCalledWith([]);
+    expect(getWeakDomainsFromHistory).toHaveBeenCalledWith([]);
   });
 
   // --------------------------------------------------------------------------

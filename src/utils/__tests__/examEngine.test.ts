@@ -11,6 +11,7 @@ import {
   selectQuestionsForMode,
   createExamConfig,
   getIncorrectQuestionIds,
+  isWellFormedExamAttempt,
   getOutstandingIncorrectQuestionIds,
   getWeakDomainsFromHistory,
   formatTime,
@@ -564,6 +565,33 @@ describe("Exam Engine - Exam Modes", () => {
       const incorrect = getIncorrectQuestionIds(breakdown);
 
       expect(incorrect).toEqual([]);
+    });
+  });
+
+  describe("isWellFormedExamAttempt", () => {
+    it("accepts a breakdown as the scorer produces it", () => {
+      const breakdown = calculateExamScore(createSampleQuestions(), {
+        q1: 0,
+        q2: 0,
+      });
+
+      expect(isWellFormedExamAttempt(breakdown)).toBe(true);
+    });
+
+    it.each<[string, unknown]>([
+      ["null", null],
+      ["undefined", undefined],
+      ["a string", "attempt"],
+      ["an empty object", {}],
+      ["an attempt with no byDomain", { questionResults: [] }],
+      ["an attempt with no questionResults", { byDomain: {} }],
+      [
+        "questionResults that is not an array",
+        { questionResults: "x", byDomain: {} },
+      ],
+      ["a null byDomain", { questionResults: [], byDomain: null }],
+    ])("rejects %s", (_description, value) => {
+      expect(isWellFormedExamAttempt(value)).toBe(false);
     });
   });
 

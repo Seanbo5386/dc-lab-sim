@@ -15,6 +15,7 @@ import {
   loadExamQuestions,
   selectQuestionsForMode,
   createExamConfig,
+  isWellFormedExamAttempt,
   getOutstandingIncorrectQuestionIds,
   getWeakDomainsFromHistory,
   calculateExamScore,
@@ -100,9 +101,15 @@ export function ExamWorkspace({
   // Built once, from the history as it stood when the exam opened. Submitting
   // adds an attempt to that history, which must not change the exam in hand.
   const [examConfig] = useState(() => {
-    const weak = getWeakDomainsFromHistory(examAttempts);
+    // History can hold attempts merged in from cloud sync, which are not
+    // shape-checked. Skip any the engine could not read, so that one bad entry
+    // does not stop every exam mode from opening.
+    const history = (Array.isArray(examAttempts) ? examAttempts : []).filter(
+      isWellFormedExamAttempt,
+    );
+    const weak = getWeakDomainsFromHistory(history);
     return createExamConfig(mode as ExamMode, {
-      reviewQuestionIds: getOutstandingIncorrectQuestionIds(examAttempts),
+      reviewQuestionIds: getOutstandingIncorrectQuestionIds(history),
       // Left out when there are none, so the engine's default domains apply
       weakDomains: weak.length > 0 ? weak : undefined,
     });

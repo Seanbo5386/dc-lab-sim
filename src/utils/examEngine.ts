@@ -226,6 +226,25 @@ export function getIncorrectQuestionIds(breakdown: ExamBreakdown): string[] {
 }
 
 /**
+ * Whether a stored attempt has the two fields the history functions below
+ * read. Attempts written by this app always do; ones merged in from cloud sync
+ * are not shape-checked on the way in.
+ */
+export function isWellFormedExamAttempt(
+  value: unknown,
+): value is ExamBreakdown {
+  if (typeof value !== "object" || value === null) return false;
+
+  const attempt = value as { questionResults?: unknown; byDomain?: unknown };
+
+  return (
+    Array.isArray(attempt.questionResults) &&
+    typeof attempt.byDomain === "object" &&
+    attempt.byDomain !== null
+  );
+}
+
+/**
  * Get questions whose most recent result across a history of attempts (oldest
  * first) was incorrect. A question answered correctly in a later attempt drops
  * out; one missed again later comes back. Ids are in first-seen order.
