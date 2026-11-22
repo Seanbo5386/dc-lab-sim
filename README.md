@@ -95,7 +95,7 @@ Switch architectures from the dashboard dropdown. Everything adapts — GPU spec
 ### Exam Dashboard
 
 - **199 questions** weighted by the NCP-AII blueprint across all 5 domains
-- **5 exam modes**: Full Practice (90 min), Quick Quiz, Gauntlet, Weak Area Focus, Review Mistakes
+- **4 exam modes**: Full Practice (90 min), Quick Quiz, Weak Area Focus, Review Mistakes
 - **Tool Selection Quizzes**: 65 "which tool do you use?" questions (10 per session)
 - **Deep Mastery Quizzes**: 175 questions on flags, output interpretation, and edge cases (25 per session)
 - Readiness score, domain performance heatmap, and full exam history
