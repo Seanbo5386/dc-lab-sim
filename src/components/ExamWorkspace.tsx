@@ -303,6 +303,12 @@ export function ExamWorkspace({
   if (showResults && activeExam?.breakdown) {
     const breakdown = activeExam.breakdown;
     const passed = isExamPassed(breakdown);
+    // The scorer reports all five domains, giving one with no questions 0 %.
+    // Review Mistakes and Weak Area Focus rarely cover every domain, so only
+    // the domains this exam actually asked about are shown or called weak.
+    const askedDomains = Object.values(breakdown.byDomain).filter(
+      (domain) => domain.questionsTotal > 0,
+    );
 
     return (
       <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -342,7 +348,7 @@ export function ExamWorkspace({
                 Performance by Domain
               </h3>
               <div className="space-y-4">
-                {Object.values(breakdown.byDomain).map((domain) => {
+                {askedDomains.map((domain) => {
                   const domainPassed = domain.percentage >= 70;
                   return (
                     <div
@@ -388,7 +394,7 @@ export function ExamWorkspace({
                   Focus on these domains to improve your score:
                 </p>
                 <ul className="space-y-2">
-                  {Object.values(breakdown.byDomain)
+                  {askedDomains
                     .filter((d) => d.percentage < 70)
                     .sort((a, b) => a.percentage - b.percentage)
                     .map((domain) => (
@@ -401,9 +407,7 @@ export function ExamWorkspace({
             )}
 
             {/* Command Recommendations */}
-            {Object.values(breakdown.byDomain).some(
-              (d) => d.percentage < 70,
-            ) && (
+            {askedDomains.some((d) => d.percentage < 70) && (
               <div className="bg-blue-900 bg-opacity-20 border border-blue-500 rounded-lg p-6 mb-6">
                 <h3 className="text-lg font-bold text-blue-400 mb-3">
                   Recommended Commands to Practice
@@ -413,7 +417,7 @@ export function ExamWorkspace({
                   simulator:
                 </p>
                 <div className="space-y-4">
-                  {Object.values(breakdown.byDomain)
+                  {askedDomains
                     .filter((d) => d.percentage < 70)
                     .map((domain) => {
                       const domainCommands = getCommandRecommendations(

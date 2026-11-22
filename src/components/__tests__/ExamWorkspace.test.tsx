@@ -6,6 +6,7 @@ import {
   fireEvent,
   waitFor,
   act,
+  within,
 } from "@testing-library/react";
 import type { ExamBreakdown, ExamQuestion, ExamState } from "@/types/scenarios";
 import type { ExamModeConfig } from "@/utils/examEngine";
@@ -71,6 +72,47 @@ const baseConfig: ExamModeConfig = {
   timeLimitMinutes: 90,
   shuffleQuestions: true,
   showExplanations: "after-exam",
+};
+
+// What the scorer reports when an exam asked nothing in any domain: all five
+// are still present, each at 0 %. Tests spread this and fill in the domains
+// their exam did cover.
+const unaskedDomains: ExamBreakdown["byDomain"] = {
+  domain1: {
+    domainName: "Platform Bring-Up",
+    questionsTotal: 0,
+    questionsCorrect: 0,
+    percentage: 0,
+    weight: 31,
+  },
+  domain2: {
+    domainName: "Accelerator Configuration",
+    questionsTotal: 0,
+    questionsCorrect: 0,
+    percentage: 0,
+    weight: 5,
+  },
+  domain3: {
+    domainName: "Base Infrastructure",
+    questionsTotal: 0,
+    questionsCorrect: 0,
+    percentage: 0,
+    weight: 19,
+  },
+  domain4: {
+    domainName: "Validation & Testing",
+    questionsTotal: 0,
+    questionsCorrect: 0,
+    percentage: 0,
+    weight: 33,
+  },
+  domain5: {
+    domainName: "Troubleshooting",
+    questionsTotal: 0,
+    questionsCorrect: 0,
+    percentage: 0,
+    weight: 12,
+  },
 };
 
 // ============================================================================
@@ -208,6 +250,7 @@ import {
   getWeakDomainsFromHistory,
   calculateExamScore,
   ExamTimer,
+  isExamPassed,
 } from "@/utils/examEngine";
 
 // ============================================================================
@@ -273,6 +316,22 @@ async function renderWithQuestions(onCloseFn: () => void) {
   return renderLoaded({ onClose: onCloseFn });
 }
 
+// Takes an exam in progress to its last question and submits it, leaving the
+// results screen up with whatever calculateExamScore returned.
+async function renderSubmitted() {
+  mockActiveExam = { ...baseExamState };
+
+  const result = await renderLoaded();
+
+  fireEvent.click(screen.getByText("Next")); // -> q2
+  fireEvent.click(screen.getByText("Next")); // -> q3
+  fireEvent.click(screen.getByRole("button", { name: "Submit exam" }));
+
+  await screen.findByText("Exam Results");
+
+  return result;
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -292,6 +351,9 @@ describe("ExamWorkspace", () => {
     mockExamAttempts = [];
     vi.mocked(getOutstandingIncorrectQuestionIds).mockReturnValue([]);
     vi.mocked(getWeakDomainsFromHistory).mockReturnValue([]);
+
+    // Default: a failed exam. Reset here for the same reason.
+    vi.mocked(isExamPassed).mockReturnValue(false);
 
     // Default: no questions, so the workspace shows the loading state and then
     // settles on the empty state
@@ -772,5 +834,100 @@ describe("ExamWorkspace", () => {
       screen.getByText("This mode has no questions to show right now."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Nothing to review yet")).toBeNull();
+  });
+
+  // --------------------------------------------------------------------------
+  // Results: domains the exam asked nothing about
+  // --------------------------------------------------------------------------
+
+  it("leaves domains with no questions out of the results", async () => {
+    // A Review Mistakes session: three questions, all in one domain, all right
+    vi.mocked(calculateExamScore).mockReturnValueOnce({
+      totalPoints: 3,
+      earnedPoints: 3,
+      percentage: 100,
+      byDomain: {
+        ...unaskedDomains,
+        domain2: {
+          domainName: "Accelerator Configuration",
+          questionsTotal: 3,
+          questionsCorrect: 3,
+          percentage: 100,
+          weight: 5,
+        },
+      },
+      questionResults: [],
+      timeSpent: 0,
+    });
+    vi.mocked(isExamPassed).mockReturnValue(true);
+
+    await renderSubmitted();
+
+    expect(screen.getByText("Accelerator Configuration")).toBeInTheDocument();
+    expect(screen.getByText("3 / 3 correct")).toBeInTheDocument();
+
+    [
+      "Platform Bring-Up",
+      "Base Infrastructure",
+      "Validation & Testing",
+      "Troubleshooting",
+    ].forEach((unasked) => {
+      expect(screen.queryByText(unasked)).toBeNull();
+    });
+    expect(screen.queryByText("0 / 0 correct")).toBeNull();
+
+    // Nothing that was asked went badly, so there is nothing to recommend
+    expect(screen.queryByText("Recommended Commands to Practice")).toBeNull();
+  });
+
+  it("still flags a low-scoring domain that had questions", async () => {
+    vi.mocked(calculateExamScore).mockReturnValueOnce({
+      totalPoints: 5,
+      earnedPoints: 3,
+      percentage: 60,
+      byDomain: {
+        ...unaskedDomains,
+        domain1: {
+          domainName: "Platform Bring-Up",
+          questionsTotal: 3,
+          questionsCorrect: 3,
+          percentage: 100,
+          weight: 31,
+        },
+        domain2: {
+          domainName: "Accelerator Configuration",
+          questionsTotal: 2,
+          questionsCorrect: 0,
+          percentage: 0,
+          weight: 5,
+        },
+      },
+      questionResults: [],
+      timeSpent: 0,
+    });
+
+    await renderSubmitted();
+
+    // The weak-area list names the missed domain and only that one
+    const weakAreas = within(
+      screen.getByText("Areas for Improvement").parentElement as HTMLElement,
+    );
+    expect(weakAreas.getAllByRole("listitem")).toHaveLength(1);
+    expect(
+      weakAreas.getByText("• Accelerator Configuration (0%)"),
+    ).toBeInTheDocument();
+
+    // So do the practice recommendations
+    const practice = within(
+      screen.getByText("Recommended Commands to Practice")
+        .parentElement as HTMLElement,
+    );
+    expect(practice.getAllByRole("heading", { level: 4 })).toHaveLength(1);
+    expect(practice.getByText("Accelerator Configuration")).toBeInTheDocument();
+    expect(practice.getByText("nvidia-smi topo -m")).toBeInTheDocument();
+
+    // Never asked about, so neither weak nor recommended
+    expect(screen.queryByText("Base Infrastructure")).toBeNull();
+    expect(screen.queryByText("sinfo -Nel")).toBeNull();
   });
 });
