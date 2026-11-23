@@ -225,10 +225,37 @@ export function getIncorrectQuestionIds(breakdown: ExamBreakdown): string[] {
     .map((r) => r.questionId);
 }
 
+const EXAM_DOMAIN_IDS = Object.keys(DOMAIN_INFO) as DomainId[];
+
+function isQuestionOutcome(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+
+  const result = value as { questionId?: unknown; correct?: unknown };
+
+  return (
+    typeof result.questionId === "string" && typeof result.correct === "boolean"
+  );
+}
+
+function isDomainTally(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+
+  const tally = value as {
+    questionsTotal?: unknown;
+    questionsCorrect?: unknown;
+  };
+
+  return (
+    Number.isFinite(tally.questionsTotal) &&
+    Number.isFinite(tally.questionsCorrect)
+  );
+}
+
 /**
- * Whether a stored attempt has the two fields the history functions below
- * read. Attempts written by this app always do; ones merged in from cloud sync
- * are not shape-checked on the way in.
+ * Whether a stored attempt holds everything the history functions below read:
+ * an id and an outcome for every question result, and both counts for each of
+ * the five domains. Attempts written by this app always do; ones merged in
+ * from cloud sync are not shape-checked on the way in.
  */
 export function isWellFormedExamAttempt(
   value: unknown,
@@ -237,10 +264,16 @@ export function isWellFormedExamAttempt(
 
   const attempt = value as { questionResults?: unknown; byDomain?: unknown };
 
+  if (!Array.isArray(attempt.questionResults)) return false;
+  if (typeof attempt.byDomain !== "object" || attempt.byDomain === null) {
+    return false;
+  }
+
+  const byDomain = attempt.byDomain as Record<string, unknown>;
+
   return (
-    Array.isArray(attempt.questionResults) &&
-    typeof attempt.byDomain === "object" &&
-    attempt.byDomain !== null
+    attempt.questionResults.every(isQuestionOutcome) &&
+    EXAM_DOMAIN_IDS.every((domain) => isDomainTally(byDomain[domain]))
   );
 }
 
@@ -248,6 +281,10 @@ export function isWellFormedExamAttempt(
  * Get questions whose most recent result across a history of attempts (oldest
  * first) was incorrect. A question answered correctly in a later attempt drops
  * out; one missed again later comes back. Ids are in first-seen order.
+ *
+ * Attempts carry no timestamp, so "later" means later in the array. That is
+ * chronological for attempts recorded on one device; a cloud merge appends the
+ * other device's attempts after the local ones whatever their age.
  */
 export function getOutstandingIncorrectQuestionIds(
   breakdowns: ExamBreakdown[],
@@ -284,7 +321,9 @@ export function getWeakDomainsFromHistory(
   };
 
   breakdowns.forEach((breakdown) => {
-    (Object.keys(breakdown.byDomain) as DomainId[]).forEach((domain) => {
+    // The five known domains, not the attempt's own keys: a stored attempt
+    // can carry a key that has no entry in domainScores.
+    EXAM_DOMAIN_IDS.forEach((domain) => {
       const perf = breakdown.byDomain[domain];
       domainScores[domain].total += perf.questionsTotal;
       domainScores[domain].correct += perf.questionsCorrect;

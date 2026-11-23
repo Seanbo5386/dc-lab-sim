@@ -593,6 +593,109 @@ describe("Exam Engine - Exam Modes", () => {
     ])("rejects %s", (_description, value) => {
       expect(isWellFormedExamAttempt(value)).toBe(false);
     });
+
+    // The entries inside the two fields are what the history functions
+    // dereference, so one bad entry makes the whole attempt unreadable.
+    const scoredAttempt = () =>
+      calculateExamScore(createSampleQuestions(), { q1: 0, q2: 0 });
+
+    it.each<[string, (attempt: ExamBreakdown) => unknown]>([
+      [
+        "a null question result",
+        (attempt) => ({ ...attempt, questionResults: [null] }),
+      ],
+      [
+        "a question result with no id",
+        (attempt) => ({ ...attempt, questionResults: [{ correct: false }] }),
+      ],
+      [
+        "a question result whose outcome is not a boolean",
+        (attempt) => ({
+          ...attempt,
+          questionResults: [{ questionId: "q1", correct: "no" }],
+        }),
+      ],
+      [
+        "a null domain entry",
+        (attempt) => ({
+          ...attempt,
+          byDomain: { ...attempt.byDomain, domain3: null },
+        }),
+      ],
+      [
+        "a missing domain",
+        (attempt) => ({
+          ...attempt,
+          byDomain: Object.fromEntries(
+            Object.entries(attempt.byDomain).filter(
+              ([domain]) => domain !== "domain5",
+            ),
+          ),
+        }),
+      ],
+      [
+        "a domain count that is not a number",
+        (attempt) => ({
+          ...attempt,
+          byDomain: {
+            ...attempt.byDomain,
+            domain2: { ...attempt.byDomain.domain2, questionsTotal: "5" },
+          },
+        }),
+      ],
+    ])("rejects an attempt with %s", (_description, corrupt) => {
+      expect(isWellFormedExamAttempt(corrupt(scoredAttempt()))).toBe(false);
+    });
+
+    it("accepts an attempt whose byDomain has a key it does not know", () => {
+      const attempt = scoredAttempt();
+
+      expect(
+        isWellFormedExamAttempt({
+          ...attempt,
+          byDomain: { ...attempt.byDomain, domain9: attempt.byDomain.domain1 },
+        }),
+      ).toBe(true);
+    });
+  });
+
+  // The exam workspace filters stored history through the guard and hands what
+  // is left to both history functions while it builds every exam mode, so
+  // anything the guard lets through must be safe for both.
+  describe("history read from stored attempts", () => {
+    const scoredAttempt = () =>
+      calculateExamScore(createSampleQuestions(), { q1: 0, q2: 0 });
+
+    it.each<[string, () => unknown]>([
+      [
+        "a null question result",
+        () => ({ questionResults: [null], byDomain: {} }),
+      ],
+      [
+        "a null domain entry",
+        () => ({ questionResults: [], byDomain: { domain1: null } }),
+      ],
+      [
+        "a domain key outside the blueprint",
+        () => {
+          const attempt = scoredAttempt();
+          return {
+            ...attempt,
+            byDomain: {
+              ...attempt.byDomain,
+              domain9: attempt.byDomain.domain1,
+            },
+          };
+        },
+      ],
+    ])("does not throw on an attempt with %s", (_description, stored) => {
+      const history = [stored()].filter(isWellFormedExamAttempt);
+
+      expect(() => {
+        getOutstandingIncorrectQuestionIds(history);
+        getWeakDomainsFromHistory(history);
+      }).not.toThrow();
+    });
   });
 
   describe("getOutstandingIncorrectQuestionIds", () => {
@@ -810,6 +913,19 @@ describe("Exam Engine - Exam Modes", () => {
 
       // domain1: (5+9)/(10+10) = 70%, should NOT be weak
       expect(weakDomains).not.toContain("domain1");
+    });
+
+    it("ignores a domain key outside the blueprint", () => {
+      // q1 right, q2 wrong: domain1 scores 50%
+      const attempt = calculateExamScore(createSampleQuestions(), { q1: 0 });
+      const withUnknownDomain = {
+        ...attempt,
+        byDomain: { ...attempt.byDomain, domain9: attempt.byDomain.domain1 },
+      } as ExamBreakdown;
+
+      expect(getWeakDomainsFromHistory([withUnknownDomain])).toContain(
+        "domain1",
+      );
     });
   });
 

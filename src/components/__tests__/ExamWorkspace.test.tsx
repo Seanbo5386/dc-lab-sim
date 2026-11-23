@@ -797,7 +797,13 @@ describe("ExamWorkspace", () => {
 
   it("ignores malformed history entries when building the config", async () => {
     // Attempts merged in from cloud sync are not shape-checked on the way in
-    mockExamAttempts = [pastAttempt, {}, null] as unknown as ExamBreakdown[];
+    mockExamAttempts = [
+      pastAttempt,
+      {},
+      null,
+      // Right outer shape, unreadable entry inside
+      { questionResults: [null], byDomain: unaskedDomains },
+    ] as unknown as ExamBreakdown[];
 
     await renderLoaded({ mode: "review-mode" });
 
