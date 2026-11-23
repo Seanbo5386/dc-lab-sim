@@ -398,6 +398,10 @@ export interface ExamBreakdown {
 
   // Time spent
   timeSpent: number; // seconds
+
+  // When the attempt was recorded, in ms since the epoch. Set by the learning
+  // store; absent on attempts stored before v1.6.2.
+  timestamp?: number;
 }
 
 export interface DomainPerformance {

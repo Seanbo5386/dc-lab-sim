@@ -14,6 +14,9 @@ import {
   isWellFormedExamAttempt,
   getOutstandingIncorrectQuestionIds,
   getWeakDomainsFromHistory,
+  getExamAttemptTime,
+  sortExamAttemptsOldestFirst,
+  nextExamAttemptTime,
   formatTime,
   getEstimatedTimePerQuestion,
 } from "../examEngine";
@@ -695,6 +698,77 @@ describe("Exam Engine - Exam Modes", () => {
         getOutstandingIncorrectQuestionIds(history);
         getWeakDomainsFromHistory(history);
       }).not.toThrow();
+    });
+  });
+
+  describe("getExamAttemptTime", () => {
+    it("returns the attempt's timestamp", () => {
+      expect(getExamAttemptTime({ timestamp: 1_700_000_000_000 })).toBe(
+        1_700_000_000_000,
+      );
+    });
+
+    it.each<[string, unknown]>([
+      ["an attempt stored before attempts were timestamped", {}],
+      ["a timestamp that is not a number", { timestamp: "2026-11-23" }],
+      ["a timestamp that is not finite", { timestamp: NaN }],
+      ["a value that is not an object", null],
+    ])("returns 0 for %s", (_description, attempt) => {
+      expect(getExamAttemptTime(attempt)).toBe(0);
+    });
+  });
+
+  describe("sortExamAttemptsOldestFirst", () => {
+    it("orders attempts by timestamp", () => {
+      const sorted = sortExamAttemptsOldestFirst([
+        { timestamp: 3000 },
+        { timestamp: 1000 },
+        { timestamp: 2000 },
+      ]);
+
+      expect(sorted.map((attempt) => attempt.timestamp)).toEqual([
+        1000, 2000, 3000,
+      ]);
+    });
+
+    it("puts attempts with no timestamp first, in the order given", () => {
+      const sorted = sortExamAttemptsOldestFirst([
+        { id: "stamped", timestamp: 1000 },
+        { id: "unstamped-a" },
+        { id: "unstamped-b" },
+      ]);
+
+      expect(sorted.map((attempt) => attempt.id)).toEqual([
+        "unstamped-a",
+        "unstamped-b",
+        "stamped",
+      ]);
+    });
+
+    it("leaves the list it was given untouched", () => {
+      const attempts = [{ timestamp: 2000 }, { timestamp: 1000 }];
+
+      sortExamAttemptsOldestFirst(attempts);
+
+      expect(attempts.map((attempt) => attempt.timestamp)).toEqual([
+        2000, 1000,
+      ]);
+    });
+  });
+
+  describe("nextExamAttemptTime", () => {
+    it("is the current time when there is no history", () => {
+      expect(nextExamAttemptTime([], 5000)).toBe(5000);
+    });
+
+    it("is the current time when every stored attempt is earlier", () => {
+      expect(nextExamAttemptTime([{ timestamp: 1000 }, {}], 5000)).toBe(5000);
+    });
+
+    it("is just after the latest stored attempt when the clock reads earlier", () => {
+      expect(
+        nextExamAttemptTime([{ timestamp: 9000 }, { timestamp: 7000 }], 5000),
+      ).toBe(9001);
     });
   });
 

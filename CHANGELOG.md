@@ -7,6 +7,7 @@
 - Review Mistakes no longer freezes on a loading screen: it now shows the questions you most recently got wrong, or tells you there is nothing to review yet
 - Timed exams submit themselves when the clock reaches zero, and leaving an exam with answers asks first
 - Weak Area Focus now uses your own exam history to pick the domains where you score below 70%
+- Exam attempts are now timestamped, and history merged from another device through cloud sync is kept in the order the exams were taken
 - Dialogs no longer pull keyboard focus back to their first button while the simulation is running
 - The step-complete message in missions no longer claims to move to the next step by itself
 

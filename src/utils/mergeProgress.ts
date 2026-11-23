@@ -16,6 +16,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { sortExamAttemptsOldestFirst } from "./examEngine";
+
 // ============================================================================
 // INTERNAL HELPERS
 // ============================================================================
@@ -83,12 +85,15 @@ function mergeRecordByField<T>(
 /**
  * Union two arrays of objects by a key field, capping at maxItems.
  * When both have an entry with the same key, the first source (local) wins.
+ * The union is local entries followed by cloud-only ones; pass `order` to
+ * arrange it before the cap is applied.
  */
 function unionByKey<T>(
   a: T[] | undefined,
   b: T[] | undefined,
   keyFn: (item: T) => string | number,
   maxItems: number,
+  order: (items: T[]) => T[] = (items) => items,
 ): T[] {
   const map = new Map<string | number, T>();
   for (const item of a || []) {
@@ -100,8 +105,8 @@ function unionByKey<T>(
       map.set(key, item);
     }
   }
-  const all = [...map.values()];
-  // Keep most recent entries (last N)
+  const all = order([...map.values()]);
+  // Keep the last N entries
   return all.slice(-maxItems);
 }
 
@@ -245,7 +250,7 @@ export function mergeLearningProgress(local: any, cloud: any): any {
  * - totalSessions: max
  * - currentStreak / longestStreak: max
  * - lastStudyDate: later date wins
- * - examAttempts: union by timestamp, cap at 20
+ * - examAttempts: union, oldest first by timestamp, cap at the 20 most recent
  * - gauntletAttempts: union by timestamp, cap at 50
  * - achievements: union (deduplicate)
  */
@@ -303,12 +308,15 @@ export function mergeLearningData(local: any, cloud: any): any {
       ? (local.lastStudyDate ?? "")
       : (cloud.lastStudyDate ?? "");
 
-  // Exam attempts: union by timestamp, cap at 20
+  // Exam attempts: union, oldest first, cap at the 20 most recent. Keyed on
+  // the whole attempt, not its timestamp alone: two devices can record
+  // different attempts in the same millisecond.
   result.examAttempts = unionByKey(
     local.examAttempts,
     cloud.examAttempts,
-    (e: any) => e.timestamp ?? e.date ?? JSON.stringify(e),
+    (e: any) => JSON.stringify(e),
     20,
+    sortExamAttemptsOldestFirst,
   );
 
   // Gauntlet attempts: union by timestamp, cap at 50

@@ -278,13 +278,56 @@ export function isWellFormedExamAttempt(
 }
 
 /**
+ * When an attempt was recorded, in ms since the epoch. 0 for an attempt with
+ * no usable timestamp: those were stored before attempts were timestamped, so
+ * they count as older than any attempt that has one.
+ */
+export function getExamAttemptTime(attempt: unknown): number {
+  if (typeof attempt !== "object" || attempt === null) return 0;
+
+  const { timestamp } = attempt as { timestamp?: unknown };
+
+  return typeof timestamp === "number" && Number.isFinite(timestamp)
+    ? timestamp
+    : 0;
+}
+
+/**
+ * A copy of the attempts, oldest first. Attempts with the same time, which
+ * includes all those with none, stay in the order they were given.
+ */
+export function sortExamAttemptsOldestFirst<T>(attempts: T[]): T[] {
+  return [...attempts].sort(
+    (a, b) => getExamAttemptTime(a) - getExamAttemptTime(b),
+  );
+}
+
+/**
+ * The timestamp for an attempt being recorded now: the current time, or just
+ * after the latest stored attempt when the clock reads earlier than that. A
+ * stored attempt can come from a device whose clock runs ahead, and an attempt
+ * recorded here is by definition newer than everything this device has seen.
+ */
+export function nextExamAttemptTime(
+  storedAttempts: unknown[],
+  now: number = Date.now(),
+): number {
+  const latest = storedAttempts.reduce<number>(
+    (max, attempt) => Math.max(max, getExamAttemptTime(attempt)),
+    0,
+  );
+
+  return Math.max(now, latest + 1);
+}
+
+/**
  * Get questions whose most recent result across a history of attempts (oldest
  * first) was incorrect. A question answered correctly in a later attempt drops
  * out; one missed again later comes back. Ids are in first-seen order.
  *
- * Attempts carry no timestamp, so "later" means later in the array. That is
- * chronological for attempts recorded on one device; a cloud merge appends the
- * other device's attempts after the local ones whatever their age.
+ * The stored history is kept oldest first: the learning store appends each
+ * attempt with a timestamp no earlier than the last, and the cloud merge sorts
+ * by that timestamp.
  */
 export function getOutstandingIncorrectQuestionIds(
   breakdowns: ExamBreakdown[],
