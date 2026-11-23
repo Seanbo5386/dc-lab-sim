@@ -72,7 +72,7 @@ export const SIMULATOR_TOUR_STEPS: TourStep[] = [
     selector: "#tab-exams",
     title: "Test Yourself",
     description:
-      "The Exams tab has practice exams, timed quizzes, a gauntlet mode, and tool mastery challenges to measure your certification readiness.",
+      "The Exams tab has practice exams, timed quizzes, and tool mastery challenges to measure your certification readiness.",
     placement: "bottom",
   },
   {
@@ -186,7 +186,7 @@ export const EXAMS_TOUR_STEPS: TourStep[] = [
     selector: '[data-tour="exam-modes"]',
     title: "Exam Modes",
     description:
-      "Five practice formats: Full Practice, Quick Quiz, Gauntlet, Weak Area, and Review Mistakes.",
+      "Four practice formats: Full Practice, Quick Quiz, Weak Area, and Review Mistakes.",
     placement: "top",
   },
   {

@@ -643,7 +643,7 @@ export class ScenarioValidator {
 
     if (passed) {
       if (progress === 100) {
-        return "✓ Step completed successfully! Moving to next step.";
+        return "✓ Step complete. Continue in the side panel.";
       } else {
         return `✓ Step requirements met (${progress}% complete). You may proceed.`;
       }

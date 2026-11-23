@@ -4,6 +4,7 @@ import {
   mergeLearningProgress,
   mergeLearningData,
 } from "../mergeProgress";
+import { getOutstandingIncorrectQuestionIds } from "../examEngine";
 
 describe("mergeSimulationData", () => {
   it("unions completedScenarios from both sources", () => {
@@ -253,6 +254,83 @@ describe("mergeLearningData", () => {
     };
     const result = mergeLearningData(local, cloud);
     expect(result.examAttempts).toHaveLength(2);
+  });
+
+  const attemptTimes = (attempts: Array<{ timestamp?: number }>) =>
+    attempts.map((attempt) => attempt.timestamp);
+
+  it("puts merged examAttempts in the order they were taken", () => {
+    // A newer attempt made on this device before signing in, an older one
+    // already in the cloud
+    const local = { examAttempts: [{ timestamp: 2000, percentage: 90 }] };
+    const cloud = { examAttempts: [{ timestamp: 1000, percentage: 40 }] };
+
+    const result = mergeLearningData(local, cloud);
+
+    expect(attemptTimes(result.examAttempts)).toEqual([1000, 2000]);
+  });
+
+  it("keeps the 20 most recent examAttempts, whichever side they came from", () => {
+    const attemptsFrom = (start: number, count: number) =>
+      Array.from({ length: count }, (_, i) => ({ timestamp: start + i }));
+    const local = { examAttempts: attemptsFrom(2000, 15) };
+    const cloud = { examAttempts: attemptsFrom(1000, 10) };
+
+    const result = mergeLearningData(local, cloud);
+
+    expect(attemptTimes(result.examAttempts)).toEqual([
+      ...attemptTimes(attemptsFrom(1005, 5)),
+      ...attemptTimes(attemptsFrom(2000, 15)),
+    ]);
+  });
+
+  it("treats examAttempts with no timestamp as the oldest, in the order given", () => {
+    const local = { examAttempts: [{ percentage: 10 }, { timestamp: 2000 }] };
+    const cloud = { examAttempts: [{ timestamp: 1000 }, { percentage: 20 }] };
+
+    const result = mergeLearningData(local, cloud);
+
+    expect(result.examAttempts).toEqual([
+      { percentage: 10 },
+      { percentage: 20 },
+      { timestamp: 1000 },
+      { timestamp: 2000 },
+    ]);
+  });
+
+  it("keeps two different examAttempts that share a timestamp", () => {
+    const local = { examAttempts: [{ timestamp: 1000, percentage: 80 }] };
+    const cloud = { examAttempts: [{ timestamp: 1000, percentage: 40 }] };
+
+    const result = mergeLearningData(local, cloud);
+
+    expect(result.examAttempts).toHaveLength(2);
+  });
+
+  it("lets the newest attempt decide which questions are still outstanding", () => {
+    const answered = (questionId: string, correct: boolean) => ({
+      questionId,
+      correct,
+      userAnswer: 0,
+      correctAnswer: 0,
+      points: 1,
+    });
+    // q1 was missed on another device, then answered correctly on this one
+    // before signing in
+    const local = {
+      examAttempts: [
+        { timestamp: 2000, questionResults: [answered("q1", true)] },
+      ],
+    };
+    const cloud = {
+      examAttempts: [
+        { timestamp: 1000, questionResults: [answered("q1", false)] },
+      ],
+    };
+
+    const result = mergeLearningData(local, cloud);
+
+    expect(getOutstandingIncorrectQuestionIds(result.examAttempts)).toEqual([]);
   });
 
   it("unions gauntletAttempts by timestamp and caps at 50", () => {

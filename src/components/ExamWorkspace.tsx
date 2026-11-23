@@ -10,10 +10,14 @@ import {
   CheckCircle,
 } from "lucide-react";
 import type { ExamQuestion } from "@/types/scenarios";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import {
   loadExamQuestions,
   selectQuestionsForMode,
   createExamConfig,
+  isWellFormedExamAttempt,
+  getOutstandingIncorrectQuestionIds,
+  getWeakDomainsFromHistory,
   calculateExamScore,
   ExamTimer,
   isExamPassed,
@@ -88,16 +92,40 @@ export function ExamWorkspace({
     toggleQuestionFlag,
   } = useSimulationStore();
   const addExamAttempt = useLearningStore((state) => state.addExamAttempt);
+  const examAttempts = useLearningStore((state) => state.examAttempts);
   const [questions, setQuestions] = useState<ExamQuestion[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "ready" | "empty">(
+    "loading",
+  );
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const examConfig = createExamConfig(mode as ExamMode);
+  // Built once, from the history as it stood when the exam opened. Submitting
+  // adds an attempt to that history, which must not change the exam in hand.
+  const [examConfig] = useState(() => {
+    // History can hold attempts merged in from cloud sync, which are not
+    // shape-checked. Skip any the engine could not read, so that one bad entry
+    // does not stop every exam mode from opening.
+    const history = (Array.isArray(examAttempts) ? examAttempts : []).filter(
+      isWellFormedExamAttempt,
+    );
+    const weak = getWeakDomainsFromHistory(history);
+    return createExamConfig(mode as ExamMode, {
+      reviewQuestionIds: getOutstandingIncorrectQuestionIds(history),
+      // Left out when there are none, so the engine's default domains apply
+      weakDomains: weak.length > 0 ? weak : undefined,
+    });
+  });
   const timeLimitSeconds = examConfig.timeLimitMinutes * 60;
+  const isUntimed = timeLimitSeconds === 0;
   const [timeRemaining, setTimeRemaining] = useState(
     timeLimitSeconds || 90 * 60,
   );
   const [showResults, setShowResults] = useState(false);
   const [showReview, setShowReview] = useState(false);
-  const [examTimer, setExamTimer] = useState<ExamTimer | null>(null);
+  const [timeExpired, setTimeExpired] = useState(false);
+  const [confirmingExit, setConfirmingExit] = useState(false);
+  // A ref, not state: the mount effect's cleanup and the handlers below need
+  // the live timer, and nothing renders from it.
+  const timerRef = useRef<ExamTimer | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Reset scroll position when moving between questions. On mobile the question
@@ -114,13 +142,28 @@ export function ExamWorkspace({
 
   // Load questions on mount
   useEffect(() => {
+    let cancelled = false;
+
     const init = async () => {
       const allQuestions = await loadExamQuestions();
+      // Unmounted while the questions were loading: start nothing, because no
+      // cleanup will run again to stop it.
+      if (cancelled) return;
+
       const selectedQuestions = selectQuestionsForMode(
         allQuestions,
         examConfig,
       );
+
+      // Nothing to show, such as Review Mistakes before any question has been
+      // missed. Say so rather than start an exam and a timer with no questions.
+      if (selectedQuestions.length === 0) {
+        setLoadState("empty");
+        return;
+      }
+
       setQuestions(selectedQuestions);
+      setLoadState("ready");
 
       // Start exam in store
       startExam("ncp-aii-practice");
@@ -128,25 +171,30 @@ export function ExamWorkspace({
       // Start timer (0 = no limit, use a large value)
       const duration = timeLimitSeconds || 999 * 60;
       const timer = new ExamTimer(duration);
+      timerRef.current = timer;
       timer.start(
         (remaining) => setTimeRemaining(remaining),
-        () => handleTimeExpired(),
+        // This callback is created once, at mount, when activeExam and
+        // questions are still empty, so it cannot submit the exam itself. It
+        // only flags expiry; the effect below submits from a current render.
+        // Untimed modes get no expiry callback at all.
+        isUntimed
+          ? undefined
+          : () => {
+              setTimeRemaining(0);
+              setTimeExpired(true);
+            },
       );
-      setExamTimer(timer);
     };
 
     init();
 
     return () => {
-      examTimer?.stop();
+      cancelled = true;
+      timerRef.current?.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Intentionally run once on mount
-
-  const handleTimeExpired = () => {
-    // Auto-submit exam when time expires
-    handleSubmitExam();
-  };
 
   const handleAnswerChange = (answer: number | number[]) => {
     if (!activeExam) return;
@@ -164,13 +212,13 @@ export function ExamWorkspace({
   const handleSubmitExam = () => {
     if (!activeExam) return;
 
-    examTimer?.stop();
+    timerRef.current?.stop();
 
     // Calculate score
     const breakdown = calculateExamScore(questions, activeExam.answers);
 
     // Update breakdown with actual time spent
-    breakdown.timeSpent = examTimer?.getTimeElapsed() || 0;
+    breakdown.timeSpent = timerRef.current?.getTimeElapsed() || 0;
 
     // End exam in store and record attempt
     endExam(breakdown);
@@ -179,17 +227,66 @@ export function ExamWorkspace({
     setShowResults(true);
   };
 
+  // Auto-submit when the timer expires. Running this as an effect means
+  // handleSubmitExam belongs to a render that sees the current activeExam and
+  // questions, unlike the timer callback captured at mount.
+  useEffect(() => {
+    if (timeExpired && !showResults) handleSubmitExam();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeExpired]);
+
   const handleExit = () => {
-    examTimer?.stop();
+    timerRef.current?.stop();
     exitExam();
     onClose();
   };
 
-  if (questions.length === 0) {
+  // The header X discards the attempt unscored, so ask first once there is an
+  // answer to lose. An untouched exam has nothing to lose and exits directly.
+  const requestExit = () => {
+    if (!showResults && (activeExam?.answeredQuestions.length ?? 0) > 0) {
+      setConfirmingExit(true);
+    } else {
+      handleExit();
+    }
+  };
+
+  if (loadState === "loading") {
     return (
       <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center">
         <div className="bg-gray-900 rounded-lg p-8 text-white">
           <p>Loading exam questions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadState === "empty") {
+    const isReviewMode = mode === "review-mode";
+
+    return (
+      <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exam-empty-state-title"
+          className="bg-gray-900 rounded-lg p-8 text-white max-w-md text-center"
+        >
+          <h2 id="exam-empty-state-title" className="text-xl font-bold mb-2">
+            {isReviewMode ? "Nothing to review yet" : "No questions available"}
+          </h2>
+          <p className="text-gray-300 mb-6">
+            {isReviewMode
+              ? "Review Mistakes fills in after you miss a question in an exam or quiz."
+              : "This mode has no questions to show right now."}
+          </p>
+          <button
+            autoFocus
+            onClick={handleExit}
+            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded font-semibold transition-colors"
+          >
+            Close
+          </button>
         </div>
       </div>
     );
@@ -213,6 +310,12 @@ export function ExamWorkspace({
   if (showResults && activeExam?.breakdown) {
     const breakdown = activeExam.breakdown;
     const passed = isExamPassed(breakdown);
+    // The scorer reports all five domains, giving one with no questions 0 %.
+    // Review Mistakes and Weak Area Focus rarely cover every domain, so only
+    // the domains this exam actually asked about are shown or called weak.
+    const askedDomains = Object.values(breakdown.byDomain).filter(
+      (domain) => domain.questionsTotal > 0,
+    );
 
     return (
       <div className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center p-4">
@@ -252,7 +355,7 @@ export function ExamWorkspace({
                 Performance by Domain
               </h3>
               <div className="space-y-4">
-                {Object.values(breakdown.byDomain).map((domain) => {
+                {askedDomains.map((domain) => {
                   const domainPassed = domain.percentage >= 70;
                   return (
                     <div
@@ -298,7 +401,7 @@ export function ExamWorkspace({
                   Focus on these domains to improve your score:
                 </p>
                 <ul className="space-y-2">
-                  {Object.values(breakdown.byDomain)
+                  {askedDomains
                     .filter((d) => d.percentage < 70)
                     .sort((a, b) => a.percentage - b.percentage)
                     .map((domain) => (
@@ -311,9 +414,7 @@ export function ExamWorkspace({
             )}
 
             {/* Command Recommendations */}
-            {Object.values(breakdown.byDomain).some(
-              (d) => d.percentage < 70,
-            ) && (
+            {askedDomains.some((d) => d.percentage < 70) && (
               <div className="bg-blue-900 bg-opacity-20 border border-blue-500 rounded-lg p-6 mb-6">
                 <h3 className="text-lg font-bold text-blue-400 mb-3">
                   Recommended Commands to Practice
@@ -323,7 +424,7 @@ export function ExamWorkspace({
                   simulator:
                 </p>
                 <div className="space-y-4">
-                  {Object.values(breakdown.byDomain)
+                  {askedDomains
                     .filter((d) => d.percentage < 70)
                     .map((domain) => {
                       const domainCommands = getCommandRecommendations(
@@ -675,15 +776,15 @@ export function ExamWorkspace({
           </div>
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
             <div
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded ${timeRemaining < 300 ? "bg-red-900 text-red-300" : "bg-gray-700 text-gray-300"}`}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded ${!isUntimed && timeRemaining < 300 ? "bg-red-900 text-red-300" : "bg-gray-700 text-gray-300"}`}
             >
               <Clock className="w-5 h-5" />
               <span className="font-mono font-bold">
-                {formatTime(timeRemaining)}
+                {isUntimed ? "No time limit" : formatTime(timeRemaining)}
               </span>
             </div>
             <button
-              onClick={handleExit}
+              onClick={requestExit}
               className="p-2 hover:bg-gray-700 rounded-lg transition-colors"
               title="Exit Exam"
             >
@@ -890,6 +991,18 @@ export function ExamWorkspace({
           )}
         </div>
       </div>
+
+      {/* Last child of this overlay, so the modal's own z-50 layer stacks
+          inside the overlay, above the exam card. */}
+      <ConfirmModal
+        isOpen={confirmingExit}
+        title="Leave exam?"
+        message="Your answers so far will be discarded and this attempt will not be scored."
+        confirmLabel="Leave exam"
+        cancelLabel="Keep going"
+        onConfirm={handleExit}
+        onCancel={() => setConfirmingExit(false)}
+      />
     </div>
   );
 }

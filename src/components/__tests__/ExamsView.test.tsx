@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import type { GauntletAttempt } from "@/store/learningStore";
 
 // Mock Zustand stores
 const mockLearningState = {
   examAttempts: [],
-  gauntletAttempts: [],
+  gauntletAttempts: [] as GauntletAttempt[],
   currentStreak: 0,
   totalStudyTimeSeconds: 0,
   domainProgress: {
@@ -73,6 +74,7 @@ function defaultProps() {
 describe("ExamsView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLearningState.gauntletAttempts = [];
   });
 
   it("renders without crashing", () => {
@@ -91,16 +93,13 @@ describe("ExamsView", () => {
     expect(screen.getByTestId("domain-performance-grid")).toBeInTheDocument();
   });
 
-  it("renders 5 exam mode cards", () => {
+  it("renders 4 exam mode cards", () => {
     const props = defaultProps();
     render(<ExamsView {...props} />);
     expect(
       screen.getByTestId("exam-mode-card-full-practice"),
     ).toBeInTheDocument();
     expect(screen.getByTestId("exam-mode-card-quick-quiz")).toBeInTheDocument();
-    expect(
-      screen.getByTestId("exam-mode-card-exam-gauntlet"),
-    ).toBeInTheDocument();
     expect(
       screen.getByTestId("exam-mode-card-weak-area-focus"),
     ).toBeInTheDocument();
@@ -141,13 +140,31 @@ describe("ExamsView", () => {
     expect(props.onBeginExam).toHaveBeenCalledWith("full-practice");
   });
 
-  it("calls onOpenExamGauntlet when gauntlet card launched", () => {
+  it("does not offer the Exam Gauntlet", () => {
     const props = defaultProps();
     render(<ExamsView {...props} />);
-    const card = screen.getByTestId("exam-mode-card-exam-gauntlet");
-    const btn = card.querySelector("button")!;
-    fireEvent.click(btn);
-    expect(props.onOpenExamGauntlet).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("exam-mode-card-exam-gauntlet")).toBeNull();
+    expect(screen.queryByText(/DCA certification/)).toBeNull();
+  });
+
+  it("renders with gauntlet attempts in history", () => {
+    // A learner who already has a failed (0 %) gauntlet attempt on record
+    mockLearningState.gauntletAttempts = [
+      {
+        timestamp: Date.now(),
+        score: 0,
+        totalQuestions: 10,
+        timeSpentSeconds: 120,
+        domainBreakdown: {},
+      },
+    ];
+    const props = defaultProps();
+    render(<ExamsView {...props} />);
+    expect(
+      screen.getByTestId("exam-mode-card-full-practice"),
+    ).toBeInTheDocument();
+    // The seeded attempt reached the view: history is no longer empty
+    expect(screen.queryByTestId("empty-history")).toBeNull();
   });
 
   it("calls onOpenToolQuiz with familyId when tool quiz card clicked", () => {

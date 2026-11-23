@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useLearningStore, type GauntletAttempt } from "../learningStore";
+import { calculateExamScore } from "@/utils/examEngine";
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -474,6 +475,31 @@ describe("Learning Store", () => {
 
       const state = useLearningStore.getState();
       expect(state.examAttempts.length).toBe(20);
+    });
+
+    it("stamps an attempt with the time it was recorded", () => {
+      const recordedAt = Date.UTC(2026, 10, 23, 12);
+      const now = vi.spyOn(Date, "now").mockReturnValue(recordedAt);
+
+      useLearningStore.getState().addExamAttempt(calculateExamScore([], {}));
+      now.mockRestore();
+
+      expect(useLearningStore.getState().examAttempts[0].timestamp).toBe(
+        recordedAt,
+      );
+    });
+
+    it("stamps a new attempt later than a stored one the clock has not reached", () => {
+      // An attempt merged in from a device whose clock runs ahead of this one
+      const ahead = Date.now() + 60_000;
+      useLearningStore.setState({
+        examAttempts: [{ ...calculateExamScore([], {}), timestamp: ahead }],
+      });
+
+      useLearningStore.getState().addExamAttempt(calculateExamScore([], {}));
+
+      const [, added] = useLearningStore.getState().examAttempts;
+      expect(added.timestamp).toBe(ahead + 1);
     });
   });
 

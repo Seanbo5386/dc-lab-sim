@@ -2,11 +2,11 @@
  * Tests for useFocusTrap hook (WCAG 2.1.2 compliance)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook } from '@testing-library/react';
-import { useFocusTrap } from '../useFocusTrap';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { renderHook } from "@testing-library/react";
+import { useFocusTrap } from "../useFocusTrap";
 
-describe('useFocusTrap', () => {
+describe("useFocusTrap", () => {
   let container: HTMLDivElement;
   let button1: HTMLButtonElement;
   let button2: HTMLButtonElement;
@@ -14,20 +14,20 @@ describe('useFocusTrap', () => {
 
   beforeEach(() => {
     // Create a container with focusable elements
-    container = document.createElement('div');
-    container.id = 'modal-container';
+    container = document.createElement("div");
+    container.id = "modal-container";
 
-    button1 = document.createElement('button');
-    button1.id = 'button1';
-    button1.textContent = 'First';
+    button1 = document.createElement("button");
+    button1.id = "button1";
+    button1.textContent = "First";
 
-    button2 = document.createElement('button');
-    button2.id = 'button2';
-    button2.textContent = 'Second';
+    button2 = document.createElement("button");
+    button2.id = "button2";
+    button2.textContent = "Second";
 
-    button3 = document.createElement('button');
-    button3.id = 'button3';
-    button3.textContent = 'Third';
+    button3 = document.createElement("button");
+    button3.id = "button3";
+    button3.textContent = "Third";
 
     container.appendChild(button1);
     container.appendChild(button2);
@@ -36,21 +36,19 @@ describe('useFocusTrap', () => {
   });
 
   afterEach(() => {
-    document.body.innerHTML = '';
+    document.body.innerHTML = "";
     vi.clearAllMocks();
   });
 
-  it('calls onEscape when Escape key is pressed', () => {
+  it("calls onEscape when Escape key is pressed", () => {
     const onEscape = vi.fn();
     const containerRef = { current: container };
 
-    renderHook(() =>
-      useFocusTrap(containerRef, { isActive: true, onEscape })
-    );
+    renderHook(() => useFocusTrap(containerRef, { isActive: true, onEscape }));
 
     // Simulate Escape key press
-    const escapeEvent = new KeyboardEvent('keydown', {
-      key: 'Escape',
+    const escapeEvent = new KeyboardEvent("keydown", {
+      key: "Escape",
       bubbles: true,
     });
     document.dispatchEvent(escapeEvent);
@@ -58,17 +56,15 @@ describe('useFocusTrap', () => {
     expect(onEscape).toHaveBeenCalledTimes(1);
   });
 
-  it('does not call onEscape when trap is not active', () => {
+  it("does not call onEscape when trap is not active", () => {
     const onEscape = vi.fn();
     const containerRef = { current: container };
 
-    renderHook(() =>
-      useFocusTrap(containerRef, { isActive: false, onEscape })
-    );
+    renderHook(() => useFocusTrap(containerRef, { isActive: false, onEscape }));
 
     // Simulate Escape key press
-    const escapeEvent = new KeyboardEvent('keydown', {
-      key: 'Escape',
+    const escapeEvent = new KeyboardEvent("keydown", {
+      key: "Escape",
       bubbles: true,
     });
     document.dispatchEvent(escapeEvent);
@@ -76,19 +72,17 @@ describe('useFocusTrap', () => {
     expect(onEscape).not.toHaveBeenCalled();
   });
 
-  it('cycles Tab through focusable elements - forward', () => {
+  it("cycles Tab through focusable elements - forward", () => {
     const containerRef = { current: container };
 
-    renderHook(() =>
-      useFocusTrap(containerRef, { isActive: true })
-    );
+    renderHook(() => useFocusTrap(containerRef, { isActive: true }));
 
     // Focus should start on first button
     expect(document.activeElement).toBe(button1);
 
     // Tab to second button
-    const tabEvent1 = new KeyboardEvent('keydown', {
-      key: 'Tab',
+    const tabEvent1 = new KeyboardEvent("keydown", {
+      key: "Tab",
       bubbles: true,
     });
     document.dispatchEvent(tabEvent1);
@@ -98,8 +92,8 @@ describe('useFocusTrap', () => {
     expect(document.activeElement).toBe(button3);
 
     // Tab from last element should wrap to first
-    const tabEvent2 = new KeyboardEvent('keydown', {
-      key: 'Tab',
+    const tabEvent2 = new KeyboardEvent("keydown", {
+      key: "Tab",
       bubbles: true,
     });
     document.dispatchEvent(tabEvent2);
@@ -107,19 +101,17 @@ describe('useFocusTrap', () => {
     expect(document.activeElement).toBe(button1);
   });
 
-  it('cycles Tab through focusable elements - backward with Shift+Tab', () => {
+  it("cycles Tab through focusable elements - backward with Shift+Tab", () => {
     const containerRef = { current: container };
 
-    renderHook(() =>
-      useFocusTrap(containerRef, { isActive: true })
-    );
+    renderHook(() => useFocusTrap(containerRef, { isActive: true }));
 
     // Focus should start on first button
     expect(document.activeElement).toBe(button1);
 
     // Shift+Tab from first element should wrap to last
-    const shiftTabEvent = new KeyboardEvent('keydown', {
-      key: 'Tab',
+    const shiftTabEvent = new KeyboardEvent("keydown", {
+      key: "Tab",
       shiftKey: true,
       bubbles: true,
     });
@@ -128,34 +120,32 @@ describe('useFocusTrap', () => {
     expect(document.activeElement).toBe(button3);
   });
 
-  it('focuses the first focusable element when activated', () => {
+  it("focuses the first focusable element when activated", () => {
     const containerRef = { current: container };
 
     // Focus something outside the container first
-    const outsideButton = document.createElement('button');
+    const outsideButton = document.createElement("button");
     document.body.appendChild(outsideButton);
     outsideButton.focus();
 
-    renderHook(() =>
-      useFocusTrap(containerRef, { isActive: true })
-    );
+    renderHook(() => useFocusTrap(containerRef, { isActive: true }));
 
     expect(document.activeElement).toBe(button1);
   });
 
-  it('restores focus to previously focused element on cleanup', () => {
+  it("restores focus to previously focused element on cleanup", () => {
     const containerRef = { current: container };
 
     // Create and focus an element outside the container
-    const outsideButton = document.createElement('button');
-    outsideButton.id = 'outside-button';
+    const outsideButton = document.createElement("button");
+    outsideButton.id = "outside-button";
     document.body.appendChild(outsideButton);
     outsideButton.focus();
 
     expect(document.activeElement).toBe(outsideButton);
 
     const { unmount } = renderHook(() =>
-      useFocusTrap(containerRef, { isActive: true })
+      useFocusTrap(containerRef, { isActive: true }),
     );
 
     // Focus should now be inside the container
@@ -168,63 +158,57 @@ describe('useFocusTrap', () => {
     expect(document.activeElement).toBe(outsideButton);
   });
 
-  it('handles container with no focusable elements', () => {
-    const emptyContainer = document.createElement('div');
-    emptyContainer.id = 'empty-container';
+  it("handles container with no focusable elements", () => {
+    const emptyContainer = document.createElement("div");
+    emptyContainer.id = "empty-container";
     document.body.appendChild(emptyContainer);
 
     const containerRef = { current: emptyContainer };
 
     // Should not throw
     expect(() => {
-      renderHook(() =>
-        useFocusTrap(containerRef, { isActive: true })
-      );
+      renderHook(() => useFocusTrap(containerRef, { isActive: true }));
     }).not.toThrow();
 
     // Container itself should get focus
     expect(document.activeElement).toBe(emptyContainer);
-    expect(emptyContainer.getAttribute('tabindex')).toBe('-1');
+    expect(emptyContainer.getAttribute("tabindex")).toBe("-1");
   });
 
-  it('does not affect focus when trap is inactive', () => {
+  it("does not affect focus when trap is inactive", () => {
     const containerRef = { current: container };
 
     // Focus an element outside
-    const outsideButton = document.createElement('button');
+    const outsideButton = document.createElement("button");
     document.body.appendChild(outsideButton);
     outsideButton.focus();
 
-    renderHook(() =>
-      useFocusTrap(containerRef, { isActive: false })
-    );
+    renderHook(() => useFocusTrap(containerRef, { isActive: false }));
 
     // Focus should remain outside
     expect(document.activeElement).toBe(outsideButton);
   });
 
-  it('handles null container ref gracefully', () => {
+  it("handles null container ref gracefully", () => {
     const containerRef = { current: null };
 
     // Should not throw
     expect(() => {
-      renderHook(() =>
-        useFocusTrap(containerRef, { isActive: true })
-      );
+      renderHook(() => useFocusTrap(containerRef, { isActive: true }));
     }).not.toThrow();
   });
 
-  it('re-activates when isActive changes from false to true', () => {
+  it("re-activates when isActive changes from false to true", () => {
     const containerRef = { current: container };
 
     // Focus outside
-    const outsideButton = document.createElement('button');
+    const outsideButton = document.createElement("button");
     document.body.appendChild(outsideButton);
     outsideButton.focus();
 
     const { rerender } = renderHook(
       ({ isActive }) => useFocusTrap(containerRef, { isActive }),
-      { initialProps: { isActive: false } }
+      { initialProps: { isActive: false } },
     );
 
     // Focus should still be outside
@@ -235,5 +219,45 @@ describe('useFocusTrap', () => {
 
     // Focus should move to first element in container
     expect(document.activeElement).toBe(button1);
+  });
+
+  it("keeps focus where the user put it when the parent re-renders with a new onEscape", () => {
+    const container = document.createElement("div");
+    container.innerHTML = '<button id="a">A</button><button id="b">B</button>';
+    document.body.appendChild(container);
+    const ref = { current: container };
+
+    const { rerender } = renderHook(
+      ({ onEscape }: { onEscape: () => void }) =>
+        useFocusTrap(ref, { isActive: true, onEscape }),
+      { initialProps: { onEscape: () => {} } },
+    );
+    (container.querySelector("#b") as HTMLButtonElement).focus();
+
+    rerender({ onEscape: () => {} });
+
+    expect(document.activeElement?.id).toBe("b");
+    container.remove();
+  });
+
+  it("calls the most recent onEscape", () => {
+    const container = document.createElement("div");
+    container.innerHTML = "<button>A</button>";
+    document.body.appendChild(container);
+    const ref = { current: container };
+    const first = vi.fn();
+    const second = vi.fn();
+
+    const { rerender } = renderHook(
+      ({ onEscape }: { onEscape: () => void }) =>
+        useFocusTrap(ref, { isActive: true, onEscape }),
+      { initialProps: { onEscape: first } },
+    );
+    rerender({ onEscape: second });
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
+    container.remove();
   });
 });

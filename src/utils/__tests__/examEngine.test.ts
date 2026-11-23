@@ -11,7 +11,12 @@ import {
   selectQuestionsForMode,
   createExamConfig,
   getIncorrectQuestionIds,
+  isWellFormedExamAttempt,
+  getOutstandingIncorrectQuestionIds,
   getWeakDomainsFromHistory,
+  getExamAttemptTime,
+  sortExamAttemptsOldestFirst,
+  nextExamAttemptTime,
   formatTime,
   getEstimatedTimePerQuestion,
 } from "../examEngine";
@@ -566,6 +571,268 @@ describe("Exam Engine - Exam Modes", () => {
     });
   });
 
+  describe("isWellFormedExamAttempt", () => {
+    it("accepts a breakdown as the scorer produces it", () => {
+      const breakdown = calculateExamScore(createSampleQuestions(), {
+        q1: 0,
+        q2: 0,
+      });
+
+      expect(isWellFormedExamAttempt(breakdown)).toBe(true);
+    });
+
+    it.each<[string, unknown]>([
+      ["null", null],
+      ["undefined", undefined],
+      ["a string", "attempt"],
+      ["an empty object", {}],
+      ["an attempt with no byDomain", { questionResults: [] }],
+      ["an attempt with no questionResults", { byDomain: {} }],
+      [
+        "questionResults that is not an array",
+        { questionResults: "x", byDomain: {} },
+      ],
+      ["a null byDomain", { questionResults: [], byDomain: null }],
+    ])("rejects %s", (_description, value) => {
+      expect(isWellFormedExamAttempt(value)).toBe(false);
+    });
+
+    // The entries inside the two fields are what the history functions
+    // dereference, so one bad entry makes the whole attempt unreadable.
+    const scoredAttempt = () =>
+      calculateExamScore(createSampleQuestions(), { q1: 0, q2: 0 });
+
+    it.each<[string, (attempt: ExamBreakdown) => unknown]>([
+      [
+        "a null question result",
+        (attempt) => ({ ...attempt, questionResults: [null] }),
+      ],
+      [
+        "a question result with no id",
+        (attempt) => ({ ...attempt, questionResults: [{ correct: false }] }),
+      ],
+      [
+        "a question result whose outcome is not a boolean",
+        (attempt) => ({
+          ...attempt,
+          questionResults: [{ questionId: "q1", correct: "no" }],
+        }),
+      ],
+      [
+        "a null domain entry",
+        (attempt) => ({
+          ...attempt,
+          byDomain: { ...attempt.byDomain, domain3: null },
+        }),
+      ],
+      [
+        "a missing domain",
+        (attempt) => ({
+          ...attempt,
+          byDomain: Object.fromEntries(
+            Object.entries(attempt.byDomain).filter(
+              ([domain]) => domain !== "domain5",
+            ),
+          ),
+        }),
+      ],
+      [
+        "a domain count that is not a number",
+        (attempt) => ({
+          ...attempt,
+          byDomain: {
+            ...attempt.byDomain,
+            domain2: { ...attempt.byDomain.domain2, questionsTotal: "5" },
+          },
+        }),
+      ],
+    ])("rejects an attempt with %s", (_description, corrupt) => {
+      expect(isWellFormedExamAttempt(corrupt(scoredAttempt()))).toBe(false);
+    });
+
+    it("accepts an attempt whose byDomain has a key it does not know", () => {
+      const attempt = scoredAttempt();
+
+      expect(
+        isWellFormedExamAttempt({
+          ...attempt,
+          byDomain: { ...attempt.byDomain, domain9: attempt.byDomain.domain1 },
+        }),
+      ).toBe(true);
+    });
+  });
+
+  // The exam workspace filters stored history through the guard and hands what
+  // is left to both history functions while it builds every exam mode, so
+  // anything the guard lets through must be safe for both.
+  describe("history read from stored attempts", () => {
+    const scoredAttempt = () =>
+      calculateExamScore(createSampleQuestions(), { q1: 0, q2: 0 });
+
+    it.each<[string, () => unknown]>([
+      [
+        "a null question result",
+        () => ({ questionResults: [null], byDomain: {} }),
+      ],
+      [
+        "a null domain entry",
+        () => ({ questionResults: [], byDomain: { domain1: null } }),
+      ],
+      [
+        "a domain key outside the blueprint",
+        () => {
+          const attempt = scoredAttempt();
+          return {
+            ...attempt,
+            byDomain: {
+              ...attempt.byDomain,
+              domain9: attempt.byDomain.domain1,
+            },
+          };
+        },
+      ],
+    ])("does not throw on an attempt with %s", (_description, stored) => {
+      const history = [stored()].filter(isWellFormedExamAttempt);
+
+      expect(() => {
+        getOutstandingIncorrectQuestionIds(history);
+        getWeakDomainsFromHistory(history);
+      }).not.toThrow();
+    });
+  });
+
+  describe("getExamAttemptTime", () => {
+    it("returns the attempt's timestamp", () => {
+      expect(getExamAttemptTime({ timestamp: 1_700_000_000_000 })).toBe(
+        1_700_000_000_000,
+      );
+    });
+
+    it.each<[string, unknown]>([
+      ["an attempt stored before attempts were timestamped", {}],
+      ["a timestamp that is not a number", { timestamp: "2026-11-23" }],
+      ["a timestamp that is not finite", { timestamp: NaN }],
+      ["a value that is not an object", null],
+    ])("returns 0 for %s", (_description, attempt) => {
+      expect(getExamAttemptTime(attempt)).toBe(0);
+    });
+  });
+
+  describe("sortExamAttemptsOldestFirst", () => {
+    it("orders attempts by timestamp", () => {
+      const sorted = sortExamAttemptsOldestFirst([
+        { timestamp: 3000 },
+        { timestamp: 1000 },
+        { timestamp: 2000 },
+      ]);
+
+      expect(sorted.map((attempt) => attempt.timestamp)).toEqual([
+        1000, 2000, 3000,
+      ]);
+    });
+
+    it("puts attempts with no timestamp first, in the order given", () => {
+      const sorted = sortExamAttemptsOldestFirst([
+        { id: "stamped", timestamp: 1000 },
+        { id: "unstamped-a" },
+        { id: "unstamped-b" },
+      ]);
+
+      expect(sorted.map((attempt) => attempt.id)).toEqual([
+        "unstamped-a",
+        "unstamped-b",
+        "stamped",
+      ]);
+    });
+
+    it("leaves the list it was given untouched", () => {
+      const attempts = [{ timestamp: 2000 }, { timestamp: 1000 }];
+
+      sortExamAttemptsOldestFirst(attempts);
+
+      expect(attempts.map((attempt) => attempt.timestamp)).toEqual([
+        2000, 1000,
+      ]);
+    });
+  });
+
+  describe("nextExamAttemptTime", () => {
+    it("is the current time when there is no history", () => {
+      expect(nextExamAttemptTime([], 5000)).toBe(5000);
+    });
+
+    it("is the current time when every stored attempt is earlier", () => {
+      expect(nextExamAttemptTime([{ timestamp: 1000 }, {}], 5000)).toBe(5000);
+    });
+
+    it("is just after the latest stored attempt when the clock reads earlier", () => {
+      expect(
+        nextExamAttemptTime([{ timestamp: 9000 }, { timestamp: 7000 }], 5000),
+      ).toBe(9001);
+    });
+  });
+
+  describe("getOutstandingIncorrectQuestionIds", () => {
+    const attempt = (results: Array<[string, boolean]>) =>
+      ({
+        questionResults: results.map(([questionId, correct]) => ({
+          questionId,
+          correct,
+          userAnswer: 0,
+          correctAnswer: 0,
+          points: 1,
+        })),
+      }) as unknown as ExamBreakdown;
+
+    it("returns nothing for no history", () => {
+      expect(getOutstandingIncorrectQuestionIds([])).toEqual([]);
+    });
+
+    it("returns questions missed in the latest attempt that saw them", () => {
+      expect(
+        getOutstandingIncorrectQuestionIds([
+          attempt([
+            ["q1", false],
+            ["q2", true],
+          ]),
+        ]),
+      ).toEqual(["q1"]);
+    });
+
+    it("drops a question once it is later answered correctly", () => {
+      expect(
+        getOutstandingIncorrectQuestionIds([
+          attempt([["q1", false]]),
+          attempt([["q1", true]]),
+        ]),
+      ).toEqual([]);
+    });
+
+    it("re-adds a question missed again later", () => {
+      expect(
+        getOutstandingIncorrectQuestionIds([
+          attempt([["q1", true]]),
+          attempt([["q1", false]]),
+        ]),
+      ).toEqual(["q1"]);
+    });
+
+    it("lists questions in the order they were first seen", () => {
+      expect(
+        getOutstandingIncorrectQuestionIds([
+          attempt([
+            ["q3", false],
+            ["q1", true],
+          ]),
+          attempt([
+            ["q2", false],
+            ["q1", false],
+          ]),
+        ]),
+      ).toEqual(["q3", "q1", "q2"]);
+    });
+  });
+
   describe("getWeakDomainsFromHistory", () => {
     it("should identify weak domains from multiple exams", () => {
       const breakdowns: ExamBreakdown[] = [
@@ -720,6 +987,19 @@ describe("Exam Engine - Exam Modes", () => {
 
       // domain1: (5+9)/(10+10) = 70%, should NOT be weak
       expect(weakDomains).not.toContain("domain1");
+    });
+
+    it("ignores a domain key outside the blueprint", () => {
+      // q1 right, q2 wrong: domain1 scores 50%
+      const attempt = calculateExamScore(createSampleQuestions(), { q1: 0 });
+      const withUnknownDomain = {
+        ...attempt,
+        byDomain: { ...attempt.byDomain, domain9: attempt.byDomain.domain1 },
+      } as ExamBreakdown;
+
+      expect(getWeakDomainsFromHistory([withUnknownDomain])).toContain(
+        "domain1",
+      );
     });
   });
 

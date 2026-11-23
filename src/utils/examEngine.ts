@@ -225,6 +225,128 @@ export function getIncorrectQuestionIds(breakdown: ExamBreakdown): string[] {
     .map((r) => r.questionId);
 }
 
+const EXAM_DOMAIN_IDS = Object.keys(DOMAIN_INFO) as DomainId[];
+
+function isQuestionOutcome(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+
+  const result = value as { questionId?: unknown; correct?: unknown };
+
+  return (
+    typeof result.questionId === "string" && typeof result.correct === "boolean"
+  );
+}
+
+function isDomainTally(value: unknown): boolean {
+  if (typeof value !== "object" || value === null) return false;
+
+  const tally = value as {
+    questionsTotal?: unknown;
+    questionsCorrect?: unknown;
+  };
+
+  return (
+    Number.isFinite(tally.questionsTotal) &&
+    Number.isFinite(tally.questionsCorrect)
+  );
+}
+
+/**
+ * Whether a stored attempt holds everything the history functions below read:
+ * an id and an outcome for every question result, and both counts for each of
+ * the five domains. Attempts written by this app always do; ones merged in
+ * from cloud sync are not shape-checked on the way in.
+ */
+export function isWellFormedExamAttempt(
+  value: unknown,
+): value is ExamBreakdown {
+  if (typeof value !== "object" || value === null) return false;
+
+  const attempt = value as { questionResults?: unknown; byDomain?: unknown };
+
+  if (!Array.isArray(attempt.questionResults)) return false;
+  if (typeof attempt.byDomain !== "object" || attempt.byDomain === null) {
+    return false;
+  }
+
+  const byDomain = attempt.byDomain as Record<string, unknown>;
+
+  return (
+    attempt.questionResults.every(isQuestionOutcome) &&
+    EXAM_DOMAIN_IDS.every((domain) => isDomainTally(byDomain[domain]))
+  );
+}
+
+/**
+ * When an attempt was recorded, in ms since the epoch. 0 for an attempt with
+ * no usable timestamp: those were stored before attempts were timestamped, so
+ * they count as older than any attempt that has one.
+ */
+export function getExamAttemptTime(attempt: unknown): number {
+  if (typeof attempt !== "object" || attempt === null) return 0;
+
+  const { timestamp } = attempt as { timestamp?: unknown };
+
+  return typeof timestamp === "number" && Number.isFinite(timestamp)
+    ? timestamp
+    : 0;
+}
+
+/**
+ * A copy of the attempts, oldest first. Attempts with the same time, which
+ * includes all those with none, stay in the order they were given.
+ */
+export function sortExamAttemptsOldestFirst<T>(attempts: T[]): T[] {
+  return [...attempts].sort(
+    (a, b) => getExamAttemptTime(a) - getExamAttemptTime(b),
+  );
+}
+
+/**
+ * The timestamp for an attempt being recorded now: the current time, or just
+ * after the latest stored attempt when the clock reads earlier than that. A
+ * stored attempt can come from a device whose clock runs ahead, and an attempt
+ * recorded here is by definition newer than everything this device has seen.
+ */
+export function nextExamAttemptTime(
+  storedAttempts: unknown[],
+  now: number = Date.now(),
+): number {
+  const latest = storedAttempts.reduce<number>(
+    (max, attempt) => Math.max(max, getExamAttemptTime(attempt)),
+    0,
+  );
+
+  return Math.max(now, latest + 1);
+}
+
+/**
+ * Get questions whose most recent result across a history of attempts (oldest
+ * first) was incorrect. A question answered correctly in a later attempt drops
+ * out; one missed again later comes back. Ids are in first-seen order.
+ *
+ * The stored history is kept oldest first: the learning store appends each
+ * attempt with a timestamp no earlier than the last, and the cloud merge sorts
+ * by that timestamp.
+ */
+export function getOutstandingIncorrectQuestionIds(
+  breakdowns: ExamBreakdown[],
+): string[] {
+  // A Map keeps each id where it was first inserted, so a later result
+  // overwrites the outcome without moving the question.
+  const latestResults = new Map<string, boolean>();
+
+  breakdowns.forEach((breakdown) => {
+    breakdown.questionResults.forEach((result) => {
+      latestResults.set(result.questionId, result.correct);
+    });
+  });
+
+  return [...latestResults]
+    .filter(([, correct]) => !correct)
+    .map(([questionId]) => questionId);
+}
+
 /**
  * Get domains below a threshold score
  */
@@ -242,7 +364,9 @@ export function getWeakDomainsFromHistory(
   };
 
   breakdowns.forEach((breakdown) => {
-    (Object.keys(breakdown.byDomain) as DomainId[]).forEach((domain) => {
+    // The five known domains, not the attempt's own keys: a stored attempt
+    // can carry a key that has no entry in domainScores.
+    EXAM_DOMAIN_IDS.forEach((domain) => {
       const perf = breakdown.byDomain[domain];
       domainScores[domain].total += perf.questionsTotal;
       domainScores[domain].correct += perf.questionsCorrect;

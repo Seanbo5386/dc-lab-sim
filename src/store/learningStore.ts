@@ -7,6 +7,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { DomainId, ExamBreakdown } from "@/types/scenarios";
+import { nextExamAttemptTime } from "@/utils/examEngine";
 
 // ============================================================================
 // TYPES
@@ -384,7 +385,13 @@ export const useLearningStore = create<LearningState>()(
 
       addExamAttempt: (breakdown: ExamBreakdown): void => {
         set((state) => ({
-          examAttempts: [...state.examAttempts.slice(-19), breakdown], // Keep last 20
+          examAttempts: [
+            ...state.examAttempts.slice(-19), // Keep last 20
+            {
+              ...breakdown,
+              timestamp: nextExamAttemptTime(state.examAttempts),
+            },
+          ],
         }));
       },
 
